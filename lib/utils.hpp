@@ -54,6 +54,42 @@ namespace stargazer
         return ret;
     }
 
+    static glm::mat3 cv_to_glm_mat3x3(const cv::Mat &m)
+    {
+        glm::mat3 ret;
+        for (size_t i = 0; i < 3; i++)
+        {
+            for (size_t j = 0; j < 3; j++)
+            {
+                ret[j][i] = m.at<double>(i, j);
+            }
+        }
+        return ret;
+    }
+
+    static glm::mat4 cv_to_glm_mat4x4(const cv::Mat &m)
+    {
+        glm::mat4 ret;
+        for (size_t i = 0; i < 4; i++)
+        {
+            for (size_t j = 0; j < 4; j++)
+            {
+                ret[j][i] = m.at<double>(i, j);
+            }
+        }
+        return ret;
+    }
+
+    static glm::vec3 cv_to_glm_vec3(const cv::Mat &m)
+    {
+        glm::vec3 ret;
+        for (size_t i = 0; i < 3; i++)
+        {
+            ret[i] = m.at<double>(i);
+        }
+        return ret;
+    }
+
     static float distance_sq_line_point(const glm::vec3 &line, const glm::vec2 &point)
     {
         const auto a = line.x;
