@@ -4,7 +4,6 @@
 #include <string>
 #include <fstream>
 #include <opencv2/core.hpp>
-#include <nlohmann/json.hpp>
 #include <yaml-cpp/yaml.h>
 
 void stargazer::get_cv_intrinsic(const camera_intrin_t &intrin, cv::Mat &camera_matrix, cv::Mat &dist_coeffs)
