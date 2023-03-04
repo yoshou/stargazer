@@ -119,15 +119,21 @@ namespace stargazer::reconstruction
     template <typename V, typename F>
     static void dfs(const adj_list_t &adj, std::size_t v, std::vector<std::uint32_t> &visited, V visit, F pred)
     {
+        if (!visit(v))
+        {
+            return;
+        }
+        if (visited[v])
+        {
+            return;
+        }
+
         visited[v] = 1;
         pred(v);
 
         for (auto u : adj[v])
         {
-            if (!visited[u] && visit(u))
-            {
-                dfs(adj, u, visited, visit, pred);
-            }
+            dfs(adj, u, visited, visit, pred);
         }
     }
 
@@ -259,7 +265,6 @@ namespace stargazer::reconstruction
     {
         std::vector<size_t> id(nodes.size(), -1);
         std::vector<std::unordered_set<size_t>> camera_list;
-        int i = 0;
 
         const auto n = adj.size();
         std::vector<std::uint32_t> visited(n, 0);
@@ -271,7 +276,7 @@ namespace stargazer::reconstruction
                 const auto i = camera_list.size();
                 camera_list.push_back(std::unordered_set<size_t>());
 
-                auto visit_func = [&](std::size_t u)
+                auto visit_func = [&, i](std::size_t u)
                 {
                     return camera_list[i].find(nodes[u].camera_idx) == camera_list[i].end();
                 };
@@ -291,9 +296,12 @@ namespace stargazer::reconstruction
         {
             for (std::size_t u : adj[v])
             {
+                assert(id[u] != -1);
+                assert(id[v] != -1);
                 if (id[u] == id[v])
                 {
                     new_adj[v].push_back(u);
+                    new_adj[u].push_back(v);
                 }
             }
         }
