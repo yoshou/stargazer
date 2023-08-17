@@ -1,0 +1,100 @@
+syntax = "proto3";
+
+package stargazer;
+
+enum PortType {
+  PORT_TYPE_ANY = 0;
+  PORT_TYPE_POINT_2D = 1;
+  PORT_TYPE_POINT_3D = 2;
+}
+
+message SensorPort {
+  PortType type = 1;
+  string name = 2;
+}
+
+message EnumerateRequest {
+}
+
+message SensorPortResponse {
+  repeated SensorPort ports = 1;
+}
+
+service Sensor {
+  rpc SubscribeCircle(SubscribeRequest) returns (stream CircleResponse) {}
+  rpc SubscribeObservedSphere(SubscribeRequest) returns (stream ObservedSphereResponse) {}
+  rpc SubscribeSphere(SubscribeRequest) returns (stream SphereResponse) {}
+  rpc SubscribeQuat(SubscribeRequest) returns (stream QuatResponse) {}
+  rpc EnumerateSensorPort(EnumerateRequest) returns (SensorPortResponse) {}
+}
+
+message SubscribeRequest {
+  string name = 1;
+}
+
+message CircleResponse {
+  CircleList circles = 1;
+}
+
+message ObservedSphereResponse {
+  repeated ObservedSphereList sphere_lists = 1;
+}
+
+message SphereResponse {
+  SphereList spheres = 1;
+}
+
+message QuatResponse {
+  QuatList quats = 1;
+}
+
+message Point2D {
+  double x = 1;
+  double y = 2;
+}
+
+message Circle {
+  Point2D point = 1;
+  double radius = 2;
+}
+
+message CircleList {
+  repeated Circle values = 1;
+}
+
+message QuatList {
+  repeated Quat values = 1;
+}
+
+message Point3D {
+  double x = 1;
+  double y = 2;
+  double z = 3;
+}
+
+message Sphere {
+  Point3D point = 1;
+  double radius = 2;
+}
+
+message SphereList {
+  repeated Sphere values = 1;
+}
+
+message Matrix {
+  uint32 rows = 1;
+  uint32 cols = 2;
+  repeated double values = 3 [packed=true];
+}
+
+message Quat {
+  double x = 1;
+  double y = 2;
+  double z = 3;
+  double w = 4;
+}
+
+message ObservedSphereList {
+  repeated Sphere values = 1;
+  Matrix view = 2;
+}
