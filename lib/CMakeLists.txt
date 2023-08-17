@@ -21,7 +21,7 @@ add_dependencies(${PROJECT_NAME}
 )
 
 target_link_libraries(${PROJECT_NAME}
-    ${OpenCV_LIBS}
+    opencv_imgproc
     pthread
     yaml-cpp
     stdc++fs
