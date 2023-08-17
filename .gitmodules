@@ -1,0 +1,3 @@
+[submodule "coalsack"]
+	path = coalsack
+	url = https://github.com/yoshou/coalsack.git
