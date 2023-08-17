@@ -10,10 +10,7 @@
 #include <thread>
 #include <future>
 #include <fstream>
-#include <glm/glm.hpp>
 
-#include "camera_info.hpp"
-#include "correspondance.hpp"
 #include "viewer.hpp"
 
 static constexpr int DEFAULT_SCREEN_WIDTH = 1680;
@@ -111,6 +108,8 @@ void *window_manager::create_window_handle(std::string name, int width, int heig
     auto f = p.get_future();
     auto func = [_p = std::move(p), name, width, height, window]() mutable
     {
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
         auto handle = glfwCreateWindow(width, height, name.c_str(), NULL, NULL);
         glfwSetWindowUserPointer(handle, window);
         glfwSetScrollCallback(handle, mouse_scroll_callback);
