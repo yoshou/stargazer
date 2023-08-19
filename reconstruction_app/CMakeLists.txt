@@ -72,8 +72,6 @@ target_link_libraries(${PROJECT_NAME}
     glfw
     glad::glad
     $<$<NOT:$<BOOL:${WIN32}>>:pthread>
-    lz4::lz4
-    realsense2::realsense2
     Boost::program_options
     libturbojpeg.a
     glog::glog
