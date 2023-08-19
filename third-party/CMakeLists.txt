@@ -2,6 +2,7 @@ if(WIN32)
     set(CMAKE_PREFIX_PATH "${CMAKE_SOURCE_DIR}/third-party/vcpkg/installed/x64-windows")
 else()
     set(CMAKE_PREFIX_PATH "/usr/local/vcpkg/installed/x64-linux")
+    set(Boost_INCLUDE_DIR /usr/local/vcpkg/installed/x64-linux/include)
 endif()
 
 find_package(OpenCV REQUIRED)
