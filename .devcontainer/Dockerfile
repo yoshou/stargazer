@@ -11,23 +11,10 @@ RUN if [ "${REINSTALL_CMAKE_VERSION_FROM_SOURCE}" != "none" ]; then \
     && rm -f /tmp/reinstall-cmake.sh
 
 RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
-    && apt-get -y install --no-install-recommends gfortran bison python3 python3-setuptools libarchive-dev libblas-dev liblapack-dev
+    && apt-get -y install --no-install-recommends gfortran bison python3 python3-setuptools libarchive-dev libblas-dev liblapack-dev \
+    libxinerama-dev libxcursor-dev xorg-dev libglu1-mesa-dev pkg-config
 
-RUN su vscode -c "${VCPKG_ROOT}/vcpkg install boost-program-options boost-asio opencv4[core,sfm] glm eigen3 suitesparse ceres[suitesparse] grpc yaml-cpp"
-
-RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
-    && apt-get -y install --no-install-recommends libxinerama-dev libxcursor-dev xorg-dev libglu1-mesa-dev pkg-config
-    
-RUN su vscode -c "${VCPKG_ROOT}/vcpkg install glfw3 glew glad"
-
-RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
-    && apt-get -y install --no-install-recommends autoconf automake libtool libudev-dev
-    
-RUN su vscode -c "${VCPKG_ROOT}/vcpkg install realsense2"
-    
-RUN su vscode -c "${VCPKG_ROOT}/vcpkg install pcl"
-    
-RUN su vscode -c "${VCPKG_ROOT}/vcpkg install nanoflann nlohmann-json"
+RUN su vscode -c "${VCPKG_ROOT}/vcpkg install boost-program-options boost-asio boost-graph opencv4[core,sfm] glm grpc yaml-cpp glfw3 glad nanoflann nlohmann-json"
 
 ENV PATH $PATH:${VCPKG_ROOT}/installed/x64-linux
 ENV PATH $PATH:${VCPKG_ROOT}/installed/x64-linux/tools/protobuf
