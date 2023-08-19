@@ -527,14 +527,14 @@ struct reconstruction_viewer : public window_base
             ImFontConfig config_words;
             config_words.OversampleV = OVERSAMPLE;
             config_words.OversampleH = OVERSAMPLE;
-            default_font = io.Fonts->AddFontFromFileTTF("../fonts/Roboto/Roboto-Regular.ttf", 14.0f, &config_words, io.Fonts->GetGlyphRangesJapanese());
+            default_font = io.Fonts->AddFontFromFileTTF("../fonts/mplus/fonts/ttf/Mplus2-Regular.ttf", 16.0f, &config_words, io.Fonts->GetGlyphRangesJapanese());
 
             ImFontConfig config_glyphs;
             config_glyphs.MergeMode = true;
             config_glyphs.OversampleV = OVERSAMPLE;
             config_glyphs.OversampleH = OVERSAMPLE;
             default_font = io.Fonts->AddFontFromMemoryCompressedTTF(font_awesome_compressed_data,
-                                                                    font_awesome_compressed_size, 14.f, &config_glyphs, icons_ranges);
+                                                                    font_awesome_compressed_size, 16.f, &config_glyphs, icons_ranges);
         }
         IM_ASSERT(default_font != NULL);
 
@@ -544,14 +544,14 @@ struct reconstruction_viewer : public window_base
             ImFontConfig config_words;
             config_words.OversampleV = OVERSAMPLE;
             config_words.OversampleH = OVERSAMPLE;
-            large_font = io.Fonts->AddFontFromFileTTF("../fonts/Roboto/Roboto-Regular.ttf", 18.0f, &config_words, io.Fonts->GetGlyphRangesJapanese());
+            large_font = io.Fonts->AddFontFromFileTTF("../fonts/mplus/fonts/ttf/Mplus2-Regular.ttf", 20.0f, &config_words, io.Fonts->GetGlyphRangesJapanese());
 
             ImFontConfig config_glyphs;
             config_glyphs.MergeMode = true;
             config_glyphs.OversampleV = OVERSAMPLE;
             config_glyphs.OversampleH = OVERSAMPLE;
             large_font = io.Fonts->AddFontFromMemoryCompressedTTF(font_awesome_compressed_data,
-                                                                  font_awesome_compressed_size, 18.f, &config_glyphs, icons_ranges);
+                                                                  font_awesome_compressed_size, 20.f, &config_glyphs, icons_ranges);
         }
         IM_ASSERT(large_font != NULL);
 
