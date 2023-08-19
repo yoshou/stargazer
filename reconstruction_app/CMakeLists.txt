@@ -1,16 +1,12 @@
 cmake_minimum_required(VERSION 3.8)
 
-include(FetchContent)
-
-project(reconstruction_app)
-
 if(NOT WIN32)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pg")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pg")
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -pg")
 endif()
 
-add_executable(${PROJECT_NAME}
+add_executable(reconstruction_app
     ${CMAKE_CURRENT_LIST_DIR}/viewer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/views.cpp
     ${CMAKE_CURRENT_LIST_DIR}/capture.cpp
@@ -19,27 +15,27 @@ add_executable(${PROJECT_NAME}
     ${CMAKE_CURRENT_LIST_DIR}/viewer_app.cpp
 )
 
-add_dependencies(${PROJECT_NAME}
+add_dependencies(reconstruction_app
     coalsack
     stargazer_sensor_grpc_proto
     stargazer
     libjpeg-turbo
 )
 
-target_include_directories(${PROJECT_NAME} PUBLIC
-    ${CMAKE_BINARY_DIR}/third-party/imgui
-    ${CMAKE_BINARY_DIR}/third-party/imgui/backends
-)
-
-target_link_directories(${PROJECT_NAME} PUBLIC
-    ${CMAKE_BINARY_DIR}/libjpeg-turbo/lib
-)
-
-target_compile_definitions(${PROJECT_NAME}
+target_include_directories(reconstruction_app
     PUBLIC
 )
 
-target_link_libraries(${PROJECT_NAME}
+target_link_directories(reconstruction_app
+    PUBLIC
+    ${CMAKE_BINARY_DIR}/libjpeg-turbo/lib
+)
+
+target_compile_definitions(reconstruction_app
+    PUBLIC
+)
+
+target_link_libraries(reconstruction_app
     stargazer
     stargazer_sensor_grpc_proto
     opencv_imgproc
@@ -63,12 +59,12 @@ target_link_libraries(${PROJECT_NAME}
     imgui::imgui
 )
 
-target_compile_options(${PROJECT_NAME}
+target_compile_options(reconstruction_app
     PRIVATE
     $<$<CXX_COMPILER_ID:Clang>:-Wall -Wextra -Wno-unused-parameter>
     $<$<CONFIG:RELEASE>:-O2>
     $<$<CONFIG:DEBUG>:-g -O0>)
 
-target_sources(${PROJECT_NAME}
+target_sources(reconstruction_app
     PRIVATE
 )

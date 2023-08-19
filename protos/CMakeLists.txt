@@ -1,7 +1,5 @@
 cmake_minimum_required(VERSION 3.5.1)
 
-project(stargazer_sensor_grpc_proto C CXX)
-
 find_program(_PROTOBUF_PROTOC protoc)
 find_program(_GRPC_CPP_PLUGIN_EXECUTABLE grpc_cpp_plugin)
 
