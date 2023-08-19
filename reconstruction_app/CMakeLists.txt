@@ -70,8 +70,7 @@ target_link_libraries(${PROJECT_NAME}
     $<$<NOT:$<BOOL:${WIN32}>>:GLU>
     $<$<NOT:$<BOOL:${WIN32}>>:dl>
     glfw
-    $<$<BOOL:${WIN32}>:GLEW::GLEW>
-    $<$<NOT:$<BOOL:${WIN32}>>:GLEW::GLEW>
+    glad::glad
     $<$<NOT:$<BOOL:${WIN32}>>:pthread>
     lz4::lz4
     realsense2::realsense2

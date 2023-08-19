@@ -6,7 +6,8 @@
 #include <opencv2/imgproc.hpp>
 #include <opencv2/imgcodecs.hpp>
 
-#include <GL/glew.h>
+#include <glad/glad.h>
+#define GLFW_INCLUDE_GLU
 #include <GLFW/glfw3.h>
 
 #include <sstream>
@@ -586,7 +587,7 @@ struct reconstruction_viewer : public window_base
 
     virtual void show() override
     {
-        glewInit();
+        gladLoadGL();
 
         init_gui();
 
