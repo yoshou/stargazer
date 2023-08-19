@@ -2,17 +2,6 @@ cmake_minimum_required(VERSION 3.8)
 
 include(FetchContent)
 
-FetchContent_Declare(imgui
-    PREFIX imgui
-    GIT_REPOSITORY https://github.com/ocornut/imgui
-    GIT_TAG v1.89
-    SOURCE_DIR "${CMAKE_BINARY_DIR}/third-party/imgui"
-)
-
-FetchContent_MakeAvailable(imgui)
-
-find_package(gRPC CONFIG REQUIRED)
-
 project(reconstruction_app)
 
 if(NOT WIN32)
@@ -28,12 +17,6 @@ add_executable(${PROJECT_NAME}
     ${CMAKE_CURRENT_LIST_DIR}/calibration.cpp
     ${CMAKE_CURRENT_LIST_DIR}/reconstruction.cpp
     ${CMAKE_CURRENT_LIST_DIR}/viewer_app.cpp
-    ${CMAKE_BINARY_DIR}/third-party/imgui/imgui.cpp
-    ${CMAKE_BINARY_DIR}/third-party/imgui/imgui_draw.cpp
-    ${CMAKE_BINARY_DIR}/third-party/imgui/imgui_tables.cpp
-    ${CMAKE_BINARY_DIR}/third-party/imgui/imgui_widgets.cpp
-    ${CMAKE_BINARY_DIR}/third-party/imgui/backends/imgui_impl_glfw.cpp
-    ${CMAKE_BINARY_DIR}/third-party/imgui/backends/imgui_impl_opengl3.cpp
 )
 
 add_dependencies(${PROJECT_NAME}
@@ -77,6 +60,7 @@ target_link_libraries(${PROJECT_NAME}
     glog::glog
     ceres
     gRPC::grpc++
+    imgui::imgui
 )
 
 target_compile_options(${PROJECT_NAME}
