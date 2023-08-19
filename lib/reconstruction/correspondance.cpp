@@ -355,12 +355,14 @@ namespace stargazer::reconstruction
     {
         using point_type = glm::vec2;
         using index_type = std::size_t;
+        using distance_type = float;
 
     private:
         typedef nanoflann::KDTreeSingleIndexAdaptor<
             nanoflann::L2_Simple_Adaptor<float, point_cloud_2d>,
             point_cloud_2d,
-            2 /* dim */
+            2, /* dim */
+            index_type
             >
             kd_tree_t;
 
@@ -410,9 +412,24 @@ namespace stargazer::reconstruction
         std::size_t radius_search(const point_type &query_pt, float radius,
                                   std::vector<std::pair<index_type, float>> &result) const
         {
-            nanoflann::SearchParams params;
-            params.sorted = true;
-            return index->radiusSearch(&query_pt[0], radius, result, params);
+#if NANOFLANN_VERSION >= 0x150
+        nanoflann::SearchParameters params;
+        params.sorted = true;
+
+        std::vector<nanoflann::ResultItem<index_type, distance_type>> founds;
+        const auto found_size = index->radiusSearch(&query_pt[0], radius, founds, params);
+
+        for (const auto& found : founds)
+        {
+            result.push_back(std::make_pair(found.first, found.second));
+        }
+
+        return found_size;
+#else
+        nanoflann::SearchParams params;
+        params.sorted = true;
+        return index->radiusSearch(&query_pt[0], radius, result, params);
+#endif
         }
     };
 

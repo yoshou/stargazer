@@ -24,15 +24,7 @@
 		"--runtime=nvidia",
 		"--ipc=host",
 		"--network=br1-network",
-		"--ip=192.168.0.253",
-		"-v",
-		"/dev/:/dev/",
-		"-v",
-		"/run/udev:/run/udev",
-		"-v",
-		"/run/dbus/:/run/dbus",
-		"-v",
-		"/dev/bus/usb:/dev/bus/usb"
+		"--ip=192.168.0.253"
 	],
 
 	"appPort": [

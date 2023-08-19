@@ -26,29 +26,8 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
 RUN su vscode -c "${VCPKG_ROOT}/vcpkg install realsense2"
     
 RUN su vscode -c "${VCPKG_ROOT}/vcpkg install pcl"
-
-WORKDIR /fbxsdk/
-
-RUN curl -L \
-    https://damassets.autodesk.net/content/dam/autodesk/www/adn/fbx/2020-0-1/fbx202001_fbxsdk_linux.tar.gz \
-    -o /tmp/fbx202001_fbxsdk_linux.tar.gz
-
-RUN mkdir -p /fbxsdk/install
-
-RUN tar -zxvf /tmp/fbx202001_fbxsdk_linux.tar.gz -C /tmp
-
-RUN echo "yes\nn" | /tmp/fbx202001_fbxsdk_linux /fbxsdk
-
-RUN rm /tmp/fbx202001_fbxsdk_linux.tar.gz
-RUN rm -rf /tmp/fbx202001_fbxsdk_linux
-
-RUN chmod -R 755 /fbxsdk
-
-RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
-    && apt-get -y install --no-install-recommends python3-pip
-
-RUN pip3 install -U pip \
-    && pip3 install --no-cache-dir numpy
+    
+RUN su vscode -c "${VCPKG_ROOT}/vcpkg install nanoflann nlohmann-json"
 
 ENV PATH $PATH:${VCPKG_ROOT}/installed/x64-linux
 ENV PATH $PATH:${VCPKG_ROOT}/installed/x64-linux/tools/protobuf
