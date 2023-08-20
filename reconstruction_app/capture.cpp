@@ -5,6 +5,7 @@
 #include "ext/graph_proc_jpeg.h"
 #include "ext/graph_proc_cv.h"
 #include "ext/graph_proc_libcamera.h"
+#include "ext/graph_proc_depthai.h"
 
 using namespace coalsack;
 
@@ -137,6 +138,52 @@ public:
             g->add_node(n5);
 
             infra1_marker_output = n5->get_output();
+        }
+    }
+};
+
+class remote_cluster_depthai_color : public remote_cluster
+{
+public:
+    explicit remote_cluster_depthai_color(int fps)
+    {
+        g.reset(new subgraph());
+
+        constexpr int width = 1920;
+        constexpr int height = 1080;
+
+        std::shared_ptr<depthai_color_camera_node> n1(new depthai_color_camera_node());
+
+        n1->set_fps(fps);
+        n1->set_width(width);
+        n1->set_height(height);
+
+        g->add_node(n1);
+
+        std::shared_ptr<fifo_node> n7(new fifo_node());
+        n7->set_input(n1->get_output());
+        g->add_node(n7);
+
+        std::shared_ptr<resize_node> n10(new resize_node());
+        n10->set_input(n7->get_output());
+        n10->set_width(820);
+        n10->set_height(616);
+        g->add_node(n10);
+
+        {
+            std::shared_ptr<fifo_node> n4(new fifo_node());
+            n4->set_input(n10->get_output());
+            g->add_node(n4);
+
+            std::shared_ptr<encode_image_node> n2(new encode_image_node());
+            n2->set_input(n4->get_output());
+            g->add_node(n2);
+
+            std::shared_ptr<p2p_talker_node> n3(new p2p_talker_node());
+            n3->set_input(n2->get_output());
+            g->add_node(n3);
+
+            infra1_output = n3->get_output();
         }
     }
 };
@@ -280,7 +327,6 @@ public:
 
     void run(const cluster_info &info)
     {
-        int fps = 90;
         std::vector<cluster_info> cluster_infos = {info};
 
         std::vector<std::unique_ptr<remote_cluster>> clusters;
@@ -288,7 +334,13 @@ public:
         {
             if (cluster_infos[i].type == cluster_type::raspi)
             {
+                constexpr int fps = 90;
                 clusters.emplace_back(std::make_unique<remote_cluster_raspi>(fps, nullptr));
+            }
+            else if (cluster_infos[i].type == cluster_type::depthai_color)
+            {
+                constexpr int fps = 30;
+                clusters.emplace_back(std::make_unique<remote_cluster_depthai_color>(fps));
             }
         }
 
