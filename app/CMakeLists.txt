@@ -6,7 +6,7 @@ if(NOT WIN32)
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -pg")
 endif()
 
-add_executable(reconstruction_app
+add_executable(stargazer_viewer
     ${CMAKE_CURRENT_LIST_DIR}/viewer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/views.cpp
     ${CMAKE_CURRENT_LIST_DIR}/capture.cpp
@@ -15,27 +15,27 @@ add_executable(reconstruction_app
     ${CMAKE_CURRENT_LIST_DIR}/viewer_app.cpp
 )
 
-add_dependencies(reconstruction_app
+add_dependencies(stargazer_viewer
     coalsack
     stargazer_sensor_grpc_proto
     stargazer
     libjpeg-turbo
 )
 
-target_include_directories(reconstruction_app
+target_include_directories(stargazer_viewer
     PUBLIC
 )
 
-target_link_directories(reconstruction_app
+target_link_directories(stargazer_viewer
     PUBLIC
     ${CMAKE_BINARY_DIR}/libjpeg-turbo/lib
 )
 
-target_compile_definitions(reconstruction_app
+target_compile_definitions(stargazer_viewer
     PUBLIC
 )
 
-target_link_libraries(reconstruction_app
+target_link_libraries(stargazer_viewer
     stargazer
     stargazer_sensor_grpc_proto
     opencv_imgproc
@@ -59,12 +59,12 @@ target_link_libraries(reconstruction_app
     imgui::imgui
 )
 
-target_compile_options(reconstruction_app
+target_compile_options(stargazer_viewer
     PRIVATE
     $<$<CXX_COMPILER_ID:Clang>:-Wall -Wextra -Wno-unused-parameter>
     $<$<CONFIG:RELEASE>:-O2>
     $<$<CONFIG:DEBUG>:-g -O0>)
 
-target_sources(reconstruction_app
+target_sources(stargazer_viewer
     PRIVATE
 )
