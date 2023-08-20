@@ -38,7 +38,7 @@ public:
         // const int height = 864;
 
         std::shared_ptr<libcamera_capture_node> n1(new libcamera_capture_node());
-        n1->set_stream(stream_type::INFRERED);
+        n1->set_stream(stream_type::INFRARED);
         n1->set_option(libcamera_capture_node::option::exposure, 5000);
         n1->set_option(libcamera_capture_node::option::gain, 10);
 
