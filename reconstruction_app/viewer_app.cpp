@@ -137,6 +137,10 @@ struct reconstruction_viewer : public window_base
                 {
                     cluster.type = cluster_type::rs_d435;
                 }
+                else if (type == "depthai_color")
+                {
+                    cluster.type = cluster_type::depthai_color;
+                }
                 else
                 {
                     throw std::runtime_error("Invalid node type");
@@ -727,7 +731,14 @@ struct reconstruction_viewer : public window_base
                         if (stream_it != frame_tile_view_->streams.end())
                         {
                             cv::Mat color_image;
-                            cv::cvtColor(frame, color_image, cv::COLOR_GRAY2RGB);
+                            if (frame.channels() == 1)
+                            {
+                                cv::cvtColor(frame, color_image, cv::COLOR_GRAY2RGB);
+                            }
+                            else if (frame.channels() == 3)
+                            {
+                                cv::cvtColor(frame, color_image, cv::COLOR_BGR2RGB);
+                            }
                             (*stream_it)->texture.upload_image(color_image.cols, color_image.rows, color_image.data, GL_RGB);
                         }
                     }
