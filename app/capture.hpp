@@ -7,10 +7,11 @@
 
 enum class cluster_type
 {
-    rs_d435,
     raspi,
     raspi_color,
     depthai_color,
+    rs_d435,
+    rs_d435_color,
 };
 
 struct cluster_info
