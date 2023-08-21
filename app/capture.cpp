@@ -6,6 +6,7 @@
 #include "ext/graph_proc_cv.h"
 #include "ext/graph_proc_libcamera.h"
 #include "ext/graph_proc_depthai.h"
+#include "ext/graph_proc_rs_d435.h"
 
 using namespace coalsack;
 
@@ -188,6 +189,134 @@ public:
     }
 };
 
+class remote_cluster_rs_d435 : public remote_cluster
+{
+public:
+    explicit remote_cluster_rs_d435(int fps, int exposure, int gain, int laser_power, bool with_image, bool emitter_enabled = true)
+    {
+        constexpr bool with_marker = false;
+
+        g.reset(new subgraph());
+
+        const int width = 640;
+        const int height = 480;
+
+        std::shared_ptr<rs_d435_node> n1(new rs_d435_node());
+        g->add_node(n1);
+
+        std::map<rs2_option_type, float> options = {
+            std::make_pair(rs2_option_type::GLOBAL_TIME_ENABLED, (float)true),
+            std::make_pair(rs2_option_type::EXPOSURE, (float)exposure),
+            std::make_pair(rs2_option_type::GAIN, (float)gain),
+            std::make_pair(rs2_option_type::LASER_POWER, (float)laser_power),
+            std::make_pair(rs2_option_type::EMITTER_ENABLED, (float)emitter_enabled),
+        };
+
+        for (const auto [option, value] : options)
+        {
+            n1->set_option(INFRA1, option, value);
+        }
+
+#if 1
+        std::shared_ptr<fifo_node> n8(new fifo_node());
+        n8->set_input(n1->add_output(INFRA1, width, height, rs2_format_type::Y8, fps));
+        g->add_node(n8);
+
+        auto infra1 = n8->get_output();
+#else
+
+        auto infra1 = n1->add_output(INFRA1, 640, 480, rs2_format_type::Y8, fps);
+#endif
+
+        if (with_image)
+        {
+            std::shared_ptr<encode_image_node> n2(new encode_image_node());
+            n2->set_input(infra1);
+            g->add_node(n2);
+
+            std::shared_ptr<p2p_talker_node> n3(new p2p_talker_node());
+            n3->set_input(n2->get_output());
+            g->add_node(n3);
+
+            infra1_output = n3->get_output();
+        }
+
+        if (with_marker)
+        {
+            auto params = fast_blob_detector_node::blob_detector_params();
+            {
+                params.min_dist_between_blobs = 2;
+                params.step_threshold = 20;
+                params.min_threshold = 80;
+                params.max_threshold = 250;
+
+                params.min_area = 1;
+                params.max_area = 100;
+
+                params.min_circularity = 0.5;
+            }
+
+            std::shared_ptr<fifo_node> n9(new fifo_node());
+            n9->set_input(infra1);
+            g->add_node(n9);
+
+            std::shared_ptr<fast_blob_detector_node> n4(new fast_blob_detector_node());
+            n4->set_input(n9->get_output());
+            n4->set_parameters(params);
+            g->add_node(n4);
+
+            std::shared_ptr<p2p_talker_node> n5(new p2p_talker_node());
+            n5->set_input(n4->get_output());
+            g->add_node(n5);
+
+            infra1_marker_output = n5->get_output();
+        }
+    }
+};
+
+class remote_cluster_rs_d435_color : public remote_cluster
+{
+public:
+    explicit remote_cluster_rs_d435_color(int fps)
+    {
+        constexpr bool with_marker = true;
+
+        g.reset(new subgraph());
+
+        const int width = 1920;
+        const int height = 1080;
+
+        std::shared_ptr<rs_d435_node> n1(new rs_d435_node());
+        g->add_node(n1);
+
+        std::shared_ptr<fifo_node> n7(new fifo_node());
+        n7->set_input(n1->add_output(COLOR, width, height, rs2_format_type::BGR8, fps));
+        g->add_node(n7);
+
+        std::shared_ptr<resize_node> n10(new resize_node());
+        n10->set_input(n7->get_output());
+        n10->set_width(820);
+        n10->set_height(616);
+        g->add_node(n10);
+
+        {
+            std::shared_ptr<fifo_node> n4(new fifo_node());
+            n4->set_input(n10->get_output());
+            g->add_node(n4);
+
+            std::shared_ptr<encode_image_node> n2(new encode_image_node());
+            n2->set_input(n4->get_output());
+            g->add_node(n2);
+
+            std::shared_ptr<p2p_talker_node> n3(new p2p_talker_node());
+            n3->set_input(n2->get_output());
+            g->add_node(n3);
+
+            infra1_output = n3->get_output();
+        }
+    }
+};
+
 class local_server
 {
     asio::io_service io_service;
@@ -341,6 +470,21 @@ public:
             {
                 constexpr int fps = 30;
                 clusters.emplace_back(std::make_unique<remote_cluster_depthai_color>(fps));
+            }
+            else if (cluster_infos[i].type == cluster_type::rs_d435)
+            {
+                constexpr int fps = 90;
+                constexpr int exposure = 5715;
+                constexpr int gain = 248;
+                constexpr int laser_power = 150;
+                constexpr bool with_image = true;
+                constexpr bool emitter_enabled = false;
+                clusters.emplace_back(std::make_unique<remote_cluster_rs_d435>(fps, exposure, gain, laser_power, with_image, emitter_enabled));
+            }
+            else if (cluster_infos[i].type == cluster_type::rs_d435_color)
+            {
+                constexpr int fps = 30;
+                clusters.emplace_back(std::make_unique<remote_cluster_rs_d435_color>(fps));
             }
         }
 
