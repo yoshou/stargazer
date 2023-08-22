@@ -23,15 +23,15 @@ struct cluster_info
     std::string endpoint;
 };
 
-class capture_controller
+class capture_pipeline
 {
     class impl;
 
     std::unique_ptr<impl> pimpl;
 
 public:
-    capture_controller();
-    virtual ~capture_controller();
+    capture_pipeline();
+    virtual ~capture_pipeline();
 
     void run(const cluster_info& info);
     void stop();
@@ -53,16 +53,16 @@ struct marker_frame_data
     uint64_t frame_number;
 };
 
-class sync_capture_controller
+class multiview_capture_pipeline
 {
     class impl;
 
     std::unique_ptr<impl> pimpl;
 
 public:
-    sync_capture_controller();
-    sync_capture_controller(const std::map<std::string, cv::Mat> &masks);
-    virtual ~sync_capture_controller();
+    multiview_capture_pipeline();
+    multiview_capture_pipeline(const std::map<std::string, cv::Mat> &masks);
+    virtual ~multiview_capture_pipeline();
 
     void run(const std::vector<cluster_info> &infos);
     void stop();

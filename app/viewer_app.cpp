@@ -113,8 +113,8 @@ struct reconstruction_viewer : public window_base
     std::shared_ptr<azimuth_elevation> view_controller;
 
     std::vector<cluster_info> cluster_infos;
-    std::map<std::string, std::shared_ptr<capture_controller>> captures;
-    std::shared_ptr<sync_capture_controller> sync_capture;
+    std::map<std::string, std::shared_ptr<capture_pipeline>> captures;
+    std::shared_ptr<multiview_capture_pipeline> multiview_capture;
 
     marker_stream_server marker_server;
     std::unique_ptr<playback_stream> playback;
@@ -171,7 +171,7 @@ struct reconstruction_viewer : public window_base
                     return false;
                 }
 
-                const auto capture = std::make_shared<capture_controller>();
+                const auto capture = std::make_shared<capture_pipeline>();
 
                 try
                 {
@@ -224,7 +224,7 @@ struct reconstruction_viewer : public window_base
                                                                {
             if (is_streaming)
             {
-                if (sync_capture)
+                if (multiview_capture)
                 {
                     return false;
                 }
@@ -245,14 +245,14 @@ struct reconstruction_viewer : public window_base
 
                 if (calibration_panel_view_->is_masking)
                 {
-                    sync_capture.reset(new sync_capture_controller(masks));
+                    multiview_capture.reset(new multiview_capture_pipeline(masks));
                 }
                 else
                 {
-                    sync_capture.reset(new sync_capture_controller());
+                    multiview_capture.reset(new multiview_capture_pipeline());
                 }
 
-                sync_capture->add_marker_received([this](const std::map<std::string, marker_frame_data> &marker_frame)
+                multiview_capture->add_marker_received([this](const std::map<std::string, marker_frame_data> &marker_frame)
                                                   {
                     std::map<std::string, std::vector<stargazer::point_data>> frame;
                     for (const auto &[name, markers] : marker_frame)
@@ -266,7 +266,7 @@ struct reconstruction_viewer : public window_base
                     }
                     marker_server.push_frame(frame); });
 
-                sync_capture->run(infos);
+                multiview_capture->run(infos);
 
                 for (const auto& device : devices)
                 {
@@ -276,8 +276,8 @@ struct reconstruction_viewer : public window_base
             }
             else
             {
-                sync_capture->stop();
-                sync_capture.reset();
+                multiview_capture->stop();
+                multiview_capture.reset();
 
                 for (const auto &device : devices)
                 {
@@ -296,25 +296,25 @@ struct reconstruction_viewer : public window_base
 
         calibration_panel_view_->is_masking_changed.push_back([this](const std::vector<calibration_panel_view::device_info> &devices, bool is_masking)
                                                              {
-            if (!sync_capture)
+            if (!multiview_capture)
             {
                 return false;
             }
             if (is_masking)
             {
-                sync_capture->gen_mask();
-                masks = sync_capture->get_masks();
+                multiview_capture->gen_mask();
+                masks = multiview_capture->get_masks();
             }
             else
             {
-                sync_capture->clear_mask();
+                multiview_capture->clear_mask();
                 masks.clear();
             }
             return true; });
 
         calibration_panel_view_->is_marker_collecting_changed.push_back([this](const std::vector<calibration_panel_view::device_info> &devices, bool is_marker_collecting)
                                                                        {
-            if (!sync_capture)
+            if (!multiview_capture)
             {
                 return false;
             }
@@ -322,14 +322,14 @@ struct reconstruction_viewer : public window_base
             {
                 for (const auto &device : devices)
                 {
-                    sync_capture->enable_marker_collecting(device.name);
+                    multiview_capture->enable_marker_collecting(device.name);
                 }
             }
             else
             {
                 for (const auto &device : devices)
                 {
-                    sync_capture->disable_marker_collecting(device.name);
+                    multiview_capture->disable_marker_collecting(device.name);
                 }
             }
             return true; });
@@ -692,9 +692,9 @@ struct reconstruction_viewer : public window_base
         std::vector<std::map<std::string, marker_frame_data>> marker_frames;
         if (calibration_panel_view_->is_marker_collecting)
         {
-            if (sync_capture)
+            if (multiview_capture)
             {
-                const auto marker_frames = sync_capture->pop_marker_frames();
+                const auto marker_frames = multiview_capture->pop_marker_frames();
 
                 for (const auto &marker_frame : marker_frames)
                 {
@@ -789,9 +789,9 @@ struct reconstruction_viewer : public window_base
             }
             else if (top_bar_view_->view_type == top_bar_view::ViewType::Image)
             {
-                if (sync_capture)
+                if (multiview_capture)
                 {
-                    const auto frames = sync_capture->get_frames();
+                    const auto frames = multiview_capture->get_frames();
                     for (const auto &[name, frame] : frames)
                     {
                         const auto device_name = name;

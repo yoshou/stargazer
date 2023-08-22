@@ -439,7 +439,7 @@ public:
 CEREAL_REGISTER_TYPE(callback_node)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, callback_node)
 
-class capture_controller::impl
+class capture_pipeline::impl
 {
     local_server server;
     asio::io_service io_service;
@@ -600,31 +600,31 @@ public:
     }
 };
 
-capture_controller::capture_controller()
+capture_pipeline::capture_pipeline()
     : pimpl(new impl())
 {
 }
-capture_controller::~capture_controller() = default;
+capture_pipeline::~capture_pipeline() = default;
 
-void capture_controller::run(const cluster_info &info)
+void capture_pipeline::run(const cluster_info &info)
 {
     pimpl->run(info);
 }
 
-void capture_controller::stop()
+void capture_pipeline::stop()
 {
     pimpl->stop();
 }
-cv::Mat capture_controller::get_frame() const
+cv::Mat capture_pipeline::get_frame() const
 {
     return pimpl->get_frame();
 }
 
-void capture_controller::set_mask(cv::Mat mask)
+void capture_pipeline::set_mask(cv::Mat mask)
 {
 }
 
-class sync_capture_controller::impl
+class multiview_capture_pipeline::impl
 {
     local_server server;
     asio::io_service io_service;
@@ -984,60 +984,60 @@ public:
     }
 };
 
-sync_capture_controller::sync_capture_controller()
+multiview_capture_pipeline::multiview_capture_pipeline()
     : pimpl(new impl(std::map<std::string, cv::Mat>()))
 {
 }
-sync_capture_controller::sync_capture_controller(const std::map<std::string, cv::Mat> &masks)
+multiview_capture_pipeline::multiview_capture_pipeline(const std::map<std::string, cv::Mat> &masks)
     : pimpl(new impl(masks))
 {
 }
-sync_capture_controller::~sync_capture_controller() = default;
+multiview_capture_pipeline::~multiview_capture_pipeline() = default;
 
-void sync_capture_controller::run(const std::vector<cluster_info> &infos)
+void multiview_capture_pipeline::run(const std::vector<cluster_info> &infos)
 {
     pimpl->run(infos);
 }
 
-void sync_capture_controller::stop()
+void multiview_capture_pipeline::stop()
 {
     pimpl->stop();
 }
-std::map<std::string, cv::Mat> sync_capture_controller::get_frames() const
+std::map<std::string, cv::Mat> multiview_capture_pipeline::get_frames() const
 {
     return pimpl->get_frames();
 }
-void sync_capture_controller::gen_mask()
+void multiview_capture_pipeline::gen_mask()
 {
     pimpl->gen_mask();
 }
-void sync_capture_controller::clear_mask()
+void multiview_capture_pipeline::clear_mask()
 {
     pimpl->clear_mask();
 }
-std::map<std::string, cv::Mat> sync_capture_controller::get_masks() const
+std::map<std::string, cv::Mat> multiview_capture_pipeline::get_masks() const
 {
     return pimpl->get_masks();
 }
-std::vector<std::map<std::string, marker_frame_data>> sync_capture_controller::pop_marker_frames()
+std::vector<std::map<std::string, marker_frame_data>> multiview_capture_pipeline::pop_marker_frames()
 {
     return pimpl->pop_marker_frames();
 }
 
-void sync_capture_controller::enable_marker_collecting(std::string name)
+void multiview_capture_pipeline::enable_marker_collecting(std::string name)
 {
     pimpl->enable_marker_collecting(name);
 }
-void sync_capture_controller::disable_marker_collecting(std::string name)
+void multiview_capture_pipeline::disable_marker_collecting(std::string name)
 {
     pimpl->disable_marker_collecting(name);
 }
-void sync_capture_controller::add_marker_received(std::function<void(const std::map<std::string, marker_frame_data> &)> f)
+void multiview_capture_pipeline::add_marker_received(std::function<void(const std::map<std::string, marker_frame_data> &)> f)
 {
     pimpl->add_marker_received(f);
 }
 
-void sync_capture_controller::clear_marker_received()
+void multiview_capture_pipeline::clear_marker_received()
 {
     pimpl->clear_marker_received();
 }
