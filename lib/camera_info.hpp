@@ -38,14 +38,12 @@ namespace stargazer
         uint32_t width, height;
     };
 
-    struct rs_d435_camera_module_t
+    struct camera_module_t
     {
-        camera_t infra1;
-        camera_t infra2;
-        camera_t color;
+        std::map<std::string, camera_t> cameras;
     };
 
-    std::map<std::string, rs_d435_camera_module_t> load_camera_params(std::string path);
+    std::map<std::string, camera_module_t> load_camera_params(std::string path);
 
     void get_cv_intrinsic(const camera_intrin_t &intrin, cv::Mat &camera_matrix, cv::Mat &dist_coeffs);
 }
