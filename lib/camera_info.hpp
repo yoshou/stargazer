@@ -45,7 +45,7 @@ namespace stargazer
         camera_t color;
     };
 
-    std::map<std::string, rs_d435_camera_module_t> load_rs_d435_camera_params(std::string path);
+    std::map<std::string, rs_d435_camera_module_t> load_camera_params(std::string path);
 
     void get_cv_intrinsic(const camera_intrin_t &intrin, cv::Mat &camera_matrix, cv::Mat &dist_coeffs);
 }
