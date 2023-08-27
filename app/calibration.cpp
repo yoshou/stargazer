@@ -81,7 +81,7 @@ calibration_model::calibration_model() : detector(std::make_shared<three_point_b
     const auto num_cameras = camera_names.size();
 
     {
-        const auto camera_params = stargazer::load_rs_d435_camera_params("../ir_camera_calib/camera_params.yml");
+        const auto camera_params = stargazer::load_camera_params("../ir_camera_calib/camera_params.yml");
 
         for (std::size_t i = 0; i < camera_names.size(); i++)
         {

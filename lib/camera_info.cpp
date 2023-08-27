@@ -22,7 +22,7 @@ void stargazer::get_cv_intrinsic(const camera_intrin_t &intrin, cv::Mat &camera_
     dist_coeffs.at<double>(4) = intrin.coeffs[4];
 }
 
-std::map<std::string, stargazer::rs_d435_camera_module_t> stargazer::load_rs_d435_camera_params(std::string path)
+std::map<std::string, stargazer::rs_d435_camera_module_t> stargazer::load_camera_params(std::string path)
 {
     std::ifstream ifs;
     ifs.open(path, std::ios::binary | std::ios::in);
