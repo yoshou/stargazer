@@ -22,7 +22,7 @@ void stargazer::get_cv_intrinsic(const camera_intrin_t &intrin, cv::Mat &camera_
     dist_coeffs.at<double>(4) = intrin.coeffs[4];
 }
 
-std::map<std::string, stargazer::rs_d435_camera_module_t> stargazer::load_camera_params(std::string path)
+std::map<std::string, stargazer::camera_module_t> stargazer::load_camera_params(std::string path)
 {
     std::ifstream ifs;
     ifs.open(path, std::ios::binary | std::ios::in);
@@ -35,7 +35,7 @@ std::map<std::string, stargazer::rs_d435_camera_module_t> stargazer::load_camera
 
     const auto doc = YAML::Load(str.c_str());
 
-    std::map<std::string, rs_d435_camera_module_t> result;
+    std::map<std::string, camera_module_t> result;
 
     const auto devices = doc["devices"];
 
@@ -43,7 +43,7 @@ std::map<std::string, stargazer::rs_d435_camera_module_t> stargazer::load_camera
     {
         const auto serial = device["serial"].as<std::string>();
 
-        rs_d435_camera_module_t param;
+        camera_module_t param;
 
         auto extract = [](camera_t &dst, const YAML::Node &doc)
         {
@@ -61,15 +61,15 @@ std::map<std::string, stargazer::rs_d435_camera_module_t> stargazer::load_camera
 
         if (device["infra1"])
         {
-            extract(param.infra1, device["infra1"]);
+            extract(param.cameras["infra1"], device["infra1"]);
         }
         if (device["infra2"])
         {
-            extract(param.infra2, device["infra2"]);
+            extract(param.cameras["infra2"], device["infra2"]);
         }
         if (device["color"])
         {
-            extract(param.color, device["color"]);
+            extract(param.cameras["color"], device["color"]);
         }
 
         result[serial] = param;

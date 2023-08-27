@@ -85,7 +85,7 @@ calibration_model::calibration_model() : detector(std::make_shared<three_point_b
 
         for (std::size_t i = 0; i < camera_names.size(); i++)
         {
-            cameras.insert(std::make_pair(camera_names[i], camera_params.at(camera_ids[i]).infra1));
+            cameras.insert(std::make_pair(camera_names[i], camera_params.at(camera_ids[i]).cameras.at("infra1")));
         }
     }
     assert(cameras.size() == num_cameras);
