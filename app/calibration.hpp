@@ -55,7 +55,7 @@ struct observed_points_t
     std::vector<glm::vec2> points;
 };
 
-class calibration_model
+class calibration
 {
     std::map<std::string, std::vector<observed_points_t>> observed_frames;
     std::map<std::string, size_t> num_frames;
@@ -70,7 +70,7 @@ public:
     std::unordered_map<std::string, stargazer::camera_t> cameras;
     std::unordered_map<std::string, stargazer::camera_t> calibrated_cameras;
 
-    calibration_model();
+    calibration();
 
     size_t get_num_frames(std::string name) const
     {
@@ -91,6 +91,34 @@ public:
     }
 
     void add_frame(const std::map<std::string, std::vector<stargazer::point_data>>& frame);
+
+    void calibrate();
+};
+
+enum class calibration_pattern
+{
+    CHESSBOARD,
+    CIRCLES_GRID,
+    ASYMMETRIC_CIRCLES_GRID,
+};
+
+class intrinsic_calibration
+{
+    std::vector<std::vector<stargazer::point_data>> frames;
+
+public:
+    stargazer::camera_t camera;
+    stargazer::camera_t calibrated_camera;
+    double rms = 0.0;
+    const int image_width = 820;
+    const int image_height = 616;
+
+    size_t get_num_frames() const
+    {
+        return frames.size();
+    }
+
+    void add_frame(const std::vector<stargazer::point_data> &frame);
 
     void calibrate();
 };
