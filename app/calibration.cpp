@@ -8,6 +8,7 @@
 
 #include <unordered_map>
 #include <unordered_set>
+#include <random>
 #include "utils.hpp"
 
 class three_point_bar_calibration_target : public calibration_target
@@ -66,7 +67,7 @@ public:
     }
 };
 
-calibration_model::calibration_model() : detector(std::make_shared<three_point_bar_calibration_target>())
+calibration::calibration() : detector(std::make_shared<three_point_bar_calibration_target>())
 {
     namespace fs = std::experimental::filesystem;
     const std::string prefix = "calibrate";
@@ -97,7 +98,7 @@ calibration_model::calibration_model() : detector(std::make_shared<three_point_b
     }
 }
 
-void calibration_model::add_frame(const std::map<std::string, std::vector<stargazer::point_data>> &frame)
+void calibration::add_frame(const std::map<std::string, std::vector<stargazer::point_data>> &frame)
 {
     for (const auto &p : frame)
     {
@@ -530,7 +531,7 @@ struct snavely_reprojection_error_extrinsic_intrinsic_point
     double observed_y;
 };
 
-void calibration_model::calibrate()
+void calibration::calibrate()
 {
     {
         std::string base_camera_name1;
@@ -781,4 +782,105 @@ void calibration_model::calibrate()
             }
         }
     }
+}
+
+void intrinsic_calibration::add_frame(const std::vector<stargazer::point_data> &frame)
+{
+    frames.push_back(frame);
+}
+
+static void calc_board_corner_positions(cv::Size board_size, cv::Size2f square_size, std::vector<cv::Point3f> &corners)
+{
+    constexpr auto pattern_type = calibration_pattern::CHESSBOARD;
+    constexpr auto use_fisheye = false;
+
+    corners.clear();
+    switch (pattern_type)
+    {
+    case calibration_pattern::CHESSBOARD:
+    case calibration_pattern::CIRCLES_GRID:
+        for (int i = 0; i < board_size.height; ++i)
+        {
+            for (int j = 0; j < board_size.width; ++j)
+            {
+                corners.push_back(cv::Point3f(j * square_size.width, i * square_size.height, 0));
+            }
+        }
+        break;
+    case calibration_pattern::ASYMMETRIC_CIRCLES_GRID:
+        for (int i = 0; i < board_size.height; i++)
+        {
+            for (int j = 0; j < board_size.width; j++)
+            {
+                corners.push_back(cv::Point3f((2 * j + i % 2) * square_size.width, i * square_size.height, 0));
+            }
+        }
+        break;
+    default:
+        break;
+    }
+}
+
+static std::vector<size_t> create_random_indices(size_t size)
+{
+    std::vector<size_t> data(size);
+    for (size_t i = 0; i < size; i++)
+    {
+        data[i] = i;
+    }
+
+    std::random_device seed_gen;
+    std::default_random_engine engine(seed_gen());
+
+    std::shuffle(data.begin(), data.end(), engine);
+
+    return data;
+}
+
+void intrinsic_calibration::calibrate()
+{
+    const auto square_size = cv::Size2f(2.41, 2.4); // TODO: Define as config
+    const auto board_size = cv::Size(10, 7);        // TODO: Define as config
+    const auto image_size = cv::Size(image_width, image_height);
+
+    std::vector<std::vector<cv::Point3f>> object_points;
+    std::vector<std::vector<cv::Point2f>> image_points;
+
+    std::vector<cv::Point3f> object_point;
+    calc_board_corner_positions(board_size, square_size, object_point);
+
+    const auto max_num_frames = 100; // TODO: Define as config
+
+    const auto frame_indices = create_random_indices(std::min(frames.size(), static_cast<size_t>(max_num_frames)));
+
+    for (const auto& frame_index : frame_indices)
+    {
+        const auto& frame = frames.at(frame_index);
+
+        object_points.push_back(object_point);
+
+        std::vector<cv::Point2f> image_point;
+        for (const auto& point : frame)
+        {
+            image_point.push_back(cv::Point2f(point.point.x, point.point.y));
+        }
+
+        image_points.push_back(image_point);
+    }
+
+    std::vector<cv::Mat> rvecs, tvecs;
+    cv::Mat camera_matrix = cv::Mat::eye(3, 3, CV_64F);
+    cv::Mat dist_coeffs = cv::Mat::zeros(8, 1, CV_64F);
+
+    rms = cv::calibrateCamera(object_points, image_points, image_size, camera_matrix, dist_coeffs, rvecs, tvecs);
+
+    calibrated_camera.intrin.fx = camera_matrix.at<double>(0, 0);
+    calibrated_camera.intrin.fy = camera_matrix.at<double>(1, 1);
+    calibrated_camera.intrin.cx = camera_matrix.at<double>(0, 2);
+    calibrated_camera.intrin.cy = camera_matrix.at<double>(1, 2);
+    calibrated_camera.intrin.coeffs[0] = dist_coeffs.at<double>(0);
+    calibrated_camera.intrin.coeffs[1] = dist_coeffs.at<double>(1);
+    calibrated_camera.intrin.coeffs[2] = dist_coeffs.at<double>(2);
+    calibrated_camera.intrin.coeffs[3] = dist_coeffs.at<double>(3);
+    calibrated_camera.intrin.coeffs[4] = dist_coeffs.at<double>(4);
 }

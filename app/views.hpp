@@ -1456,6 +1456,20 @@ public:
     std::vector<std::function<bool(const std::vector<device_info> &, bool)>> is_masking_changed;
     std::vector<std::function<bool(const std::vector<device_info> &, bool)>> on_calibrate;
 
+    int intrinsic_calibration_device_index = 0;
+    int calibration_target_index = 0;
+
+    float fx = 0;
+    float fy = 0;
+    float cx = 0;
+    float cy = 0;
+    float k0 = 0;
+    float k1 = 0;
+    float k2 = 0;
+    float p0 = 0;
+    float p1 = 0;
+    float rms = 0;
+
 private:
     float draw_control_panel(view_context *context)
     {
@@ -1605,30 +1619,10 @@ private:
 
         return device_panel_height;
     }
-    void draw_controls(view_context *context, float panel_height)
+
+    void draw_extrinsic_calibration_control_panel(view_context *context)
     {
         std::vector<std::function<void()>> draw_later;
-
-        auto panel_width = 350;
-        auto header_h = panel_height;
-        ImColor device_header_background_color = title_color;
-        const float left_space = 3.f;
-        const float upper_space = 3.f;
-
-        // if (is_ip_device)
-        header_h += 32;
-
-        // draw controls
-        {
-            auto pos = ImGui::GetCursorPos();
-            const float vertical_space_before_device_control = 10.0f;
-            const float horizontal_space_before_device_control = 3.0f;
-            auto device_panel_pos = ImVec2{pos.x + horizontal_space_before_device_control, pos.y + vertical_space_before_device_control};
-            ImGui::SetCursorPos(device_panel_pos);
-            const float device_panel_height = draw_control_panel(context);
-            ImGui::SetCursorPos({device_panel_pos.x, device_panel_pos.y + device_panel_height});
-        }
-
         {
             auto pos = ImGui::GetCursorPos();
             auto windows_width = ImGui::GetContentRegionMax().x;
@@ -1793,6 +1787,237 @@ private:
         for (const auto &func : draw_later)
         {
             func();
+        }
+    }
+
+    void draw_intrinsic_calibration_control_panel(view_context *context)
+    {
+        const auto panel_width = 350;
+
+        // draw selecting device
+        {
+            std::vector<std::string> intrinsic_calibration_devices;
+            for (const auto& device : devices)
+            {
+                intrinsic_calibration_devices.push_back(device.name);
+            }
+            std::string id = "##intrinsic_calibration_device";
+            std::vector<const char *> intrinsic_calibration_devices_chars = get_string_pointers(intrinsic_calibration_devices);
+
+            const auto pos = ImGui::GetCursorPos();
+            ImGui::PushItemWidth(panel_width - 40);
+            ImGui::PushFont(context->large_font);
+            ImGui::SetCursorPos({pos.x + 10, pos.y});
+            if (ImGui::Combo(id.c_str(), &intrinsic_calibration_device_index, intrinsic_calibration_devices_chars.data(), static_cast<int>(intrinsic_calibration_devices.size())))
+            {
+            }
+            ImGui::SetCursorPos({pos.x, ImGui::GetCursorPos().y});
+            ImGui::PopFont();
+            ImGui::PopItemWidth();
+        }
+
+        std::vector<std::function<void()>> draw_later;
+        {
+            auto& device = devices[intrinsic_calibration_device_index];
+
+            auto pos = ImGui::GetCursorPos();
+            auto windows_width = ImGui::GetContentRegionMax().x;
+
+            auto sensor_top_y = ImGui::GetCursorPosY();
+
+            ImGui::PushStyleColor(ImGuiCol_HeaderHovered, sensor_bg);
+            ImGui::PushStyleColor(ImGuiCol_Text, light_grey);
+            ImGui::PushFont(context->large_font);
+
+            // draw streaming
+            {
+                const auto id = "";
+
+                std::string label = to_string() << "Collect Markers"
+                                                << "##" << id;
+                ImGui::PushStyleColor(ImGuiCol_Header, sensor_bg);
+                ImGui::PushStyleColor(ImGuiCol_HeaderActive, sensor_bg);
+                ImGui::PushStyleColor(ImGuiCol_HeaderHovered, sensor_bg);
+                ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{10, 10});
+                ImGui::PushStyleVar(ImGuiStyleVar_ItemInnerSpacing, {0, 0});
+                
+                {
+                    ImVec2 initial_screen_pos = ImGui::GetCursorScreenPos();
+
+                    auto pos = ImGui::GetCursorPos();
+                    auto windows_width = ImGui::GetContentRegionMax().x;
+
+                    auto sensor_top_y = ImGui::GetCursorPosY();
+                    // ImGui::SetContentRegionWidth(windows_width - 36);
+
+                    ImGui::PopStyleVar();
+                    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{2, 2});
+
+                    // draw streaming
+                    {
+                        draw_later.push_back([pos, windows_width, this, context, &device]()
+                                             {
+                            const auto id = device.name;
+
+                            ImGui::SetCursorPos({windows_width - 35, pos.y + 3});
+                            ImGui_ScopePushFont(context->default_font);
+
+                            ImGui_ScopePushStyleColor(ImGuiCol_Button, sensor_bg);
+                            ImGui_ScopePushStyleColor(ImGuiCol_ButtonHovered, sensor_bg);
+                            ImGui_ScopePushStyleColor(ImGuiCol_ButtonActive, sensor_bg);
+
+                            if (!is_marker_collecting)
+                            {
+                                std::string label = to_string() << "  " << textual_icons::toggle_off << "\noff   ##" << id << ","
+                                                                << "";
+
+                                ImGui_ScopePushStyleColor(ImGuiCol_Text, redish);
+                                ImGui_ScopePushStyleColor(ImGuiCol_TextSelectedBg, redish + 0.1f);
+
+                                if (ImGui::Button(label.c_str(), {30, 30}))
+                                {
+                                    is_marker_collecting = true;
+                                }
+                            }
+                            else
+                            {
+
+                                std::string label = to_string() << "  " << textual_icons::toggle_on << "\n    on##" << id << ","
+                                                                << "";
+                                ImGui_ScopePushStyleColor(ImGuiCol_Text, light_blue);
+                                ImGui_ScopePushStyleColor(ImGuiCol_TextSelectedBg, light_blue + 0.1f);
+
+                                if (ImGui::Button(label.c_str(), {30, 30}))
+                                {
+                                    is_marker_collecting = false;
+                                }
+                            } });
+
+                        {
+                            ImGui::SetCursorPosX(20);
+
+                            ImGui::Text("Num collected makers");
+
+                            ImGui::SameLine();
+                            ImGui::SetCursorPosX(220);
+
+                            const auto screen_pos = ImGui::GetCursorScreenPos();
+                            auto c = ImGui::GetColorU32(ImGuiCol_FrameBg);
+
+                            ImGui::GetWindowDrawList()->AddRectFilled({200, screen_pos.y}, {300, screen_pos.y + 20}, c);
+
+                            ImGui::Text(std::to_string(device.num_points).c_str());
+
+                            ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 2);
+                        }
+
+                        const auto draw_param = [&](const std::string& name, float value)
+                        {
+                            ImGui::SetCursorPosX(20);
+
+                            ImGui::Text(name.c_str());
+
+                            ImGui::SameLine();
+                            ImGui::SetCursorPosX(220);
+
+                            const auto screen_pos = ImGui::GetCursorScreenPos();
+                            auto c = ImGui::GetColorU32(ImGuiCol_FrameBg);
+
+                            ImGui::GetWindowDrawList()->AddRectFilled({200, screen_pos.y}, {300, screen_pos.y + 20}, c);
+
+                            ImGui::Text(std::to_string(value).c_str());
+
+                            ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 2);
+                        };
+
+                        draw_param("rms", rms);
+                        draw_param("fx", fx);
+                        draw_param("fy", fy);
+                        draw_param("cx", cx);
+                        draw_param("cy", cy);
+                        draw_param("k0", k0);
+                        draw_param("k1", k1);
+                        draw_param("k2", k2);
+                        draw_param("p0", p0);
+                        draw_param("p1", p1);
+                    }
+                }
+
+                ImGui::PopStyleVar();
+                ImGui::PopStyleVar();
+                ImGui::PopStyleColor(3);
+            }
+
+            ImGui::PopStyleColor(2);
+            ImGui::PopFont();
+        }
+
+        for (const auto &func : draw_later)
+        {
+            func();
+        }
+    }
+
+    static std::vector<const char *> get_string_pointers(const std::vector<std::string> &vec)
+    {
+        std::vector<const char *> res;
+        for (auto &&s : vec)
+            res.push_back(s.c_str());
+        return res;
+    }
+
+    void draw_controls(view_context *context, float panel_height)
+    {
+        const auto panel_width = 350;
+        auto header_h = panel_height;
+        const ImColor device_header_background_color = title_color;
+        const float left_space = 3.f;
+        const float upper_space = 3.f;
+
+        header_h += 32;
+
+        // draw controls
+        {
+            const auto pos = ImGui::GetCursorPos();
+            const float vertical_space_before_device_control = 10.0f;
+            const float horizontal_space_before_device_control = 3.0f;
+            auto device_panel_pos = ImVec2{pos.x + horizontal_space_before_device_control, pos.y + vertical_space_before_device_control};
+            ImGui::SetCursorPos(device_panel_pos);
+            const float device_panel_height = draw_control_panel(context);
+            ImGui::SetCursorPos({device_panel_pos.x, device_panel_pos.y + device_panel_height});
+        }
+
+        // draw selecting calibration target
+        {
+            std::vector<std::string> calibration_targets = {
+                "Extrinsic parameters",
+                "Intrinsic parameters",
+            };
+            std::string id = "##calibration_target";
+            std::vector<const char *> calibration_targets_chars = get_string_pointers(calibration_targets);
+
+            const auto pos = ImGui::GetCursorPos();
+            ImGui::PushItemWidth(panel_width - 40);
+            ImGui::PushFont(context->large_font);
+            ImGui::SetCursorPos({pos.x + 10, pos.y});
+            if (ImGui::Combo(id.c_str(), &calibration_target_index, calibration_targets_chars.data(), static_cast<int>(calibration_targets.size())))
+            {
+            }
+            ImGui::SetCursorPos({pos.x, ImGui::GetCursorPos().y});
+            ImGui::PopFont();
+            ImGui::PopItemWidth();
+        }
+
+        switch (calibration_target_index)
+        {
+        case 0:
+            draw_extrinsic_calibration_control_panel(context);
+            break;
+        case 1:
+            draw_intrinsic_calibration_control_panel(context);
+            break;
+        default:
+            break;
         }
     }
 

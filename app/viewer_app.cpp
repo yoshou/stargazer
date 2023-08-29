@@ -5,6 +5,7 @@
 #include <opencv2/core.hpp>
 #include <opencv2/imgproc.hpp>
 #include <opencv2/imgcodecs.hpp>
+#include <opencv2/calib3d.hpp>
 
 #include <glad/glad.h>
 #define GLFW_INCLUDE_GLU
@@ -229,58 +230,112 @@ struct reconstruction_viewer : public window_base
                     return false;
                 }
 
-                std::vector<cluster_info> infos;
-
-                for (const auto& device : devices)
+                if (calibration_panel_view_->calibration_target_index == 0)
                 {
+                    std::vector<cluster_info> infos;
+
+                    for (const auto& device : devices)
+                    {
+                        auto found = std::find_if(cluster_infos.begin(), cluster_infos.end(), [device](const auto &x)
+                                                { return x.name == device.name; });
+                        if (found == cluster_infos.end())
+                        {
+                            return false;
+                        }
+                        
+                        infos.push_back(*found);
+                    }
+
+                    if (calibration_panel_view_->is_masking)
+                    {
+                        multiview_capture.reset(new multiview_capture_pipeline(masks));
+                    }
+                    else
+                    {
+                        multiview_capture.reset(new multiview_capture_pipeline());
+                    }
+
+                    multiview_capture->add_marker_received([this](const std::map<std::string, marker_frame_data> &marker_frame)
+                                                    {
+                        std::map<std::string, std::vector<stargazer::point_data>> frame;
+                        for (const auto &[name, markers] : marker_frame)
+                        {
+                            std::vector<stargazer::point_data> points;
+                            for (const auto &marker : markers.markers)
+                            {
+                                points.push_back(stargazer::point_data{glm::vec2(marker.x, marker.y), marker.r, markers.timestamp});
+                            }
+                            frame.insert(std::make_pair(name, points));
+                        }
+                        marker_server.push_frame(frame); });
+
+                    multiview_capture->run(infos);
+
+                    for (const auto& device : devices)
+                    {
+                        const auto stream = std::make_shared<frame_tile_view::stream_info>(device.name, float2{(float)width, (float)height});
+                        frame_tile_view_->streams.push_back(stream);
+                    }
+                }
+                else if (calibration_panel_view_->calibration_target_index == 1)
+                {
+                    const auto& device = devices[calibration_panel_view_->intrinsic_calibration_device_index];
+
                     auto found = std::find_if(cluster_infos.begin(), cluster_infos.end(), [device](const auto &x)
                                               { return x.name == device.name; });
                     if (found == cluster_infos.end())
                     {
                         return false;
                     }
-                    
-                    infos.push_back(*found);
-                }
 
-                if (calibration_panel_view_->is_masking)
-                {
-                    multiview_capture.reset(new multiview_capture_pipeline(masks));
-                }
-                else
-                {
-                    multiview_capture.reset(new multiview_capture_pipeline());
-                }
+                    const auto capture = std::make_shared<capture_pipeline>();
 
-                multiview_capture->add_marker_received([this](const std::map<std::string, marker_frame_data> &marker_frame)
-                                                  {
-                    std::map<std::string, std::vector<stargazer::point_data>> frame;
-                    for (const auto &[name, markers] : marker_frame)
+                    try
                     {
-                        std::vector<stargazer::point_data> points;
-                        for (const auto &marker : markers.markers)
-                        {
-                            points.push_back(stargazer::point_data{glm::vec2(marker.x, marker.y), marker.r, markers.timestamp});
-                        }
-                        frame.insert(std::make_pair(name, points));
+                        capture->run(*found);
                     }
-                    marker_server.push_frame(frame); });
+                    catch (std::exception &e)
+                    {
+                        std::cout << "Failed to start capture: " << e.what() << std::endl;
+                        return false;
+                    }
+                    captures.insert(std::make_pair(device.name, capture));
+                    const int width = 820;
+                    const int height = 616;
 
-                multiview_capture->run(infos);
-
-                for (const auto& device : devices)
-                {
                     const auto stream = std::make_shared<frame_tile_view::stream_info>(device.name, float2{(float)width, (float)height});
                     frame_tile_view_->streams.push_back(stream);
                 }
             }
             else
             {
-                multiview_capture->stop();
-                multiview_capture.reset();
-
-                for (const auto &device : devices)
+                if (calibration_panel_view_->calibration_target_index == 0)
                 {
+                    multiview_capture->stop();
+                    multiview_capture.reset();
+
+                    for (const auto &device : devices)
+                    {
+                        const auto stream_it = std::find_if(frame_tile_view_->streams.begin(), frame_tile_view_->streams.end(), [&](const auto &x)
+                                                            { return x->name == device.name; });
+
+                        if (stream_it != frame_tile_view_->streams.end())
+                        {
+                            frame_tile_view_->streams.erase(stream_it);
+                        }
+                    }
+                }
+                else if (calibration_panel_view_->calibration_target_index == 1)
+                {
+                    const auto &device = devices[calibration_panel_view_->intrinsic_calibration_device_index];
+
+                    auto it = captures.find(device.name);
+                    it->second->stop();
+                    if (it != captures.end())
+                    {
+                        captures.erase(captures.find(device.name));
+                    }
+
                     const auto stream_it = std::find_if(frame_tile_view_->streams.begin(), frame_tile_view_->streams.end(), [&](const auto &x)
                                                         { return x->name == device.name; });
 
@@ -336,13 +391,33 @@ struct reconstruction_viewer : public window_base
 
         calibration_panel_view_->on_calibrate.push_back([this](const std::vector<calibration_panel_view::device_info> &devices, bool on_calibrate)
                                                        {
-            calib.calibrate();
+                                            
+            if (calibration_panel_view_->calibration_target_index == 0)
+            {            
+                calib.calibrate();
 
-            for (const auto&[name, camera] : calib.calibrated_cameras)
-            {
-                marker_server.cameras[name] = camera;
+                for (const auto&[name, camera] : calib.calibrated_cameras)
+                {
+                    marker_server.cameras[name] = camera;
+                }
+                return true;
             }
-            return true; });
+            else if (calibration_panel_view_->calibration_target_index == 1)
+            {
+                intrinsic_calib.calibrate();
+                calibration_panel_view_->fx = intrinsic_calib.calibrated_camera.intrin.fx;
+                calibration_panel_view_->fy = intrinsic_calib.calibrated_camera.intrin.fy;
+                calibration_panel_view_->cx = intrinsic_calib.calibrated_camera.intrin.cx;
+                calibration_panel_view_->cy = intrinsic_calib.calibrated_camera.intrin.cy;
+                calibration_panel_view_->k0 = intrinsic_calib.calibrated_camera.intrin.coeffs[0];
+                calibration_panel_view_->k1 = intrinsic_calib.calibrated_camera.intrin.coeffs[1];
+                calibration_panel_view_->k2 = intrinsic_calib.calibrated_camera.intrin.coeffs[4];
+                calibration_panel_view_->p0 = intrinsic_calib.calibrated_camera.intrin.coeffs[2];
+                calibration_panel_view_->p1 = intrinsic_calib.calibrated_camera.intrin.coeffs[3];
+                calibration_panel_view_->rms = intrinsic_calib.rms;
+                return true;
+            }
+        });
     }
 
     static bool detect_axis(glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::mat4& axis)
@@ -676,7 +751,58 @@ struct reconstruction_viewer : public window_base
         }
     }
 
-    calibration_model calib;
+    static bool detect_calibration_board(cv::Mat frame, std::vector<cv::Point2f>& points)
+    {
+        if (frame.empty())
+        {
+            return false;
+        }
+        constexpr auto calibration_pattern = calibration_pattern::CHESSBOARD;
+        constexpr auto use_fisheye = false;
+
+        const auto board_size = cv::Size(10, 7);
+        const auto win_size = 5;
+
+        int chessboard_flags = cv::CALIB_CB_ADAPTIVE_THRESH | cv::CALIB_CB_NORMALIZE_IMAGE;
+        if (!use_fisheye)
+        {
+            chessboard_flags |= cv::CALIB_CB_FAST_CHECK;
+        }
+
+        bool found = false;
+        switch (calibration_pattern)
+        {
+        case calibration_pattern::CHESSBOARD:
+            found = cv::findChessboardCorners(frame, board_size, points, chessboard_flags);
+            break;
+        case calibration_pattern::CIRCLES_GRID:
+            found = cv::findCirclesGrid(frame, board_size, points);
+            break;
+        case calibration_pattern::ASYMMETRIC_CIRCLES_GRID:
+            found = cv::findCirclesGrid(frame, board_size, points, cv::CALIB_CB_ASYMMETRIC_GRID);
+            break;
+        default:
+            found = false;
+            break;
+        }
+
+        if (found)
+        {
+            if (calibration_pattern == calibration_pattern::CHESSBOARD)
+            {
+                cv::Mat gray;
+                cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
+                cv::cornerSubPix(gray, points, cv::Size(win_size, win_size),
+                                 cv::Size(-1, -1), cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 30, 0.0001));
+            }
+            cv::drawChessboardCorners(frame, board_size, cv::Mat(points), found);
+        }
+
+        return found;
+    }
+
+    calibration calib;
+    intrinsic_calibration intrinsic_calib;
 
     virtual void update() override
     {
@@ -709,6 +835,30 @@ struct reconstruction_viewer : public window_base
                         frame.insert(std::make_pair(name, points));
                     }
                     calib.add_frame(frame);
+                }
+            }
+
+            for (const auto &device : capture_panel_view_->devices)
+            {
+                const auto capture_it = captures.find(device.name);
+                if (capture_it != captures.end())
+                {
+                    const auto capture = capture_it->second;
+                    auto frame = capture->get_frame();
+
+                    if (!frame.empty())
+                    {
+                        std::vector<cv::Point2f> board;
+                        if (detect_calibration_board(frame, board))
+                        {
+                            std::vector<stargazer::point_data> points;
+                            for (const auto &point : board)
+                            {
+                                points.push_back(stargazer::point_data{glm::vec2(point.x, point.y), 0, 0});
+                            }
+                            intrinsic_calib.add_frame(points);
+                        }
+                    }
                 }
             }
         }
@@ -753,9 +903,16 @@ struct reconstruction_viewer : public window_base
         }
         else if (top_bar_view_->view_mode == top_bar_view::Mode::Calibration)
         {
-            for (auto &device : calibration_panel_view_->devices)
+            if (calibration_panel_view_->calibration_target_index == 0)
             {
-                device.num_points = calib.get_num_frames(device.name);
+                for (auto &device : calibration_panel_view_->devices)
+                {
+                    device.num_points = calib.get_num_frames(device.name);
+                }
+            }
+            else if (calibration_panel_view_->calibration_target_index == 1)
+            {
+                calibration_panel_view_->devices[calibration_panel_view_->intrinsic_calibration_device_index].num_points = intrinsic_calib.get_num_frames();
             }
 
             calibration_panel_view_->render(context.get());
@@ -799,6 +956,36 @@ struct reconstruction_viewer : public window_base
                         {
                             const auto stream_it = std::find_if(frame_tile_view_->streams.begin(), frame_tile_view_->streams.end(), [device_name](const auto &x)
                                                                 { return x->name == device_name; });
+
+                            if (stream_it != frame_tile_view_->streams.end())
+                            {
+                                cv::Mat color_image;
+                                if (frame.channels() == 1)
+                                {
+                                    cv::cvtColor(frame, color_image, cv::COLOR_GRAY2RGB);
+                                }
+                                else if (frame.channels() == 3)
+                                {
+                                    cv::cvtColor(frame, color_image, cv::COLOR_BGR2RGB);
+                                }
+                                (*stream_it)->texture.upload_image(color_image.cols, color_image.rows, color_image.data, GL_RGB);
+                            }
+                        }
+                    }
+                }
+
+                for (const auto &device : capture_panel_view_->devices)
+                {
+                    const auto capture_it = captures.find(device.name);
+                    if (capture_it != captures.end())
+                    {
+                        const auto capture = capture_it->second;
+                        auto frame = capture->get_frame();
+
+                        if (!frame.empty())
+                        {
+                            const auto stream_it = std::find_if(frame_tile_view_->streams.begin(), frame_tile_view_->streams.end(), [&](const auto &x)
+                                                                { return x->name == device.name; });
 
                             if (stream_it != frame_tile_view_->streams.end())
                             {
