@@ -82,7 +82,7 @@ calibration::calibration() : detector(std::make_shared<three_point_bar_calibrati
     const auto num_cameras = camera_names.size();
 
     {
-        const auto camera_params = stargazer::load_camera_params("../ir_camera_calib/camera_params.yml");
+        const auto camera_params = stargazer::load_camera_params("camera_params.json");
 
         for (std::size_t i = 0; i < camera_names.size(); i++)
         {

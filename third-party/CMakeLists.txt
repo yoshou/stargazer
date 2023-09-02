@@ -19,7 +19,6 @@ set_target_properties(opencv_sfm PROPERTIES
 )
 
 find_package(Boost REQUIRED COMPONENTS program_options)
-find_package(yaml-cpp REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 find_package(glfw3 REQUIRED)
 find_package(glad CONFIG REQUIRED)
