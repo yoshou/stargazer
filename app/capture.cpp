@@ -454,24 +454,24 @@ public:
     {
     }
 
-    void run(const cluster_info &info)
+    void run(const device_info &info)
     {
-        std::vector<cluster_info> cluster_infos = {info};
+        std::vector<device_info> device_infos = {info};
 
         std::vector<std::unique_ptr<remote_cluster>> clusters;
-        for (std::size_t i = 0; i < cluster_infos.size(); i++)
+        for (std::size_t i = 0; i < device_infos.size(); i++)
         {
-            if (cluster_infos[i].type == cluster_type::raspi)
+            if (device_infos[i].type == device_type::raspi)
             {
                 constexpr int fps = 90;
                 clusters.emplace_back(std::make_unique<remote_cluster_raspi>(fps, nullptr));
             }
-            else if (cluster_infos[i].type == cluster_type::depthai_color)
+            else if (device_infos[i].type == device_type::depthai_color)
             {
                 constexpr int fps = 30;
                 clusters.emplace_back(std::make_unique<remote_cluster_depthai_color>(fps));
             }
-            else if (cluster_infos[i].type == cluster_type::rs_d435)
+            else if (device_infos[i].type == device_type::rs_d435)
             {
                 constexpr int fps = 90;
                 constexpr int exposure = 5715;
@@ -481,7 +481,7 @@ public:
                 constexpr bool emitter_enabled = false;
                 clusters.emplace_back(std::make_unique<remote_cluster_rs_d435>(fps, exposure, gain, laser_power, with_image, emitter_enabled));
             }
-            else if (cluster_infos[i].type == cluster_type::rs_d435_color)
+            else if (device_infos[i].type == device_type::rs_d435_color)
             {
                 constexpr int fps = 30;
                 clusters.emplace_back(std::make_unique<remote_cluster_rs_d435_color>(fps));
@@ -500,7 +500,7 @@ public:
             {
                 std::shared_ptr<p2p_listener_node> n1(new p2p_listener_node());
                 n1->set_input(cluster->infra1_output);
-                n1->set_endpoint(cluster_infos[i].endpoint, 0);
+                n1->set_endpoint(device_infos[i].endpoint, 0);
                 g->add_node(n1);
 
                 std::shared_ptr<decode_image_node> n7(new decode_image_node());
@@ -513,14 +513,14 @@ public:
                 n8->set_input(n7->get_output());
                 g->add_node(n8);
 
-                n8->set_name("image#" + cluster_infos[i].name);
+                n8->set_name("image#" + device_infos[i].name);
             }
 
             if (cluster->infra1_marker_output)
             {
                 std::shared_ptr<p2p_listener_node> n2(new p2p_listener_node());
                 n2->set_input(cluster->infra1_marker_output);
-                n2->set_endpoint(cluster_infos[i].endpoint, 0);
+                n2->set_endpoint(device_infos[i].endpoint, 0);
                 g->add_node(n2);
 
                 rcv_marker_nodes.push_back(n2);
@@ -547,7 +547,7 @@ public:
 
         for (std::size_t i = 0; i < clusters.size(); i++)
         {
-            client.deploy(io_service, cluster_infos[i].address, 31400, clusters[i]->g);
+            client.deploy(io_service, device_infos[i].address, 31400, clusters[i]->g);
         }
         client.deploy(io_service, "127.0.0.1", server.get_port(), g);
 
@@ -606,7 +606,7 @@ capture_pipeline::capture_pipeline()
 }
 capture_pipeline::~capture_pipeline() = default;
 
-void capture_pipeline::run(const cluster_info &info)
+void capture_pipeline::run(const device_info &info)
 {
     pimpl->run(info);
 }
@@ -662,24 +662,24 @@ public:
     {
     }
 
-    void run(const std::vector<cluster_info> &infos)
+    void run(const std::vector<device_info> &infos)
     {
         int fps = 90;
-        std::vector<cluster_info> cluster_infos = infos;
+        std::vector<device_info> device_infos = infos;
 
         std::vector<std::shared_ptr<remote_cluster>> clusters;
-        for (std::size_t i = 0; i < cluster_infos.size(); i++)
+        for (std::size_t i = 0; i < device_infos.size(); i++)
         {
-            if (cluster_infos[i].type == cluster_type::raspi)
+            if (device_infos[i].type == device_type::raspi)
             {
                 std::shared_ptr<image> mask_img;
-                if (masks.find(cluster_infos[i].name) != masks.end())
+                if (masks.find(device_infos[i].name) != masks.end())
                 {
-                    const auto& mask = masks.at(cluster_infos[i].name);
+                    const auto& mask = masks.at(device_infos[i].name);
                     mask_img.reset(new image(mask.cols, mask.rows, CV_8UC1, mask.step, (const uint8_t *)mask.data));
                 }
                 auto cluster = std::make_shared<remote_cluster_raspi>(fps, mask_img.get());
-                mask_nodes.insert(std::make_pair(cluster_infos[i].name, cluster->mask_node_));
+                mask_nodes.insert(std::make_pair(device_infos[i].name, cluster->mask_node_));
                 clusters.emplace_back(cluster);
             }
         }
@@ -696,7 +696,7 @@ public:
             {
                 std::shared_ptr<p2p_listener_node> n1(new p2p_listener_node());
                 n1->set_input(cluster->infra1_output);
-                n1->set_endpoint(cluster_infos[i].endpoint, 0);
+                n1->set_endpoint(device_infos[i].endpoint, 0);
                 g->add_node(n1);
 
                 std::shared_ptr<decode_image_node> n7(new decode_image_node());
@@ -709,7 +709,7 @@ public:
                 n8->set_input(n7->get_output());
                 g->add_node(n8);
 
-                n8->set_name("image#" + cluster_infos[i].name);
+                n8->set_name("image#" + device_infos[i].name);
             }
             else
             {
@@ -720,7 +720,7 @@ public:
             {
                 std::shared_ptr<p2p_listener_node> n2(new p2p_listener_node());
                 n2->set_input(cluster->infra1_marker_output);
-                n2->set_endpoint(cluster_infos[i].endpoint, 0);
+                n2->set_endpoint(device_infos[i].endpoint, 0);
                 g->add_node(n2);
 
                 rcv_marker_nodes.push_back(n2);
@@ -736,7 +736,7 @@ public:
         {
             if (rcv_nodes[i])
             {
-                n3->set_input(rcv_nodes[i]->get_output(), cluster_infos[i].name);
+                n3->set_input(rcv_nodes[i]->get_output(), device_infos[i].name);
             }
         }
         // Allow fps variation
@@ -847,7 +847,7 @@ public:
 
         for (std::size_t i = 0; i < clusters.size(); i++)
         {
-            client.deploy(io_service, cluster_infos[i].address, 31400, clusters[i]->g);
+            client.deploy(io_service, device_infos[i].address, 31400, clusters[i]->g);
         }
         client.deploy(io_service, "127.0.0.1", server.get_port(), g);
 
@@ -994,7 +994,7 @@ multiview_capture_pipeline::multiview_capture_pipeline(const std::map<std::strin
 }
 multiview_capture_pipeline::~multiview_capture_pipeline() = default;
 
-void multiview_capture_pipeline::run(const std::vector<cluster_info> &infos)
+void multiview_capture_pipeline::run(const std::vector<device_info> &infos)
 {
     pimpl->run(infos);
 }

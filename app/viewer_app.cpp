@@ -22,6 +22,8 @@
 #include "views.hpp"
 #include "calibration.hpp"
 #include "reconstruction.hpp"
+#include "config_file.hpp"
+
 #include <experimental/filesystem>
 
 class playback_stream
@@ -113,62 +115,29 @@ struct reconstruction_viewer : public window_base
     std::unique_ptr<pose_view> pose_view_;
     std::shared_ptr<azimuth_elevation> view_controller;
 
-    std::vector<cluster_info> cluster_infos;
     std::map<std::string, std::shared_ptr<capture_pipeline>> captures;
     std::shared_ptr<multiview_capture_pipeline> multiview_capture;
 
     marker_stream_server marker_server;
     std::unique_ptr<playback_stream> playback;
+    std::unique_ptr<stargazer::configuration_file> config;
 
     void init_capture_panel()
     {
+        config.reset(new stargazer::configuration_file("config.json"));
 
-        {
-            std::ifstream ifs("../ir_capture/config.json");
-            const auto j = nlohmann::json::parse(ifs);
-            for (const auto &j_camera : j["cameras"])
-            {
-                cluster_info cluster;
-                const auto type = j_camera["node"]["type"].get<std::string>();
-                if (type == "raspi")
-                {
-                    cluster.type = cluster_type::raspi;
-                }
-                else if (type == "rs_d435")
-                {
-                    cluster.type = cluster_type::rs_d435;
-                }
-                else if (type == "rs_d435_color")
-                {
-                    cluster.type = cluster_type::rs_d435_color;
-                }
-                else if (type == "depthai_color")
-                {
-                    cluster.type = cluster_type::depthai_color;
-                }
-                else
-                {
-                    throw std::runtime_error("Invalid node type");
-                }
-                cluster.id = j_camera["node"]["id"].get<std::string>();
-                cluster.address = j_camera["node"]["address"].get<std::string>();
-                cluster.endpoint = j_camera["node"]["gateway"].get<std::string>();
-                cluster.name = j_camera["name"].get<std::string>();
-                cluster_infos.push_back(cluster);
-            }
-        }
         capture_panel_view_ = std::make_unique<capture_panel_view>();
-        for (const auto &cluster_info : cluster_infos)
+        for (const auto &device_info : config->get_device_infos())
         {
-            capture_panel_view_->devices.push_back(capture_panel_view::device_info{cluster_info.name, cluster_info.address});
+            capture_panel_view_->devices.push_back(capture_panel_view::device_info{device_info.name, device_info.address});
         }
 
-        capture_panel_view_->is_streaming_changed.push_back([this](const capture_panel_view::device_info &device)
-                                                           {
+        capture_panel_view_->is_streaming_changed.push_back([this](const capture_panel_view::device_info &device) {
             if (device.is_streaming == true)
-            {                    
-                auto found = std::find_if(cluster_infos.begin(), cluster_infos.end(), [device](const auto& x) { return x.name == device.name; });
-                if (found == cluster_infos.end()) {
+            {
+                const auto& device_infos = config->get_device_infos();
+                auto found = std::find_if(device_infos.begin(), device_infos.end(), [device](const auto& x) { return x.name == device.name; });
+                if (found == device_infos.end()) {
                     return false;
                 }
 
@@ -208,7 +177,18 @@ struct reconstruction_viewer : public window_base
                 }
             }
 
-            return true; });
+            return true;
+        });
+
+        capture_panel_view_->on_add_device.push_back([this](const std::string& device_name, device_type device_type, const std::string& ip_address, const std::string& gateway_address) {
+            device_info new_device {};
+            new_device.name = device_name;
+            new_device.address = ip_address;
+            new_device.endpoint = gateway_address;
+            new_device.type = device_type;
+            config->get_device_infos().push_back(new_device);
+            config->update();
+        });
     }
 
     std::map<std::string, cv::Mat> masks;
@@ -216,9 +196,9 @@ struct reconstruction_viewer : public window_base
     void init_calibration_panel()
     {
         calibration_panel_view_ = std::make_unique<calibration_panel_view>();
-        for (const auto &cluster_info : cluster_infos)
+        for (const auto &device_info : config->get_device_infos())
         {
-            calibration_panel_view_->devices.push_back(calibration_panel_view::device_info{cluster_info.name, cluster_info.address});
+            calibration_panel_view_->devices.push_back(calibration_panel_view::device_info{device_info.name, device_info.address});
         }
 
         calibration_panel_view_->is_streaming_changed.push_back([this](const std::vector<calibration_panel_view::device_info> &devices, bool is_streaming)
@@ -232,13 +212,14 @@ struct reconstruction_viewer : public window_base
 
                 if (calibration_panel_view_->calibration_target_index == 0)
                 {
-                    std::vector<cluster_info> infos;
+                    std::vector<device_info> infos;
 
                     for (const auto& device : devices)
                     {
-                        auto found = std::find_if(cluster_infos.begin(), cluster_infos.end(), [device](const auto &x)
+                        const auto &device_infos = config->get_device_infos();
+                        auto found = std::find_if(device_infos.begin(), device_infos.end(), [device](const auto &x)
                                                 { return x.name == device.name; });
-                        if (found == cluster_infos.end())
+                        if (found == device_infos.end())
                         {
                             return false;
                         }
@@ -281,9 +262,10 @@ struct reconstruction_viewer : public window_base
                 {
                     const auto& device = devices[calibration_panel_view_->intrinsic_calibration_device_index];
 
-                    auto found = std::find_if(cluster_infos.begin(), cluster_infos.end(), [device](const auto &x)
+                    const auto &device_infos = config->get_device_infos();
+                    auto found = std::find_if(device_infos.begin(), device_infos.end(), [device](const auto &x)
                                               { return x.name == device.name; });
-                    if (found == cluster_infos.end())
+                    if (found == device_infos.end())
                     {
                         return false;
                     }
@@ -480,9 +462,9 @@ struct reconstruction_viewer : public window_base
     void init_reconstruction_panel()
     {
         reconstruction_panel_view_ = std::make_unique<reconstruction_panel_view>();
-        for (const auto &cluster_info : cluster_infos)
+        for (const auto &device_info : config->get_device_infos())
         {
-            reconstruction_panel_view_->devices.push_back(reconstruction_panel_view::device_info{cluster_info.name, cluster_info.address});
+            reconstruction_panel_view_->devices.push_back(reconstruction_panel_view::device_info{device_info.name, device_info.address});
         }
 
         reconstruction_panel_view_->is_streaming_changed.push_back([this](const std::vector<reconstruction_panel_view::device_info> &devices, bool is_streaming)
