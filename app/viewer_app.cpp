@@ -153,7 +153,7 @@ struct reconstruction_viewer : public window_base
         capture_panel_view_ = std::make_unique<capture_panel_view>();
         for (const auto &device_info : config->get_device_infos())
         {
-            capture_panel_view_->devices.push_back(capture_panel_view::device_info{device_info.name, device_info.address});
+            capture_panel_view_->devices.push_back(capture_panel_view::device_info{device_info.name, device_info.address, device_info.params});
         }
 
         capture_panel_view_->is_streaming_changed.push_back([this](const capture_panel_view::device_info &device) {
@@ -177,8 +177,8 @@ struct reconstruction_viewer : public window_base
                     return false;
                 }
                 captures.insert(std::make_pair(device.name, capture));
-                const int width = 820;
-                const int height = 616;
+                const int width = static_cast<int>(std::round(device.params.at("width")));
+                const int height = static_cast<int>(std::round(device.params.at("height")));
 
                 const auto stream = std::make_shared<frame_tile_view::stream_info>(device.name, float2{(float)width, (float)height});
                 frame_tile_view_->streams.push_back(stream);
@@ -212,6 +212,30 @@ struct reconstruction_viewer : public window_base
             new_device.endpoint = gateway_address;
             new_device.type = device_type;
 
+            switch (device_type)
+            {
+            case device_type::depthai_color:
+                new_device.params["width"] = 960;
+                new_device.params["height"] = 540;
+                break;
+            case device_type::raspi:
+                new_device.params["width"] = 820;
+                new_device.params["height"] = 616;
+                break;
+            case device_type::raspi_color:
+                new_device.params["width"] = 820;
+                new_device.params["height"] = 616;
+                break;
+            case device_type::rs_d435:
+                new_device.params["width"] = 640;
+                new_device.params["height"] = 480;
+                break;
+            case device_type::rs_d435_color:
+                new_device.params["width"] = 960;
+                new_device.params["height"] = 540;
+                break;
+            }
+
             auto &device_infos = config->get_device_infos();
             if (const auto found = std::find_if(device_infos.begin(), device_infos.end(), [&](const auto &x) {
                 return x.name == device_name; });
@@ -221,7 +245,7 @@ struct reconstruction_viewer : public window_base
 
                 for (const auto &device_info : device_infos)
                 {
-                    capture_panel_view_->devices.push_back(capture_panel_view::device_info{device_info.name, device_info.address});
+                    capture_panel_view_->devices.push_back(capture_panel_view::device_info{device_info.name, device_info.address, device_info.params});
                 }
                 config->update();
             }
@@ -238,7 +262,7 @@ struct reconstruction_viewer : public window_base
 
                 for (const auto &device_info : device_infos)
                 {
-                    capture_panel_view_->devices.push_back(capture_panel_view::device_info{device_info.name, device_info.address});
+                    capture_panel_view_->devices.push_back(capture_panel_view::device_info{device_info.name, device_info.address, device_info.params});
                 }
                 config->update();
             }
@@ -252,7 +276,7 @@ struct reconstruction_viewer : public window_base
         calibration_panel_view_ = std::make_unique<calibration_panel_view>();
         for (const auto &device_info : config->get_device_infos())
         {
-            calibration_panel_view_->devices.push_back(calibration_panel_view::device_info{device_info.id, device_info.name, device_info.address});
+            calibration_panel_view_->devices.push_back(calibration_panel_view::device_info{device_info.id, device_info.name, device_info.address, device_info.params});
         }
 
         calibration_panel_view_->is_streaming_changed.push_back([this](const std::vector<calibration_panel_view::device_info> &devices, bool is_streaming)
@@ -336,8 +360,8 @@ struct reconstruction_viewer : public window_base
                         return false;
                     }
                     captures.insert(std::make_pair(device.name, capture));
-                    const int width = 820;
-                    const int height = 616;
+                    const int width = static_cast<int>(std::round(device.params.at("width")));
+                    const int height = static_cast<int>(std::round(device.params.at("height")));
 
                     const auto stream = std::make_shared<frame_tile_view::stream_info>(device.name, float2{(float)width, (float)height});
                     frame_tile_view_->streams.push_back(stream);
@@ -454,7 +478,13 @@ struct reconstruction_viewer : public window_base
             }
             else if (calibration_panel_view_->calibration_target_index == 1)
             {
+                const auto &device = devices.at(calibration_panel_view_->intrinsic_calibration_device_index);
+
+                intrinsic_calib.image_width = static_cast<int>(std::round(device.params.at("width")));
+                intrinsic_calib.image_height = static_cast<int>(std::round(device.params.at("height")));
+
                 intrinsic_calib.calibrate();
+
                 calibration_panel_view_->fx = intrinsic_calib.calibrated_camera.intrin.fx;
                 calibration_panel_view_->fy = intrinsic_calib.calibrated_camera.intrin.fy;
                 calibration_panel_view_->cx = intrinsic_calib.calibrated_camera.intrin.cx;
@@ -466,7 +496,6 @@ struct reconstruction_viewer : public window_base
                 calibration_panel_view_->p1 = intrinsic_calib.calibrated_camera.intrin.coeffs[3];
                 calibration_panel_view_->rms = intrinsic_calib.rms;
 
-                const auto &device = devices.at(calibration_panel_view_->intrinsic_calibration_device_index);
                 auto &params = camera_params[device.id].cameras["infra1"];
                 params.intrin.fx = intrinsic_calib.calibrated_camera.intrin.fx;
                 params.intrin.fy = intrinsic_calib.calibrated_camera.intrin.fy;
@@ -1101,8 +1130,8 @@ struct reconstruction_viewer : public window_base
                 for (const auto &device : calibration_panel_view_->devices)
                 {
                     std::shared_ptr<frame_tile_view::stream_info> stream;
-                    const int width = 820;
-                    const int height = 616;
+                    const int width = static_cast<int>(std::round(device.params.at("width")));
+                    const int height = static_cast<int>(std::round(device.params.at("height")));
 
                     const auto found = std::find_if(contrail_tile_view_->streams.begin(), contrail_tile_view_->streams.end(), [&](const auto &x)
                                                     { return x->name == device.name; });

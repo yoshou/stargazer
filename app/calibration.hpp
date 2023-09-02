@@ -121,8 +121,8 @@ public:
     stargazer::camera_t camera;
     stargazer::camera_t calibrated_camera;
     double rms = 0.0;
-    const int image_width = 820;
-    const int image_height = 616;
+    int image_width = 0;
+    int image_height = 0;
 
     size_t get_num_frames() const
     {

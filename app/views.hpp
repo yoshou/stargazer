@@ -524,10 +524,11 @@ public:
     {
         std::string name;
         std::string address;
+        std::unordered_map<std::string, float> params;
         bool is_streaming = false;
 
-        device_info(const std::string &name, const std::string &address)
-            : name(name), address(address)
+        device_info(const std::string &name, const std::string &address, const std::unordered_map<std::string, float>& params)
+            : name(name), address(address), params(params)
         {
         }
     };
@@ -1620,11 +1621,12 @@ public:
         std::string id;
         std::string name;
         std::string address;
+        std::unordered_map<std::string, float> params;
         bool is_streaming = true;
         size_t num_points = 0;
 
-        device_info(const std::string &id, const std::string &name, const std::string &address)
-            : id(id), name(name), address(address)
+        device_info(const std::string &id, const std::string &name, const std::string &address, const std::unordered_map<std::string, float>& params)
+            : id(id), name(name), address(address), params(params)
         {
         }
     };
