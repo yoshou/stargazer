@@ -92,8 +92,16 @@ struct reconstruction_viewer : public window_base
 {
     std::mutex mtx;
 
+    static std::string get_calibration_config_path()
+    {
+        namespace fs = std::filesystem;
+        const std::string data_dir = "../data";
+
+        return (fs::path(data_dir) / "config.json").string();
+    }
+
     reconstruction_viewer()
-        : window_base("Reconstruction Viewer", SCREEN_WIDTH, SCREEN_HEIGHT)
+        : window_base("Reconstruction Viewer", SCREEN_WIDTH, SCREEN_HEIGHT), calib(get_calibration_config_path())
     {
     }
 
@@ -121,6 +129,22 @@ struct reconstruction_viewer : public window_base
     marker_stream_server marker_server;
     std::unique_ptr<playback_stream> playback;
     std::unique_ptr<stargazer::configuration_file> config;
+
+    std::string generate_new_id() const
+    {
+        uint64_t max_id = 0;
+        for (const auto &device_info : config->get_device_infos())
+        {
+            size_t idx = 0;
+            const auto id = std::stoull(device_info.id, &idx);
+
+            if (device_info.id.size() == idx)
+            {
+                max_id = std::max(max_id, static_cast<uint64_t>(id));
+            }
+        }
+        return fmt::format("{:>012d}", max_id);
+    }
 
     void init_capture_panel()
     {
@@ -182,19 +206,25 @@ struct reconstruction_viewer : public window_base
 
         capture_panel_view_->on_add_device.push_back([this](const std::string& device_name, device_type device_type, const std::string& ip_address, const std::string& gateway_address) {
             device_info new_device {};
+            new_device.id = generate_new_id();
             new_device.name = device_name;
             new_device.address = ip_address;
             new_device.endpoint = gateway_address;
             new_device.type = device_type;
 
             auto &device_infos = config->get_device_infos();
-            device_infos.push_back(new_device);
-
-            for (const auto &device_info : device_infos)
+            if (const auto found = std::find_if(device_infos.begin(), device_infos.end(), [&](const auto &x) {
+                return x.name == device_name; });
+                found == device_infos.end())
             {
-                capture_panel_view_->devices.push_back(capture_panel_view::device_info{device_info.name, device_info.address});
+                device_infos.push_back(new_device);
+
+                for (const auto &device_info : device_infos)
+                {
+                    capture_panel_view_->devices.push_back(capture_panel_view::device_info{device_info.name, device_info.address});
+                }
+                config->update();
             }
-            config->update();
         });
 
         capture_panel_view_->on_remove_device.push_back([this](const std::string& device_name) {
@@ -222,7 +252,7 @@ struct reconstruction_viewer : public window_base
         calibration_panel_view_ = std::make_unique<calibration_panel_view>();
         for (const auto &device_info : config->get_device_infos())
         {
-            calibration_panel_view_->devices.push_back(calibration_panel_view::device_info{device_info.name, device_info.address});
+            calibration_panel_view_->devices.push_back(calibration_panel_view::device_info{device_info.id, device_info.name, device_info.address});
         }
 
         calibration_panel_view_->is_streaming_changed.push_back([this](const std::vector<calibration_panel_view::device_info> &devices, bool is_streaming)
@@ -395,6 +425,20 @@ struct reconstruction_viewer : public window_base
             }
             return true; });
 
+        calibration_panel_view_->on_intrinsic_calibration_device_changed.push_back([this](const calibration_panel_view::device_info &device) {
+            const auto &params = camera_params[device.id].cameras["infra1"];
+            calibration_panel_view_->fx = params.intrin.fx;
+            calibration_panel_view_->fy = params.intrin.fy;
+            calibration_panel_view_->cx = params.intrin.cx;
+            calibration_panel_view_->cy = params.intrin.cy;
+            calibration_panel_view_->k0 = params.intrin.coeffs[0];
+            calibration_panel_view_->k1 = params.intrin.coeffs[1];
+            calibration_panel_view_->k2 = params.intrin.coeffs[4];
+            calibration_panel_view_->p0 = params.intrin.coeffs[2];
+            calibration_panel_view_->p1 = params.intrin.coeffs[3];
+            calibration_panel_view_->rms = 0;
+        });
+
         calibration_panel_view_->on_calibrate.push_back([this](const std::vector<calibration_panel_view::device_info> &devices, bool on_calibrate)
                                                        {
                                             
@@ -421,6 +465,21 @@ struct reconstruction_viewer : public window_base
                 calibration_panel_view_->p0 = intrinsic_calib.calibrated_camera.intrin.coeffs[2];
                 calibration_panel_view_->p1 = intrinsic_calib.calibrated_camera.intrin.coeffs[3];
                 calibration_panel_view_->rms = intrinsic_calib.rms;
+
+                const auto &device = devices.at(calibration_panel_view_->intrinsic_calibration_device_index);
+                auto &params = camera_params[device.id].cameras["infra1"];
+                params.intrin.fx = intrinsic_calib.calibrated_camera.intrin.fx;
+                params.intrin.fy = intrinsic_calib.calibrated_camera.intrin.fy;
+                params.intrin.cx = intrinsic_calib.calibrated_camera.intrin.cx;
+                params.intrin.cy = intrinsic_calib.calibrated_camera.intrin.cy;
+                params.intrin.coeffs[0] = intrinsic_calib.calibrated_camera.intrin.coeffs[0];
+                params.intrin.coeffs[1] = intrinsic_calib.calibrated_camera.intrin.coeffs[1];
+                params.intrin.coeffs[2] = intrinsic_calib.calibrated_camera.intrin.coeffs[2];
+                params.intrin.coeffs[3] = intrinsic_calib.calibrated_camera.intrin.coeffs[3];
+                params.intrin.coeffs[4] = intrinsic_calib.calibrated_camera.intrin.coeffs[4];
+                params.width = intrinsic_calib.calibrated_camera.width;
+                params.height = intrinsic_calib.calibrated_camera.height;
+                stargazer::save_camera_params("camera_params.json", camera_params);
                 return true;
             }
         });
@@ -674,9 +733,34 @@ struct reconstruction_viewer : public window_base
         }
     }
 
+    std::map<std::string, stargazer::camera_module_t> camera_params;
+
+    void load_camera_params()
+    {
+        const auto &camera_ids = calib.get_camera_ids();
+        const auto &camera_names = calib.get_camera_names();
+        const auto num_cameras = camera_names.size();
+
+        camera_params = stargazer::load_camera_params("camera_params.json");
+
+        for (std::size_t i = 0; i < camera_names.size(); i++)
+        {
+            calib.cameras.insert(std::make_pair(camera_names[i], camera_params.at(camera_ids[i]).cameras.at("infra1")));
+        }
+        assert(calib.cameras.size() == num_cameras);
+
+        for (auto &[camera_name, camera] : calib.cameras)
+        {
+            camera.extrin.rotation = glm::mat4(1.0);
+            camera.extrin.translation = glm::vec3(1.0);
+        }
+    }
+
     virtual void show() override
     {
         gladLoadGL();
+
+        load_camera_params();
 
         init_gui();
 

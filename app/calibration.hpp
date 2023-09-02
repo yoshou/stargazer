@@ -65,12 +65,23 @@ class calibration
     std::map<std::string, size_t> camera_name_to_index;
 
     std::vector<std::string> camera_names;
+    std::vector<std::string> camera_ids;
 
 public:
     std::unordered_map<std::string, stargazer::camera_t> cameras;
     std::unordered_map<std::string, stargazer::camera_t> calibrated_cameras;
 
-    calibration();
+    const std::vector<std::string>& get_camera_names() const
+    {
+        return camera_names;
+    }
+
+    const std::vector<std::string> &get_camera_ids() const
+    {
+        return camera_ids;
+    }
+
+    calibration(const std::string& config_path);
 
     size_t get_num_frames(std::string name) const
     {
