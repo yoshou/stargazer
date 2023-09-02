@@ -26,33 +26,34 @@ namespace stargazer
                 const auto j = nlohmann::json::parse(ifs);
                 for (const auto &j_camera : j["cameras"])
                 {
-                    device_info cluster;
+                    device_info device;
                     const auto type = j_camera["node"]["type"].get<std::string>();
                     if (type == "raspi")
                     {
-                        cluster.type = device_type::raspi;
+                        device.type = device_type::raspi;
                     }
                     else if (type == "rs_d435")
                     {
-                        cluster.type = device_type::rs_d435;
+                        device.type = device_type::rs_d435;
                     }
                     else if (type == "rs_d435_color")
                     {
-                        cluster.type = device_type::rs_d435_color;
+                        device.type = device_type::rs_d435_color;
                     }
                     else if (type == "depthai_color")
                     {
-                        cluster.type = device_type::depthai_color;
+                        device.type = device_type::depthai_color;
                     }
                     else
                     {
                         throw std::runtime_error("Invalid node type");
                     }
-                    cluster.id = j_camera["node"]["id"].get<std::string>();
-                    cluster.address = j_camera["node"]["address"].get<std::string>();
-                    cluster.endpoint = j_camera["node"]["gateway"].get<std::string>();
-                    cluster.name = j_camera["name"].get<std::string>();
-                    device_infos.push_back(cluster);
+                    device.id = j_camera["node"]["id"].get<std::string>();
+                    device.address = j_camera["node"]["address"].get<std::string>();
+                    device.endpoint = j_camera["node"]["gateway"].get<std::string>();
+                    device.name = j_camera["name"].get<std::string>();
+                    device.params = j_camera["node"]["params"].get<std::unordered_map<std::string, float>>();
+                    device_infos.push_back(device);
                 }
             }
         }
@@ -96,6 +97,7 @@ namespace stargazer
                 j_device["node"]["id"] = device.id;
                 j_device["node"]["address"] = device.address;
                 j_device["node"]["gateway"] = device.endpoint;
+                j_device["node"]["params"] = device.params;
                 j_device["name"] = device.name;
                 j_devices.push_back(j_device);
             }

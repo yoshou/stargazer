@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <unordered_map>
 
 enum class device_type
 {
@@ -18,4 +19,5 @@ struct device_info
     std::string id;
     std::string address;
     std::string endpoint;
+    std::unordered_map<std::string, float> params;
 };

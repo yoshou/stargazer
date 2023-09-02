@@ -167,8 +167,8 @@ public:
 
         std::shared_ptr<resize_node> n10(new resize_node());
         n10->set_input(n7->get_output());
-        n10->set_width(820);
-        n10->set_height(616);
+        n10->set_width(960);
+        n10->set_height(540);
         g->add_node(n10);
 
         {
@@ -295,8 +295,8 @@ public:
 
         std::shared_ptr<resize_node> n10(new resize_node());
         n10->set_input(n7->get_output());
-        n10->set_width(820);
-        n10->set_height(616);
+        n10->set_width(960);
+        n10->set_height(540);
         g->add_node(n10);
 
         {
