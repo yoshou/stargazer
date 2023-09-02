@@ -1617,13 +1617,14 @@ class calibration_panel_view
 public:
     struct device_info
     {
+        std::string id;
         std::string name;
         std::string address;
         bool is_streaming = true;
         size_t num_points = 0;
 
-        device_info(const std::string &name, const std::string &address)
-            : name(name), address(address)
+        device_info(const std::string &id, const std::string &name, const std::string &address)
+            : id(id), name(name), address(address)
         {
         }
     };
@@ -1636,8 +1637,9 @@ public:
     std::vector<std::function<bool(const std::vector<device_info> &, bool)>> is_streaming_changed;
     std::vector<std::function<bool(const std::vector<device_info> &, bool)>> is_masking_changed;
     std::vector<std::function<bool(const std::vector<device_info> &, bool)>> on_calibrate;
+    std::vector<std::function<void(const device_info &)>> on_intrinsic_calibration_device_changed;
 
-    int intrinsic_calibration_device_index = 0;
+    int intrinsic_calibration_device_index = -1;
     int calibration_target_index = 0;
 
     float fx = 0;
@@ -1991,6 +1993,10 @@ private:
             ImGui::SetCursorPos({pos.x + 10, pos.y});
             if (ImGui::Combo(id.c_str(), &intrinsic_calibration_device_index, intrinsic_calibration_devices_chars.data(), static_cast<int>(intrinsic_calibration_devices.size())))
             {
+                for (auto &func : on_intrinsic_calibration_device_changed)
+                {
+                    func(devices.at(intrinsic_calibration_device_index));
+                }
             }
             ImGui::SetCursorPos({pos.x, ImGui::GetCursorPos().y});
             ImGui::PopFont();

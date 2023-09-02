@@ -67,35 +67,14 @@ public:
     }
 };
 
-calibration::calibration() : detector(std::make_shared<three_point_bar_calibration_target>())
+calibration::calibration(const std::string &config_path) : detector(std::make_shared<three_point_bar_calibration_target>())
 {
-    namespace fs = std::experimental::filesystem;
-    const std::string prefix = "calibrate";
-    const std::string data_dir = "../data";
-
     std::ifstream ifs;
-    ifs.open((fs::path(data_dir) / "config.json").string(), std::ios::in);
+    ifs.open(config_path, std::ios::in);
     nlohmann::json j_config = nlohmann::json::parse(ifs);
 
     camera_names = j_config["cameras"].get<std::vector<std::string>>();
-    const auto camera_ids = j_config["camera_ids"].get<std::vector<std::string>>();
-    const auto num_cameras = camera_names.size();
-
-    {
-        const auto camera_params = stargazer::load_camera_params("camera_params.json");
-
-        for (std::size_t i = 0; i < camera_names.size(); i++)
-        {
-            cameras.insert(std::make_pair(camera_names[i], camera_params.at(camera_ids[i]).cameras.at("infra1")));
-        }
-    }
-    assert(cameras.size() == num_cameras);
-
-    for (auto& [camera_name, camera] : cameras)
-    {
-        camera.extrin.rotation = glm::mat4(1.0);
-        camera.extrin.translation = glm::vec3(1.0);
-    }
+    camera_ids = j_config["camera_ids"].get<std::vector<std::string>>();
 }
 
 void calibration::add_frame(const std::map<std::string, std::vector<stargazer::point_data>> &frame)
@@ -883,4 +862,6 @@ void intrinsic_calibration::calibrate()
     calibrated_camera.intrin.coeffs[2] = dist_coeffs.at<double>(2);
     calibrated_camera.intrin.coeffs[3] = dist_coeffs.at<double>(3);
     calibrated_camera.intrin.coeffs[4] = dist_coeffs.at<double>(4);
+    calibrated_camera.width = image_width;
+    calibrated_camera.width = image_height;
 }
