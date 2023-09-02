@@ -6,7 +6,6 @@
 #include <fstream>
 #include <opencv2/core.hpp>
 #include <nlohmann/json.hpp>
-#include <yaml-cpp/yaml.h>
 
 namespace stargazer
 {
@@ -44,6 +43,8 @@ namespace stargazer
     };
 
     std::map<std::string, camera_module_t> load_camera_params(std::string path);
+
+    void save_camera_params(std::string path, const std::map<std::string, camera_module_t>& params);
 
     void get_cv_intrinsic(const camera_intrin_t &intrin, cv::Mat &camera_matrix, cv::Mat &dist_coeffs);
 }

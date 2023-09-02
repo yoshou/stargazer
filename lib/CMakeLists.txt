@@ -18,6 +18,5 @@ target_include_directories(stargazer
 target_link_libraries(stargazer
     opencv_imgproc
     pthread
-    yaml-cpp
     stdc++fs
 )

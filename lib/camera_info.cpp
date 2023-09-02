@@ -4,7 +4,7 @@
 #include <string>
 #include <fstream>
 #include <opencv2/core.hpp>
-#include <yaml-cpp/yaml.h>
+#include <nlohmann/json.hpp>
 
 void stargazer::get_cv_intrinsic(const camera_intrin_t &intrin, cv::Mat &camera_matrix, cv::Mat &dist_coeffs)
 {
@@ -22,57 +22,130 @@ void stargazer::get_cv_intrinsic(const camera_intrin_t &intrin, cv::Mat &camera_
     dist_coeffs.at<double>(4) = intrin.coeffs[4];
 }
 
+namespace glm
+{
+    static void to_json(nlohmann::json &j, const glm::vec2 &v)
+    {
+        j = {v.x, v.y};
+    }
+    static void from_json(const nlohmann::json &j, glm::vec2 &v)
+    {
+        v.x = j[0].get<float>();
+        v.y = j[1].get<float>();
+    }
+    static void to_json(nlohmann::json &j, const glm::vec3 &v)
+    {
+        j = {v.x, v.y, v.z};
+    }
+    static void from_json(const nlohmann::json &j, glm::vec3 &v)
+    {
+        v.x = j[0].get<float>();
+        v.y = j[1].get<float>();
+        v.z = j[2].get<float>();
+    }
+    static void to_json(nlohmann::json &j, const glm::vec4 &v)
+    {
+        j = {v.x, v.y, v.z, v.w};
+    }
+    static void from_json(const nlohmann::json &j, glm::vec4 &v)
+    {
+        v.x = j[0].get<float>();
+        v.y = j[1].get<float>();
+        v.z = j[2].get<float>();
+        v.w = j[3].get<float>();
+    }
+    static void to_json(nlohmann::json &j, const glm::mat4 &m)
+    {
+        j = {m[0], m[1], m[2], m[3]};
+    }
+    static void from_json(const nlohmann::json &j, glm::mat4 &m)
+    {
+        m[0] = j[0].get<glm::vec4>();
+        m[1] = j[1].get<glm::vec4>();
+        m[2] = j[2].get<glm::vec4>();
+        m[3] = j[3].get<glm::vec4>();
+    }
+}
+
+namespace stargazer
+{
+    static void to_json(nlohmann::json &j, const camera_intrin_t &intrin)
+    {
+        j = {
+            {"fx", intrin.fx},
+            {"fy", intrin.fy},
+            {"cx", intrin.cx},
+            {"cy", intrin.cy},
+            {"coeffs", intrin.coeffs},
+        };
+    }
+
+    static void from_json(const nlohmann::json &j, camera_intrin_t &intrin)
+    {
+        intrin.fx = j["fx"].get<float>();
+        intrin.fy = j["fy"].get<float>();
+        intrin.cx = j["cx"].get<float>();
+        intrin.cy = j["cy"].get<float>();
+        intrin.coeffs = j["coeffs"].get<std::array<float, 5>>();
+    }
+
+    static void to_json(nlohmann::json &j, const camera_extrin_t &extrin)
+    {
+        j = {
+            {"rotation", extrin.rotation},
+            {"translation", extrin.translation},
+        };
+    }
+
+    static void from_json(const nlohmann::json &j, camera_extrin_t &extrin)
+    {
+        extrin.rotation = j["rotation"].get<glm::mat4>();
+        extrin.translation = j["translation"].get<glm::vec3>();
+    }
+
+    static void to_json(nlohmann::json &j, const camera_t &camera)
+    {
+        j = {
+            {"intrin", camera.intrin},
+            {"extrin", camera.extrin},
+            {"width", camera.width},
+            {"height", camera.height},
+        };
+    }
+
+    static void from_json(const nlohmann::json &j, camera_t &camera)
+    {
+        camera.intrin = j["intrin"].get<camera_intrin_t>();
+        camera.extrin = j["extrin"].get<camera_extrin_t>();
+        camera.width = j["width"].get<uint32_t>();
+        camera.height = j["height"].get<uint32_t>();
+    }
+
+    void to_json(nlohmann::json &j, const camera_module_t &p)
+    {
+        j = nlohmann::json{{"cameras", p.cameras}};
+    }
+
+    void from_json(const nlohmann::json &j, camera_module_t &p)
+    {
+        j.at("cameras").get_to(p.cameras);
+    }
+}
+
 std::map<std::string, stargazer::camera_module_t> stargazer::load_camera_params(std::string path)
 {
     std::ifstream ifs;
     ifs.open(path, std::ios::binary | std::ios::in);
 
-    std::istreambuf_iterator<char> beg(ifs);
-    std::istreambuf_iterator<char> end;
-    std::vector<char> str_data;
-    std::copy(beg, end, std::back_inserter(str_data));
-    std::string str(str_data.begin(), str_data.end());
+    const auto j = nlohmann::json::parse(ifs);
+    return j["devices"].get<std::map<std::string, stargazer::camera_module_t>>();
+}
 
-    const auto doc = YAML::Load(str.c_str());
+void stargazer::save_camera_params(std::string path, const std::map<std::string, camera_module_t> &params)
+{
+    std::ofstream ofs;
+    ofs.open(path, std::ios::out);
 
-    std::map<std::string, camera_module_t> result;
-
-    const auto devices = doc["devices"];
-
-    for (const auto &device : devices)
-    {
-        const auto serial = device["serial"].as<std::string>();
-
-        camera_module_t param;
-
-        auto extract = [](camera_t &dst, const YAML::Node &doc)
-        {
-            dst.width = doc["width"].as<float>();
-            dst.height = doc["height"].as<float>();
-            dst.intrin.fx = doc["fx"].as<float>();
-            dst.intrin.fy = doc["fy"].as<float>();
-            dst.intrin.cx = doc["ppx"].as<float>();
-            dst.intrin.cy = doc["ppy"].as<float>();
-            for (size_t i = 0; i < doc["coeffs"].size(); i++)
-            {
-                dst.intrin.coeffs[i] = doc["coeffs"][i].as<float>();
-            }
-        };
-
-        if (device["infra1"])
-        {
-            extract(param.cameras["infra1"], device["infra1"]);
-        }
-        if (device["infra2"])
-        {
-            extract(param.cameras["infra2"], device["infra2"]);
-        }
-        if (device["color"])
-        {
-            extract(param.cameras["color"], device["color"]);
-        }
-
-        result[serial] = param;
-    }
-    return result;
+    const auto j = nlohmann::json{{"devices", params}};
+    ofs << j.dump(2);
 }
