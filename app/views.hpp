@@ -2114,7 +2114,7 @@ private:
 
                             ImGui::GetWindowDrawList()->AddRectFilled({200, screen_pos.y}, {300, screen_pos.y + 20}, c);
 
-                            ImGui::Text(std::to_string(value).c_str());
+                            ImGui::Text(fmt::format("{:6.3f}", value).c_str());
 
                             ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 2);
                         };
