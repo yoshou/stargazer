@@ -618,7 +618,7 @@ private:
             // draw x button
             {
                 bool _allow_remove = true;
-                const auto id = 0;
+                const auto id = device.name;
 
                 ImGui::PushFont(context->large_font);
                 ImGui::PushStyleColor(ImGuiCol_Text, light_grey);
@@ -634,6 +634,10 @@ private:
                     std::string remove_source_button_label = to_string() << textual_icons::times << "##" << id;
                     if (ImGui::Button(remove_source_button_label.c_str(), {33, 35}))
                     {
+                        for (auto &f : on_remove_device)
+                        {
+                            f(device.name);
+                        }
                     }
 
                     if (ImGui::IsItemHovered())
@@ -780,6 +784,8 @@ private:
 
 public:
     std::vector<std::function<void(const std::string&, device_type, const std::string&, const std::string&)>> on_add_device;
+    std::vector<std::function<void(const std::string&)>> on_remove_device;
+
     void render(view_context *context)
     {
         const auto window_size = context->get_window_size();
