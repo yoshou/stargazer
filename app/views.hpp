@@ -18,6 +18,8 @@
 #include <glm/gtx/matrix_decompose.hpp>
 #include <glm/gtx/euler_angles.hpp>
 
+#include <spdlog/spdlog.h>
+
 #include <cmath>
 #include <array>
 #include <sstream>
@@ -27,8 +29,17 @@
 #include <memory>
 
 #include "viewer.hpp"
+#include "device_info.hpp"
 
 #include <iostream>
+
+static std::vector<const char *> get_string_pointers(const std::vector<std::string> &vec)
+{
+    std::vector<const char *> res;
+    for (auto &&s : vec)
+        res.push_back(s.c_str());
+    return res;
+}
 
 struct to_string
 {
@@ -550,7 +561,13 @@ private:
 
             std::string add_source_button_text = to_string() << " " << textual_icons::plus_circle << "  Add Source\t\t\t\t\t\t\t\t\t\t\t";
             if (ImGui::Button(add_source_button_text.c_str(), {panel_width - 1, panel_y}))
-                ImGui::OpenPopup("select");
+            {
+                device_type_index = 0;
+                ip_address = "192.168.0.1";
+                gateway_address = "192.168.0.253";
+                device_name = "camera";
+                ImGui::OpenPopup("Network Device");
+            }
 
             ImGui::PopFont();
             ImGui::PopStyleVar();
@@ -756,7 +773,13 @@ private:
         }
     }
 
+    std::string ip_address;
+    std::string gateway_address;
+    std::string device_name;
+    int device_type_index;
+
 public:
+    std::vector<std::function<void(const std::string&, device_type, const std::string&, const std::string&)>> on_add_device;
     void render(view_context *context)
     {
         const auto window_size = context->get_window_size();
@@ -775,6 +798,158 @@ public:
         ImGui::Begin("Control Panel", nullptr, flags | ImGuiWindowFlags_AlwaysVerticalScrollbar);
 
         draw_controls(context, 50);
+
+
+        {
+            float width = 320;
+            float height = 200;
+            float posx = window_size.x * 0.5f - width * 0.5f;
+            float posy = window_size.y * 0.5f - height * 0.5f;
+            ImGui::SetNextWindowPos({posx, posy});
+            ImGui::SetNextWindowSize({width, height});
+            ImGui::PushStyleColor(ImGuiCol_PopupBg, sensor_bg);
+            ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, white);
+            ImGui::PushStyleColor(ImGuiCol_Text, light_grey);
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0);
+
+            if (ImGui::BeginPopupModal("Network Device", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove))
+            {
+                ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 3);
+                ImGui::SetCursorPosX(10);
+                ImGui::Text("Connect to a Linux system running graph_proc_server");
+
+                ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 5);
+
+                {
+                    std::vector<std::string> device_type_names = {
+                        "raspi",
+                        "raspi_color",
+                        "depthai_color",
+                        "rs_d435",
+                        "rs_d435_color",
+                    };
+                    std::vector<const char *> device_type_names_chars = get_string_pointers(device_type_names);
+
+                    ImGui::SetCursorPosX(10);
+                    ImGui::Text("Device Type");
+                    ImGui::SameLine();
+                    ImGui::SetCursorPosX(80);
+                    ImGui::PushItemWidth(width - ImGui::GetCursorPosX() - 10);
+                    ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, light_blue);
+
+                    ImGui::SetCursorPosY(ImGui::GetCursorPosY() - 3);
+                    if (ImGui::Combo("##dev_type", &device_type_index, device_type_names_chars.data(), static_cast<int>(device_type_names_chars.size())))
+                    {
+                    }
+                    ImGui::PopStyleColor();
+
+                    ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 6);
+
+                    ImGui::PopItemWidth();
+                }
+                static char ip_input[255];
+                std::copy(ip_address.begin(), ip_address.end(), ip_input);
+                ip_input[ip_address.size()] = '\0';
+                {
+                    ImGui::SetCursorPosX(10);
+                    ImGui::Text("Device IP");
+                    ImGui::SameLine();
+                    ImGui::SetCursorPosX(80);
+                    ImGui::PushItemWidth(width - ImGui::GetCursorPosX() - 10);
+                    ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, light_blue);
+
+                    ImGui::SetCursorPosY(ImGui::GetCursorPosY() - 3);
+                    if (ImGui::InputText("##ip", ip_input, 255))
+                    {
+                        ip_address = ip_input;
+                    }
+                    ImGui::PopStyleColor();
+
+                    ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 6);
+
+                    ImGui::PopItemWidth();
+                }
+                static char gateway_input[255];
+                std::copy(gateway_address.begin(), gateway_address.end(), gateway_input);
+                gateway_input[gateway_address.size()] = '\0';
+                {
+                    ImGui::SetCursorPosX(10);
+                    ImGui::Text("Gateway");
+                    ImGui::SameLine();
+                    ImGui::SetCursorPosX(80);
+                    ImGui::PushItemWidth(width - ImGui::GetCursorPosX() - 10);
+                    ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, light_blue);
+
+                    ImGui::SetCursorPosY(ImGui::GetCursorPosY() - 3);
+                    if (ImGui::InputText("##gateway", gateway_input, 255))
+                    {
+                        device_name = gateway_input;
+                    }
+                    ImGui::PopStyleColor();
+
+                    ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 6);
+
+                    ImGui::PopItemWidth();
+                }
+                static char dev_name_input[255];
+                std::copy(device_name.begin(), device_name.end(), dev_name_input);
+                dev_name_input[device_name.size()] = '\0';
+                {
+                    ImGui::SetCursorPosX(10);
+                    ImGui::Text("Name");
+                    ImGui::SameLine();
+                    ImGui::SetCursorPosX(80);
+                    ImGui::PushItemWidth(width - ImGui::GetCursorPosX() - 10);
+                    ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, light_blue);
+
+                    ImGui::SetCursorPosY(ImGui::GetCursorPosY() - 3);
+                    if (ImGui::InputText("##name", dev_name_input, 255))
+                    {
+                        device_name = dev_name_input;
+                    }
+                    ImGui::PopStyleColor();
+
+                    ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 6);
+
+                    ImGui::PopItemWidth();
+                }
+
+                ImGui::SetCursorPosX(width / 2 - 105);
+
+                if (ImGui::Button("OK", {100.f, 25.f}) || ImGui::IsKeyDown(ImGuiKey_Enter) || ImGui::IsKeyDown(ImGuiKey_KeypadEnter))
+                {
+                    try
+                    {
+                        for (auto& f : on_add_device)
+                        {
+                            f(device_name, static_cast<device_type>(device_type_index), ip_address, gateway_address);
+                        }
+                    }
+                    catch (std::runtime_error e)
+                    {
+                        spdlog::error(e.what());
+                    }
+                    device_type_index = 0;
+                    device_name = "";
+                    ip_address = "";
+                    gateway_address = "";
+                    ImGui::CloseCurrentPopup();
+                }
+                ImGui::SameLine();
+                ImGui::SetCursorPosX(width / 2 + 5);
+                if (ImGui::Button("Cancel", {100.f, 25.f}) || ImGui::IsKeyDown(ImGuiKey_Escape))
+                {
+                    device_type_index = 0;
+                    device_name = "";
+                    ip_address = "";
+                    gateway_address = "";
+                    ImGui::CloseCurrentPopup();
+                }
+                ImGui::EndPopup();
+            }
+            ImGui::PopStyleColor(3);
+            ImGui::PopStyleVar(1);
+        }
 
         ImGui::End();
         ImGui::PopStyleVar();
@@ -1956,14 +2131,6 @@ private:
         {
             func();
         }
-    }
-
-    static std::vector<const char *> get_string_pointers(const std::vector<std::string> &vec)
-    {
-        std::vector<const char *> res;
-        for (auto &&s : vec)
-            res.push_back(s.c_str());
-        return res;
     }
 
     void draw_controls(view_context *context, float panel_height)

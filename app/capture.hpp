@@ -5,23 +5,7 @@
 #include <opencv2/opencv.hpp>
 #include <glm/glm.hpp>
 
-enum class cluster_type
-{
-    raspi,
-    raspi_color,
-    depthai_color,
-    rs_d435,
-    rs_d435_color,
-};
-
-struct cluster_info
-{
-    std::string name;
-    cluster_type type;
-    std::string id;
-    std::string address;
-    std::string endpoint;
-};
+#include "device_info.hpp"
 
 class capture_pipeline
 {
@@ -33,7 +17,7 @@ public:
     capture_pipeline();
     virtual ~capture_pipeline();
 
-    void run(const cluster_info& info);
+    void run(const device_info& info);
     void stop();
 
     void set_mask(cv::Mat mask);
@@ -64,7 +48,7 @@ public:
     multiview_capture_pipeline(const std::map<std::string, cv::Mat> &masks);
     virtual ~multiview_capture_pipeline();
 
-    void run(const std::vector<cluster_info> &infos);
+    void run(const std::vector<device_info> &infos);
     void stop();
 
     std::map<std::string, cv::Mat> get_frames() const;
