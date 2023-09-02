@@ -140,7 +140,7 @@ struct reconstruction_viewer : public window_base
 
             if (device_info.id.size() == idx)
             {
-                max_id = std::max(max_id, static_cast<uint64_t>(id));
+                max_id = std::max(max_id, static_cast<uint64_t>(id + 1));
             }
         }
         return fmt::format("{:>012d}", max_id);
@@ -711,7 +711,7 @@ struct reconstruction_viewer : public window_base
             config_glyphs.OversampleV = OVERSAMPLE;
             config_glyphs.OversampleH = OVERSAMPLE;
             default_font = io.Fonts->AddFontFromMemoryCompressedTTF(font_awesome_compressed_data,
-                                                                    font_awesome_compressed_size, 16.f, &config_glyphs, icons_ranges);
+                                                                    font_awesome_compressed_size, 14.f, &config_glyphs, icons_ranges);
         }
         IM_ASSERT(default_font != NULL);
 
