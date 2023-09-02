@@ -186,8 +186,32 @@ struct reconstruction_viewer : public window_base
             new_device.address = ip_address;
             new_device.endpoint = gateway_address;
             new_device.type = device_type;
-            config->get_device_infos().push_back(new_device);
+
+            auto &device_infos = config->get_device_infos();
+            device_infos.push_back(new_device);
+
+            for (const auto &device_info : device_infos)
+            {
+                capture_panel_view_->devices.push_back(capture_panel_view::device_info{device_info.name, device_info.address});
+            }
             config->update();
+        });
+
+        capture_panel_view_->on_remove_device.push_back([this](const std::string& device_name) {
+            auto& device_infos = config->get_device_infos();
+            if (const auto found = std::find_if(device_infos.begin(), device_infos.end(), [&](const auto &x) {
+                return x.name == device_name; });
+                found != device_infos.end())
+            {
+                device_infos.erase(found);
+                capture_panel_view_->devices.clear();
+
+                for (const auto &device_info : device_infos)
+                {
+                    capture_panel_view_->devices.push_back(capture_panel_view::device_info{device_info.name, device_info.address});
+                }
+                config->update();
+            }
         });
     }
 
