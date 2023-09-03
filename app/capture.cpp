@@ -664,7 +664,7 @@ public:
 
     void run(const std::vector<device_info> &infos)
     {
-        int fps = 90;
+        int sync_fps = 90;
         std::vector<device_info> device_infos = infos;
 
         std::vector<std::shared_ptr<remote_cluster>> clusters;
@@ -672,6 +672,8 @@ public:
         {
             if (device_infos[i].type == device_type::raspi)
             {
+                constexpr int fps = 90;
+                sync_fps = std::min(sync_fps, fps);
                 std::shared_ptr<image> mask_img;
                 if (masks.find(device_infos[i].name) != masks.end())
                 {
@@ -681,6 +683,29 @@ public:
                 auto cluster = std::make_shared<remote_cluster_raspi>(fps, mask_img.get());
                 mask_nodes.insert(std::make_pair(device_infos[i].name, cluster->mask_node_));
                 clusters.emplace_back(cluster);
+            }
+            else if (device_infos[i].type == device_type::depthai_color)
+            {
+                constexpr int fps = 30;
+                sync_fps = std::min(sync_fps, fps);
+                clusters.emplace_back(std::make_unique<remote_cluster_depthai_color>(fps));
+            }
+            else if (device_infos[i].type == device_type::rs_d435)
+            {
+                constexpr int fps = 90;
+                sync_fps = std::min(sync_fps, fps);
+                constexpr int exposure = 5715;
+                constexpr int gain = 248;
+                constexpr int laser_power = 150;
+                constexpr bool with_image = true;
+                constexpr bool emitter_enabled = false;
+                clusters.emplace_back(std::make_unique<remote_cluster_rs_d435>(fps, exposure, gain, laser_power, with_image, emitter_enabled));
+            }
+            else if (device_infos[i].type == device_type::rs_d435_color)
+            {
+                constexpr int fps = 30;
+                sync_fps = std::min(sync_fps, fps);
+                clusters.emplace_back(std::make_unique<remote_cluster_rs_d435_color>(fps));
             }
         }
 
@@ -740,7 +765,7 @@ public:
             }
         }
         // Allow fps variation
-        n3->get_config().set_interval(1000.0 / fps + 0.5);
+        n3->get_config().set_interval(1000.0 / sync_fps + 0.5);
         g->add_node(n3);
 
         std::shared_ptr<callback_node> n8(new callback_node());
@@ -759,7 +784,7 @@ public:
             }
         }
         // Allow fps variation
-        n6->get_config().set_interval(1000.0 / fps + 0.5);
+        n6->get_config().set_interval(1000.0 / sync_fps + 0.5);
         g->add_node(n6);
 
         std::shared_ptr<callback_node> n9(new callback_node());
