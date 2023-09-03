@@ -3,12 +3,14 @@
 #include <map>
 #include <memory>
 #include <iostream>
+#include <random>
 
 #include <glm/glm.hpp>
 
 #include "multiview_point_data.hpp"
 #include "bundle_adjust_data.hpp"
 #include "camera_info.hpp"
+#include "task_queue.hpp"
 
 class calibration_target
 {
@@ -131,4 +133,53 @@ public:
     void add_frame(const std::vector<stargazer::point_data> &frame);
 
     void calibrate();
+};
+
+bool detect_calibration_board(cv::Mat frame, std::vector<cv::Point2f> &points);
+
+class extrinsic_calibration
+{
+    using frame_type = std::unordered_map<std::string, cv::Mat>;
+    calibration_pattern pattern;
+
+    std::shared_ptr<task_queue<std::function<void()>>> workers;
+    std::deque<uint32_t> task_wait_queue;
+    mutable std::mutex task_wait_queue_mtx;
+    std::condition_variable task_wait_queue_cv;
+    std::mt19937 task_id_gen;
+
+    using observed_points_t = std::vector<cv::Point2f>;
+    std::unordered_map<std::string, std::vector<observed_points_t>> observed_frames;
+    std::unordered_map<std::string, size_t> num_frames;
+
+    mutable std::mutex observed_frames_mtx;
+    
+    static std::unordered_map<std::string, observed_points_t> detect_pattern(const frame_type &frame);
+
+public:
+    std::unordered_map<std::string, stargazer::camera_t> cameras;
+
+    extrinsic_calibration(calibration_pattern pattern = calibration_pattern::CHESSBOARD);
+
+    void add_frame(const frame_type &frame);
+
+    void calibrate();
+
+    size_t get_num_frames(std::string name) const
+    {
+        if (num_frames.find(name) == num_frames.end())
+        {
+            return 0;
+        }
+        return num_frames.at(name);
+    }
+    const std::vector<observed_points_t> &get_observed_points(std::string name) const
+    {
+        static std::vector<observed_points_t> empty;
+        if (observed_frames.find(name) == observed_frames.end())
+        {
+            return empty;
+        }
+        return observed_frames.at(name);
+    }
 };

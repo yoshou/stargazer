@@ -865,3 +865,139 @@ void intrinsic_calibration::calibrate()
     calibrated_camera.width = image_width;
     calibrated_camera.height = image_height;
 }
+
+bool detect_calibration_board(cv::Mat frame, std::vector<cv::Point2f> &points)
+{
+    if (frame.empty())
+    {
+        return false;
+    }
+    constexpr auto calibration_pattern = calibration_pattern::CHESSBOARD;
+    constexpr auto use_fisheye = false;
+
+    const auto board_size = cv::Size(10, 7);
+    const auto win_size = 5;
+
+    int chessboard_flags = cv::CALIB_CB_ADAPTIVE_THRESH | cv::CALIB_CB_NORMALIZE_IMAGE;
+    if (!use_fisheye)
+    {
+        chessboard_flags |= cv::CALIB_CB_FAST_CHECK;
+    }
+
+    bool found = false;
+    switch (calibration_pattern)
+    {
+    case calibration_pattern::CHESSBOARD:
+        found = cv::findChessboardCorners(frame, board_size, points, chessboard_flags);
+        break;
+    case calibration_pattern::CIRCLES_GRID:
+        found = cv::findCirclesGrid(frame, board_size, points);
+        break;
+    case calibration_pattern::ASYMMETRIC_CIRCLES_GRID:
+        found = cv::findCirclesGrid(frame, board_size, points, cv::CALIB_CB_ASYMMETRIC_GRID);
+        break;
+    default:
+        found = false;
+        break;
+    }
+
+    if (found)
+    {
+        if (calibration_pattern == calibration_pattern::CHESSBOARD)
+        {
+            cv::Mat gray;
+            cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
+            cv::cornerSubPix(gray, points, cv::Size(win_size, win_size),
+                             cv::Size(-1, -1), cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 30, 0.0001));
+        }
+        cv::drawChessboardCorners(frame, board_size, cv::Mat(points), found);
+    }
+
+    return found;
+}
+
+extrinsic_calibration::extrinsic_calibration(calibration_pattern pattern)
+    : pattern(pattern), workers(std::make_shared<task_queue<std::function<void()>>>(4)), task_id_gen(std::random_device()())
+{
+}
+
+std::unordered_map<std::string, extrinsic_calibration::observed_points_t> extrinsic_calibration::detect_pattern(const frame_type &frame)
+{
+    size_t detected_view_count = 0;
+
+    std::unordered_map<std::string, observed_points_t> frame_points;
+    for (const auto& [camera_name, camera_image] : frame)
+    {
+        frame_points[camera_name];
+
+        std::vector<cv::Point2f> points;
+        if (detect_calibration_board(camera_image, points))
+        {
+            detected_view_count++;
+            frame_points[camera_name] = std::move(points);
+        }
+    }
+
+    if (detected_view_count >= 2)
+    {
+        return frame_points;
+    }
+    else
+    {
+        return std::unordered_map<std::string, extrinsic_calibration::observed_points_t>();
+    }
+}
+
+void extrinsic_calibration::add_frame(const frame_type &frame)
+{
+    if (task_wait_queue.size() > 50)
+    {
+        return;
+    }
+
+    const auto task_id = task_id_gen();
+    {
+        std::lock_guard lock(task_wait_queue_mtx);
+        task_wait_queue.push_back(task_id);
+    }
+
+    task_wait_queue_cv.notify_one();
+
+    workers->push_task([frame, this, task_id]()
+                       {
+        const auto frame_patterns = detect_pattern(frame);
+
+        {
+            std::unique_lock<std::mutex> lock(task_wait_queue_mtx);
+            task_wait_queue_cv.wait(lock, [&]
+                                    { return task_wait_queue.front() == task_id; });
+
+            assert(task_wait_queue.front() == task_id);
+            task_wait_queue.pop_front();
+
+            if (frame_patterns.size() > 0)
+            {
+                std::lock_guard lock(observed_frames_mtx);
+
+                size_t max_frame_count = 0;
+                for (const auto &[camera_name, observed_frame] : observed_frames)
+                {
+                    max_frame_count = std::max(observed_frame.size(), max_frame_count);
+                }
+                for (auto &[camera_name, observed_frame] : observed_frames)
+                {
+                    if (observed_frame.size() < max_frame_count)
+                    {
+                        observed_frame.resize(max_frame_count);
+                    }
+                }
+                for (const auto& [camera_name, points] : frame_patterns)
+                {
+                    observed_frames[camera_name].push_back(points);
+                    num_frames[camera_name]++;
+                }
+            }
+        }
+
+        task_wait_queue_cv.notify_all(); });
+}

@@ -870,58 +870,9 @@ struct reconstruction_viewer : public window_base
         }
     }
 
-    static bool detect_calibration_board(cv::Mat frame, std::vector<cv::Point2f>& points)
-    {
-        if (frame.empty())
-        {
-            return false;
-        }
-        constexpr auto calibration_pattern = calibration_pattern::CHESSBOARD;
-        constexpr auto use_fisheye = false;
-
-        const auto board_size = cv::Size(10, 7);
-        const auto win_size = 5;
-
-        int chessboard_flags = cv::CALIB_CB_ADAPTIVE_THRESH | cv::CALIB_CB_NORMALIZE_IMAGE;
-        if (!use_fisheye)
-        {
-            chessboard_flags |= cv::CALIB_CB_FAST_CHECK;
-        }
-
-        bool found = false;
-        switch (calibration_pattern)
-        {
-        case calibration_pattern::CHESSBOARD:
-            found = cv::findChessboardCorners(frame, board_size, points, chessboard_flags);
-            break;
-        case calibration_pattern::CIRCLES_GRID:
-            found = cv::findCirclesGrid(frame, board_size, points);
-            break;
-        case calibration_pattern::ASYMMETRIC_CIRCLES_GRID:
-            found = cv::findCirclesGrid(frame, board_size, points, cv::CALIB_CB_ASYMMETRIC_GRID);
-            break;
-        default:
-            found = false;
-            break;
-        }
-
-        if (found)
-        {
-            if (calibration_pattern == calibration_pattern::CHESSBOARD)
-            {
-                cv::Mat gray;
-                cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
-                cv::cornerSubPix(gray, points, cv::Size(win_size, win_size),
-                                 cv::Size(-1, -1), cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 30, 0.0001));
-            }
-            cv::drawChessboardCorners(frame, board_size, cv::Mat(points), found);
-        }
-
-        return found;
-    }
-
     calibration calib;
     intrinsic_calibration intrinsic_calib;
+    extrinsic_calibration extrinsic_calib;
 
     virtual void update() override
     {
@@ -955,27 +906,51 @@ struct reconstruction_viewer : public window_base
                     }
                     calib.add_frame(frame);
                 }
-            }
 
-            for (const auto &device : capture_panel_view_->devices)
-            {
-                const auto capture_it = captures.find(device.name);
-                if (capture_it != captures.end())
+                const auto &&frames = multiview_capture->get_frames();
+
+                std::unordered_map<std::string, cv::Mat> color_camera_images;
+                for (const auto &[camera_name, camera_image] : frames)
                 {
-                    const auto capture = capture_it->second;
-                    auto frame = capture->get_frame();
-
-                    if (!frame.empty())
+                    const auto &device_infos = config->get_device_infos();
+                    if (const auto device_info = std::find_if(device_infos.begin(), device_infos.end(), [&](const auto &x)
+                                                              { return x.name == camera_name; });
+                        device_info != device_infos.end())
                     {
-                        std::vector<cv::Point2f> board;
-                        if (detect_calibration_board(frame, board))
+                        if (device_info->type == device_type::depthai_color || device_info->type == device_type::raspi_color || device_info->type == device_type::rs_d435_color)
                         {
-                            std::vector<stargazer::point_data> points;
-                            for (const auto &point : board)
+                            color_camera_images[camera_name] = camera_image;
+                        }
+                    }
+                }
+
+                if (color_camera_images.size() > 0)
+                {
+                    extrinsic_calib.add_frame(color_camera_images);
+                }
+            }
+            else
+            {
+                for (const auto &device : capture_panel_view_->devices)
+                {
+                    const auto capture_it = captures.find(device.name);
+                    if (capture_it != captures.end())
+                    {
+                        const auto capture = capture_it->second;
+                        auto frame = capture->get_frame();
+
+                        if (!frame.empty())
+                        {
+                            std::vector<cv::Point2f> board;
+                            if (detect_calibration_board(frame, board))
                             {
-                                points.push_back(stargazer::point_data{glm::vec2(point.x, point.y), 0, 0});
+                                std::vector<stargazer::point_data> points;
+                                for (const auto &point : board)
+                                {
+                                    points.push_back(stargazer::point_data{glm::vec2(point.x, point.y), 0, 0});
+                                }
+                                intrinsic_calib.add_frame(points);
                             }
-                            intrinsic_calib.add_frame(points);
                         }
                     }
                 }
@@ -1026,7 +1001,20 @@ struct reconstruction_viewer : public window_base
             {
                 for (auto &device : calibration_panel_view_->devices)
                 {
-                    device.num_points = calib.get_num_frames(device.name);
+                    const auto &device_infos = config->get_device_infos();
+                    if (const auto device_info = std::find_if(device_infos.begin(), device_infos.end(), [&](const auto &x)
+                                                              { return x.name == device.name; });
+                        device_info != device_infos.end())
+                    {
+                        if (device_info->type == device_type::depthai_color || device_info->type == device_type::raspi_color || device_info->type == device_type::rs_d435_color)
+                        {
+                            device.num_points = extrinsic_calib.get_num_frames(device.name);
+                        }
+                        else
+                        {
+                            device.num_points = calib.get_num_frames(device.name);
+                        }
+                    }
                 }
             }
             else if (calibration_panel_view_->calibration_target_index == 1)
