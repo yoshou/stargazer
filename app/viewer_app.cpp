@@ -467,12 +467,54 @@ struct reconstruction_viewer : public window_base
                                                        {
                                             
             if (calibration_panel_view_->calibration_target_index == 0)
-            {            
-                calib.calibrate();
-
-                for (const auto&[name, camera] : calib.calibrated_cameras)
+            {
+                for (const auto& device : devices)
                 {
-                    marker_server.cameras[name] = camera;
+                    if (calib.get_num_frames(device.name) > 0)
+                    {
+                        calib.calibrate();
+
+                        for (const auto &[name, camera] : calib.calibrated_cameras)
+                        {
+                            marker_server.cameras[name] = camera;
+                        }
+                        break;
+                    }
+                }
+
+                for (const auto &device : devices)
+                {
+                    if (extrinsic_calib.get_num_frames(device.name) > 0)
+                    {
+                        std::unordered_map<std::string, std::string> device_name_to_id;
+                        for (const auto& device : devices)
+                        {
+                            device_name_to_id[device.name] = device.id;
+                        }
+                        for (const auto& device : devices)
+                        {
+                            extrinsic_calib.cameras.insert(std::make_pair(device.name, camera_params.at(device.id).cameras.at("infra1")));
+                        }
+
+                        for (auto &[camera_name, camera] : extrinsic_calib.cameras)
+                        {
+                            camera.extrin.rotation = glm::mat4(1.0);
+                            camera.extrin.translation = glm::vec3(1.0);
+                        }
+
+                        extrinsic_calib.calibrate();
+
+                        for (const auto &[camera_name, camera] : extrinsic_calib.calibrated_cameras)
+                        {
+                            const auto& camera_id = device_name_to_id.at(camera_name);
+
+                            marker_server.cameras[name].extrin = camera.extrin;
+                            camera_params[camera_id].cameras["infra1"].extrin = camera.extrin;
+                        }
+
+                        stargazer::save_camera_params("camera_params.json", camera_params);
+                        break;
+                    }
                 }
                 return true;
             }
@@ -808,6 +850,7 @@ struct reconstruction_viewer : public window_base
 
         view_controller = std::make_shared<azimuth_elevation>(glm::u32vec2(0, 0), glm::u32vec2(width, height));
         pose_view_ = std::make_unique<pose_view>();
+        pose_view_->axis = glm::mat4(1.0f);
 
         {
             namespace fs = std::experimental::filesystem;
@@ -1035,9 +1078,10 @@ struct reconstruction_viewer : public window_base
 
                 context->view = view;
 
-                for (const auto &[camera_name, camera] : calib.calibrated_cameras)
+                for (const auto &device : config->get_device_infos())
                 {
-                    pose_view_->cameras[camera_name] = pose_view::camera_t{
+                    const auto &camera = camera_params.at(device.id).cameras.at("infra1");
+                    pose_view_->cameras[device.name] = pose_view::camera_t{
                         (int)camera.width,
                         (int)camera.height,
                         camera.intrin.cx,
@@ -1162,9 +1206,10 @@ struct reconstruction_viewer : public window_base
 
             context->view = view;
 
-            for (const auto &[camera_name, camera] : calib.calibrated_cameras)
+            for (const auto &device : config->get_device_infos())
             {
-                pose_view_->cameras[camera_name] = pose_view::camera_t{
+                const auto &camera = camera_params.at(device.id).cameras.at("infra1");
+                pose_view_->cameras[device.name] = pose_view::camera_t{
                     (int)camera.width,
                     (int)camera.height,
                     camera.intrin.cx,

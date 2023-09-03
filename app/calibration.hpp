@@ -148,16 +148,17 @@ class extrinsic_calibration
     std::condition_variable task_wait_queue_cv;
     std::mt19937 task_id_gen;
 
-    using observed_points_t = std::vector<cv::Point2f>;
+    std::unordered_map<std::string, size_t> camera_name_to_index;
     std::unordered_map<std::string, std::vector<observed_points_t>> observed_frames;
     std::unordered_map<std::string, size_t> num_frames;
 
     mutable std::mutex observed_frames_mtx;
     
-    static std::unordered_map<std::string, observed_points_t> detect_pattern(const frame_type &frame);
+    std::unordered_map<std::string, observed_points_t> detect_pattern(const frame_type &frame);
 
 public:
     std::unordered_map<std::string, stargazer::camera_t> cameras;
+    std::unordered_map<std::string, stargazer::camera_t> calibrated_cameras;
 
     extrinsic_calibration(calibration_pattern pattern = calibration_pattern::CHESSBOARD);
 
