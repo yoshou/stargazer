@@ -863,5 +863,5 @@ void intrinsic_calibration::calibrate()
     calibrated_camera.intrin.coeffs[3] = dist_coeffs.at<double>(3);
     calibrated_camera.intrin.coeffs[4] = dist_coeffs.at<double>(4);
     calibrated_camera.width = image_width;
-    calibrated_camera.width = image_height;
+    calibrated_camera.height = image_height;
 }
