@@ -118,7 +118,6 @@ class intrinsic_calibration
     std::vector<std::vector<stargazer::point_data>> frames;
 
 public:
-    stargazer::camera_t camera;
     stargazer::camera_t calibrated_camera;
     double rms = 0.0;
     int image_width = 0;
