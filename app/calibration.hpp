@@ -135,7 +135,9 @@ public:
     void calibrate();
 };
 
-bool detect_calibration_board(cv::Mat frame, std::vector<cv::Point2f> &points);
+void calc_board_corner_positions(cv::Size board_size, cv::Size2f square_size, std::vector<cv::Point3f> &corners, const calibration_pattern pattern_type = calibration_pattern::CHESSBOARD);
+
+bool detect_calibration_board(cv::Mat frame, std::vector<cv::Point2f> &points, const calibration_pattern pattern_type = calibration_pattern::CHESSBOARD);
 
 class extrinsic_calibration
 {
@@ -157,6 +159,7 @@ class extrinsic_calibration
     std::unordered_map<std::string, observed_points_t> detect_pattern(const frame_type &frame);
 
 public:
+    glm::mat4 axis;
     std::unordered_map<std::string, stargazer::camera_t> cameras;
     std::unordered_map<std::string, stargazer::camera_t> calibrated_cameras;
 

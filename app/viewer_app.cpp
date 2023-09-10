@@ -713,8 +713,16 @@ struct reconstruction_viewer : public window_base
                 basis[1] = glm::vec4(0.f, 0.f, 1.f, 0.f);
                 basis[2] = glm::vec4(0.f, 1.f, 0.f, 0.f);
 
-                this->marker_server.axis = basis * axis;
-                this->pose_view_->axis = basis * axis;
+                if (calib.calibrated_cameras.size() > 0)
+                {
+                    this->marker_server.axis = basis * axis;
+                    this->pose_view_->axis = basis * axis;
+                }
+                if (extrinsic_calib.calibrated_cameras.size() > 0)
+                {
+                    this->marker_server.axis = basis * extrinsic_calib.axis;
+                    this->pose_view_->axis = basis * extrinsic_calib.axis;
+                }
             }
             return true; });
     }
@@ -928,6 +936,10 @@ struct reconstruction_viewer : public window_base
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
+#if 0
+        std::unordered_map<std::string, cv::Mat> images;
+#endif
+
         std::vector<std::map<std::string, marker_frame_data>> marker_frames;
         if (calibration_panel_view_->is_marker_collecting)
         {
@@ -994,6 +1006,71 @@ struct reconstruction_viewer : public window_base
                                 }
                                 intrinsic_calib.add_frame(points);
                             }
+#if 0
+                            {
+                                std::vector<cv::Point2f> board;
+                                if (detect_calibration_board(frame, board, calibration_pattern::ASYMMETRIC_CIRCLES_GRID))
+                                {
+                                    const auto board_size = cv::Size(4, 11);
+                                    cv::drawChessboardCorners(frame, board_size, cv::Mat(board), true);
+
+                                    {
+                                        const auto mm_to_m = 0.001f;                                                                                                    // TODO: Define as config
+                                        const auto square_size = cv::Size2f(117.0f / (board_size.width - 1) / 2 * mm_to_m, 196.0f / (board_size.height - 1) * mm_to_m); // TODO: Define as config
+                                        const auto image_size = cv::Size(960, 540);
+
+                                        std::vector<cv::Point3f> object_point;
+                                        std::vector<cv::Point2f> image_point = board;
+                                        calc_board_corner_positions(board_size, square_size, object_point, calibration_pattern::ASYMMETRIC_CIRCLES_GRID);
+
+                                        cv::Mat camera_matrix;
+                                        cv::Mat dist_coeffs;
+                                        const auto &device_infos = config->get_device_infos();
+                                        if (const auto device_info = std::find_if(device_infos.begin(), device_infos.end(), [&](const auto &x)
+                                                                                  { return x.name == device.name; });
+                                            device_info != device_infos.end())
+                                        {
+                                            stargazer::get_cv_intrinsic(camera_params.at(device_info->id).cameras.at("infra1").intrin, camera_matrix, dist_coeffs);
+                                        }
+
+                                        cv::Mat rvec, tvec;
+                                        cv::solvePnP(object_point, image_point, camera_matrix, dist_coeffs, rvec, tvec);
+
+                                        {
+                                            constexpr auto length = 0.2f;
+                                            std::vector<cv::Point3f> object_points = {
+                                                cv::Point3f(0, 0, 0),
+                                                cv::Point3f(length, 0, 0),
+                                                cv::Point3f(length, length, 0),
+                                                cv::Point3f(0, length, 0),
+                                                cv::Point3f(0, 0, -length),
+                                                cv::Point3f(length, 0, -length),
+                                                cv::Point3f(length, length, -length),
+                                                cv::Point3f(0, length, -length),
+                                            };
+                                            std::vector<cv::Point2f> image_points;
+                                            cv::projectPoints(object_points, rvec, tvec, camera_matrix, dist_coeffs, image_points);
+
+                                            cv::line(frame, image_points.at(1), image_points.at(0), cv::Scalar(0, 0, 255));
+                                            cv::line(frame, image_points.at(2), image_points.at(1), cv::Scalar(0, 0, 255));
+                                            cv::line(frame, image_points.at(3), image_points.at(2), cv::Scalar(0, 0, 255));
+                                            cv::line(frame, image_points.at(0), image_points.at(3), cv::Scalar(0, 0, 255));
+                                            cv::line(frame, image_points.at(5), image_points.at(4), cv::Scalar(255, 0, 0));
+                                            cv::line(frame, image_points.at(6), image_points.at(5), cv::Scalar(255, 0, 0));
+                                            cv::line(frame, image_points.at(7), image_points.at(6), cv::Scalar(255, 0, 0));
+                                            cv::line(frame, image_points.at(4), image_points.at(7), cv::Scalar(255, 0, 0));
+                                            cv::line(frame, image_points.at(4), image_points.at(0), cv::Scalar(0, 255, 0));
+                                            cv::line(frame, image_points.at(5), image_points.at(1), cv::Scalar(0, 255, 0));
+                                            cv::line(frame, image_points.at(6), image_points.at(2), cv::Scalar(0, 255, 0));
+                                            cv::line(frame, image_points.at(7), image_points.at(3), cv::Scalar(0, 255, 0));
+                                            // cv::line(frame, image_points.at(0), image_points.at(4), cv::Scalar(255, 0, 0));
+                                        }
+                                    }
+
+                                    images[device.name] = frame;
+                                }
+                            }
+#endif
                         }
                     }
                 }
@@ -1110,14 +1187,15 @@ struct reconstruction_viewer : public window_base
 
                             if (stream_it != frame_tile_view_->streams.end())
                             {
+                                cv::Mat image = frame;
                                 cv::Mat color_image;
-                                if (frame.channels() == 1)
+                                if (image.channels() == 1)
                                 {
-                                    cv::cvtColor(frame, color_image, cv::COLOR_GRAY2RGB);
+                                    cv::cvtColor(image, color_image, cv::COLOR_GRAY2RGB);
                                 }
-                                else if (frame.channels() == 3)
+                                else if (image.channels() == 3)
                                 {
-                                    cv::cvtColor(frame, color_image, cv::COLOR_BGR2RGB);
+                                    cv::cvtColor(image, color_image, cv::COLOR_BGR2RGB);
                                 }
                                 (*stream_it)->texture.upload_image(color_image.cols, color_image.rows, color_image.data, GL_RGB);
                             }
@@ -1140,14 +1218,21 @@ struct reconstruction_viewer : public window_base
 
                             if (stream_it != frame_tile_view_->streams.end())
                             {
-                                cv::Mat color_image;
-                                if (frame.channels() == 1)
+                                cv::Mat image = frame;
+#if 0
+                                if (images.find(device.name) != images.end())
                                 {
-                                    cv::cvtColor(frame, color_image, cv::COLOR_GRAY2RGB);
+                                    image = images.at(device.name);
                                 }
-                                else if (frame.channels() == 3)
+#endif
+                                cv::Mat color_image;
+                                if (image.channels() == 1)
                                 {
-                                    cv::cvtColor(frame, color_image, cv::COLOR_BGR2RGB);
+                                    cv::cvtColor(image, color_image, cv::COLOR_GRAY2RGB);
+                                }
+                                else if (image.channels() == 3)
+                                {
+                                    cv::cvtColor(image, color_image, cv::COLOR_BGR2RGB);
                                 }
                                 (*stream_it)->texture.upload_image(color_image.cols, color_image.rows, color_image.data, GL_RGB);
                             }
