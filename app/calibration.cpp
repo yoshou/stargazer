@@ -172,31 +172,39 @@ static float compute_diff_camera_angle(const glm::mat3 &r1, const glm::mat3 &r2)
 }
 
 static glm::mat4 estimate_relative_pose(const std::vector<std::pair<glm::vec2, glm::vec2>> &corresponding_points,
-                                        const stargazer::camera_t &base_camera, const stargazer::camera_t &target_camera)
+                                        const stargazer::camera_t &base_camera, const stargazer::camera_t &target_camera, bool use_lmeds = false)
 {
     std::vector<cv::Point2f> points1;
     std::vector<cv::Point2f> points2;
+    for (const auto &[point1, point2] : corresponding_points)
+    {
+        points1.emplace_back(point1.x, point1.y);
+        points2.emplace_back(point2.x, point2.y);
+    }
 
     cv::Mat camera_matrix1, camera_matrix2;
     cv::Mat coeffs1, coeffs2;
     stargazer::get_cv_intrinsic(base_camera.intrin, camera_matrix1, coeffs1);
     stargazer::get_cv_intrinsic(target_camera.intrin, camera_matrix2, coeffs2);
 
-    std::vector<cv::Point2f> norm_points1;
-    std::vector<cv::Point2f> norm_points2;
-    for (const auto &[point1, point2] : corresponding_points)
-    {
-        points1.emplace_back(point1.x, point1.y);
-        points2.emplace_back(point2.x, point2.y);
-    }
-    cv::undistortPoints(points1, norm_points1, camera_matrix1, coeffs1);
-    cv::undistortPoints(points2, norm_points2, camera_matrix2, coeffs2);
-
-    cv::Mat mask;
-    const auto E = cv::findEssentialMat(norm_points1, norm_points2, 1.0, cv::Point2d(0.0, 0.0), cv::RANSAC, 0.99, 0.003, mask);
-
     cv::Mat R, t;
-    cv::recoverPose(E, norm_points1, norm_points2, R, t, 1.0, cv::Point2d(0.0, 0.0), mask);
+    if (use_lmeds)
+    {
+        cv::Mat E;
+        cv::recoverPose(points1, points2, camera_matrix1, coeffs1, camera_matrix2, coeffs2, E, R, t, cv::LMEDS);
+    }
+    else
+    {
+        std::vector<cv::Point2f> norm_points1;
+        std::vector<cv::Point2f> norm_points2;
+        cv::undistortPoints(points1, norm_points1, camera_matrix1, coeffs1);
+        cv::undistortPoints(points2, norm_points2, camera_matrix2, coeffs2);
+
+        cv::Mat mask;
+        const auto E = cv::findEssentialMat(norm_points1, norm_points2, 1.0, cv::Point2d(0.0, 0.0), cv::RANSAC, 0.99, 0.003, mask);
+
+        cv::recoverPose(E, norm_points1, norm_points2, R, t, 1.0, cv::Point2d(0.0, 0.0), mask);
+    }
 
     const auto r_mat = stargazer::cv_to_glm_mat3x3(R);
     const auto t_vec = stargazer::cv_to_glm_vec3(t);
@@ -721,9 +729,9 @@ void calibration::calibrate()
             }
         }
 
-        std::cout << "num_cameras" << ba_data.num_cameras() << std::endl;
-        std::cout << "num_points" << ba_data.num_points() << std::endl;
-        std::cout << "num_observations" << ba_data.num_observations() << std::endl;
+        std::cout << "Num cameras: " << ba_data.num_cameras() << std::endl;
+        std::cout << "Num points: " << ba_data.num_points() << std::endl;
+        std::cout << "Num Observations: " << ba_data.num_observations() << std::endl;
 
         ceres::Solver::Options options;
         options.linear_solver_type = ceres::DENSE_SCHUR;
@@ -769,11 +777,8 @@ void intrinsic_calibration::add_frame(const std::vector<stargazer::point_data> &
     frames.push_back(frame);
 }
 
-static void calc_board_corner_positions(cv::Size board_size, cv::Size2f square_size, std::vector<cv::Point3f> &corners)
+void calc_board_corner_positions(cv::Size board_size, cv::Size2f square_size, std::vector<cv::Point3f> &corners, const calibration_pattern pattern_type)
 {
-    constexpr auto pattern_type = calibration_pattern::CHESSBOARD;
-    constexpr auto use_fisheye = false;
-
     corners.clear();
     switch (pattern_type)
     {
@@ -867,16 +872,27 @@ void intrinsic_calibration::calibrate()
     calibrated_camera.height = image_height;
 }
 
-bool detect_calibration_board(cv::Mat frame, std::vector<cv::Point2f> &points)
+bool detect_calibration_board(cv::Mat frame, std::vector<cv::Point2f> &points, const calibration_pattern pattern_type)
 {
     if (frame.empty())
     {
         return false;
     }
-    constexpr auto calibration_pattern = calibration_pattern::CHESSBOARD;
     constexpr auto use_fisheye = false;
 
-    const auto board_size = cv::Size(10, 7);
+    cv::Size board_size;
+    switch (pattern_type)
+    {
+    case calibration_pattern::CHESSBOARD:
+        board_size = cv::Size(10, 7);
+        break;
+    case calibration_pattern::CIRCLES_GRID:
+        board_size = cv::Size(10, 7);
+        break;
+    case calibration_pattern::ASYMMETRIC_CIRCLES_GRID:
+        board_size = cv::Size(4, 11);
+        break;
+    }
     const auto win_size = 5;
 
     int chessboard_flags = cv::CALIB_CB_ADAPTIVE_THRESH | cv::CALIB_CB_NORMALIZE_IMAGE;
@@ -886,7 +902,7 @@ bool detect_calibration_board(cv::Mat frame, std::vector<cv::Point2f> &points)
     }
 
     bool found = false;
-    switch (calibration_pattern)
+    switch (pattern_type)
     {
     case calibration_pattern::CHESSBOARD:
         found = cv::findChessboardCorners(frame, board_size, points, chessboard_flags);
@@ -895,7 +911,12 @@ bool detect_calibration_board(cv::Mat frame, std::vector<cv::Point2f> &points)
         found = cv::findCirclesGrid(frame, board_size, points);
         break;
     case calibration_pattern::ASYMMETRIC_CIRCLES_GRID:
-        found = cv::findCirclesGrid(frame, board_size, points, cv::CALIB_CB_ASYMMETRIC_GRID);
+    {
+        auto params = cv::SimpleBlobDetector::Params();
+        params.minDistBetweenBlobs = 3;
+        auto detector = cv::SimpleBlobDetector::create(params);
+        found = cv::findCirclesGrid(frame, board_size, points, cv::CALIB_CB_ASYMMETRIC_GRID, detector);
+    }
         break;
     default:
         found = false;
@@ -904,21 +925,20 @@ bool detect_calibration_board(cv::Mat frame, std::vector<cv::Point2f> &points)
 
     if (found)
     {
-        if (calibration_pattern == calibration_pattern::CHESSBOARD)
+        if (pattern_type == calibration_pattern::CHESSBOARD)
         {
             cv::Mat gray;
             cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
             cv::cornerSubPix(gray, points, cv::Size(win_size, win_size),
                              cv::Size(-1, -1), cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 30, 0.0001));
         }
-        cv::drawChessboardCorners(frame, board_size, cv::Mat(points), found);
     }
 
     return found;
 }
 
 extrinsic_calibration::extrinsic_calibration(calibration_pattern pattern)
-    : pattern(pattern), workers(std::make_shared<task_queue<std::function<void()>>>(4)), task_id_gen(std::random_device()())
+    : pattern(pattern), workers(std::make_shared<task_queue<std::function<void()>>>(4)), task_id_gen(std::random_device()()), axis(1.0f)
 {
 }
 
@@ -947,7 +967,7 @@ std::unordered_map<std::string, observed_points_t> extrinsic_calibration::detect
         }
 
         std::vector<cv::Point2f> points;
-        if (detect_calibration_board(camera_image, points))
+        if (detect_calibration_board(camera_image, points, calibration_pattern::ASYMMETRIC_CIRCLES_GRID))
         {
             observed_point.camera_idx = camera_name_to_index.at(camera_name);
             observed_point.points = convert_cv_to_glm_point2f(points);
@@ -1019,6 +1039,55 @@ void extrinsic_calibration::add_frame(const frame_type &frame)
         task_wait_queue_cv.notify_all(); });
 }
 
+static std::vector<glm::vec3> get_target_object_points(int board_size_x, int board_size_y, float square_size_x, float square_size_y, calibration_pattern target)
+{
+    std::vector<cv::Point3f> corners;
+    calc_board_corner_positions(cv::Size(board_size_x, board_size_y), cv::Size2f(square_size_x, square_size_y), corners, target);
+
+    std::vector<glm::vec3> points;
+    for (const auto& corner : corners)
+    {
+        points.emplace_back(corner.x, corner.y, corner.z);
+    }
+    return points;
+}
+
+static glm::mat4 compute_axis(observed_points_t& points, const std::vector<glm::vec3>& target_points, cv::Mat camera_matrix, cv::Mat dist_coeffs)
+{
+    std::vector<cv::Point3f> object_points;
+    std::vector<cv::Point2f> image_points;
+
+    std::transform(points.points.begin(), points.points.end(), std::back_inserter(image_points), [](const auto &pt)
+                   { return cv::Point2f(pt.x, pt.y); });
+
+    std::transform(target_points.begin(), target_points.end(), std::back_inserter(object_points), [](const auto &pt)
+                   { return cv::Point3f(pt.x, pt.y, pt.z); });
+
+    cv::Mat rvec, tvec;
+
+    const auto rms = cv::solvePnP(object_points, image_points, camera_matrix, dist_coeffs, rvec, tvec);
+
+    glm::mat4 axis(1.0f);
+    cv::Mat rmat;
+    cv::Rodrigues(rvec, rmat);
+    for (size_t i = 0; i < 3; i++)
+    {
+        for (size_t j = 0; j < 3; j++)
+        {
+            axis[i][j] = rmat.at<double>(j, i);
+        }
+    }
+    glm::vec3 origin(tvec.at<double>(0), tvec.at<double>(1), tvec.at<double>(2));
+    axis[3] = glm::vec4(origin, 1.0f);
+
+    glm::mat4 cv_to_gl(1.f);
+    cv_to_gl[0] = glm::vec4(1.f, 0.f, 0.f, 0.f);
+    cv_to_gl[1] = glm::vec4(0.f, -1.f, 0.f, 0.f);
+    cv_to_gl[2] = glm::vec4(0.f, 0.f, -1.f, 0.f);
+
+    return cv_to_gl * glm::inverse(axis);
+}
+
 void extrinsic_calibration::calibrate()
 {
     std::vector<std::string> camera_names;
@@ -1026,6 +1095,8 @@ void extrinsic_calibration::calibrate()
     {
         camera_names.push_back(camera_name);
     }
+
+    std::sort(camera_names.begin(), camera_names.end());
 
     {
         std::string base_camera_name1;
@@ -1057,7 +1128,7 @@ void extrinsic_calibration::calibrate()
                 zip_points(observed_frames.at(camera_name1), observed_frames.at(camera_name2), corresponding_points);
 
                 const auto pose1 = glm::mat4(1.0);
-                const auto pose2 = estimate_relative_pose(corresponding_points, cameras.at(camera_name1), cameras.at(camera_name2));
+                const auto pose2 = estimate_relative_pose(corresponding_points, cameras.at(camera_name1), cameras.at(camera_name2), true);
 
                 const auto angle = compute_diff_camera_angle(glm::mat3(pose1), glm::mat3(pose2));
 
@@ -1078,6 +1149,33 @@ void extrinsic_calibration::calibrate()
             spdlog::error("Two base cameras could not be found. At least two cameras with more minimum angles are required.");
             return;
         }
+
+        {
+            const auto mm_to_m = 0.001f;
+            const auto board_size = cv::Size(4, 11);                                                                // TODO: Define as config
+            const auto square_size = cv::Size2f(117.0f / (board_size.width - 1) / 2 * mm_to_m, 196.0f / (board_size.height - 1) * mm_to_m); // TODO: Define as config
+
+            const auto target = get_target_object_points(board_size.width, board_size.height, square_size.width, square_size.height, calibration_pattern::ASYMMETRIC_CIRCLES_GRID);
+
+            observed_points_t points;
+            for (const auto& frame : observed_frames.at(base_camera_name1))
+            {
+                if (!frame.points.empty())
+                {
+                    points = frame;
+                    break;
+                }
+            }
+
+            assert(points.points.size() > 0);
+
+            cv::Mat camera_matrix, dist_coeffs;
+            stargazer::get_cv_intrinsic(cameras.at(base_camera_name1).intrin, camera_matrix, dist_coeffs);
+            axis = compute_axis(points, target, camera_matrix, dist_coeffs);
+        }
+
+        std::cout << "Base camera1: " << base_camera_name1 << std::endl;
+        std::cout << "Base camera2: " << base_camera_name2 << std::endl;
 
         cameras[base_camera_name1].extrin.rotation = base_camera_pose1;
         cameras[base_camera_name1].extrin.translation = glm::vec3(base_camera_pose1[3]);
@@ -1241,9 +1339,9 @@ void extrinsic_calibration::calibrate()
             }
         }
 
-        std::cout << "num_cameras" << ba_data.num_cameras() << std::endl;
-        std::cout << "num_points" << ba_data.num_points() << std::endl;
-        std::cout << "num_observations" << ba_data.num_observations() << std::endl;
+        std::cout << "Num cameras: " << ba_data.num_cameras() << std::endl;
+        std::cout << "Num points: " << ba_data.num_points() << std::endl;
+        std::cout << "Num Observations: " << ba_data.num_observations() << std::endl;
 
         ceres::Solver::Options options;
         options.linear_solver_type = ceres::DENSE_SCHUR;
