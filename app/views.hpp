@@ -1641,7 +1641,7 @@ public:
     std::vector<std::function<bool(const std::vector<device_info> &, bool)>> on_calibrate;
     std::vector<std::function<void(const device_info &)>> on_intrinsic_calibration_device_changed;
 
-    int intrinsic_calibration_device_index = -1;
+    int intrinsic_calibration_device_index = 0;
     int calibration_target_index = 0;
 
     float fx = 0;
