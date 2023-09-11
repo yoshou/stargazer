@@ -23,8 +23,9 @@
 #include "calibration.hpp"
 #include "reconstruction.hpp"
 #include "config_file.hpp"
+#include "glm_json.hpp"
 
-#include <experimental/filesystem>
+#include <filesystem>
 
 class playback_stream
 {
@@ -45,7 +46,7 @@ public:
 
     void start(const std::vector<std::string> &names, std::function<void(const std::map<std::string, std::vector<stargazer::point_data>> &)> callback)
     {
-        namespace fs = std::experimental::filesystem;
+        namespace fs = std::filesystem;
         th.reset(new std::thread([this, callback, names]()
                                                {
             playing = true;
@@ -623,7 +624,7 @@ struct reconstruction_viewer : public window_base
 
         reconstruction_panel_view_->is_streaming_changed.push_back([this](const std::vector<reconstruction_panel_view::device_info> &devices, bool is_streaming)
                                                                   {
-            namespace fs = std::experimental::filesystem;
+            namespace fs = std::filesystem;
             if (is_streaming)
             {
                 std::vector<std::string> names;
@@ -655,74 +656,79 @@ struct reconstruction_viewer : public window_base
 
         reconstruction_panel_view_->set_axis_pressed.push_back([this](const std::vector<reconstruction_panel_view::device_info> &devices)
                                                                   {
-            namespace fs = std::experimental::filesystem;
+            namespace fs = std::filesystem;
             {
-                std::vector<std::string> names;
-                for (const auto& device : devices)
-                {
-                    names.push_back(device.name);
-                }
-
-                const auto data_dir = "../data";
-
-                std::ifstream ifs;
-                ifs.open((fs::path(data_dir) / "config.json").string(), std::ios::in);
-                nlohmann::json j_config = nlohmann::json::parse(ifs);
-                const std::string prefix = "axis";
-
-                const auto markers_directory = fs::path(data_dir) / j_config["directory"].get<std::string>() / (prefix + "_5715_248_150_90");
-
-                const auto directory = markers_directory;
-                std::vector<std::uint64_t> frame_numbers;
-                stargazer::list_frame_numbers(directory, frame_numbers);
-
-                std::size_t max_frames = frame_numbers.size();
-
-                glm::mat4 axis(1.0);
-                for (size_t frame_no = 0; frame_no < frame_numbers.size(); frame_no++)
-                {
-                    std::string filename = (fs::path(directory) / ("marker_" + std::to_string(frame_numbers[frame_no]) + ".json")).string();
-                    if (!fs::exists(filename))
-                    {
-                        continue;
-                    }
-
-                    std::vector<std::vector<stargazer::point_data>> frame_data(names.size());
-                    read_frame(filename, names, frame_data);
-
-                    std::map<std::string, std::vector<stargazer::point_data>> points;
-                    for (size_t i = 0; i < names.size(); i++)
-                    {
-                        points.insert(std::make_pair(names[i], frame_data[i]));
-                    }
-
-                    const std::map<std::string, stargazer::camera_t> cameras(calib.calibrated_cameras.begin(), calib.calibrated_cameras.end());
-
-                    const auto markers = reconstruct(cameras, points);
-
-                    if (markers.size() == 3)
-                    {
-                        if (detect_axis(markers[0], markers[1], markers[2], axis))
-                        {
-                            break;
-                        }
-                    }
-                }
                 glm::mat4 basis(1.f);
                 basis[0] = glm::vec4(-1.f, 0.f, 0.f, 0.f);
                 basis[1] = glm::vec4(0.f, 0.f, 1.f, 0.f);
                 basis[2] = glm::vec4(0.f, 1.f, 0.f, 0.f);
 
+                glm::mat4 axis(1.0);
+
                 if (calib.calibrated_cameras.size() > 0)
                 {
-                    this->marker_server.axis = basis * axis;
-                    this->pose_view_->axis = basis * axis;
+                    std::vector<std::string> names;
+                    for (const auto &device : devices)
+                    {
+                        names.push_back(device.name);
+                    }
+
+                    const auto data_dir = "../data";
+
+                    std::ifstream ifs;
+                    ifs.open((fs::path(data_dir) / "config.json").string(), std::ios::in);
+                    nlohmann::json j_config = nlohmann::json::parse(ifs);
+                    const std::string prefix = "axis";
+
+                    const auto markers_directory = fs::path(data_dir) / j_config["directory"].get<std::string>() / (prefix + "_5715_248_150_90");
+
+                    const auto directory = markers_directory;
+                    std::vector<std::uint64_t> frame_numbers;
+                    stargazer::list_frame_numbers(directory, frame_numbers);
+
+                    std::size_t max_frames = frame_numbers.size();
+
+                    for (size_t frame_no = 0; frame_no < frame_numbers.size(); frame_no++)
+                    {
+                        std::string filename = (fs::path(directory) / ("marker_" + std::to_string(frame_numbers[frame_no]) + ".json")).string();
+                        if (!fs::exists(filename))
+                        {
+                            continue;
+                        }
+
+                        std::vector<std::vector<stargazer::point_data>> frame_data(names.size());
+                        read_frame(filename, names, frame_data);
+
+                        std::map<std::string, std::vector<stargazer::point_data>> points;
+                        for (size_t i = 0; i < names.size(); i++)
+                        {
+                            points.insert(std::make_pair(names[i], frame_data[i]));
+                        }
+
+                        const std::map<std::string, stargazer::camera_t> cameras(calib.calibrated_cameras.begin(), calib.calibrated_cameras.end());
+
+                        const auto markers = reconstruct(cameras, points);
+
+                        if (markers.size() == 3)
+                        {
+                            if (detect_axis(markers[0], markers[1], markers[2], axis))
+                            {
+                                break;
+                            }
+                        }
+                    }
                 }
                 if (extrinsic_calib.calibrated_cameras.size() > 0)
                 {
-                    this->marker_server.axis = basis * extrinsic_calib.axis;
-                    this->pose_view_->axis = basis * extrinsic_calib.axis;
+                    axis = extrinsic_calib.axis;
                 }
+
+                this->axis = axis;
+
+                save_scene();
+
+                this->marker_server.axis = basis * axis;
+                this->pose_view_->axis = basis * axis;
             }
             return true; });
     }
@@ -835,11 +841,44 @@ struct reconstruction_viewer : public window_base
         }
     }
 
+    glm::mat4 axis;
+
+    void load_scene()
+    {
+        const auto path = "scene.json";
+
+        std::ifstream ifs;
+        ifs.open(path, std::ios::binary | std::ios::in);
+
+        if (!ifs)
+        {
+            axis = glm::mat4(1.0f);
+            return;
+        }
+
+        const auto j = nlohmann::json::parse(ifs);
+        axis = j["scene"]["axis"].get<glm::mat4>();
+    }
+
+    void save_scene()
+    {
+        const auto path = "scene.json";
+
+        std::ofstream ofs;
+        ofs.open(path, std::ios::out);
+
+        auto j = nlohmann::json{};
+        j["scene"]["axis"] = axis;
+        ofs << j.dump(2);
+    }
+
     virtual void show() override
     {
         gladLoadGL();
 
         load_camera_params();
+
+        load_scene();
 
         init_gui();
 
@@ -858,10 +897,19 @@ struct reconstruction_viewer : public window_base
 
         view_controller = std::make_shared<azimuth_elevation>(glm::u32vec2(0, 0), glm::u32vec2(width, height));
         pose_view_ = std::make_unique<pose_view>();
-        pose_view_->axis = glm::mat4(1.0f);
 
         {
-            namespace fs = std::experimental::filesystem;
+            glm::mat4 basis(1.f);
+            basis[0] = glm::vec4(-1.f, 0.f, 0.f, 0.f);
+            basis[1] = glm::vec4(0.f, 0.f, 1.f, 0.f);
+            basis[2] = glm::vec4(0.f, 1.f, 0.f, 0.f);
+
+            this->marker_server.axis = basis * this->axis;
+            this->pose_view_->axis = basis * this->axis;
+        }
+
+        {
+            namespace fs = std::filesystem;
             const std::string prefix = "calibrate";
             const std::string data_dir = "../data";
 
