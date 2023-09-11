@@ -1031,7 +1031,10 @@ void extrinsic_calibration::add_frame(const frame_type &frame)
                 for (const auto& [camera_name, points] : frame_patterns)
                 {
                     observed_frames[camera_name].push_back(points);
-                    num_frames[camera_name]++;
+                    if (points.points.size() > 0)
+                    {
+                        num_frames[camera_name]++;
+                    }
                 }
             }
         }
