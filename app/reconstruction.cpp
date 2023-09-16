@@ -211,3 +211,79 @@ void marker_stream_server::stop()
         }
     }
 }
+
+std::vector<glm::vec3> dnn_reconstruct(const std::map<std::string, stargazer::camera_t> &cameras, const std::map<std::string, cv::Mat> &frame, glm::mat4 axis)
+{
+    std::vector<glm::vec3> points;
+    return points;
+}
+
+dnn_reconstruction::dnn_reconstruction()
+    : service(new SensorServiceImpl()), reconstruction_workers(std::make_shared<task_queue<std::function<void()>>>(4)), task_id_gen(std::random_device()()) {}
+dnn_reconstruction::~dnn_reconstruction() = default;
+
+void dnn_reconstruction::push_frame(const frame_type &frame)
+{
+    if (!running)
+    {
+        return;
+    }
+
+    const auto task_id = task_id_gen();
+    {
+        std::lock_guard lock(reconstruction_task_wait_queue_mtx);
+        reconstruction_task_wait_queue.push_back(task_id);
+    }
+
+    reconstruction_task_wait_queue_cv.notify_one();
+
+    reconstruction_workers->push_task([frame, this, task_id]()
+                                      {
+        const auto markers = dnn_reconstruct(cameras, frame, axis);
+
+        {
+            std::unique_lock<std::mutex> lock(reconstruction_task_wait_queue_mtx);
+            reconstruction_task_wait_queue_cv.wait(lock, [&]
+                                                   { return reconstruction_task_wait_queue.front() == task_id; });
+
+            assert(reconstruction_task_wait_queue.front() == task_id);
+            reconstruction_task_wait_queue.pop_front();
+
+            {
+                std::lock_guard lock(markers_mtx);
+                this->markers = markers;
+            }
+
+            service->notify_sphere(markers);
+        }
+
+        reconstruction_task_wait_queue_cv.notify_all(); });
+}
+
+void dnn_reconstruction::run()
+{
+    running = true;
+    server_th.reset(new std::thread([this]()
+                                    {
+        std::string server_address("0.0.0.0:50052");
+
+        grpc::ServerBuilder builder;
+        builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
+        builder.RegisterService(service.get());
+        server = builder.BuildAndStart();
+        spdlog::info("Server listening on " + server_address);
+        server->Wait(); }));
+}
+
+void dnn_reconstruction::stop()
+{
+    if (running.load())
+    {
+        running.store(false);
+        server->Shutdown();
+        if (server_th && server_th->joinable())
+        {
+            server_th->join();
+        }
+    }
+}

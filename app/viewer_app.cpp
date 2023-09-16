@@ -128,6 +128,7 @@ struct reconstruction_viewer : public window_base
     std::shared_ptr<multiview_capture_pipeline> multiview_capture;
 
     marker_stream_server marker_server;
+    dnn_reconstruction dnn_reconstruction_;
     std::unique_ptr<playback_stream> playback;
     std::unique_ptr<stargazer::configuration_file> config;
 
@@ -627,30 +628,122 @@ struct reconstruction_viewer : public window_base
             namespace fs = std::filesystem;
             if (is_streaming)
             {
-                std::vector<std::string> names;
-                for (const auto& device : devices)
+                if (reconstruction_panel_view_->source == 0)
                 {
-                    names.push_back(device.name);
+                    if (playback)
+                    {
+                        return false;
+                    }
+
+                    std::vector<std::string> names;
+                    for (const auto& device : devices)
+                    {
+                        names.push_back(device.name);
+                    }
+
+                    const auto data_dir = "../data";
+
+                    std::ifstream ifs;
+                    ifs.open((fs::path(data_dir) / "config.json").string(), std::ios::in);
+                    nlohmann::json j_config = nlohmann::json::parse(ifs);
+                    const std::string prefix = "capture";
+
+                    const auto markers_directory = fs::path(data_dir) / j_config["directory"].get<std::string>() / (prefix + "_5715_248_150_90");
+
+                    playback.reset(new playback_stream(markers_directory.string(), 0));
+                    playback->start(names, [this](const std::map<std::string, std::vector<stargazer::point_data>> &frame)
+                                    {
+                        marker_server.push_frame(frame); });
                 }
+                else if (reconstruction_panel_view_->source == 1 || reconstruction_panel_view_->source == 2)
+                {
+                    if (multiview_capture)
+                    {
+                        return false;
+                    }
 
-                const auto data_dir = "../data";
+                    std::vector<device_info> infos;
 
-                std::ifstream ifs;
-                ifs.open((fs::path(data_dir) / "config.json").string(), std::ios::in);
-                nlohmann::json j_config = nlohmann::json::parse(ifs);
-                const std::string prefix = "capture";
+                    for (const auto &device : devices)
+                    {
+                        const auto &device_infos = config->get_device_infos();
+                        auto found = std::find_if(device_infos.begin(), device_infos.end(), [device](const auto &x)
+                                                  { return x.name == device.name; });
+                        if (found == device_infos.end())
+                        {
+                            return false;
+                        }
 
-                const auto markers_directory = fs::path(data_dir) / j_config["directory"].get<std::string>() / (prefix + "_5715_248_150_90");
+                        infos.push_back(*found);
+                    }
 
-                playback.reset(new playback_stream(markers_directory.string(), 0));
-                playback->start(names, [this](const std::map<std::string, std::vector<stargazer::point_data>> &frame)
-                                {
-                    marker_server.push_frame(frame); });
+                    if (calibration_panel_view_->is_masking)
+                    {
+                        multiview_capture.reset(new multiview_capture_pipeline(masks));
+                    }
+                    else
+                    {
+                        multiview_capture.reset(new multiview_capture_pipeline());
+                    }
+
+                    multiview_capture->add_marker_received([this](const std::map<std::string, marker_frame_data> &marker_frame)
+                                                           {
+                        std::map<std::string, std::vector<stargazer::point_data>> frame;
+                        for (const auto &[name, markers] : marker_frame)
+                        {
+                            std::vector<stargazer::point_data> points;
+                            for (const auto &marker : markers.markers)
+                            {
+                                points.push_back(stargazer::point_data{glm::vec2(marker.x, marker.y), marker.r, markers.timestamp});
+                            }
+                            frame.insert(std::make_pair(name, points));
+                        }
+                        marker_server.push_frame(frame); });
+
+                    multiview_capture->add_image_received([this](const std::map<std::string, cv::Mat> &image_frame)
+                                                          {
+                        std::map<std::string, cv::Mat> color_image_frame;
+                        for (const auto& [name, image] : image_frame)
+                        {
+                            if (image.channels() == 3 && image.type() == cv::DataType<uchar>::depth)
+                            {
+                                color_image_frame[name] = image;
+                            }
+                        }
+                        dnn_reconstruction_.push_frame(color_image_frame); });
+
+                    multiview_capture->run(infos);
+
+                    for (const auto &device : devices)
+                    {
+                        const auto stream = std::make_shared<frame_tile_view::stream_info>(device.name, float2{(float)width, (float)height});
+                        frame_tile_view_->streams.push_back(stream);
+                    }
+                }
             }
             else
             {
-                playback->stop();
-                playback.reset();
+                if (playback)
+                {
+                    playback->stop();
+                    playback.reset();
+                }
+                if (multiview_capture)
+                {
+                    multiview_capture->stop();
+                    multiview_capture.reset();
+
+                    for (const auto &device : devices)
+                    {
+                        const auto stream_it = std::find_if(frame_tile_view_->streams.begin(), frame_tile_view_->streams.end(), [&](const auto &x)
+                                                            { return x->name == device.name; });
+
+                        if (stream_it != frame_tile_view_->streams.end())
+                        {
+                            frame_tile_view_->streams.erase(stream_it);
+                        }
+                    }
+                }
             }
             return true; });
 
@@ -728,6 +821,7 @@ struct reconstruction_viewer : public window_base
                 save_scene();
 
                 this->marker_server.axis = basis * axis;
+                this->dnn_reconstruction_.axis = basis * axis;
                 this->pose_view_->axis = basis * axis;
             }
             return true; });
@@ -905,6 +999,7 @@ struct reconstruction_viewer : public window_base
             basis[2] = glm::vec4(0.f, 1.f, 0.f, 0.f);
 
             this->marker_server.axis = basis * this->axis;
+            this->dnn_reconstruction_.axis = basis * this->axis;
             this->pose_view_->axis = basis * this->axis;
         }
 
@@ -948,6 +1043,7 @@ struct reconstruction_viewer : public window_base
         }
 
         marker_server.run();
+        dnn_reconstruction_.run();
 
         window_base::show();
     }
@@ -955,6 +1051,7 @@ struct reconstruction_viewer : public window_base
     virtual void on_close() override
     {
         marker_server.stop();
+        dnn_reconstruction_.stop();
 
         std::lock_guard<std::mutex> lock(mtx);
         window_manager::get_instance()->exit();
@@ -1127,9 +1224,36 @@ struct reconstruction_viewer : public window_base
 
         top_bar_view_->render(context.get());
 
-        if (top_bar_view_->view_mode == top_bar_view::Mode::Capture)
+        if (top_bar_view_->view_type == top_bar_view::ViewType::Image)
         {
-            capture_panel_view_->render(context.get());
+            if (multiview_capture)
+            {
+                const auto frames = multiview_capture->get_frames();
+                for (const auto &[name, frame] : frames)
+                {
+                    const auto device_name = name;
+                    if (!frame.empty())
+                    {
+                        const auto stream_it = std::find_if(frame_tile_view_->streams.begin(), frame_tile_view_->streams.end(), [device_name](const auto &x)
+                                                            { return x->name == device_name; });
+
+                        if (stream_it != frame_tile_view_->streams.end())
+                        {
+                            cv::Mat image = frame;
+                            cv::Mat color_image;
+                            if (image.channels() == 1)
+                            {
+                                cv::cvtColor(image, color_image, cv::COLOR_GRAY2RGB);
+                            }
+                            else if (image.channels() == 3)
+                            {
+                                cv::cvtColor(image, color_image, cv::COLOR_BGR2RGB);
+                            }
+                            (*stream_it)->texture.upload_image(color_image.cols, color_image.rows, color_image.data, GL_RGB);
+                        }
+                    }
+                }
+            }
 
             for (const auto &device : capture_panel_view_->devices)
             {
@@ -1146,14 +1270,21 @@ struct reconstruction_viewer : public window_base
 
                         if (stream_it != frame_tile_view_->streams.end())
                         {
-                            cv::Mat color_image;
-                            if (frame.channels() == 1)
+                            cv::Mat image = frame;
+#if 0
+                            if (images.find(device.name) != images.end())
                             {
-                                cv::cvtColor(frame, color_image, cv::COLOR_GRAY2RGB);
+                                image = images.at(device.name);
                             }
-                            else if (frame.channels() == 3)
+#endif
+                            cv::Mat color_image;
+                            if (image.channels() == 1)
                             {
-                                cv::cvtColor(frame, color_image, cv::COLOR_BGR2RGB);
+                                cv::cvtColor(image, color_image, cv::COLOR_GRAY2RGB);
+                            }
+                            else if (image.channels() == 3)
+                            {
+                                cv::cvtColor(image, color_image, cv::COLOR_BGR2RGB);
                             }
                             (*stream_it)->texture.upload_image(color_image.cols, color_image.rows, color_image.data, GL_RGB);
                         }
@@ -1162,6 +1293,11 @@ struct reconstruction_viewer : public window_base
             }
 
             frame_tile_view_->render(context.get());
+        }
+
+        if (top_bar_view_->view_mode == top_bar_view::Mode::Capture)
+        {
+            capture_panel_view_->render(context.get());
         }
         else if (top_bar_view_->view_mode == top_bar_view::Mode::Calibration)
         {
@@ -1219,76 +1355,6 @@ struct reconstruction_viewer : public window_base
                 }
 
                 pose_view_->render(context.get());
-            }
-            else if (top_bar_view_->view_type == top_bar_view::ViewType::Image)
-            {
-                if (multiview_capture)
-                {
-                    const auto frames = multiview_capture->get_frames();
-                    for (const auto &[name, frame] : frames)
-                    {
-                        const auto device_name = name;
-                        if (!frame.empty())
-                        {
-                            const auto stream_it = std::find_if(frame_tile_view_->streams.begin(), frame_tile_view_->streams.end(), [device_name](const auto &x)
-                                                                { return x->name == device_name; });
-
-                            if (stream_it != frame_tile_view_->streams.end())
-                            {
-                                cv::Mat image = frame;
-                                cv::Mat color_image;
-                                if (image.channels() == 1)
-                                {
-                                    cv::cvtColor(image, color_image, cv::COLOR_GRAY2RGB);
-                                }
-                                else if (image.channels() == 3)
-                                {
-                                    cv::cvtColor(image, color_image, cv::COLOR_BGR2RGB);
-                                }
-                                (*stream_it)->texture.upload_image(color_image.cols, color_image.rows, color_image.data, GL_RGB);
-                            }
-                        }
-                    }
-                }
-
-                for (const auto &device : capture_panel_view_->devices)
-                {
-                    const auto capture_it = captures.find(device.name);
-                    if (capture_it != captures.end())
-                    {
-                        const auto capture = capture_it->second;
-                        auto frame = capture->get_frame();
-
-                        if (!frame.empty())
-                        {
-                            const auto stream_it = std::find_if(frame_tile_view_->streams.begin(), frame_tile_view_->streams.end(), [&](const auto &x)
-                                                                { return x->name == device.name; });
-
-                            if (stream_it != frame_tile_view_->streams.end())
-                            {
-                                cv::Mat image = frame;
-#if 0
-                                if (images.find(device.name) != images.end())
-                                {
-                                    image = images.at(device.name);
-                                }
-#endif
-                                cv::Mat color_image;
-                                if (image.channels() == 1)
-                                {
-                                    cv::cvtColor(image, color_image, cv::COLOR_GRAY2RGB);
-                                }
-                                else if (image.channels() == 3)
-                                {
-                                    cv::cvtColor(image, color_image, cv::COLOR_BGR2RGB);
-                                }
-                                (*stream_it)->texture.upload_image(color_image.cols, color_image.rows, color_image.data, GL_RGB);
-                            }
-                        }
-                    }
-                }
-
-                frame_tile_view_->render(context.get());
             }
             else if (top_bar_view_->view_type == top_bar_view::ViewType::Contrail)
             {
@@ -1355,6 +1421,10 @@ struct reconstruction_viewer : public window_base
             }
             pose_view_->points.clear();
             for (const auto& point : marker_server.get_markers())
+            {
+                pose_view_->points.push_back(point);
+            }
+            for (const auto &point : dnn_reconstruction_.get_markers())
             {
                 pose_view_->points.push_back(point);
             }
