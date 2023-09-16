@@ -631,8 +631,9 @@ class multiview_capture_pipeline::impl
     graph_proc_client client;
     std::unique_ptr<std::thread> io_thread;
 
-    mutable std::mutex frame_mtx;
-    std::map<std::string, std::shared_ptr<frame_message<image>>> frames;
+    mutable std::mutex image_frame_mtx;
+    std::map<std::string, cv::Mat> frames;
+    std::vector<std::function<void(const std::map<std::string, cv::Mat>&)>> image_received;
 
     std::map<std::string, std::shared_ptr<mask_node>> mask_nodes;
     std::map<std::string, cv::Mat> masks;
@@ -656,6 +657,18 @@ public:
     {
         std::lock_guard lock(marker_frame_mtx);
         marker_received.clear();
+    }
+
+    void add_image_received(std::function<void(const std::map<std::string, cv::Mat> &)> f)
+    {
+        std::lock_guard lock(image_frame_mtx);
+        image_received.push_back(f);
+    }
+
+    void clear_image_received()
+    {
+        std::lock_guard lock(image_frame_mtx);
+        image_received.clear();
     }
 
     impl(const std::map<std::string, cv::Mat> &masks) : server(0), masks(masks)
@@ -801,17 +814,36 @@ public:
             {
                 if (auto obj_msg = std::dynamic_pointer_cast<object_message>(message))
                 {
-                    std::map<std::string, std::shared_ptr<frame_message<image>>> frames;
+                    std::map<std::string, cv::Mat> frames;
                     for (const auto &[name, field] : obj_msg->get_fields())
                     {
                         if (auto image_msg = std::dynamic_pointer_cast<frame_message<image>>(field))
                         {
-                            frames.insert(std::make_pair(name, image_msg));
+                            const auto &image = image_msg->get_data();
+
+                            int type = -1;
+                            if (image_msg->get_profile())
+                            {
+                                auto format = image_msg->get_profile()->get_format();
+                                type = stream_format_to_cv_type(format);
+                            }
+
+                            if (type < 0)
+                            {
+                                throw std::logic_error("Unknown image format");
+                            }
+
+                            frames.insert(std::make_pair(name, cv::Mat(image.get_height(), image.get_width(), type, (uchar *)image.get_data(), image.get_stride()).clone()));
                         }
                     }
 
-                    std::lock_guard lock(frame_mtx);
+                    std::lock_guard lock(image_frame_mtx);
                     this->frames = frames;
+
+                    for (const auto &f : image_received)
+                    {
+                        f(frames);
+                    }
                 }
             }
             else if (node->get_name() == "markers")
@@ -898,34 +930,9 @@ public:
     {
         std::map<std::string, cv::Mat> result;
 
-        std::map<std::string, std::shared_ptr<frame_message<image>>> frames;
         {
-            std::lock_guard lock(frame_mtx);
-            frames = this->frames;
-        }
-
-        if (frames.empty())
-        {
-            return result;
-        }
-
-        for (const auto &[name, frame] : frames)
-        {
-            const auto &image = frame->get_data();
-
-            int type = -1;
-            if (frame->get_profile())
-            {
-                auto format = frame->get_profile()->get_format();
-                type = stream_format_to_cv_type(format);
-            }
-
-            if (type < 0)
-            {
-                throw std::logic_error("Unknown image format");
-            }
-
-            result[name] = cv::Mat(image.get_height(), image.get_width(), type, (uchar *)image.get_data(), image.get_stride()).clone();
+            std::lock_guard lock(image_frame_mtx);
+            result = this->frames;
         }
 
         return result;
@@ -1061,8 +1068,15 @@ void multiview_capture_pipeline::add_marker_received(std::function<void(const st
 {
     pimpl->add_marker_received(f);
 }
-
 void multiview_capture_pipeline::clear_marker_received()
 {
     pimpl->clear_marker_received();
+}
+void multiview_capture_pipeline::add_image_received(std::function<void(const std::map<std::string, cv::Mat> &)> f)
+{
+    pimpl->add_image_received(f);
+}
+void multiview_capture_pipeline::clear_image_received()
+{
+    pimpl->clear_image_received();
 }

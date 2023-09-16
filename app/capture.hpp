@@ -64,4 +64,6 @@ public:
 
     void add_marker_received(std::function<void(const std::map<std::string, marker_frame_data> &)> f);
     void clear_marker_received();
+    void add_image_received(std::function<void(const std::map<std::string, cv::Mat> &)> f);
+    void clear_image_received();
 };

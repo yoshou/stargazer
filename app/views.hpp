@@ -2245,6 +2245,7 @@ public:
     std::vector<device_info> devices;
     bool is_reconstructing = false;
     bool is_streaming = false;
+    int source = 0;
 
     std::vector<std::function<bool(const std::vector<device_info> &, bool)>> is_reconstructing_changed;
     std::vector<std::function<bool(const std::vector<device_info> &, bool)>> is_streaming_changed;
@@ -2393,6 +2394,7 @@ private:
 
         return device_panel_height;
     }
+    
     void draw_controls(view_context *context, float panel_height)
     {
         std::vector<std::function<void()>> draw_later;
@@ -2430,6 +2432,28 @@ private:
 
             ImGui::PopStyleColor(2);
             ImGui::PopFont();
+        }
+
+                // draw selecting calibration target
+        {
+            std::vector<std::string> sources = {
+                "Playback Marker",
+                "Marker",
+                "Image",
+            };
+            std::string id = "##sources";
+            std::vector<const char *> sources_chars = get_string_pointers(sources);
+
+            const auto pos = ImGui::GetCursorPos();
+            ImGui::PushItemWidth(panel_width - 40);
+            ImGui::PushFont(context->large_font);
+            ImGui::SetCursorPos({pos.x + 10, pos.y});
+            if (ImGui::Combo(id.c_str(), &source, sources_chars.data(), static_cast<int>(sources_chars.size())))
+            {
+            }
+            ImGui::SetCursorPos({pos.x, ImGui::GetCursorPos().y});
+            ImGui::PopFont();
+            ImGui::PopItemWidth();
         }
 
         for (const auto &func : draw_later)
