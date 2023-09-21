@@ -1083,12 +1083,7 @@ static glm::mat4 compute_axis(observed_points_t& points, const std::vector<glm::
     glm::vec3 origin(tvec.at<double>(0), tvec.at<double>(1), tvec.at<double>(2));
     axis[3] = glm::vec4(origin, 1.0f);
 
-    glm::mat4 cv_to_gl(1.f);
-    cv_to_gl[0] = glm::vec4(1.f, 0.f, 0.f, 0.f);
-    cv_to_gl[1] = glm::vec4(0.f, -1.f, 0.f, 0.f);
-    cv_to_gl[2] = glm::vec4(0.f, 0.f, -1.f, 0.f);
-
-    return cv_to_gl * glm::inverse(axis);
+    return glm::inverse(axis);
 }
 
 void extrinsic_calibration::calibrate()

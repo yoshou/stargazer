@@ -24,7 +24,8 @@ add_dependencies(stargazer_viewer
 )
 
 target_include_directories(stargazer_viewer
-    PUBLIC
+    PRIVATE
+    $<$<BOOL:${ENABLE_ONNXRUNTIME_EXT}>:${ONNXRUNTIME_INCLUDE_DIRS}>
 )
 
 target_link_directories(stargazer_viewer
@@ -58,6 +59,7 @@ target_link_libraries(stargazer_viewer
     ceres
     gRPC::grpc++
     imgui::imgui
+    $<$<BOOL:${ENABLE_ONNXRUNTIME_EXT}>:${ONNXRUNTIME_LIBS}>
 )
 
 target_compile_options(stargazer_viewer

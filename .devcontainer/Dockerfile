@@ -19,3 +19,13 @@ RUN su vscode -c "${VCPKG_ROOT}/vcpkg install boost-program-options boost-asio b
 ENV PATH $PATH:${VCPKG_ROOT}/installed/x64-linux
 ENV PATH $PATH:${VCPKG_ROOT}/installed/x64-linux/tools/protobuf
 ENV PATH $PATH:${VCPKG_ROOT}/installed/x64-linux/tools/grpc
+
+WORKDIR /onnxruntime/
+
+RUN curl -L \
+    https://github.com/microsoft/onnxruntime/releases/download/v1.15.1/onnxruntime-linux-x64-gpu-1.15.1.tgz \
+    -o /tmp/onnxruntime-linux-x64-gpu-1.15.1.tgz
+
+RUN tar -zxvf /tmp/onnxruntime-linux-x64-gpu-1.15.1.tgz --strip-components 1 -C /onnxruntime
+
+ENV ONNXRUNTIME_ROOT /onnxruntime

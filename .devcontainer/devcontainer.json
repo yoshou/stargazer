@@ -6,7 +6,10 @@
 		"dockerfile": "Dockerfile"
 	},
 	"features": {
-		"ghcr.io/devcontainers-contrib/features/bash-command:1": {}
+		"ghcr.io/devcontainers-contrib/features/bash-command:1": {},
+		"ghcr.io/devcontainers/features/nvidia-cuda:1": {
+			"installCudnn": true
+		}
 	},
 	"containerEnv": {
 		"DISPLAY": ":10.0"
@@ -29,7 +32,11 @@
 
 	"appPort": [
 		"50051:50051"
-	]
+	],
+
+	"hostRequirements": {
+		"gpu": "optional"
+	}
 
 	// Features to add to the dev container. More info: https://containers.dev/features.
 	// "features": {},
