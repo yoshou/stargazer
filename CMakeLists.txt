@@ -15,6 +15,17 @@ set(CMAKE_CXX_FLAGS_DEBUG "-pg -O0 -g -mavx -march=native")
 set(CMAKE_CXX_FLAGS_RELEASE "-pg -O2 -g -mavx -march=native")
 endif ()
 
+if(DEFINED ENV{ONNXRUNTIME_ROOT})
+    set(ENABLE_ONNXRUNTIME_EXT 1)
+else()
+    set(ENABLE_ONNXRUNTIME_EXT 0)
+endif()
+
+if(${ENABLE_ONNXRUNTIME_EXT})
+    set(ONNXRUNTIME_INCLUDE_DIRS $ENV{ONNXRUNTIME_ROOT}/include)
+    set(ONNXRUNTIME_LIBS $ENV{ONNXRUNTIME_ROOT}/lib/libonnxruntime.so)
+endif()
+
 include(third-party/CMakeLists.txt)
 include(coalsack/CMakeLists.txt)
 include(protos/CMakeLists.txt)

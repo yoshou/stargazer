@@ -68,6 +68,16 @@ public:
 
 class dnn_reconstruction
 {
+    class dnn_inference;
+    class projector;
+    class get_proposal;
+    std::vector<glm::vec3> dnn_reconstruct(const std::map<std::string, stargazer::camera_t> &cameras, const std::map<std::string, cv::Mat> &frame, glm::mat4 axis);
+
+    std::unique_ptr<dnn_inference> inference_heatmap;
+    std::unique_ptr<dnn_inference> inference_proposal;
+    std::unique_ptr<projector> proj;
+    std::unique_ptr<get_proposal> prop;
+
     using frame_type = std::map<std::string, cv::Mat>;
     std::atomic_bool running;
     std::mutex frames_mtx;
@@ -82,6 +92,9 @@ class dnn_reconstruction
 
     std::vector<glm::vec3> markers;
     mutable std::mutex markers_mtx;
+
+    std::map<std::string, cv::Mat> features;
+    mutable std::mutex features_mtx;
 
 public:
 
@@ -101,6 +114,16 @@ public:
         {
             std::lock_guard lock(markers_mtx);
             result = markers;
+        }
+        return result;
+    }
+
+    std::map<std::string, cv::Mat> get_features() const
+    {
+        std::map<std::string, cv::Mat> result;
+        {
+            std::lock_guard lock(features_mtx);
+            result = features;
         }
         return result;
     }

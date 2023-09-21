@@ -150,8 +150,6 @@ struct reconstruction_viewer : public window_base
 
     void init_capture_panel()
     {
-        config.reset(new stargazer::configuration_file("config.json"));
-
         capture_panel_view_ = std::make_unique<capture_panel_view>();
         for (const auto &device_info : config->get_device_infos())
         {
@@ -705,7 +703,7 @@ struct reconstruction_viewer : public window_base
                         std::map<std::string, cv::Mat> color_image_frame;
                         for (const auto& [name, image] : image_frame)
                         {
-                            if (image.channels() == 3 && image.type() == cv::DataType<uchar>::depth)
+                            if (image.channels() == 3 && image.depth() == cv::DataType<uchar>::depth)
                             {
                                 color_image_frame[name] = image;
                             }
@@ -751,11 +749,6 @@ struct reconstruction_viewer : public window_base
                                                                   {
             namespace fs = std::filesystem;
             {
-                glm::mat4 basis(1.f);
-                basis[0] = glm::vec4(-1.f, 0.f, 0.f, 0.f);
-                basis[1] = glm::vec4(0.f, 0.f, 1.f, 0.f);
-                basis[2] = glm::vec4(0.f, 1.f, 0.f, 0.f);
-
                 glm::mat4 axis(1.0);
 
                 if (calib.calibrated_cameras.size() > 0)
@@ -810,19 +803,38 @@ struct reconstruction_viewer : public window_base
                             }
                         }
                     }
+
+                    glm::mat4 basis(1.f);
+                    basis[0] = glm::vec4(-1.f, 0.f, 0.f, 0.f);
+                    basis[1] = glm::vec4(0.f, 0.f, 1.f, 0.f);
+                    basis[2] = glm::vec4(0.f, 1.f, 0.f, 0.f);
+
+                    // z up -> opengl
+                    axis = basis * axis;
                 }
                 if (extrinsic_calib.calibrated_cameras.size() > 0)
                 {
-                    axis = extrinsic_calib.axis;
+                    glm::mat4 basis(1.f);
+                    basis[0] = glm::vec4(-1.f, 0.f, 0.f, 0.f);
+                    basis[1] = glm::vec4(0.f, 0.f, 1.f, 0.f);
+                    basis[2] = glm::vec4(0.f, 1.f, 0.f, 0.f);
+
+                    glm::mat4 cv_to_gl(1.f);
+                    cv_to_gl[0] = glm::vec4(1.f, 0.f, 0.f, 0.f);
+                    cv_to_gl[1] = glm::vec4(0.f, -1.f, 0.f, 0.f);
+                    cv_to_gl[2] = glm::vec4(0.f, 0.f, -1.f, 0.f);
+
+                    // z down -> z up -> opengl
+                    axis = basis * cv_to_gl * extrinsic_calib.axis;
                 }
 
                 this->axis = axis;
 
                 save_scene();
 
-                this->marker_server.axis = basis * axis;
-                this->dnn_reconstruction_.axis = basis * axis;
-                this->pose_view_->axis = basis * axis;
+                this->marker_server.axis = axis;
+                this->dnn_reconstruction_.axis = axis;
+                this->pose_view_->axis = axis;
             }
             return true; });
     }
@@ -970,7 +982,14 @@ struct reconstruction_viewer : public window_base
     {
         gladLoadGL();
 
+        config.reset(new stargazer::configuration_file("config.json"));
+
         load_camera_params();
+
+        for (const auto& device : config->get_device_infos())
+        {
+            dnn_reconstruction_.cameras.insert(std::make_pair(device.name, camera_params.at(device.id).cameras.at("infra1")));
+        }
 
         load_scene();
 
@@ -993,14 +1012,9 @@ struct reconstruction_viewer : public window_base
         pose_view_ = std::make_unique<pose_view>();
 
         {
-            glm::mat4 basis(1.f);
-            basis[0] = glm::vec4(-1.f, 0.f, 0.f, 0.f);
-            basis[1] = glm::vec4(0.f, 0.f, 1.f, 0.f);
-            basis[2] = glm::vec4(0.f, 1.f, 0.f, 0.f);
-
-            this->marker_server.axis = basis * this->axis;
-            this->dnn_reconstruction_.axis = basis * this->axis;
-            this->pose_view_->axis = basis * this->axis;
+            this->marker_server.axis = this->axis;
+            this->dnn_reconstruction_.axis = this->axis;
+            this->pose_view_->axis = this->axis;
         }
 
         {
@@ -1113,7 +1127,7 @@ struct reconstruction_viewer : public window_base
                 for (const auto &[camera_name, camera_image] : frames)
                 {
                     const auto &device_infos = config->get_device_infos();
-                    if (const auto device_info = std::find_if(device_infos.begin(), device_infos.end(), [&](const auto &x)
+                    if (const auto device_info = std::find_if(device_infos.begin(), device_infos.end(), [&camera_name = camera_name](const auto &x)
                                                               { return x.name == camera_name; });
                         device_info != device_infos.end())
                     {
@@ -1396,40 +1410,107 @@ struct reconstruction_viewer : public window_base
         {
             reconstruction_panel_view_->render(context.get());
 
-            view_controller->update(mouse_state::get_mouse_state(handle));
-            float radius = view_controller->get_radius();
-            glm::vec3 forward(0.f, 0.f, 1.f);
-            glm::vec3 up(0.0f, 1.0f, 0.0f);
-            glm::vec3 view_pos = glm::rotate(glm::inverse(view_controller->get_rotation_quaternion()), forward * radius);
-            glm::mat4 view = glm::lookAt(view_pos, glm::vec3(0, 0, 0), up);
-
-            context->view = view;
-
-            for (const auto &device : config->get_device_infos())
+            if (top_bar_view_->view_type == top_bar_view::ViewType::Pose)
             {
-                const auto &camera = camera_params.at(device.id).cameras.at("infra1");
-                pose_view_->cameras[device.name] = pose_view::camera_t{
-                    (int)camera.width,
-                    (int)camera.height,
-                    camera.intrin.cx,
-                    camera.intrin.cy,
-                    camera.intrin.fx,
-                    camera.intrin.fy,
-                    camera.intrin.coeffs,
-                    glm::inverse(camera.extrin.rotation),
-                };
-            }
-            pose_view_->points.clear();
-            for (const auto& point : marker_server.get_markers())
-            {
-                pose_view_->points.push_back(point);
-            }
-            for (const auto &point : dnn_reconstruction_.get_markers())
-            {
-                pose_view_->points.push_back(point);
-            }
+                view_controller->update(mouse_state::get_mouse_state(handle));
+                float radius = view_controller->get_radius();
+                glm::vec3 forward(0.f, 0.f, 1.f);
+                glm::vec3 up(0.0f, 1.0f, 0.0f);
+                glm::vec3 view_pos = glm::rotate(glm::inverse(view_controller->get_rotation_quaternion()), forward * radius);
+                glm::mat4 view = glm::lookAt(view_pos, glm::vec3(0, 0, 0), up);
 
-            pose_view_->render(context.get());
+                context->view = view;
+
+                for (const auto &device : config->get_device_infos())
+                {
+                    const auto &camera = camera_params.at(device.id).cameras.at("infra1");
+                    pose_view_->cameras[device.name] = pose_view::camera_t{
+                        (int)camera.width,
+                        (int)camera.height,
+                        camera.intrin.cx,
+                        camera.intrin.cy,
+                        camera.intrin.fx,
+                        camera.intrin.fy,
+                        camera.intrin.coeffs,
+                        glm::inverse(camera.extrin.rotation),
+                    };
+                }
+                pose_view_->points.clear();
+                for (const auto& point : marker_server.get_markers())
+                {
+                    pose_view_->points.push_back(point);
+                }
+                for (const auto &point : dnn_reconstruction_.get_markers())
+                {
+                    pose_view_->points.push_back(point);
+                }
+
+                pose_view_->render(context.get());
+            }
+            else if (top_bar_view_->view_type == top_bar_view::ViewType::Point)
+            {
+                if (multiview_capture)
+                {
+                    const auto frames = dnn_reconstruction_.get_features();
+                    for (const auto &[name, frame] : frames)
+                    {
+                        const auto device_name = name;
+                        if (!frame.empty())
+                        {
+                            const auto stream_it = std::find_if(frame_tile_view_->streams.begin(), frame_tile_view_->streams.end(), [device_name](const auto &x)
+                                                                { return x->name == device_name; });
+
+                            if (stream_it != frame_tile_view_->streams.end())
+                            {
+                                cv::Mat image = frame;
+                                cv::Mat color_image;
+                                if (image.channels() == 1)
+                                {
+                                    cv::cvtColor(image, color_image, cv::COLOR_GRAY2RGB);
+                                }
+                                else if (image.channels() == 3)
+                                {
+                                    cv::cvtColor(image, color_image, cv::COLOR_BGR2RGB);
+                                }
+                                (*stream_it)->texture.upload_image(color_image.cols, color_image.rows, color_image.data, GL_RGB);
+                            }
+                        }
+                    }
+                }
+
+                for (const auto &device : capture_panel_view_->devices)
+                {
+                    const auto capture_it = captures.find(device.name);
+                    if (capture_it != captures.end())
+                    {
+                        const auto capture = capture_it->second;
+                        auto frame = capture->get_frame();
+
+                        if (!frame.empty())
+                        {
+                            const auto stream_it = std::find_if(frame_tile_view_->streams.begin(), frame_tile_view_->streams.end(), [&](const auto &x)
+                                                                { return x->name == device.name; });
+
+                            if (stream_it != frame_tile_view_->streams.end())
+                            {
+                                cv::Mat image = frame;
+                                cv::Mat color_image;
+                                if (image.channels() == 1)
+                                {
+                                    cv::cvtColor(image, color_image, cv::COLOR_GRAY2RGB);
+                                }
+                                else if (image.channels() == 3)
+                                {
+                                    cv::cvtColor(image, color_image, cv::COLOR_BGR2RGB);
+                                }
+                                (*stream_it)->texture.upload_image(color_image.cols, color_image.rows, color_image.data, GL_RGB);
+                            }
+                        }
+                    }
+                }
+
+                frame_tile_view_->render(context.get());
+            }
         }
 
         ImGui::Render();
