@@ -1055,7 +1055,7 @@ static std::vector<glm::vec3> get_target_object_points(int board_size_x, int boa
     return points;
 }
 
-static glm::mat4 compute_axis(observed_points_t& points, const std::vector<glm::vec3>& target_points, cv::Mat camera_matrix, cv::Mat dist_coeffs)
+static glm::mat4 compute_axis(const observed_points_t& points, const std::vector<glm::vec3>& target_points, cv::Mat camera_matrix, cv::Mat dist_coeffs)
 {
     std::vector<cv::Point3f> object_points;
     std::vector<cv::Point2f> image_points;
@@ -1155,21 +1155,33 @@ void extrinsic_calibration::calibrate()
 
             const auto target = get_target_object_points(board_size.width, board_size.height, square_size.width, square_size.height, calibration_pattern::ASYMMETRIC_CIRCLES_GRID);
 
-            observed_points_t points;
-            for (const auto& frame : observed_frames.at(base_camera_name1))
+            const auto get_points = [&observed_frames = this->observed_frames](const std::string &camera_name)
             {
-                if (!frame.points.empty())
+                for (const auto &frame : observed_frames.at(camera_name))
                 {
-                    points = frame;
-                    break;
+                    if (!frame.points.empty())
+                    {
+                        return frame;
+                    }
                 }
-            }
+            };
 
-            assert(points.points.size() > 0);
+            const auto &points1 = get_points(base_camera_name1);
+            const auto &points2 = get_points(base_camera_name2);
 
-            cv::Mat camera_matrix, dist_coeffs;
-            stargazer::get_cv_intrinsic(cameras.at(base_camera_name1).intrin, camera_matrix, dist_coeffs);
-            axis = compute_axis(points, target, camera_matrix, dist_coeffs);
+            assert(points1.points.size() > 0);
+            assert(points2.points.size() > 0);
+
+            cv::Mat camera_matrix1, dist_coeffs1;
+            stargazer::get_cv_intrinsic(cameras.at(base_camera_name1).intrin, camera_matrix1, dist_coeffs1);
+            cv::Mat camera_matrix2, dist_coeffs2;
+            stargazer::get_cv_intrinsic(cameras.at(base_camera_name2).intrin, camera_matrix2, dist_coeffs2);
+            const auto camera1_axis = compute_axis(points1, target, camera_matrix1, dist_coeffs1);
+            const auto camera2_axis = compute_axis(points2, target, camera_matrix2, dist_coeffs2);
+
+            const auto scale = glm::distance(glm::vec3(camera1_axis[3]), glm::vec3(camera2_axis[3]));
+
+            axis = camera1_axis * glm::scale(glm::mat4(1.f), glm::vec3(scale, scale, scale));
         }
 
         std::cout << "Base camera1: " << base_camera_name1 << std::endl;
