@@ -46,6 +46,7 @@ target_link_libraries(stargazer_viewer
     opencv_features2d
     opencv_calib3d
     opencv_sfm
+    opencv_aruco
     multiview
     $<$<NOT:$<BOOL:${WIN32}>>:GL>
     $<$<NOT:$<BOOL:${WIN32}>>:GLU>
