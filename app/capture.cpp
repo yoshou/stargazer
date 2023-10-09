@@ -279,7 +279,8 @@ class remote_cluster_rs_d435_color : public remote_cluster
 public:
     explicit remote_cluster_rs_d435_color(int fps)
     {
-        constexpr bool with_marker = true;
+        constexpr bool with_image = true;
+        constexpr bool with_marker = false;
 
         g.reset(new subgraph());
 
@@ -299,6 +300,9 @@ public:
         n10->set_height(540);
         g->add_node(n10);
 
+        auto infra1 = n10->get_output();
+
+        if (with_image)
         {
             std::shared_ptr<fifo_node> n4(new fifo_node());
             n4->set_input(n10->get_output());
@@ -313,6 +317,23 @@ public:
             g->add_node(n3);
 
             infra1_output = n3->get_output();
+        }
+
+        if (with_marker)
+        {
+            std::shared_ptr<fifo_node> n9(new fifo_node());
+            n9->set_input(infra1);
+            g->add_node(n9);
+
+            std::shared_ptr<charuco_detector_node> n4(new charuco_detector_node());
+            n4->set_input(n9->get_output());
+            g->add_node(n4);
+
+            std::shared_ptr<p2p_talker_node> n5(new p2p_talker_node());
+            n5->set_input(n4->get_output());
+            g->add_node(n5);
+
+            infra1_marker_output = n5->get_output();
         }
     }
 };
@@ -448,6 +469,7 @@ class capture_pipeline::impl
 
     mutable std::mutex frame_mtx;
     std::shared_ptr<frame_message<image>> frame;
+    std::vector<keypoint> markers;
 
 public:
     impl() : server(0)
@@ -524,6 +546,12 @@ public:
                 g->add_node(n2);
 
                 rcv_marker_nodes.push_back(n2);
+
+                std::shared_ptr<callback_node> n8(new callback_node());
+                n8->set_input(n2->get_output());
+                g->add_node(n8);
+
+                n8->set_name("marker#" + device_infos[i].name);
             }
         }
 
@@ -539,6 +567,18 @@ public:
                 {
                     std::lock_guard lock(frame_mtx);
                     frame = frame_msg;
+                }
+            }
+            if (node->get_name().find_first_of("marker#") == 0)
+            {
+                const auto camera_name = node->get_name().substr(6);
+
+                if (auto frame_msg = std::dynamic_pointer_cast<keypoint_frame_message>(message))
+                {
+                    std::lock_guard lock(frame_mtx);
+                    markers = frame_msg->get_data();
+
+                    std::cout << "marker: " << markers.size() << std::endl;
                 }
             } });
 
@@ -598,6 +638,16 @@ public:
 
         return cv::Mat(image.get_height(), image.get_width(), type, (uchar *)image.get_data(), image.get_stride()).clone();
     }
+
+    std::unordered_map<int, cv::Point2f> get_markers() const
+    {
+        std::unordered_map<int, cv::Point2f> result;
+        for (const auto& marker: markers)
+        {
+            result[marker.class_id] = cv::Point2f(marker.pt_x, marker.pt_y);
+        }
+        return result;
+    }
 };
 
 capture_pipeline::capture_pipeline()
@@ -618,6 +668,10 @@ void capture_pipeline::stop()
 cv::Mat capture_pipeline::get_frame() const
 {
     return pimpl->get_frame();
+}
+std::unordered_map<int, cv::Point2f> capture_pipeline::get_markers() const
+{
+    return pimpl->get_markers();
 }
 
 void capture_pipeline::set_mask(cv::Mat mask)

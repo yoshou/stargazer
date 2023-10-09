@@ -156,7 +156,7 @@ class extrinsic_calibration
 
     mutable std::mutex observed_frames_mtx;
     
-    std::unordered_map<std::string, observed_points_t> detect_pattern(const frame_type &frame);
+    std::vector<std::unordered_map<std::string, observed_points_t>> detect_pattern(const frame_type &frame);
 
 public:
     glm::mat4 axis;

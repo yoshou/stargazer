@@ -328,6 +328,33 @@ struct reconstruction_viewer : public window_base
                         }
                         marker_server.push_frame(frame); });
 
+                    multiview_capture->add_image_received([this](const std::map<std::string, cv::Mat> &image_frame)
+                                                          {
+                        if (!calibration_panel_view_->is_marker_collecting)
+                        {
+                            return;
+                        }
+                        std::unordered_map<std::string, cv::Mat> color_camera_images;
+                        for (const auto &[camera_name, camera_image] : image_frame)
+                        {
+                            const auto &device_infos = config->get_device_infos();
+                            if (const auto device_info = std::find_if(device_infos.begin(), device_infos.end(), [&camera_name = camera_name](const auto &x)
+                                                                    { return x.name == camera_name; });
+                                device_info != device_infos.end())
+                            {
+                                if (device_info->type == device_type::depthai_color || device_info->type == device_type::raspi_color || device_info->type == device_type::rs_d435_color)
+                                {
+                                    color_camera_images[camera_name] = camera_image;
+                                }
+                            }
+                        }
+
+                        if (color_camera_images.size() > 0)
+                        {
+                            extrinsic_calib.add_frame(color_camera_images);
+                        }
+                    });
+
                     multiview_capture->run(infos);
 
                     for (const auto& device : devices)
@@ -510,6 +537,7 @@ struct reconstruction_viewer : public window_base
 
                             marker_server.cameras[name].extrin = camera.extrin;
                             camera_params[camera_id].cameras["infra1"].extrin = camera.extrin;
+                            dnn_reconstruction_.cameras[camera_name].extrin = camera.extrin;
                         }
 
                         stargazer::save_camera_params("camera_params.json", camera_params);
@@ -1119,28 +1147,6 @@ struct reconstruction_viewer : public window_base
                         frame.insert(std::make_pair(name, points));
                     }
                     calib.add_frame(frame);
-                }
-
-                const auto &&frames = multiview_capture->get_frames();
-
-                std::unordered_map<std::string, cv::Mat> color_camera_images;
-                for (const auto &[camera_name, camera_image] : frames)
-                {
-                    const auto &device_infos = config->get_device_infos();
-                    if (const auto device_info = std::find_if(device_infos.begin(), device_infos.end(), [&camera_name = camera_name](const auto &x)
-                                                              { return x.name == camera_name; });
-                        device_info != device_infos.end())
-                    {
-                        if (device_info->type == device_type::depthai_color || device_info->type == device_type::raspi_color || device_info->type == device_type::rs_d435_color)
-                        {
-                            color_camera_images[camera_name] = camera_image;
-                        }
-                    }
-                }
-
-                if (color_camera_images.size() > 0)
-                {
-                    extrinsic_calib.add_frame(color_camera_images);
                 }
             }
             else

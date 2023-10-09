@@ -130,8 +130,8 @@ void calibration::add_frame(const std::map<std::string, std::vector<stargazer::p
 static void zip_points(const std::vector<observed_points_t> &points1, const std::vector<observed_points_t> &points2,
                         std::vector<std::pair<glm::vec2, glm::vec2>> &corresponding_points)
 {
-    assert(points1.size() == points2.size());
-    for (size_t i = 0; i < points1.size(); i++)
+    const auto size = std::min(points1.size(), points2.size());
+    for (size_t i = 0; i < size; i++)
     {
         if (points1[i].points.size() != points2[i].points.size())
         {
@@ -147,9 +147,8 @@ static void zip_points(const std::vector<observed_points_t> &points1, const std:
 static void zip_points(const std::vector<observed_points_t> &points1, const std::vector<observed_points_t> &points2, const std::vector<observed_points_t> &points3,
                        std::vector<std::tuple<glm::vec2, glm::vec2, glm::vec2>> &corresponding_points)
 {
-    assert(points1.size() == points2.size());
-    assert(points1.size() == points3.size());
-    for (size_t i = 0; i < points1.size(); i++)
+    const auto size = std::min(points1.size(), std::min(points2.size(), points3.size()));
+    for (size_t i = 0; i < size; i++)
     {
         if (points1[i].points.size() == 0 || points2[i].points.size() == 0 || points3[i].points.size() == 0)
         {
@@ -937,6 +936,66 @@ bool detect_calibration_board(cv::Mat frame, std::vector<cv::Point2f> &points, c
     return found;
 }
 
+#include <opencv2/aruco/charuco.hpp>
+
+static inline cv::aruco::CharucoBoard create_charuco_board()
+{
+    const auto dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_4X4_250);
+    const auto board = cv::aruco::CharucoBoard(cv::Size(3, 5), 0.0575, 0.0575 * 0.75f, dictionary);
+    return board;
+}
+
+bool detect_charuco_board(cv::Mat image, std::vector<cv::Point2f> &points, std::vector<int>& ids)
+{
+    cv::aruco::DetectorParameters detector_params = cv::aruco::DetectorParameters();
+    cv::aruco::CharucoParameters charuco_params = cv::aruco::CharucoParameters();
+    const auto board = create_charuco_board();
+    const auto detector = cv::aruco::CharucoDetector(board, charuco_params, detector_params);
+    std::vector<int> marker_ids;
+    std::vector<std::vector<cv::Point2f>> marker_corners;
+    std::vector<int> charuco_ids;
+    std::vector<cv::Point2f> charuco_corners;
+    detector.detectBoard(image, charuco_corners, charuco_ids, marker_corners, marker_ids);
+
+    if (charuco_ids.size() == 0)
+    {
+        return false;
+    }
+
+    points = charuco_corners;
+    ids = charuco_ids;
+
+    return true;
+}
+
+bool detect_aruco_marker(cv::Mat image, std::vector<cv::Point2f> &points, std::vector<int> &ids)
+{
+    cv::aruco::DetectorParameters detector_params = cv::aruco::DetectorParameters();
+    cv::aruco::RefineParameters refine_params = cv::aruco::RefineParameters();
+    const auto dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_4X4_250);
+    const auto detector = cv::aruco::ArucoDetector(dictionary, detector_params, refine_params);
+    std::vector<int> marker_ids;
+    std::vector<std::vector<cv::Point2f>> marker_corners;
+    detector.detectMarkers(image, marker_corners, marker_ids);
+
+    for (size_t i = 0; i < marker_ids.size(); i++)
+    {
+        const auto marker_id = marker_ids[i];
+        const auto& marker_corner = marker_corners[i];
+        if (marker_id == 0)
+        {
+            for (size_t i = 0; i < 4; i++)
+            {
+                points.push_back(marker_corner[i]);
+                ids.push_back(marker_id * 4 + i);
+            }
+            return true;
+        }
+    }
+
+    return false;
+}
+
 extrinsic_calibration::extrinsic_calibration(calibration_pattern pattern)
     : pattern(pattern), workers(std::make_shared<task_queue<std::function<void()>>>(4)), task_id_gen(std::random_device()()), axis(1.0f)
 {
@@ -952,12 +1011,63 @@ static std::vector<glm::vec2> convert_cv_to_glm_point2f(const std::vector<cv::Po
     return glm_points;
 }
 
-std::unordered_map<std::string, observed_points_t> extrinsic_calibration::detect_pattern(const frame_type &frame)
+#define USE_CHARUCO 1
+
+std::vector<std::unordered_map<std::string, observed_points_t>> extrinsic_calibration::detect_pattern(const frame_type &frame)
 {
+#if USE_CHARUCO
+
+    std::unordered_map<int, std::vector<std::pair<std::string, cv::Point2f>>> detect_points;
+    for (const auto &[camera_name, camera_image] : frame)
+    {
+        if (camera_name_to_index.find(camera_name) == camera_name_to_index.end())
+        {
+            camera_name_to_index.insert(std::make_pair(camera_name, camera_name_to_index.size()));
+        }
+
+        std::vector<cv::Point2f> points;
+        std::vector<int> ids;
+#if 0
+        if (detect_charuco_board(camera_image, points, ids))
+#else
+        if (detect_aruco_marker(camera_image, points, ids))
+#endif
+        {
+            for (size_t i = 0; i < ids.size(); i++)
+            {
+                auto &camera_points = detect_points[ids[i]];
+                camera_points.push_back(std::make_pair(camera_name, points[i]));
+            }
+        }
+    }
+
+    std::vector<std::unordered_map<std::string, observed_points_t>> results;
+    if (detect_points.size() == 0)
+    {
+        return results;
+    }
+
+    for (const auto &[id, points] : detect_points)
+    {
+        if (points.size() >= 3)
+        {
+            std::unordered_map<std::string, observed_points_t> frame_points;
+            for (const auto &[camera_name, point] : points)
+            {
+                auto &obs = frame_points[camera_name];
+                obs.camera_idx = camera_name_to_index[camera_name];
+                obs.points = {glm::vec2(point.x, point.y)};
+            }
+            results.emplace_back(std::move(frame_points));
+        }
+    }
+
+    return results;
+#else
     size_t detected_view_count = 0;
 
     std::unordered_map<std::string, observed_points_t> frame_points;
-    for (const auto& [camera_name, camera_image] : frame)
+    for (const auto &[camera_name, camera_image] : frame)
     {
         auto &observed_point = frame_points[camera_name];
 
@@ -975,14 +1085,14 @@ std::unordered_map<std::string, observed_points_t> extrinsic_calibration::detect
         }
     }
 
-    if (detected_view_count >= 2)
+    std::vector<std::unordered_map<std::string, observed_points_t>> results;
+    if (detected_view_count >= 3)
     {
-        return frame_points;
+        results.emplace_back(std::move(frame_points));
     }
-    else
-    {
-        return std::unordered_map<std::string, observed_points_t>();
-    }
+
+    return results;
+#endif
 }
 
 void extrinsic_calibration::add_frame(const frame_type &frame)
@@ -1002,7 +1112,7 @@ void extrinsic_calibration::add_frame(const frame_type &frame)
 
     workers->push_task([frame, this, task_id]()
                        {
-        const auto frame_patterns = detect_pattern(frame);
+        const auto frame_patterns_list = detect_pattern(frame);
 
         {
             std::unique_lock<std::mutex> lock(task_wait_queue_mtx);
@@ -1012,28 +1122,36 @@ void extrinsic_calibration::add_frame(const frame_type &frame)
             assert(task_wait_queue.front() == task_id);
             task_wait_queue.pop_front();
 
-            if (frame_patterns.size() > 0)
+            if (frame_patterns_list.size() > 0)
             {
                 std::lock_guard lock(observed_frames_mtx);
 
-                size_t max_frame_count = 0;
-                for (const auto &[camera_name, observed_frame] : observed_frames)
+                for (const auto& frame_patterns : frame_patterns_list)
                 {
-                    max_frame_count = std::max(observed_frame.size(), max_frame_count);
-                }
-                for (auto &[camera_name, observed_frame] : observed_frames)
-                {
-                    if (observed_frame.size() < max_frame_count)
+                    for (const auto &[camera_name, points] : frame_patterns)
                     {
-                        observed_frame.resize(max_frame_count);
+                        if (points.points.size() > 0)
+                        {
+                            observed_frames[camera_name];
+                        }
                     }
-                }
-                for (const auto& [camera_name, points] : frame_patterns)
-                {
-                    observed_frames[camera_name].push_back(points);
-                    if (points.points.size() > 0)
+
+                    size_t max_frame_count = 0;
+                    for (const auto &[camera_name, observed_frame] : observed_frames)
                     {
-                        num_frames[camera_name]++;
+                        max_frame_count = std::max(observed_frame.size(), max_frame_count);
+                    }
+                    for (auto &[camera_name, observed_frame] : observed_frames)
+                    {
+                        observed_frame.resize(max_frame_count + 1);
+                    }
+                    for (const auto& [camera_name, points] : frame_patterns)
+                    {
+                        if (points.points.size() > 0)
+                        {
+                            observed_frames[camera_name].back() = points;
+                            num_frames[camera_name]++;
+                        }
                     }
                 }
             }
@@ -1089,14 +1207,15 @@ static glm::mat4 compute_axis(const observed_points_t& points, const std::vector
 void extrinsic_calibration::calibrate()
 {
     std::vector<std::string> camera_names;
-    for (const auto& [camera_name, frame] : observed_frames)
+    for (const auto &[camera_name, frame] : observed_frames)
     {
         camera_names.push_back(camera_name);
     }
 
     std::sort(camera_names.begin(), camera_names.end());
-
     {
+        std::vector<std::string> processed_cameras;
+
         std::string base_camera_name1;
         std::string base_camera_name2;
         glm::mat4 base_camera_pose1;
@@ -1126,7 +1245,7 @@ void extrinsic_calibration::calibrate()
                 zip_points(observed_frames.at(camera_name1), observed_frames.at(camera_name2), corresponding_points);
 
                 const auto pose1 = glm::mat4(1.0);
-                const auto pose2 = estimate_relative_pose(corresponding_points, cameras.at(camera_name1), cameras.at(camera_name2), true);
+                const auto pose2 = estimate_relative_pose(corresponding_points, cameras.at(camera_name1), cameras.at(camera_name2));
 
                 const auto angle = compute_diff_camera_angle(glm::mat3(pose1), glm::mat3(pose2));
 
@@ -1148,6 +1267,7 @@ void extrinsic_calibration::calibrate()
             return;
         }
 
+#if 0
         {
             const auto mm_to_m = 0.001f;
             const auto board_size = cv::Size(4, 11);                                                                // TODO: Define as config
@@ -1183,6 +1303,7 @@ void extrinsic_calibration::calibrate()
 
             axis = camera1_axis * glm::scale(glm::mat4(1.f), glm::vec3(scale, scale, scale));
         }
+#endif
 
         std::cout << "Base camera1: " << base_camera_name1 << std::endl;
         std::cout << "Base camera2: " << base_camera_name2 << std::endl;
@@ -1192,34 +1313,93 @@ void extrinsic_calibration::calibrate()
         cameras[base_camera_name2].extrin.rotation = base_camera_pose2;
         cameras[base_camera_name2].extrin.translation = glm::vec3(base_camera_pose2[3]);
 
-        std::vector<std::string> processed_cameras = {base_camera_name1, base_camera_name2};
-        for (const auto &camera_name : camera_names)
+        processed_cameras.push_back(base_camera_name1);
+        processed_cameras.push_back(base_camera_name2);
+
+        while (processed_cameras.size() != camera_names.size())
         {
-            if (camera_name == base_camera_name1)
+            size_t num_process = 0;
+            for (const auto &camera_name : camera_names)
             {
-                continue;
+                if (std::find(processed_cameras.begin(), processed_cameras.end(), camera_name) != processed_cameras.end())
+                {
+                    continue;
+                }
+
+                bool processed = false;
+
+                for (const auto &camera_name1 : processed_cameras)
+                {
+                    if (processed)
+                    {
+                        break;
+                    }
+                    for (const auto &camera_name2 : processed_cameras)
+                    {
+                        if (processed)
+                        {
+                            break;
+                        }
+
+                        if (camera_name1 == camera_name2)
+                        {
+                            continue;
+                        }
+
+                        std::vector<std::tuple<glm::vec2, glm::vec2, glm::vec2>> corresponding_points;
+                        zip_points(observed_frames.at(camera_name1), observed_frames.at(camera_name2), observed_frames.at(camera_name), corresponding_points);
+
+                        if (corresponding_points.size() < 7)
+                        {
+                            continue;
+                        }
+
+                        const auto pose = estimate_pose(corresponding_points, cameras.at(camera_name1), cameras.at(camera_name2), cameras.at(camera_name));
+                        cameras[camera_name].extrin.rotation = pose;
+                        cameras[camera_name].extrin.translation = glm::vec3(pose[3]);
+
+                        processed = true;
+                        num_process++;
+                    }
+                }
+
+                if (processed)
+                {
+                    processed_cameras.push_back(camera_name);
+                }
             }
-            if (camera_name == base_camera_name2)
+
+            if (num_process == 0)
             {
-                continue;
+                break;
             }
-
-            std::vector<std::tuple<glm::vec2, glm::vec2, glm::vec2>> corresponding_points;
-            zip_points(observed_frames.at(base_camera_name1), observed_frames.at(base_camera_name2), observed_frames.at(camera_name), corresponding_points);
-
-            if (corresponding_points.size() < 7)
-            {
-                continue;
-            }
-
-            const auto pose = estimate_pose(corresponding_points, cameras.at(base_camera_name1), cameras.at(base_camera_name2), cameras.at(camera_name));
-            cameras[camera_name].extrin.rotation = pose;
-            cameras[camera_name].extrin.translation = glm::vec3(pose[3]);
-
-            processed_cameras.push_back(camera_name);
         }
 
-        assert(processed_cameras.size() == camera_names.size());
+        if (processed_cameras.size() != camera_names.size())
+        {
+            std::vector<std::string> missing_cameras;
+            for (const auto &camera_name : camera_names)
+            {
+                if (std::find(processed_cameras.begin(), processed_cameras.end(), camera_name) != processed_cameras.end())
+                {
+                    continue;
+                }
+                missing_cameras.push_back(camera_name);
+            }
+            std::stringstream ss;
+            ss << "The location of ";
+            for (size_t i = 0; i < missing_cameras.size(); i++)
+            {
+                if (i > 0)
+                {
+                    ss << ", ";
+                }
+                ss << missing_cameras[i];
+            }
+            ss << " is unknown. Markers must be visible from at least three cameras.";
+            spdlog::error(ss.str());
+            return;
+        }
     }
 
     stargazer::calibration::bundle_adjust_data ba_data;
@@ -1321,12 +1501,13 @@ void extrinsic_calibration::calibrate()
 
     {
         const auto only_extrinsic = true;
+        const auto robust = false;
 
         const double *observations = ba_data.observations();
         ceres::Problem problem;
         for (int i = 0; i < ba_data.num_observations(); ++i)
         {
-            ceres::LossFunction *loss_function = new ceres::HuberLoss(1.0);
+            ceres::LossFunction *loss_function = robust ? new ceres::HuberLoss(1.0) : nullptr;
             if (only_extrinsic)
             {
                 ceres::CostFunction *cost_function =

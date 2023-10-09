@@ -23,6 +23,7 @@ public:
     void set_mask(cv::Mat mask);
 
     cv::Mat get_frame() const;
+    std::unordered_map<int, cv::Point2f> get_markers() const;
 };
 
 struct marker_data
