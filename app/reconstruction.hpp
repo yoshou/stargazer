@@ -20,6 +20,13 @@
 #include "multiview_point_data.hpp"
 #include "task_queue.hpp"
 
+#include "graph_proc.h"
+#include "graph_proc_img.h"
+#include "graph_proc_cv.h"
+#include "graph_proc_tensor.h"
+
+#include "voxelpose_cuda.hpp"
+
 class ServiceImpl;
 
 class SensorServiceImpl;
@@ -69,14 +76,17 @@ public:
 class dnn_reconstruction
 {
     class dnn_inference;
-    class projector;
+    class dnn_inference_heatmap;
     class get_proposal;
     std::vector<glm::vec3> dnn_reconstruct(const std::map<std::string, stargazer::camera_t> &cameras, const std::map<std::string, cv::Mat> &frame, glm::mat4 axis);
 
-    std::unique_ptr<dnn_inference> inference_heatmap;
+    std::unique_ptr<dnn_inference_heatmap> inference_heatmap;
     std::unique_ptr<dnn_inference> inference_proposal;
-    std::unique_ptr<projector> proj;
+    std::unique_ptr<dnn_inference> inference_pose;
+    std::unique_ptr<voxel_projector> global_proj;
+    std::unique_ptr<voxel_projector> local_proj;
     std::unique_ptr<get_proposal> prop;
+    std::unique_ptr<joint_extractor> joint_extract;
 
     using frame_type = std::map<std::string, cv::Mat>;
     std::atomic_bool running;
@@ -93,7 +103,8 @@ class dnn_reconstruction
     std::vector<glm::vec3> markers;
     mutable std::mutex markers_mtx;
 
-    std::map<std::string, cv::Mat> features;
+    std::vector<std::string> names;
+    coalsack::tensor<float, 4> features;
     mutable std::mutex features_mtx;
 
 public:
@@ -118,13 +129,5 @@ public:
         return result;
     }
 
-    std::map<std::string, cv::Mat> get_features() const
-    {
-        std::map<std::string, cv::Mat> result;
-        {
-            std::lock_guard lock(features_mtx);
-            result = features;
-        }
-        return result;
-    }
+    std::map<std::string, cv::Mat> get_features() const;
 };
