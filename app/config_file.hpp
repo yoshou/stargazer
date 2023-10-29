@@ -32,6 +32,10 @@ namespace stargazer
                     {
                         device.type = device_type::raspi;
                     }
+                    else if (type == "raspi_color")
+                    {
+                        device.type = device_type::raspi_color;
+                    }
                     else if (type == "rs_d435")
                     {
                         device.type = device_type::rs_d435;
@@ -79,6 +83,9 @@ namespace stargazer
                 {
                 case device_type::raspi:
                     device_type_name = "raspi";
+                    break;
+                case device_type::raspi_color:
+                    device_type_name = "raspi_color";
                     break;
                 case device_type::rs_d435:
                     device_type_name = "rs_d435";
