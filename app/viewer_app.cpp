@@ -24,6 +24,7 @@
 #include "reconstruction.hpp"
 #include "config_file.hpp"
 #include "glm_json.hpp"
+#include "triangulation.hpp"
 
 #include <filesystem>
 
@@ -315,7 +316,7 @@ struct reconstruction_viewer : public window_base
                     }
 
                     multiview_capture->add_marker_received([this](const std::map<std::string, marker_frame_data> &marker_frame)
-                                                    {
+                                                           {
                         std::map<std::string, std::vector<stargazer::point_data>> frame;
                         for (const auto &[name, markers] : marker_frame)
                         {
@@ -537,6 +538,7 @@ struct reconstruction_viewer : public window_base
 
                             marker_server.cameras[name].extrin = camera.extrin;
                             camera_params[camera_id].cameras["infra1"].extrin = camera.extrin;
+                            // dnn_reconstruction_.cameras[camera_name].intrin = camera.intrin;
                             dnn_reconstruction_.cameras[camera_name].extrin = camera.extrin;
                         }
 
@@ -582,6 +584,39 @@ struct reconstruction_viewer : public window_base
                 return true;
             }
         });
+    }
+
+    static bool compute_axis(glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::mat4 &axis)
+    {
+        if (!(std::abs(glm::dot(p1 - p0, p2 - p0)) < 0.01))
+        {
+            return false;
+        }
+        const auto origin = p0;
+        const auto e1 = p1 - p0;
+        const auto e2 = p2 - p0;
+
+        glm::vec3 x_axis = e1;
+        glm::vec3 y_axis = e2;
+
+        auto z_axis = glm::cross(glm::normalize(x_axis), glm::normalize(y_axis));
+        z_axis = glm::normalize(z_axis);
+
+        const auto y_axis_length = 0.196f;
+        const auto scale = y_axis_length / glm::length(y_axis);
+        x_axis = glm::normalize(x_axis);
+        y_axis = glm::normalize(y_axis);
+
+        axis = glm::mat4(1.0f);
+
+        axis[0] = glm::vec4(x_axis / scale, 0.0f);
+        axis[1] = glm::vec4(y_axis / scale, 0.0f);
+        axis[2] = glm::vec4(z_axis / scale, 0.0f);
+        axis[3] = glm::vec4(origin, 1.0f);
+
+        axis = glm::inverse(axis);
+
+        return true;
     }
 
     static bool detect_axis(glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::mat4& axis)
@@ -640,6 +675,8 @@ struct reconstruction_viewer : public window_base
 
         return true;
     }
+
+    std::vector<glm::vec3> points;
 
     void init_reconstruction_panel()
     {
@@ -840,8 +877,72 @@ struct reconstruction_viewer : public window_base
                     // z up -> opengl
                     axis = basis * axis;
                 }
-                if (extrinsic_calib.calibrated_cameras.size() > 0)
+                if (reconstruction_panel_view_->source == 2)
                 {
+                    const auto images = multiview_capture->get_frames();
+
+                    std::map<std::string, std::vector<stargazer::point_data>> points;
+                    std::map<std::string, stargazer::camera_t> cameras;
+
+                    for (const auto& [name, image]: images)
+                    {
+                        std::vector<int> marker_ids;
+                        std::vector<std::vector<cv::Point2f>> marker_corners;
+                        detect_aruco_marker(image, marker_corners, marker_ids);
+
+                        std::cout << name << ", " << marker_ids.size() << std::endl;
+
+                        for (size_t i = 0; i < marker_ids.size(); i++)
+                        {
+                            if (marker_ids[i] == 0)
+                            {
+                                auto& corner_points = points[name];
+                                for (size_t j = 0; j < 3; j++)
+                                {
+                                    stargazer::point_data point {};
+                                    point.point.x = marker_corners[i][j].x;
+                                    point.point.y = marker_corners[i][j].y;
+                                    corner_points.push_back(point);
+                                }
+
+                                for (const auto &device : config->get_device_infos())
+                                {
+                                    if (name == device.name)
+                                    {
+                                        cameras[name] = camera_params.at(device.id).cameras.at("infra1");
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    std::vector<glm::vec3> markers;
+                    for (size_t j = 0; j < 3; j++)
+                    {
+                        std::vector<glm::vec2> pts;
+                        std::vector<stargazer::camera_t> cams;
+
+                        for (const auto& [name, camera]: cameras)
+                        {
+                            pts.push_back(points[name][j].point);
+                            cams.push_back(camera);
+                        }
+                        const auto marker = stargazer::reconstruction::triangulate(pts, cams);
+                        markers.push_back(marker);
+                    }
+
+                    std::cout << markers.size() << std::endl;
+
+                    if (markers.size() == 3)
+                    {
+                        if (!compute_axis(markers[1], markers[0], markers[2], axis))
+                        {
+                            std::cout << "Failed to compute axis" << std::endl;
+                            return true;
+                        }
+                    }
+
                     glm::mat4 basis(1.f);
                     basis[0] = glm::vec4(-1.f, 0.f, 0.f, 0.f);
                     basis[1] = glm::vec4(0.f, 0.f, 1.f, 0.f);
@@ -853,7 +954,14 @@ struct reconstruction_viewer : public window_base
                     cv_to_gl[2] = glm::vec4(0.f, 0.f, -1.f, 0.f);
 
                     // z down -> z up -> opengl
-                    axis = basis * cv_to_gl * extrinsic_calib.axis;
+                    axis = basis * axis;
+                    // axis = basis * cv_to_gl * extrinsic_calib.axis;
+
+                    this->points.clear();
+                    for (const auto &marker : markers)
+                    {
+                        this->points.push_back(glm::vec3(axis * glm::vec4(marker, 1.0f)));
+                    }
                 }
 
                 this->axis = axis;
@@ -1035,6 +1143,88 @@ struct reconstruction_viewer : public window_base
         init_capture_panel();
         init_calibration_panel();
         init_reconstruction_panel();
+#if 0
+        {
+            struct camera_data
+            {
+                double fx;
+                double fy;
+                double cx;
+                double cy;
+                std::array<double, 3> k;
+                std::array<double, 2> p;
+                std::array<std::array<double, 3>, 3> rotation;
+                std::array<double, 3> translation;
+            };
+
+            const auto& devices = this->config->get_device_infos();
+            for (size_t i = 0; i < devices.size(); i++)
+            {
+                const auto name = devices[i].name;
+
+                camera_data camera;
+
+                const auto &src_camera = camera_params.at(devices[i].id).cameras.at("infra1");
+
+                camera.fx = src_camera.intrin.fx;
+                camera.fy = src_camera.intrin.fy;
+                camera.cx = src_camera.intrin.cx;
+                camera.cy = src_camera.intrin.cy;
+                camera.k[0] = src_camera.intrin.coeffs[0];
+                camera.k[1] = src_camera.intrin.coeffs[3];
+                camera.k[2] = src_camera.intrin.coeffs[4];
+                camera.p[0] = src_camera.intrin.coeffs[1];
+                camera.p[1] = src_camera.intrin.coeffs[2];
+
+                std::cout << name << std::endl;
+                std::cout << "camera.fx = " << camera.fx << ";" << std::endl;
+                std::cout << "camera.fy = " << camera.fy << ";" << std::endl;
+                std::cout << "camera.cx = " << camera.cx << ";" << std::endl;
+                std::cout << "camera.cy = " << camera.cy << ";" << std::endl;
+                std::cout << "camera.k[0] = " << camera.k[0] << ";" << std::endl;
+                std::cout << "camera.k[1] = " << camera.k[1] << ";" << std::endl;
+                std::cout << "camera.k[2] = " << camera.k[2] << ";" << std::endl;
+                std::cout << "camera.p[0] = " << camera.p[0] << ";" << std::endl;
+                std::cout << "camera.p[1] = " << camera.p[1] << ";" << std::endl;
+
+                glm::mat4 basis(1.f);
+                basis[0] = glm::vec4(-1.f, 0.f, 0.f, 0.f);
+                basis[1] = glm::vec4(0.f, 0.f, 1.f, 0.f);
+                basis[2] = glm::vec4(0.f, 1.f, 0.f, 0.f);
+
+                const auto axis = glm::inverse(basis) * this->axis;
+                const auto camera_pose = axis * glm::inverse(src_camera.extrin.rotation);
+
+                for (size_t i = 0; i < 3; i++)
+                {
+                    for (size_t j = 0; j < 3; j++)
+                    {
+                        camera.rotation[i][j] = camera_pose[i][j];
+                    }
+                    camera.translation[i] = camera_pose[3][i];
+                }
+
+                std::cout << "camera.rotation = {{";
+                for (size_t i = 0; i < 3; i++)
+                {
+                    std::cout << "{" << std::endl;
+                    for (size_t j = 0; j < 3; j++)
+                    {
+                        std::cout << camera.rotation[i][j] << ", ";
+                    }
+                    std::cout << "}," << std::endl;
+                }
+                std::cout << "}};" << std::endl;
+                std::cout << "camera.translation = {";
+                for (size_t i = 0; i < 3; i++)
+                {
+                    std::cout << camera.translation[i] << ", ";
+                    std::cout << std::endl;
+                }
+                std::cout << "};" << std::endl;
+            }
+        }
+#endif
 
         view_controller = std::make_shared<azimuth_elevation>(glm::u32vec2(0, 0), glm::u32vec2(width, height));
         pose_view_ = std::make_unique<pose_view>();
@@ -1123,7 +1313,7 @@ struct reconstruction_viewer : public window_base
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-#if 0
+#if 1
         std::unordered_map<std::string, cv::Mat> images;
 #endif
 
@@ -1236,6 +1426,83 @@ struct reconstruction_viewer : public window_base
                                 }
                             }
 #endif
+#if 0
+                            {
+                                cv::aruco::DetectorParameters detector_params = cv::aruco::DetectorParameters();
+                                detector_params.cornerRefinementMethod = cv::aruco::CORNER_REFINE_CONTOUR;
+                                // detector_params.minMarkerPerimeterRate = 0.001;
+                                // detector_params.adaptiveThreshWinSizeStep = 10;
+                                // detector_params.adaptiveThreshWinSizeMax = 23;
+                                // detector_params.adaptiveThreshWinSizeMax = 73;
+                                // detector_params.polygonalApproxAccuracyRate = 0.1;
+                                // detector_params.adaptiveThreshWinSizeMax = 43;
+                                // detector_params.adaptiveThreshConstant = 50;
+                                cv::aruco::CharucoParameters charucoParams = cv::aruco::CharucoParameters();
+                                const auto dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_4X4_250);
+                                const auto board = cv::aruco::CharucoBoard(cv::Size(3, 5), 0.0575, 0.0575 * 0.75f, dictionary);
+                                const auto detector = cv::aruco::CharucoDetector(board, charucoParams, detector_params);
+                                std::vector<int> markerIds;
+                                std::vector<std::vector<cv::Point2f>> markerCorners;
+                                std::vector<int> charucoIds;
+                                std::vector<cv::Point2f> charucoCorners;
+
+                                try
+                                {
+                                    detector.detectBoard(frame, charucoCorners, charucoIds, markerCorners, markerIds);
+                                }
+                                catch(const cv::Exception& e)
+                                {
+                                    std::cerr << e.what() << '\n';
+                                }
+                                
+                                cv::aruco::drawDetectedCornersCharuco(frame, charucoCorners, charucoIds);
+                                images[device.name] = frame;
+                            }
+#endif
+#if 1
+                            {
+                                cv::aruco::DetectorParameters detector_params = cv::aruco::DetectorParameters();
+                                detector_params.cornerRefinementMethod = cv::aruco::CORNER_REFINE_CONTOUR;
+                                // detector_params.minMarkerPerimeterRate = 0.001;
+                                // detector_params.adaptiveThreshWinSizeStep = 10;
+                                // detector_params.adaptiveThreshWinSizeMax = 23;
+                                // detector_params.adaptiveThreshWinSizeMax = 73;
+                                // detector_params.polygonalApproxAccuracyRate = 0.1;
+                                // detector_params.adaptiveThreshWinSizeMax = 43;
+                                // detector_params.adaptiveThreshConstant = 50;
+                                const auto dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_4X4_250);
+                                const auto detector = cv::aruco::ArucoDetector(dictionary, detector_params);
+                                std::vector<int> markerIds;
+                                std::vector<std::vector<cv::Point2f>> markerCorners;
+
+                                try
+                                {
+                                    detector.detectMarkers(frame, markerCorners, markerIds);
+                                }
+                                catch (const cv::Exception &e)
+                                {
+                                    std::cerr << e.what() << '\n';
+                                }
+
+                                cv::aruco::drawDetectedMarkers(frame, markerCorners, markerIds);
+                                images[device.name] = frame;
+                            }
+#endif
+#if 0
+                            {
+                                const auto markers = capture->get_markers();
+
+                                std::vector<int> charucoIds;
+                                std::vector<cv::Point2f> charucoCorners;
+
+                                for (const auto& marker : markers)
+                                {
+                                    charucoIds.push_back(marker.first);
+                                    charucoCorners.push_back(marker.second);
+                                }
+                                cv::aruco::drawDetectedCornersCharuco(frame, charucoCorners, charucoIds);
+                            }
+#endif
                         }
                     }
                 }
@@ -1291,7 +1558,7 @@ struct reconstruction_viewer : public window_base
                         if (stream_it != frame_tile_view_->streams.end())
                         {
                             cv::Mat image = frame;
-#if 0
+#if 1
                             if (images.find(device.name) != images.end())
                             {
                                 image = images.at(device.name);
@@ -1447,6 +1714,10 @@ struct reconstruction_viewer : public window_base
                     pose_view_->points.push_back(point);
                 }
                 for (const auto &point : dnn_reconstruction_.get_markers())
+                {
+                    pose_view_->points.push_back(point);
+                }
+                for (const auto &point : this->points)
                 {
                     pose_view_->points.push_back(point);
                 }
