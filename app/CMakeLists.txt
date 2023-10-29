@@ -6,7 +6,15 @@ if(NOT WIN32)
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -pg")
 endif()
 
-add_executable(stargazer_viewer
+find_package(CUDA REQUIRED)
+
+cuda_add_library(voxelpose
+    ${CMAKE_CURRENT_LIST_DIR}/voxelpose_cuda.cu
+)
+
+target_compile_features(voxelpose PRIVATE cxx_std_17)
+
+cuda_add_executable(stargazer_viewer
     ${CMAKE_CURRENT_LIST_DIR}/viewer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/views.cpp
     ${CMAKE_CURRENT_LIST_DIR}/capture.cpp
@@ -21,6 +29,7 @@ add_dependencies(stargazer_viewer
     stargazer_sensor_grpc_proto
     stargazer
     libjpeg-turbo
+    voxelpose
 )
 
 target_include_directories(stargazer_viewer
@@ -61,6 +70,9 @@ target_link_libraries(stargazer_viewer
     gRPC::grpc++
     imgui::imgui
     $<$<BOOL:${ENABLE_ONNXRUNTIME_EXT}>:${ONNXRUNTIME_LIBS}>
+    voxelpose
+    /usr/lib/x86_64-linux-gnu/libcudnn.so
+    cublas
 )
 
 target_compile_options(stargazer_viewer

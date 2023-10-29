@@ -15,6 +15,9 @@
 #include "triangulation.hpp"
 #include "multiview_point_data.hpp"
 
+#include "voxelpose.hpp"
+#include "voxelpose_cuda.hpp"
+
 class SensorServiceImpl final : public stargazer::Sensor::Service
 {
     std::mutex mtx;
@@ -212,110 +215,228 @@ void marker_stream_server::stop()
     }
 }
 
-#include "graph_proc.h"
-#include "graph_proc_img.h"
-#include "graph_proc_cv.h"
-#include "graph_proc_tensor.h"
-
-#include <fmt/core.h>
 #include <cereal/types/array.hpp>
 #include <nlohmann/json.hpp>
-#include <opencv2/calib3d/calib3d.hpp>
 #include <onnxruntime_cxx_api.h>
 #include <tensorrt_provider_factory.h>
-
-using namespace coalsack;
+#include <cuda_runtime.h>
 
 namespace fs = std::filesystem;
 
-struct camera_data
-{
-    double fx;
-    double fy;
-    double cx;
-    double cy;
-    std::array<double, 3> k;
-    std::array<double, 2> p;
-    std::array<std::array<double, 3>, 3> rotation;
-    std::array<double, 3> translation;
-};
-
-struct roi_data
-{
-    std::array<double, 2> scale;
-    double rotation;
-    std::array<double, 2> center;
-};
-
-static cv::Mat get_transform(const cv::Point2f &center, const cv::Size2f &scale, const cv::Size2f &output_size)
-{
-    const auto get_tri_3rd_point = [](const cv::Point2f &a, const cv::Point2f &b)
-    {
-        const auto direct = a - b;
-        return b + cv::Point2f(-direct.y, direct.x);
-    };
-
-    const auto get_affine_transform = [&](const cv::Point2f &center, const cv::Size2f &scale, const cv::Size2f &output_size)
-    {
-        const auto src_w = scale.width * 200.0;
-        const auto src_h = scale.height * 200.0;
-        const auto dst_w = output_size.width;
-        const auto dst_h = output_size.height;
-
-        cv::Point2f src_dir, dst_dir;
-        if (src_w >= src_h)
-        {
-            src_dir = cv::Point2f(0, src_w * -0.5);
-            dst_dir = cv::Point2f(0, dst_w * -0.5);
-        }
-        else
-        {
-            src_dir = cv::Point2f(src_h * -0.5, 0);
-            dst_dir = cv::Point2f(dst_h * -0.5, 0);
-        }
-
-        const auto src_tri_a = center;
-        const auto src_tri_b = center + src_dir;
-        const auto src_tri_c = get_tri_3rd_point(src_tri_a, src_tri_b);
-        cv::Point2f src_tri[3] = {src_tri_a, src_tri_b, src_tri_c};
-
-        const auto dst_tri_a = cv::Point2f(dst_w * 0.5, dst_h * 0.5);
-        const auto dst_tri_b = dst_tri_a + dst_dir;
-        const auto dst_tri_c = get_tri_3rd_point(dst_tri_a, dst_tri_b);
-
-        cv::Point2f dst_tri[3] = {dst_tri_a, dst_tri_b, dst_tri_c};
-
-        return cv::getAffineTransform(src_tri, dst_tri);
-    };
-
-    return get_affine_transform(center, scale, output_size);
-}
+#define CUDA_SAFE_CALL(func)                                                                                                  \
+    do                                                                                                                        \
+    {                                                                                                                         \
+        cudaError_t err = (func);                                                                                             \
+        if (err != cudaSuccess)                                                                                               \
+        {                                                                                                                     \
+            fprintf(stderr, "[Error] %s (error code: %d) at %s line %d\n", cudaGetErrorString(err), err, __FILE__, __LINE__); \
+            exit(err);                                                                                                        \
+        }                                                                                                                     \
+    } while (0)
 
 class dnn_reconstruction::dnn_inference
 {
     std::vector<uint8_t> model_data;
 
+    Ort::Env env{ORT_LOGGING_LEVEL_WARNING};
     Ort::Session session;
+    Ort::IoBinding io_binding;
+    Ort::MemoryInfo info_cuda{"Cuda", OrtDeviceAllocator, 0, OrtMemTypeDefault};
+    Ort::Allocator cuda_allocator{nullptr};
+
+    float *input_data = nullptr;
+    float *output_data = nullptr;
+
     std::vector<std::string> input_node_names;
+    std::vector<std::string> output_node_names;
 
     std::unordered_map<std::string, std::vector<int64_t>> input_node_dims;
+    std::unordered_map<std::string, std::vector<int64_t>> output_node_dims;
 
 public:
-    dnn_inference()
-        : session(nullptr)
+    dnn_inference(const std::vector<uint8_t> &model_data, std::string cache_dir)
+        : session(nullptr), io_binding(nullptr)
     {
+        const auto &api = Ort::GetApi();
+
+        // Create session
+        Ort::SessionOptions session_options;
+        session_options.SetIntraOpNumThreads(4);
+        session_options.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_EXTENDED);
+
+#if 0
+        OrtCUDAProviderOptions cuda_options{};
+
+        cuda_options.device_id = 0;
+        cuda_options.arena_extend_strategy = 0;
+        cuda_options.gpu_mem_limit = 2ULL * 1024 * 1024 * 1024;
+        cuda_options.cudnn_conv_algo_search = OrtCudnnConvAlgoSearchExhaustive;
+        cuda_options.do_copy_in_default_stream = 1;
+
+        session_options.AppendExecutionProvider_CUDA(cuda_options);
+#else
+        fs::create_directory(fs::path(cache_dir));
+
+        OrtTensorRTProviderOptions trt_options{};
+
+        trt_options.device_id = 0;
+        trt_options.trt_max_workspace_size = 2147483648;
+        trt_options.trt_max_partition_iterations = 1000;
+        trt_options.trt_min_subgraph_size = 1;
+        trt_options.trt_fp16_enable = 1;
+        trt_options.trt_int8_enable = 0;
+        trt_options.trt_int8_use_native_calibration_table = 0;
+        trt_options.trt_engine_cache_enable = 1;
+        trt_options.trt_engine_cache_path = cache_dir.c_str();
+        trt_options.trt_dump_subgraphs = 1;
+
+        session_options.AppendExecutionProvider_TensorRT(trt_options);
+#endif
+
+        session = Ort::Session(env, model_data.data(), model_data.size(), session_options);
+        io_binding = Ort::IoBinding(session);
+        io_binding = Ort::IoBinding(session);
+        cuda_allocator = Ort::Allocator(session, info_cuda);
+
+        Ort::AllocatorWithDefaultOptions allocator;
+
+        // Iterate over all input nodes
+        const size_t num_input_nodes = session.GetInputCount();
+        for (size_t i = 0; i < num_input_nodes; i++)
+        {
+            const auto input_name = session.GetInputNameAllocated(i, allocator);
+            input_node_names.push_back(input_name.get());
+
+            const auto type_info = session.GetInputTypeInfo(i);
+            const auto tensor_info = type_info.GetTensorTypeAndShapeInfo();
+            const auto input_shape = tensor_info.GetShape();
+            input_node_dims[input_name.get()] = input_shape;
+        }
+
+        // Iterate over all output nodes
+        const size_t num_output_nodes = session.GetOutputCount();
+        for (size_t i = 0; i < num_output_nodes; i++)
+        {
+            const auto output_name = session.GetOutputNameAllocated(i, allocator);
+            output_node_names.push_back(output_name.get());
+
+            const auto type_info = session.GetOutputTypeInfo(i);
+            const auto tensor_info = type_info.GetTensorTypeAndShapeInfo();
+            const auto output_shape = tensor_info.GetShape();
+            output_node_dims[output_name.get()] = output_shape;
+        }
+        assert(input_node_names.size() == 1);
+        assert(input_node_names[0] == "input");
+
+        assert(output_node_names.size() == 1);
+        assert(output_node_names[0] == "output");
+
+        {
+            const auto dims = input_node_dims.at(input_node_names[0]);
+            const auto input_size = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<int64_t>());
+
+            input_data = reinterpret_cast<float *>(cuda_allocator.GetAllocation(input_size * sizeof(float)).get());
+        }
+
+        {
+            const auto dims = output_node_dims.at(output_node_names[0]);
+            const auto output_size = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<int64_t>());
+
+            output_data = reinterpret_cast<float *>(cuda_allocator.GetAllocation(output_size * sizeof(float)).get());
+        }
     }
 
-    std::vector<std::string> output_names;
-
-    void set_model_data(const std::vector<uint8_t> &value)
+    void inference(const float* input)
     {
-        model_data = value;
+        assert(input_node_names.size() == 1);
+        assert(input_node_names[0] == "input");
+
+        assert(output_node_names.size() == 1);
+        assert(output_node_names[0] == "output");
+
+        std::vector<const char *> input_node_names;
+        {
+            input_node_names.push_back(this->input_node_names[0].c_str());
+        }
+
+        std::vector<const char *> output_node_names;
+        {
+            output_node_names.push_back(this->output_node_names[0].c_str());
+        }
+
+        io_binding.ClearBoundInputs();
+        io_binding.ClearBoundOutputs();
+
+        std::vector<Ort::Value> input_tensors;
+        {
+            const auto dims = input_node_dims.at(input_node_names[0]);
+            const auto input_size = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<int64_t>());
+
+            CUDA_SAFE_CALL(cudaMemcpy(input_data, input, input_size * sizeof(float), cudaMemcpyDeviceToDevice));
+
+            Ort::Value input_tensor = Ort::Value::CreateTensor<float>(info_cuda, input_data, input_size, dims.data(), dims.size());
+
+            io_binding.BindInput(input_node_names[0], input_tensor);
+
+            input_tensors.emplace_back(std::move(input_tensor));
+        }
+
+        std::vector<Ort::Value> output_tensors;
+        {
+            const auto dims = output_node_dims.at(output_node_names[0]);
+            const auto output_size = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<int64_t>());
+
+            Ort::Value output_tensor = Ort::Value::CreateTensor(info_cuda, output_data, output_size, dims.data(), dims.size());
+
+            io_binding.BindOutput(output_node_names[0], output_tensor);
+
+            output_tensors.emplace_back(std::move(output_tensor));
+        }
+
+        io_binding.SynchronizeInputs();
+
+        session.Run(Ort::RunOptions{nullptr}, io_binding);
+
+        io_binding.SynchronizeOutputs();
     }
+
+    const float *get_output_data() const
+    {
+        return output_data;
+    }
+};
+
+class dnn_reconstruction::dnn_inference_heatmap
+{
+    std::vector<uint8_t> model_data;
 
     Ort::Env env{ORT_LOGGING_LEVEL_WARNING};
+    Ort::Session session;
+    Ort::IoBinding io_binding;
+    Ort::MemoryInfo info_cuda{"Cuda", OrtDeviceAllocator, 0, OrtMemTypeDefault};
+    Ort::Allocator cuda_allocator{nullptr};
 
-    virtual void initialize()
+    float* input_data = nullptr;
+    float *output_data = nullptr;
+
+    std::vector<std::string> input_node_names;
+    std::vector<std::string> output_node_names;
+
+    std::unordered_map<std::string, std::vector<int64_t>> input_node_dims;
+    std::unordered_map<std::string, std::vector<int64_t>> output_node_dims;
+
+    int input_image_width = 960;
+    int input_image_height = 540;
+
+    // int input_image_width = 1920;
+    // int input_image_height = 1080;
+
+    uint8_t* input_image_data = nullptr;
+
+public:
+
+    dnn_inference_heatmap(const std::vector<uint8_t> &model_data, size_t max_views)
+        : session(nullptr), io_binding(nullptr)
     {
         const auto &api = Ort::GetApi();
 
@@ -355,10 +476,13 @@ public:
 #endif
 
         session = Ort::Session(env, model_data.data(), model_data.size(), session_options);
+        io_binding = Ort::IoBinding(session);
+        cuda_allocator = Ort::Allocator(session, info_cuda);
+
+        Ort::AllocatorWithDefaultOptions allocator;
 
         // Iterate over all input nodes
         const size_t num_input_nodes = session.GetInputCount();
-        Ort::AllocatorWithDefaultOptions allocator;
         for (size_t i = 0; i < num_input_nodes; i++)
         {
             const auto input_name = session.GetInputNameAllocated(i, allocator);
@@ -366,333 +490,160 @@ public:
 
             const auto type_info = session.GetInputTypeInfo(i);
             const auto tensor_info = type_info.GetTensorTypeAndShapeInfo();
-
-            const auto type = tensor_info.GetElementType();
-
             const auto input_shape = tensor_info.GetShape();
             input_node_dims[input_name.get()] = input_shape;
         }
-    }
 
-    virtual graph_message_ptr process(std::string input_name, graph_message_ptr message)
-    {
-        if (auto frame_msg = std::dynamic_pointer_cast<frame_message<tensor<float, 4>>>(message))
+        // Iterate over all output nodes
+        const size_t num_output_nodes = session.GetOutputCount();
+        for (size_t i = 0; i < num_output_nodes; i++)
         {
-            const auto &src = frame_msg->get_data();
+            const auto output_name = session.GetOutputNameAllocated(i, allocator);
+            output_node_names.push_back(output_name.get());
 
-            const auto memory_info = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
-
-            std::vector<const char *> input_node_names;
-            std::vector<Ort::Value> input_tensors;
-            for (const auto &name : this->input_node_names)
-            {
-                input_node_names.push_back(name.c_str());
-
-                // const auto dims = input_node_dims.at(name);
-                const auto num_dims = input_node_dims.at(name).size();
-                std::vector<int64_t> dims;
-                std::reverse_copy(src.shape.begin(), src.shape.end(), std::back_inserter(dims));
-                while (dims.size() < num_dims)
-                {
-                    dims.insert(dims.begin(), 1);
-                }
-                input_tensors.push_back(Ort::Value::CreateTensor<float>(memory_info, const_cast<float *>(src.get_data()), src.get_size(),
-                                                                        dims.data(), dims.size()));
-            }
-
-            std::vector<const char *> output_node_names;
-            for (const auto &name : output_names)
-            {
-                output_node_names.push_back(name.c_str());
-            }
-
-            const auto output_tensors =
-                session.Run(Ort::RunOptions{nullptr}, input_node_names.data(), input_tensors.data(), input_tensors.size(), output_node_names.data(), output_node_names.size());
-
-            assert(output_tensors.size() == output_node_names.size());
-            for (std::size_t i = 0; i < output_node_names.size(); i++)
-            {
-                const auto name = output_node_names.at(i);
-                const auto &value = output_tensors.at(i);
-
-                graph_message_ptr output_msg;
-
-                if (value.IsTensor())
-                {
-                    const auto data = value.GetTensorData<float>();
-                    const auto tensor_info = value.GetTensorTypeAndShapeInfo();
-                    const auto type = tensor_info.GetElementType();
-                    const auto shape = tensor_info.GetShape();
-
-                    if (shape.size() == 4)
-                    {
-                        constexpr auto num_dims = 4;
-
-                        auto msg = std::make_shared<frame_message<tensor<float, num_dims>>>();
-                        tensor<float, num_dims> output_tensor({static_cast<std::uint32_t>(shape.at(3)),
-                                                                static_cast<std::uint32_t>(shape.at(2)),
-                                                                static_cast<std::uint32_t>(shape.at(1)),
-                                                                static_cast<std::uint32_t>(shape.at(0))},
-                                                                data);
-
-                        msg->set_data(std::move(output_tensor));
-                        msg->set_profile(frame_msg->get_profile());
-                        msg->set_timestamp(frame_msg->get_timestamp());
-                        msg->set_frame_number(frame_msg->get_frame_number());
-                        msg->set_metadata(*frame_msg);
-
-                        output_msg = msg;
-                    }
-                    else if (shape.size() == 5)
-                    {
-                        constexpr auto num_dims = 5;
-
-                        auto msg = std::make_shared<frame_message<tensor<float, num_dims>>>();
-                        tensor<float, num_dims> output_tensor({static_cast<std::uint32_t>(shape.at(4)),
-                                                                static_cast<std::uint32_t>(shape.at(3)),
-                                                                static_cast<std::uint32_t>(shape.at(2)),
-                                                                static_cast<std::uint32_t>(shape.at(1)),
-                                                                static_cast<std::uint32_t>(shape.at(0))},
-                                                                data);
-
-                        msg->set_data(std::move(output_tensor));
-                        msg->set_profile(frame_msg->get_profile());
-                        msg->set_timestamp(frame_msg->get_timestamp());
-                        msg->set_frame_number(frame_msg->get_frame_number());
-                        msg->set_metadata(*frame_msg);
-
-                        output_msg = msg;
-                    }
-                }
-
-                return output_msg;
-            }
+            const auto type_info = session.GetOutputTypeInfo(i);
+            const auto tensor_info = type_info.GetTensorTypeAndShapeInfo();
+            const auto output_shape = tensor_info.GetShape();
+            output_node_dims[output_name.get()] = output_shape;
         }
-        return nullptr;
-    }
-};
+        assert(input_node_names.size() == 1);
+        assert(input_node_names[0] == "input");
 
-class dnn_reconstruction::projector
-{
-    std::array<float, 3> grid_size;
-    std::array<int32_t, 3> cube_size;
+        assert(output_node_names.size() == 1);
+        assert(output_node_names[0] == "output");
 
-public:
-    projector()
-    {
-    }
+        const auto input_size = 960 * 512 * 3 * max_views;
 
-    std::array<float, 3> get_grid_size() const
-    {
-        return grid_size;
-    }
-    void set_grid_size(const std::array<float, 3> &value)
-    {
-        grid_size = value;
-    }
-    std::array<int32_t, 3> get_cube_size() const
-    {
-        return cube_size;
-    }
-    void set_cube_size(const std::array<int32_t, 3> &value)
-    {
-        cube_size = value;
+        input_data = reinterpret_cast<float*>(cuda_allocator.GetAllocation(input_size * sizeof(float)).get());
+
+        const auto output_size = 240 * 128 * 15 * max_views;
+
+        output_data = reinterpret_cast<float*>(cuda_allocator.GetAllocation(output_size * sizeof(float)).get());
+
+        cudaMalloc(&input_image_data, input_image_width * input_image_height * 3 * max_views);
     }
 
-    std::vector<std::array<float, 3>> compute_grid(const std::array<float, 3> &grid_center) const
+    ~dnn_inference_heatmap()
     {
-        std::vector<std::array<float, 3>> grid;
-        for (int32_t x = 0; x < cube_size.at(0); x++)
+        cudaFree(input_image_data);
+    }
+
+    void process(const std::vector<cv::Mat>& images, std::vector<roi_data>& rois)
+    {
+        const auto &&image_size = cv::Size(960, 512);
+
+        for (size_t i = 0; i < images.size(); i++)
         {
-            for (int32_t y = 0; y < cube_size.at(1); y++)
+            const auto &data = images.at(i);
+
+            const auto get_scale = [](const cv::Size2f &image_size, const cv::Size2f &resized_size)
             {
-                for (int32_t z = 0; z < cube_size.at(2); z++)
+                float w_pad, h_pad;
+                if (image_size.width / resized_size.width < image_size.height / resized_size.height)
                 {
-                    const auto gridx = -grid_size.at(0) / 2 + grid_size.at(0) * x / (cube_size.at(0) - 1) + grid_center.at(0);
-                    const auto gridy = -grid_size.at(1) / 2 + grid_size.at(1) * y / (cube_size.at(1) - 1) + grid_center.at(1);
-                    const auto gridz = -grid_size.at(2) / 2 + grid_size.at(2) * z / (cube_size.at(2) - 1) + grid_center.at(2);
-
-                    grid.push_back({gridx, gridy, gridz});
+                    w_pad = image_size.height / resized_size.height * resized_size.width;
+                    h_pad = image_size.height;
                 }
-            }
-        }
-        return grid;
-    }
-
-    static std::vector<std::array<float, 2>> project_point(const std::vector<std::array<float, 3>> &x, const camera_data &camera)
-    {
-        std::vector<cv::Point3d> points;
-
-        std::transform(x.begin(), x.end(), std::back_inserter(points), [&](const auto &p)
-                       {
-            const auto pt_x = p[0] - camera.translation[0];
-            const auto pt_y = p[1] - camera.translation[1];
-            const auto pt_z = p[2] - camera.translation[2];
-            const auto cam_x = pt_x * camera.rotation[0][0] + pt_y * camera.rotation[0][1] + pt_z * camera.rotation[0][2];
-            const auto cam_y = pt_x * camera.rotation[1][0] + pt_y * camera.rotation[1][1] + pt_z * camera.rotation[1][2];
-            const auto cam_z = pt_x * camera.rotation[2][0] + pt_y * camera.rotation[2][1] + pt_z * camera.rotation[2][2];
-
-            return cv::Point3d(cam_x / (cam_z + 1e-5), cam_y / (cam_z + 1e-5), 1.0); });
-
-        cv::Mat camera_matrix = cv::Mat::eye(3, 3, cv::DataType<double>::type);
-        camera_matrix.at<double>(0, 0) = camera.fx;
-        camera_matrix.at<double>(1, 1) = camera.fy;
-        camera_matrix.at<double>(0, 2) = camera.cx;
-        camera_matrix.at<double>(1, 2) = camera.cy;
-
-        cv::Mat dist_coeffs(5, 1, cv::DataType<double>::type);
-        dist_coeffs.at<double>(0) = camera.k[0];
-        dist_coeffs.at<double>(1) = camera.k[1];
-        dist_coeffs.at<double>(2) = camera.p[0];
-        dist_coeffs.at<double>(3) = camera.p[1];
-        dist_coeffs.at<double>(4) = camera.k[2];
-
-        cv::Mat rvec = cv::Mat::zeros(3, 1, cv::DataType<double>::type);
-        cv::Mat tvec = cv::Mat::zeros(3, 1, cv::DataType<double>::type);
-
-        std::vector<cv::Point2d> projected_points;
-        cv::projectPoints(points, rvec, tvec, camera_matrix, dist_coeffs, projected_points);
-
-        std::vector<std::array<float, 2>> y;
-
-        std::transform(projected_points.begin(), projected_points.end(), std::back_inserter(y), [](const auto &p)
-                       { return std::array<float, 2>{static_cast<float>(p.x), static_cast<float>(p.y)}; });
-
-        return y;
-    }
-
-    static tensor<float, 4> grid_sample(const tensor<float, 4> &src, const std::vector<std::array<float, 2>> &grid, bool align_corner = false)
-    {
-        const auto num_o = src.shape[3];
-        const auto num_c = src.shape[2];
-        const auto num_h = src.shape[1];
-        const auto num_w = src.shape[0];
-
-        tensor<float, 4> dst({static_cast<uint32_t>(grid.size()), 1, num_c, num_o});
-
-        constexpr size_t num_size = SHRT_MAX - 1;
-
-        for (size_t offset = 0; offset < grid.size(); offset += num_size)
-        {
-            const auto grid_num = std::min(num_size, grid.size() - offset);
-
-            cv::Mat map_x(grid_num, 1, cv::DataType<float>::type);
-            cv::Mat map_y(grid_num, 1, cv::DataType<float>::type);
-
-            if (align_corner)
-            {
-                for (size_t i = 0; i < grid_num; i++)
+                else
                 {
-                    const auto x = ((grid[i + offset][0] + 1) / 2) * (num_w - 1);
-                    const auto y = ((grid[i + offset][1] + 1) / 2) * (num_h - 1);
-                    map_x.at<float>(i, 0) = x;
-                    map_y.at<float>(i, 0) = y;
+                    w_pad = image_size.width;
+                    h_pad = image_size.width / resized_size.width * resized_size.height;
                 }
-            }
-            else
-            {
-                for (size_t i = 0; i < grid_num; i++)
-                {
-                    const auto x = ((grid[i + offset][0] + 1) * num_w - 1) / 2;
-                    const auto y = ((grid[i + offset][1] + 1) * num_h - 1) / 2;
-                    map_x.at<float>(i, 0) = x;
-                    map_y.at<float>(i, 0) = y;
-                }
-            }
 
-            for (uint32_t o = 0; o < num_o; o++)
-            {
-                for (uint32_t c = 0; c < num_c; c++)
-                {
-                    cv::Mat plane(num_h, num_w, cv::DataType<float>::type, const_cast<float *>(src.get_data()) + c * src.stride[2] + o * src.stride[3]);
-                    cv::Mat remapped(grid_num, 1, cv::DataType<float>::type, dst.get_data() + offset + c * dst.stride[2] + o * dst.stride[3]);
-                    cv::remap(plane, remapped, map_x, map_y, cv::INTER_LINEAR);
-                }
-            }
+                return cv::Size2f(w_pad / 200.0, h_pad / 200.0);
+            };
+
+            assert(data.size().width == input_image_width);
+            assert(data.size().height == input_image_height);
+
+            const auto scale = get_scale(data.size(), image_size);
+            const auto center = cv::Point2f(data.size().width / 2.0, data.size().height / 2.0);
+            const auto rotation = 0.0;
+
+            roi_data roi = {{scale.width, scale.height}, rotation, {center.x, center.y}};
+            rois.push_back(roi);
+
+            const std::array<float, 3> mean = {0.485, 0.456, 0.406};
+            const std::array<float, 3> std = {0.229, 0.224, 0.225};
+
+            CUDA_SAFE_CALL(cudaMemcpy2D(input_image_data + i * input_image_width * 3 * input_image_height, input_image_width * 3, data.data, data.step, data.cols * 3, data.rows, cudaMemcpyHostToDevice));
+
+            preprocess_cuda(input_image_data + i * input_image_width * 3 * input_image_height, input_image_width, input_image_height, input_image_width * 3, input_data + i * 960 * 512 * 3, 960, 512, 960, mean, std);
         }
 
-        return dst;
+        CUDA_SAFE_CALL(cudaDeviceSynchronize());
+
+        inference(images.size());
     }
 
-    std::tuple<tensor<float, 4>, std::vector<std::array<float, 3>>> get_voxel(const std::vector<tensor<float, 4>> &heatmaps, const std::vector<camera_data> &cameras, const std::vector<roi_data> &rois, const std::array<float, 3> &grid_center) const
+    void inference(size_t num_views)
     {
-        const auto num_bins = static_cast<uint32_t>(std::accumulate(cube_size.begin(), cube_size.end(), 1, std::multiplies<int32_t>()));
-        const auto num_joints = static_cast<uint32_t>(heatmaps.at(0).shape[2]);
-        const auto num_cameras = static_cast<uint32_t>(heatmaps.size());
-        const auto w = heatmaps.at(0).shape[0];
-        const auto h = heatmaps.at(0).shape[1];
-        const auto grid = compute_grid(grid_center);
+        assert(input_node_names.size() == 1);
+        assert(input_node_names[0] == "input");
 
-        auto cubes = tensor<float, 4>::zeros({num_cameras, num_bins, 1, num_joints});
-        auto bounding = tensor<float, 4>::zeros({num_cameras, num_bins, 1, 1});
+        assert(output_node_names.size() == 1);
+        assert(output_node_names[0] == "output");
 
-        for (uint32_t c = 0; c < num_cameras; c++)
+        std::vector<const char *> input_node_names;
         {
-            const auto &roi = rois.at(c);
-            const auto &&image_size = cv::Size2f(960, 512);
-            const auto center = cv::Point2f(roi.center[0], roi.center[1]);
-            const auto scale = cv::Size2f(roi.scale[0], roi.scale[1]);
-            const auto width = center.x * 2;
-            const auto height = center.y * 2;
-
-            const auto trans = get_transform(center, scale, image_size);
-            cv::Mat transf;
-            trans.convertTo(transf, cv::DataType<float>::type);
-
-            const auto xy = project_point(grid, cameras[c]);
-
-            auto camera_bounding = bounding.view({0, cubes.shape[1], 0, 0}, {c, 0, 0, 0});
-
-            camera_bounding.assign([&xy, width, height](const float value, const size_t w, auto...)
-                                   { return (xy[w][0] >= 0 && xy[w][0] < width && xy[w][1] >= 0 && xy[w][1] < height); });
-
-            std::vector<std::array<float, 2>> sample_grid;
-            std::transform(xy.begin(), xy.end(), std::back_inserter(sample_grid), [&](const auto &p)
-                           {
-                const auto x0 = p[0];
-                const auto y0 = p[1];
-
-                const auto x1 = std::clamp(x0, -1.0f, std::max(width, height));
-                const auto y1 = std::clamp(y0, -1.0f, std::max(width, height));
-
-                const auto x2 = x1 * transf.at<float>(0, 0) + y1 * transf.at<float>(0, 1) + transf.at<float>(0, 2);
-                const auto y2 = x1 * transf.at<float>(1, 0) + y1 * transf.at<float>(1, 1) + transf.at<float>(1, 2);
-
-                const auto x3 = x2 * w / image_size.width;
-                const auto y3 = y2 * h / image_size.height;
-
-                const auto x4 = x3 / (w - 1) * 2.0f - 1.0f;
-                const auto y4 = y3 / (h - 1) * 2.0f - 1.0f;
-
-                const auto x5 = std::clamp(x4, -1.1f, 1.1f);
-                const auto y5 = std::clamp(y4, -1.1f, 1.1f);
-
-                return std::array<float, 2>{x5, y5}; });
-
-            const auto cube = grid_sample(heatmaps[c], sample_grid, true);
-
-            auto camera_cubes = cubes.view({0, cubes.shape[1], cubes.shape[2], cubes.shape[3]}, {c, 0, 0, 0});
-
-            camera_cubes.assign(cube.view(), [](const float value1, const float value2, auto...)
-                                { return value1 + value2; });
+            input_node_names.push_back(this->input_node_names[0].c_str());
         }
 
-        const auto bounding_count = bounding.sum<1>({0});
-        const auto merged_cubes = cubes
-                                      .transform(bounding,
-                                                 [](const float value1, const float value2, auto...)
-                                                 {
-                                                     return value1 * value2;
-                                                 })
-                                      .sum<1>({0})
-                                      .transform(bounding_count,
-                                                 [](const float value1, const float value2, auto...)
-                                                 {
-                                                     return std::clamp(value1 / (value2 + 1e-6f), 0.f, 1.f);
-                                                 });
+        std::vector<const char *> output_node_names;
+        {
+            output_node_names.push_back(this->output_node_names[0].c_str());
+        }
 
-        const auto output_cubes = merged_cubes.view<4>({static_cast<uint32_t>(cube_size[2]), static_cast<uint32_t>(cube_size[1]), static_cast<uint32_t>(cube_size[0]), num_joints}).contiguous();
-        return std::forward_as_tuple(output_cubes, grid);
+        io_binding.ClearBoundInputs();
+        io_binding.ClearBoundOutputs();
+
+        std::vector<Ort::Value> input_tensors;
+        {
+            auto dims = input_node_dims.at(input_node_names[0]);
+            dims[0] = num_views;
+
+            const auto input_size = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<int64_t>());
+
+            Ort::Value input_tensor = Ort::Value::CreateTensor<float>(info_cuda, input_data, input_size, dims.data(), dims.size());
+
+            io_binding.BindInput(input_node_names[0], input_tensor);
+
+            input_tensors.emplace_back(std::move(input_tensor));
+        }
+
+        std::vector<Ort::Value> output_tensors;
+        {
+            auto dims = output_node_dims.at(output_node_names[0]);
+            dims[0] = num_views;
+            const auto output_size = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<int64_t>());
+
+            Ort::Value output_tensor = Ort::Value::CreateTensor(info_cuda, output_data, output_size, dims.data(), dims.size());
+
+            io_binding.BindOutput(output_node_names[0], output_tensor);
+
+            output_tensors.emplace_back(std::move(output_tensor));
+        }
+
+        io_binding.SynchronizeInputs();
+
+        session.Run(Ort::RunOptions{nullptr}, io_binding);
+
+        io_binding.SynchronizeOutputs();
+    }
+
+    const float* get_heatmaps() const
+    {
+        return output_data;
+    }
+
+    int get_heatmap_width() const
+    {
+        return 240;
+    }
+
+    int get_heatmap_height() const
+    {
+        return 128;
     }
 };
 
@@ -742,7 +693,7 @@ public:
         cube_size = value;
     }
 
-    static tensor<float, 4> max_pool(const tensor<float, 4> &inputs, size_t kernel = 3)
+    static coalsack::tensor<float, 4> max_pool(const coalsack::tensor<float, 4> &inputs, size_t kernel = 3)
     {
         const auto padding = (kernel - 1) / 2;
         const auto max = inputs.max_pool3d(kernel, 1, padding, 1);
@@ -755,7 +706,7 @@ public:
         return keep;
     }
 
-    static tensor<uint64_t, 2> get_index(const tensor<uint64_t, 1> &indices, const std::array<uint64_t, 3> &shape)
+    static coalsack::tensor<uint64_t, 2> get_index(const coalsack::tensor<uint64_t, 1> &indices, const std::array<uint64_t, 3> &shape)
     {
         const auto num_people = indices.shape[3];
         const auto result = indices
@@ -770,7 +721,7 @@ public:
         return result;
     }
 
-    tensor<float, 2> get_real_loc(const tensor<uint64_t, 2> &index)
+    coalsack::tensor<float, 2> get_real_loc(const coalsack::tensor<uint64_t, 2> &index)
     {
         const auto loc = index.cast<float>()
                              .transform(
@@ -781,7 +732,7 @@ public:
         return loc;
     }
 
-    tensor<float, 2> get_centers(const tensor<float, 5> &src)
+    coalsack::tensor<float, 2> get_centers(const coalsack::tensor<float, 5> &src)
     {
         const auto root_cubes = src.view<4>({src.shape[0], src.shape[1], src.shape[2], src.shape[3]}).contiguous();
         const auto root_cubes_nms = max_pool(root_cubes);
@@ -791,7 +742,7 @@ public:
         const auto topk_unravel_index = get_index(topk_index, {src.shape[0], src.shape[1], src.shape[2]});
         const auto topk_loc = get_real_loc(topk_unravel_index);
 
-        auto grid_centers = tensor<float, 2>::zeros({5, max_num});
+        auto grid_centers = coalsack::tensor<float, 2>::zeros({5, max_num});
         grid_centers.view({3, grid_centers.shape[1]}, {0, 0})
             .assign(topk_loc.view(), [](auto, const float value, auto...)
                     { return value; });
@@ -806,106 +757,116 @@ public:
     }
 };
 
+// #define PANOPTIC
+
+#ifdef PANOPTIC
+static std::map<std::tuple<int32_t, int32_t>, camera_data> load_cameras()
+{
+    std::map<std::tuple<int32_t, int32_t>, camera_data> cameras;
+
+    const auto camera_file = fs::path("/workspace/data/panoptic/calibration_171204_pose1.json");
+
+    std::ifstream f;
+    f.open(camera_file, std::ios::in | std::ios::binary);
+    std::string str((std::istreambuf_iterator<char>(f)),
+                    std::istreambuf_iterator<char>());
+
+    nlohmann::json calib = nlohmann::json::parse(str);
+
+    for (const auto &cam : calib["cameras"])
+    {
+        const auto panel = cam["panel"].get<int32_t>();
+        const auto node = cam["node"].get<int32_t>();
+
+        const auto k = cam["K"].get<std::vector<std::vector<double>>>();
+        const auto dist_coeffs = cam["distCoef"].get<std::vector<double>>();
+        const auto rotation = cam["R"].get<std::vector<std::vector<double>>>();
+        const auto translation = cam["t"].get<std::vector<std::vector<double>>>();
+
+        const std::array<std::array<double, 3>, 3> m = {{
+            {{1.0, 0.0, 0.0}},
+            {{0.0, 0.0, -1.0}},
+            {{0.0, 1.0, 0.0}},
+        }};
+
+        camera_data cam_data = {};
+        cam_data.fx = k[0][0];
+        cam_data.fy = k[1][1];
+        cam_data.cx = k[0][2];
+        cam_data.cy = k[1][2];
+        for (size_t i = 0; i < 3; i++)
+        {
+            for (size_t j = 0; j < 3; j++)
+            {
+                for (size_t k = 0; k < 3; k++)
+                {
+                    cam_data.rotation[i][j] += rotation[i][k] * m[k][j];
+                }
+            }
+        }
+        for (size_t i = 0; i < 3; i++)
+        {
+            for (size_t j = 0; j < 3; j++)
+            {
+                cam_data.translation[i] += -translation[j][0] * cam_data.rotation[j][i] * 10.0;
+            }
+        }
+        cam_data.k[0] = dist_coeffs[0];
+        cam_data.k[1] = dist_coeffs[1];
+        cam_data.k[2] = dist_coeffs[4];
+        cam_data.p[0] = dist_coeffs[2];
+        cam_data.p[1] = dist_coeffs[3];
+
+        cameras[std::make_pair(panel, node)] = cam_data;
+    }
+    return cameras;
+}
+#endif
+
 std::vector<glm::vec3> dnn_reconstruction::dnn_reconstruct(const std::map<std::string, stargazer::camera_t> &cameras, const std::map<std::string, cv::Mat> &frame, glm::mat4 axis)
 {
-    std::vector<tensor<float, 4>> input_img_tensors;
-
     std::vector<std::string> names;
-    std::vector<roi_data> rois_list;
+    std::vector<cv::Mat> images_list;
+    std::vector<camera_data> cameras_list;
+
+#ifdef PANOPTIC
+    const auto panoptic_cameras = load_cameras();
+
+    std::vector<std::tuple<int32_t, int32_t>> camera_list = {
+        {0, 3},
+        {0, 6},
+        {0, 12},
+        {0, 13},
+        {0, 23},
+    };
+    for (const auto &[camera_panel, camera_node] : camera_list)
+    {
+        const auto camera_name = cv::format("camera_%02d_%02d", camera_panel, camera_node);
+
+        const auto prefix = cv::format("%02d_%02d", camera_panel, camera_node);
+        std::string postfix = "_00000000";
+        const auto image_file = (fs::path("/workspace/data/panoptic") / prefix / (prefix + postfix + ".jpg")).string();
+
+        auto data = cv::imread(image_file, cv::IMREAD_UNCHANGED | cv::IMREAD_IGNORE_ORIENTATION);
+        // cv::resize(data, data, cv::Size(960, 540));
+        images_list.push_back(data);
+        
+        cameras_list.push_back(panoptic_cameras.at(std::make_tuple(camera_panel, camera_node)));
+        names.push_back(camera_name);
+    }
+#else
     for (const auto &[camera_name, image] : frame)
     {
         names.push_back(camera_name);
-        auto data = image;
-
-        const auto get_scale = [](const cv::Size2f &image_size, const cv::Size2f &resized_size)
-        {
-            float w_pad, h_pad;
-            if (image_size.width / resized_size.width < image_size.height / resized_size.height)
-            {
-                w_pad = image_size.height / resized_size.height * resized_size.width;
-                h_pad = image_size.height;
-            }
-            else
-            {
-                w_pad = image_size.width;
-                h_pad = image_size.width / resized_size.width * resized_size.height;
-            }
-
-            return cv::Size2f(w_pad / 200.0, h_pad / 200.0);
-        };
-
-        const auto &&image_size = cv::Size2f(960, 512);
-        const auto scale = get_scale(data.size(), image_size);
-        const auto center = cv::Point2f(data.size().width / 2.0, data.size().height / 2.0);
-        const auto rotation = 0.0;
-
-        const auto trans = get_transform(center, scale, image_size);
-
-        cv::Mat input_img = data;
-        cv::warpAffine(input_img, input_img, trans, cv::Size(image_size), cv::INTER_LINEAR);
-        cv::cvtColor(input_img, input_img, cv::COLOR_BGR2RGB);
-
-        tensor<uint8_t, 4> input_img_tensor({static_cast<std::uint32_t>(input_img.size().width),
-                                             static_cast<std::uint32_t>(input_img.size().height),
-                                             static_cast<std::uint32_t>(input_img.elemSize()),
-                                             1},
-                                            (const uint8_t *)input_img.data,
-                                            {static_cast<std::uint32_t>(input_img.step[1]),
-                                             static_cast<std::uint32_t>(input_img.step[0]),
-                                             static_cast<std::uint32_t>(1),
-                                             static_cast<std::uint32_t>(input_img.total())});
-
-        const std::array<float, 3> mean = {0.485, 0.456, 0.406};
-        const std::array<float, 3> std = {0.229, 0.224, 0.225};
-
-        const auto input_img_tensor_f = input_img_tensor.cast<float>().transform([this, mean, std](const float value, const size_t w, const size_t h, const size_t c, const size_t n)
-                                                                                 { return (value / 255.0f - mean[c]) / std[c]; });
-
-        input_img_tensors.emplace_back(std::move(input_img_tensor_f));
-
-        roi_data roi = {{scale.width, scale.height}, rotation, {center.x, center.y}};
-        rois_list.push_back(roi);
     }
-
-    auto frame_msg = std::make_shared<frame_message<tensor<float, 4>>>();
-    const auto&& input_img_tensor = tensor_f32_4::concat<3>(input_img_tensors);
-
-    frame_msg->set_data(std::move(input_img_tensor));
-    frame_msg->set_timestamp(0);
-    frame_msg->set_frame_number(0);
-
-    const auto heatmaps_msg = inference_heatmap->process("input", frame_msg);
-
-    const auto &heatmaps = std::dynamic_pointer_cast<frame_message<tensor<float, 4>>>(heatmaps_msg)->get_data();
-
-    std::map<std::string, cv::Mat> features;
 
     for (size_t i = 0; i < frame.size(); i++)
     {
         const auto name = names[i];
-
-        const auto heatmap = heatmaps.view<3>({heatmaps.shape[0], heatmaps.shape[1], heatmaps.shape[2], 0}, {0, 0, 0, static_cast<uint32_t>(i)}).contiguous().sum<1>({2});
-
-        cv::Mat heatmap_mat;
-        cv::Mat(heatmap.shape[1], heatmap.shape[0], CV_32FC1, (float*)heatmap.data.data()).convertTo(heatmap_mat, CV_8U, 255);
-        cv::resize(heatmap_mat, heatmap_mat, cv::Size(960, 540));
-        cv::cvtColor(heatmap_mat, heatmap_mat, cv::COLOR_GRAY2BGR);
-
-        features[name] = heatmap_mat;
-    }
-
-    std::vector<tensor<float, 4>> heatmaps_list;
-    std::vector<camera_data> cameras_list;
-
-    for (size_t i = 0; i < frame.size(); i++)
-    {
-        const auto name = names[i];
-
-        const auto heatmap = heatmaps.view<4>({heatmaps.shape[0], heatmaps.shape[1], heatmaps.shape[2], 1}, {0, 0, 0, static_cast<uint32_t>(i)}).contiguous();
 
         camera_data camera;
 
-        const auto& src_camera = cameras.at(name);
+        const auto &src_camera = cameras.at(name);
 
         camera.fx = src_camera.intrin.fx;
         camera.fy = src_camera.intrin.fy;
@@ -923,56 +884,197 @@ std::vector<glm::vec3> dnn_reconstruction::dnn_reconstruct(const std::map<std::s
         basis[2] = glm::vec4(0.f, 1.f, 0.f, 0.f);
 
         const auto axis = glm::inverse(basis) * this->axis;
-        const auto camera_pose = src_camera.extrin.rotation * glm::inverse(axis);
+        const auto camera_pose = axis * glm::inverse(src_camera.extrin.rotation);
 
         for (size_t i = 0; i < 3; i++)
         {
             for (size_t j = 0; j < 3; j++)
             {
-                camera.rotation[i][j] = camera_pose[j][i];
+                camera.rotation[i][j] = camera_pose[i][j];
             }
-            camera.translation[i] = camera_pose[3][i];
+            camera.translation[i] = camera_pose[3][i] * 1000.0;
         }
 
-        heatmaps_list.push_back(heatmap);
         cameras_list.push_back(camera);
+        images_list.push_back(frame.at(name));
     }
-    glm::vec3 grid_center = {0.0f, 0.0f, 0.0f};
+#endif
+    const auto start = std::chrono::system_clock::now();
 
-    proj->set_grid_size({8000.0, 8000.0, 2000.0});
-    proj->set_cube_size({{80, 80, 20}});
+    std::vector<roi_data> rois_list;
+    inference_heatmap->process(images_list, rois_list);
 
-    const auto [cubes, grid] = proj->get_voxel(heatmaps_list, cameras_list, rois_list, {grid_center[0], grid_center[1], grid_center[2]});
+#ifdef PANOPTIC
+    std::array<float, 3> grid_center = {0.0f, -500.0f, 800.0f};
+#else
+    std::array<float, 3> grid_center = {0.0f, 0.0f, 0.0f};
+#endif
+    std::array<int32_t, 3> cube_size = {80, 80, 20};
+    std::array<float, 3> grid_size = {8000.0, 8000.0, 2000.0};
 
-    auto cubes_msg = std::make_shared<frame_message<tensor<float, 4>>>();
+    global_proj->set_grid_size(grid_size);
+    global_proj->set_cube_size(cube_size);
 
-    cubes_msg->set_data(std::move(cubes));
-    cubes_msg->set_timestamp(0);
-    cubes_msg->set_frame_number(0);
+    global_proj->get_voxel(inference_heatmap->get_heatmaps(), images_list.size(), inference_heatmap->get_heatmap_width(), inference_heatmap->get_heatmap_height(), cameras_list, rois_list, grid_center);
 
-    const auto proposal_msg = inference_proposal->process("input", cubes_msg);
+#if 0
+    {
+        static int counter = 0;
+        counter++;
 
-    const auto &proposal = std::dynamic_pointer_cast<frame_message<tensor<float, 5>>>(proposal_msg)->get_data();
+        const auto num_bins = static_cast<uint32_t>(std::accumulate(cube_size.begin(), cube_size.end(), 1, std::multiplies<int32_t>()));
+        const auto num_joints = 15;
+        coalsack::tensor<float, 4> temp_cubes({num_bins, 1, num_joints, 1});
+        CUDA_SAFE_CALL(cudaMemcpy(temp_cubes.get_data(), global_proj->get_cubes(), temp_cubes.get_size() * sizeof(float), cudaMemcpyDeviceToHost));
+
+        const auto cubes = temp_cubes.reshape_move<4>({static_cast<uint32_t>(cube_size[2]), static_cast<uint32_t>(cube_size[1]), static_cast<uint32_t>(cube_size[0]), num_joints});
+        
+        {
+            std::ofstream ofs;
+            ofs.open("./cubes" + std::to_string(counter) + ".bin", std::ios::out | std::ios::binary);
+
+            ofs.write((const char*)cubes.get_data(), cubes.get_size() * sizeof(float));
+        }
+    }
+#endif
+
+    inference_proposal->inference(global_proj->get_cubes());
+
+    coalsack::tensor<float, 5> proposal({20, 80, 80, 1, 1});
+    CUDA_SAFE_CALL(cudaMemcpy(proposal.get_data(), inference_proposal->get_output_data(), proposal.get_size() * sizeof(float), cudaMemcpyDeviceToHost));
 
     prop->set_max_num(10);
     prop->set_threshold(0.3f);
-    prop->set_grid_size({8000.0, 8000.0, 2000.0});
-    prop->set_grid_center({0.0, 0.0, 0.0});
-    prop->set_cube_size({{80, 80, 20}});
+    prop->set_grid_size(grid_size);
+    prop->set_grid_center(grid_center);
+    prop->set_cube_size(cube_size);
 
     const auto centers = prop->get_centers(proposal);
 
+    std::vector<glm::vec3> points;
+
+    for (uint32_t i = 0; i < centers.shape[1]; i++)
+    {
+        const auto score = centers.get({4, i});
+        if (score > 0.3f)
+        {
+            const std::array<float, 3> center = {centers.get({0, i}), centers.get({1, i}), centers.get({2, i})};
+
+            std::array<int32_t, 3> cube_size = {64, 64, 64};
+            std::array<float, 3> grid_size = {2000.0, 2000.0, 2000.0};
+
+            local_proj->set_grid_size(grid_size);
+            local_proj->set_cube_size(cube_size);
+
+            local_proj->get_voxel(inference_heatmap->get_heatmaps(), images_list.size(), inference_heatmap->get_heatmap_width(), inference_heatmap->get_heatmap_height(), cameras_list, rois_list, center);
+
+            inference_pose->inference(local_proj->get_cubes());
+
+            joint_extract->soft_argmax(inference_pose->get_output_data(), 100, grid_size, cube_size, center);
+
+            std::vector<glm::vec3> joints(15);
+
+            CUDA_SAFE_CALL(cudaMemcpy(&joints[0][0], joint_extract->get_joints(), 3 * 15 * sizeof(float), cudaMemcpyDeviceToHost));
+
+            glm::mat4 basis(1.f);
+            basis[0] = glm::vec4(-1.f, 0.f, 0.f, 0.f);
+            basis[1] = glm::vec4(0.f, 0.f, 1.f, 0.f);
+            basis[2] = glm::vec4(0.f, 1.f, 0.f, 0.f);
+
+            for (const auto &joint : joints)
+            {
+                points.push_back(basis * glm::vec4(joint / 1000.0f, 1.0f));
+            }
+
+#if 0
+            {
+                static int counter = 0;
+                counter++;
+
+                const auto num_bins = static_cast<uint32_t>(std::accumulate(cube_size.begin(), cube_size.end(), 1, std::multiplies<int32_t>()));
+                const auto num_joints = 15;
+                coalsack::tensor<float, 4> temp_cubes({num_bins, 1, num_joints, 1});
+                CUDA_SAFE_CALL(cudaMemcpy(temp_cubes.get_data(), inference_pose->get_output_data(), temp_cubes.get_size() * sizeof(float), cudaMemcpyDeviceToHost));
+
+                const auto cubes = temp_cubes.reshape_move<4>({static_cast<uint32_t>(cube_size[2]), static_cast<uint32_t>(cube_size[1]), static_cast<uint32_t>(cube_size[0]), num_joints});
+                
+                {
+                    std::ofstream ofs;
+                    ofs.open("./ind_cubes" + std::to_string(counter) + ".bin", std::ios::out | std::ios::binary);
+
+                    ofs.write((const char*)cubes.get_data(), cubes.get_size() * sizeof(float));
+                }
+            }
+#endif
+
+#if 0
+            {
+                static int counter = 0;
+                counter++;
+
+                const auto num_points = 15;
+
+                std::ofstream ofs;
+                ofs.open("./result" + std::to_string(counter) + ".pcd", std::ios::out);
+
+                ofs << "VERSION 0.7" << std::endl;
+                ofs << "FIELDS x y z rgba" << std::endl;
+                ofs << "SIZE 4 4 4 4" << std::endl;
+                ofs << "TYPE F F F U" << std::endl;
+                ofs << "COUNT 1 1 1 1" << std::endl;
+                ofs << "WIDTH " << num_points << std::endl;
+                ofs << "HEIGHT 1" << std::endl;
+                ofs << "VIEWPOINT 0 0 0 1 0 0 0" << std::endl;
+                ofs << "POINTS " << num_points << std::endl;
+                ofs << "DATA ascii" << std::endl;
+
+                for (size_t j = 0; j < num_points; j++)
+                {
+                    const auto joint = basis * glm::vec4(joints[j] / 1000.0f, 1.0f);
+                    ofs << joint.x << " " << joint.y << " " << joint.z << " " << 16711680 << std::endl;
+                }
+            }
+#endif
+        }
+    }
+    const auto end = std::chrono::system_clock::now();
+    double elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+    // std::cout << "voxelpose: " << elapsed << std::endl;
+
+    const auto start5 = std::chrono::system_clock::now();
+    coalsack::tensor<float, 4> heatmaps({240, 128, 15, (uint32_t)images_list.size()});
+    CUDA_SAFE_CALL(cudaMemcpy(heatmaps.get_data(), inference_heatmap->get_heatmaps(), heatmaps.get_size() * sizeof(float), cudaMemcpyDeviceToHost));
+
     {
         std::lock_guard lock(features_mtx);
-        this->features = features;
+
+#ifdef PANOPTIC
+        std::map<std::string, std::string> name_cvt = {
+            {"camera_00_03", "camera101"},
+            {"camera_00_06", "camera102"},
+            {"camera_00_12", "camera103"},
+            {"camera_00_13", "camera104"},
+            {"camera_00_23", "camera105"},
+        };
+
+        std::vector<std::string> new_names;
+        for (const auto& name : names)
+        {
+            new_names.push_back(name_cvt.at(name));
+        }
+
+        this->names = new_names;
+#else
+        this->names = names;
+#endif
+        this->features = std::move(heatmaps);
     }
 
-    std::vector<glm::vec3> points;
     return points;
 }
 
 dnn_reconstruction::dnn_reconstruction()
-    : inference_heatmap(new dnn_inference()), inference_proposal(new dnn_inference()), proj(new projector()), prop(new get_proposal()), service(new SensorServiceImpl()), reconstruction_workers(std::make_shared<task_queue<std::function<void()>>>(1)), task_id_gen(std::random_device()()) {}
+    : inference_heatmap(), inference_proposal(), inference_pose(), global_proj(new voxel_projector()), local_proj(new voxel_projector()), prop(new get_proposal()), joint_extract(new joint_extractor()), service(new SensorServiceImpl()), reconstruction_workers(std::make_shared<task_queue<std::function<void()>>>(1)), task_id_gen(std::random_device()()) {}
 dnn_reconstruction::~dnn_reconstruction() = default;
 
 void dnn_reconstruction::push_frame(const frame_type &frame)
@@ -997,7 +1099,11 @@ void dnn_reconstruction::push_frame(const frame_type &frame)
 
     reconstruction_workers->push_task([frame, this, task_id]()
                                       {
+        const auto start = std::chrono::system_clock::now();
         const auto markers = dnn_reconstruct(cameras, frame, axis);
+        const auto end = std::chrono::system_clock::now();
+        double elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+        // std::cout << "dnn_reconstruct: " << elapsed << std::endl;
 
         {
             std::unique_lock<std::mutex> lock(reconstruction_task_wait_queue_mtx);
@@ -1065,10 +1171,7 @@ void dnn_reconstruction::run()
         backbone_model_data = std::move(data);
     }
 
-    inference_heatmap->output_names.push_back("output");
-
-    inference_heatmap->set_model_data(backbone_model_data);
-    inference_heatmap->initialize();
+    inference_heatmap.reset(new dnn_inference_heatmap(backbone_model_data, 5));
 
     std::vector<uint8_t> proposal_v2v_net_model_data;
     {
@@ -1079,10 +1182,18 @@ void dnn_reconstruction::run()
         proposal_v2v_net_model_data = std::move(data);
     }
 
-    inference_proposal->output_names.push_back("output");
+    inference_proposal.reset(new dnn_inference(proposal_v2v_net_model_data, "./proposal_model_cache"));
 
-    inference_proposal->set_model_data(proposal_v2v_net_model_data);
-    inference_proposal->initialize();
+    std::vector<uint8_t> pose_v2v_net_model_data;
+    {
+        const auto model_path = "pose_v2v_net.onnx";
+        std::vector<uint8_t> data;
+        load_model(model_path, data);
+
+        pose_v2v_net_model_data = std::move(data);
+    }
+
+    inference_pose.reset(new dnn_inference(pose_v2v_net_model_data, "./pose_model_cache"));
 }
 
 void dnn_reconstruction::stop()
@@ -1096,4 +1207,33 @@ void dnn_reconstruction::stop()
             server_th->join();
         }
     }
+}
+
+std::map<std::string, cv::Mat> dnn_reconstruction::get_features() const
+{
+    coalsack::tensor<float, 4> features;
+    std::vector<std::string> names;
+    {
+        std::lock_guard lock(features_mtx);
+        features = this->features;
+        names = this->names;
+    }
+    std::map<std::string, cv::Mat> result;
+    if (features.get_size() == 0)
+    {
+        return result;
+    }
+    for (size_t i = 0; i < names.size(); i++)
+    {
+        const auto name = names[i];
+        const auto heatmap = features.view<3>({features.shape[0], features.shape[1], features.shape[2], 0}, {0, 0, 0, static_cast<uint32_t>(i)}).contiguous().sum<1>({2});
+
+        cv::Mat heatmap_mat;
+        cv::Mat(heatmap.shape[1], heatmap.shape[0], CV_32FC1, (float *)heatmap.get_data()).clone().convertTo(heatmap_mat, CV_8U, 255);
+        cv::resize(heatmap_mat, heatmap_mat, cv::Size(960, 540));
+        cv::cvtColor(heatmap_mat, heatmap_mat, cv::COLOR_GRAY2BGR);
+
+        result[name] = heatmap_mat;
+    }
+    return result;
 }
