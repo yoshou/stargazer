@@ -72,7 +72,7 @@ target_link_libraries(stargazer_viewer
     $<$<BOOL:${ENABLE_ONNXRUNTIME_EXT}>:${ONNXRUNTIME_LIBS}>
     voxelpose
     /usr/lib/x86_64-linux-gnu/libcudnn.so
-    cublas
+    /usr/local/cuda-11.8/lib64/libcublas.so
 )
 
 target_compile_options(stargazer_viewer

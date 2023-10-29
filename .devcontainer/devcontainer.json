@@ -7,8 +7,12 @@
 	},
 	"features": {
 		"ghcr.io/devcontainers-contrib/features/bash-command:1": {},
-		"ghcr.io/devcontainers/features/nvidia-cuda:1": {
-			"installCudnn": true
+		"ghcr.io/devcontainers/features/nvidia-cuda": {
+			"cudaVersion": "11.8",
+			"installCudnn": true,
+			"cudnnVersion": "8.6.0.163",
+			"installCudnnDev": true,
+			"installToolkit": true
 		}
 	},
 	"containerEnv": {
@@ -35,8 +39,8 @@
 	],
 
 	"hostRequirements": {
-		"gpu": "optional"
-	}
+		"gpu": true
+	},
 
 	// Features to add to the dev container. More info: https://containers.dev/features.
 	// "features": {},
@@ -45,7 +49,7 @@
 	// "forwardPorts": [],
 
 	// Use 'postCreateCommand' to run commands after the container is created.
-	// "postCreateCommand": "gcc -v",
+	"postCreateCommand": "./.devcontainer/postCreateCommand.sh"
 
 	// Configure tool-specific properties.
 	// "customizations": {},
