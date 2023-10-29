@@ -854,7 +854,7 @@ void intrinsic_calibration::calibrate()
 
     std::vector<cv::Mat> rvecs, tvecs;
     cv::Mat camera_matrix = cv::Mat::eye(3, 3, CV_64F);
-    cv::Mat dist_coeffs = cv::Mat::zeros(8, 1, CV_64F);
+    cv::Mat dist_coeffs = cv::Mat::zeros(5, 1, CV_64F);
 
     rms = cv::calibrateCamera(object_points, image_points, image_size, camera_matrix, dist_coeffs, rvecs, tvecs);
 
@@ -968,15 +968,23 @@ bool detect_charuco_board(cv::Mat image, std::vector<cv::Point2f> &points, std::
     return true;
 }
 
-bool detect_aruco_marker(cv::Mat image, std::vector<cv::Point2f> &points, std::vector<int> &ids)
+void detect_aruco_marker(cv::Mat image, std::vector<std::vector<cv::Point2f>> &points, std::vector<int> &ids)
 {
     cv::aruco::DetectorParameters detector_params = cv::aruco::DetectorParameters();
     cv::aruco::RefineParameters refine_params = cv::aruco::RefineParameters();
     const auto dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_4X4_250);
     const auto detector = cv::aruco::ArucoDetector(dictionary, detector_params, refine_params);
+    
+    points.clear();
+    ids.clear();
+    detector.detectMarkers(image, points, ids);
+}
+
+bool detect_aruco_marker(cv::Mat image, std::vector<cv::Point2f> &points, std::vector<int> &ids)
+{
     std::vector<int> marker_ids;
     std::vector<std::vector<cv::Point2f>> marker_corners;
-    detector.detectMarkers(image, marker_corners, marker_ids);
+    detect_aruco_marker(image, marker_corners, marker_ids);
 
     for (size_t i = 0; i < marker_ids.size(); i++)
     {
