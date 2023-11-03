@@ -28,7 +28,6 @@ add_dependencies(stargazer_viewer
     coalsack
     stargazer_sensor_grpc_proto
     stargazer
-    libjpeg-turbo
     voxelpose
 )
 
@@ -44,6 +43,8 @@ target_link_directories(stargazer_viewer
 
 target_compile_definitions(stargazer_viewer
     PUBLIC
+    $<$<BOOL:${MSVC}>:_USE_MATH_DEFINES>
+    $<$<BOOL:${MSVC}>:GLOG_NO_ABBREVIATED_SEVERITIES>
 )
 
 target_link_libraries(stargazer_viewer
@@ -64,22 +65,23 @@ target_link_libraries(stargazer_viewer
     glad::glad
     $<$<NOT:$<BOOL:${WIN32}>>:pthread>
     Boost::program_options
-    libturbojpeg.a
+    JPEG::JPEG
     glog::glog
     ceres
     gRPC::grpc++
     imgui::imgui
     $<$<BOOL:${ENABLE_ONNXRUNTIME_EXT}>:${ONNXRUNTIME_LIBS}>
     voxelpose
-    /usr/lib/x86_64-linux-gnu/libcudnn.so
-    /usr/local/cuda-11.8/lib64/libcublas.so
+    $<$<NOT:$<BOOL:${MSVC}>>:${CUDA_CUBLAS_LIBRARIES}>
+    $<$<NOT:$<BOOL:${MSVC}>>:cudnn>
 )
 
 target_compile_options(stargazer_viewer
     PRIVATE
     $<$<CXX_COMPILER_ID:Clang>:-Wall -Wextra -Wno-unused-parameter>
-    $<$<CONFIG:RELEASE>:-O2>
-    $<$<CONFIG:DEBUG>:-g -O0>)
+    $<$<CXX_COMPILER_ID:Clang>:$<$<CONFIG:RELEASE>:-O2>>
+    $<$<CXX_COMPILER_ID:Clang>:$<$<CONFIG:DEBUG>:-g -O0>>
+    $<$<BOOL:${MSVC}>:/bigobj>)
 
 target_sources(stargazer_viewer
     PRIVATE

@@ -1,5 +1,5 @@
 if(WIN32)
-    set(CMAKE_PREFIX_PATH "${CMAKE_SOURCE_DIR}/third-party/vcpkg/installed/x64-windows")
+    set(CMAKE_PREFIX_PATH "${VCPKG_ROOT}/installed/x64-windows")
 else()
     set(CMAKE_PREFIX_PATH "/usr/local/vcpkg/installed/x64-linux")
     set(Boost_INCLUDE_DIR /usr/local/vcpkg/installed/x64-linux/include)
@@ -26,6 +26,7 @@ find_package(nanoflann CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(gRPC CONFIG REQUIRED)
 find_package(imgui CONFIG REQUIRED)
+find_package(JPEG REQUIRED)
 
 include_directories(
     ${CMAKE_SOURCE_DIR}/third-party/vcpkg/installed/x64-include
