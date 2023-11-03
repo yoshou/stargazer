@@ -21,7 +21,7 @@ namespace stargazer
             {
                 if (m[1].matched)
                 {
-                    const auto frame_no = std::stoul(m[1].str());
+                    const auto frame_no = std::stoull(m[1].str());
                     frame_numbers.push_back(frame_no);
                 }
             }
