@@ -6,20 +6,19 @@ if(NOT WIN32)
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -pg")
 endif()
 
-if(NOT MSVC)
-    enable_language(CUDA)
-endif()
+enable_language(CUDA)
 
 find_package(CUDAToolkit)
 
-add_library(voxelpose
+add_library(stargazer_voxelpose
     ${CMAKE_CURRENT_LIST_DIR}/voxelpose_cuda.cu
 )
 
-target_compile_features(voxelpose PRIVATE cxx_std_17)
+target_compile_features(stargazer_voxelpose PRIVATE cxx_std_17 cuda_std_11)
 
-set_target_properties(voxelpose PROPERTIES
+set_target_properties(stargazer_voxelpose PROPERTIES
     LINKER_LANGUAGE CUDA C CXX
+    CUDA_RESOLVE_DEVICE_SYMBOLS ON
     CUDA_SEPARABLE_COMPILATION ON)
 
 add_executable(stargazer_viewer
@@ -31,12 +30,15 @@ add_executable(stargazer_viewer
     ${CMAKE_CURRENT_LIST_DIR}/config_file.cpp
     ${CMAKE_CURRENT_LIST_DIR}/viewer_app.cpp
 )
+set_target_properties(stargazer_viewer PROPERTIES
+    LINKER_LANGUAGE CUDA C CXX
+    CUDA_RESOLVE_DEVICE_SYMBOLS ON
+    CUDA_SEPARABLE_COMPILATION ON)
 
 add_dependencies(stargazer_viewer
-    coalsack
     stargazer_sensor_grpc_proto
     stargazer
-    voxelpose
+    stargazer_voxelpose
 )
 
 target_include_directories(stargazer_viewer
@@ -58,6 +60,7 @@ target_compile_definitions(stargazer_viewer
 target_link_libraries(stargazer_viewer
     stargazer
     stargazer_sensor_grpc_proto
+    stargazer_voxelpose
     opencv_imgproc
     opencv_highgui
     opencv_videoio
@@ -79,11 +82,11 @@ target_link_libraries(stargazer_viewer
     gRPC::grpc++
     imgui::imgui
     $<$<BOOL:${ENABLE_ONNXRUNTIME_EXT}>:${ONNXRUNTIME_LIBS}>
-    voxelpose
     $<$<BOOL:${MSVC}>:${CUDAToolkit_LIBRARY_DIR}/cudnn.lib>
     $<$<NOT:$<BOOL:${MSVC}>>:cudnn>
-    CUDA::cudart
     CUDA::cublas
+    CUDA::cudart
+    CUDA::cuda_driver
 )
 
 target_compile_options(stargazer_viewer
