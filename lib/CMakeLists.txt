@@ -8,6 +8,11 @@ add_library(stargazer
     ${CMAKE_CURRENT_LIST_DIR}/calibration/bundle_adjust_data.cpp
 )
 
+target_compile_definitions(stargazer
+    PUBLIC
+    $<$<BOOL:${MSVC}>:GLOG_NO_ABBREVIATED_SEVERITIES>
+)
+
 target_include_directories(stargazer
     PUBLIC
     ${CMAKE_CURRENT_LIST_DIR}
@@ -17,6 +22,6 @@ target_include_directories(stargazer
 
 target_link_libraries(stargazer
     opencv_imgproc
-    pthread
-    stdc++fs
+    $<$<NOT:$<BOOL:${MSVC}>>:pthread>
+    $<$<NOT:$<BOOL:${MSVC}>>:stdc++fs>
 )
