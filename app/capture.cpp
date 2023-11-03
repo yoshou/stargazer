@@ -835,6 +835,60 @@ void capture_pipeline::set_mask(cv::Mat mask)
 {
 }
 
+#include <fstream>
+
+class dump_blob_node : public graph_node
+{
+    std::string data_dir;
+    std::string ext;
+
+public:
+    dump_blob_node()
+        : graph_node()
+    {
+    }
+
+    void set_data_dir(std::string value)
+    {
+        data_dir = value;
+    }
+
+    void set_ext(std::string value)
+    {
+        ext = value;
+    }
+
+    virtual std::string get_proc_name() const override
+    {
+        return "dump_blob_node";
+    }
+
+    template <typename Archive>
+    void serialize(Archive &archive)
+    {
+        archive(data_dir);
+        archive(ext);
+    }
+
+    virtual void process(std::string input_name, graph_message_ptr message) override
+    {
+        if (auto frame_msg = std::dynamic_pointer_cast<frame_message<blob>>(message))
+        {
+            const auto &data = frame_msg->get_data();
+
+            const auto path = data_dir + "/" + input_name + "_" + std::to_string((uint64_t)frame_msg->get_timestamp()) + ext;
+            std::ofstream ofs;
+            ofs.open(path, std::ios::binary | std::ios::out);
+            ofs.write((const char *)data.data(), data.size());
+
+            spdlog::debug("Saved image to '{0}'", path);
+        }
+    }
+};
+
+CEREAL_REGISTER_TYPE(dump_blob_node)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, dump_blob_node)
+
 class multiview_capture_pipeline::impl
 {
     local_server server;
@@ -965,6 +1019,19 @@ public:
                 g->add_node(n8);
 
                 n8->set_name("image#" + device_infos[i].name);
+
+#if 0
+                const auto data_dir = "./output";
+                std::shared_ptr<fifo_node> n12(new fifo_node());
+                n12->set_input(n1->get_output());
+                g->add_node(n12);
+
+                std::shared_ptr<dump_blob_node> n5(new dump_blob_node());
+                n5->set_input(n12->get_output(), "image_" + std::to_string(i + 1));
+                n5->set_data_dir(data_dir);
+                n5->set_ext(".jpg");
+                g->add_node(n5);
+#endif
             }
             else
             {
