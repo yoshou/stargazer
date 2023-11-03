@@ -21,6 +21,10 @@ set_target_properties(stargazer_voxelpose PROPERTIES
     CUDA_RESOLVE_DEVICE_SYMBOLS ON
     CUDA_SEPARABLE_COMPILATION ON)
 
+target_link_libraries(stargazer_voxelpose
+    opencv_imgproc
+)
+
 add_executable(stargazer_viewer
     ${CMAKE_CURRENT_LIST_DIR}/viewer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/views.cpp
