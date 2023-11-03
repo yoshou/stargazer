@@ -6,6 +6,10 @@ if(NOT WIN32)
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -pg")
 endif()
 
+if(NOT MSVC)
+    enable_language(CUDA)
+endif()
+
 find_package(CUDAToolkit)
 
 add_library(voxelpose
@@ -14,12 +18,9 @@ add_library(voxelpose
 
 target_compile_features(voxelpose PRIVATE cxx_std_17)
 
-set(CMAKE_CUDA_CREATE_STATIC_LIBRARY OFF)
-
 set_target_properties(voxelpose PROPERTIES
     LINKER_LANGUAGE CUDA C CXX
-    CUDA_SEPARABLE_COMPILATION ON
-    CUDA_ARCHITECTURES OFF)
+    CUDA_SEPARABLE_COMPILATION ON)
 
 add_executable(stargazer_viewer
     ${CMAKE_CURRENT_LIST_DIR}/viewer.cpp
