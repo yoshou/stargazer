@@ -835,7 +835,7 @@ struct reconstruction_viewer : public window_base
 
                     const auto directory = markers_directory;
                     std::vector<std::uint64_t> frame_numbers;
-                    stargazer::list_frame_numbers(directory, frame_numbers);
+                    stargazer::list_frame_numbers(directory.string(), frame_numbers);
 
                     std::size_t max_frames = frame_numbers.size();
 
