@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.5.1)
 
-find_program(_PROTOBUF_PROTOC protoc)
-find_program(_GRPC_CPP_PLUGIN_EXECUTABLE grpc_cpp_plugin)
+find_program(_PROTOBUF_PROTOC protoc PATHS "${VCPKG_ROOT}/installed/x64-windows/tools/protobuf")
+find_program(_GRPC_CPP_PLUGIN_EXECUTABLE grpc_cpp_plugin PATHS "${VCPKG_ROOT}/installed/x64-windows/tools/grpc")
 
 find_package(Protobuf CONFIG REQUIRED)
 message(STATUS "Using protobuf ${Protobuf_VERSION}")
