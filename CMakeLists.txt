@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.1.0)
+cmake_minimum_required(VERSION 3.18)
 
 project(stargazer C CXX)
 
@@ -27,8 +27,11 @@ if(${ENABLE_ONNXRUNTIME_EXT})
 endif()
 
 include(third-party/CMakeLists.txt)
-include(coalsack/CMakeLists.txt)
 include(protos/CMakeLists.txt)
 include(fonts/CMakeLists.txt)
 include(lib/CMakeLists.txt)
 include(app/CMakeLists.txt)
+
+include_directories(
+    ${CMAKE_SOURCE_DIR}/coalsack/include
+)
