@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.18)
 
 if(NOT WIN32)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pg")
@@ -6,15 +6,22 @@ if(NOT WIN32)
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -pg")
 endif()
 
-find_package(CUDA REQUIRED)
+find_package(CUDAToolkit)
 
-cuda_add_library(voxelpose
+add_library(voxelpose
     ${CMAKE_CURRENT_LIST_DIR}/voxelpose_cuda.cu
 )
 
 target_compile_features(voxelpose PRIVATE cxx_std_17)
 
-cuda_add_executable(stargazer_viewer
+set(CMAKE_CUDA_CREATE_STATIC_LIBRARY OFF)
+
+set_target_properties(voxelpose PROPERTIES
+    LINKER_LANGUAGE CUDA C CXX
+    CUDA_SEPARABLE_COMPILATION ON
+    CUDA_ARCHITECTURES OFF)
+
+add_executable(stargazer_viewer
     ${CMAKE_CURRENT_LIST_DIR}/viewer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/views.cpp
     ${CMAKE_CURRENT_LIST_DIR}/capture.cpp
@@ -72,8 +79,10 @@ target_link_libraries(stargazer_viewer
     imgui::imgui
     $<$<BOOL:${ENABLE_ONNXRUNTIME_EXT}>:${ONNXRUNTIME_LIBS}>
     voxelpose
-    $<$<NOT:$<BOOL:${MSVC}>>:${CUDA_CUBLAS_LIBRARIES}>
+    $<$<BOOL:${MSVC}>:${CUDAToolkit_LIBRARY_DIR}/cudnn.lib>
     $<$<NOT:$<BOOL:${MSVC}>>:cudnn>
+    CUDA::cudart
+    CUDA::cublas
 )
 
 target_compile_options(stargazer_viewer
