@@ -886,8 +886,169 @@ public:
     }
 };
 
-CEREAL_REGISTER_TYPE(dump_blob_node)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, dump_blob_node)
+#include <regex>
+#include <filesystem>
+
+class load_blob_node : public graph_node
+{
+    std::string data_dir;
+    std::string ext;
+    std::string name;
+    stream_type stream;
+    stream_format format;
+    int fps;
+
+    std::vector<uint64_t> timestamps;
+    std::shared_ptr<std::thread> th;
+    std::atomic_bool playing;
+    graph_edge_ptr output;
+
+    uint64_t start_timestamp;
+
+public:
+    load_blob_node()
+        : graph_node(), stream(stream_type::COLOR), format(stream_format::BGR8), fps(30), timestamps(), output(std::make_shared<graph_edge>(this)), start_timestamp(0)
+    {
+        set_output(output);
+    }
+
+    void set_data_dir(std::string value)
+    {
+        data_dir = value;
+    }
+
+    void set_ext(std::string value)
+    {
+        ext = value;
+    }
+
+    void set_name(std::string value)
+    {
+        name = value;
+    }
+
+    void set_stream(stream_type value)
+    {
+        stream = value;
+    }
+
+    void set_format(stream_format value)
+    {
+        format = value;
+    }
+
+    void set_fps(int value)
+    {
+        fps = value;
+    }
+
+    virtual std::string get_proc_name() const override
+    {
+        return "load_blob_node";
+    }
+
+    template <typename Archive>
+    void serialize(Archive &archive)
+    {
+        archive(data_dir);
+        archive(ext);
+        archive(name);
+        archive(stream);
+        archive(format);
+        archive(fps);
+    }
+
+    virtual void initialize() override
+    {
+        namespace fs = std::filesystem;
+
+        const std::regex all_path_pattern(".+?_([0-9]+)" + ext);
+        const std::regex path_pattern(name + "_([0-9]+)" + ext);
+
+        timestamps.clear();
+        start_timestamp = std::numeric_limits<uint64_t>::max();
+
+        for (const auto &entry : fs::directory_iterator(data_dir))
+        {
+            const std::string s = entry.path().filename().string();
+            std::smatch m;
+            if (std::regex_search(s, m, path_pattern))
+            {
+                if (m[1].matched)
+                {
+                    const auto frame_no = std::stoull(m[1].str());
+                    timestamps.push_back(frame_no);
+                }
+            }
+            if (std::regex_search(s, m, all_path_pattern))
+            {
+                if (m[1].matched)
+                {
+                    const auto frame_no = std::stoull(m[1].str());
+                    start_timestamp = std::min(start_timestamp, static_cast<uint64_t>(frame_no));
+                }
+            }
+        }
+
+        std::sort(timestamps.begin(), timestamps.end());
+
+        assert(timestamps.size() == 0 || start_timestamp <= timestamps.front());
+    }
+
+    virtual void run() override
+    {
+        namespace fs = std::filesystem;
+
+        th.reset(new std::thread([this]()
+                                 {
+            playing = true;
+            uint64_t position = 0;
+            const auto start_time = std::chrono::system_clock::now();
+            while (playing && position < timestamps.size())
+            {
+                std::this_thread::sleep_until(start_time + std::chrono::duration<double>(static_cast<double>(timestamps[position] - start_timestamp) / 1000.0));
+
+                std::string filename = (fs::path(data_dir) / (name + "_" + std::to_string(timestamps[position]) + ext)).string();
+                if (!fs::exists(filename))
+                {
+                    continue;
+                }
+
+                std::ifstream f;
+                f.open(filename, std::ios::in | std::ios::binary);
+                std::vector<uint8_t> data(std::istreambuf_iterator<char>(f), {});
+
+                auto msg = std::make_shared<frame_message<blob>>();
+                msg->set_data(std::move(data));
+                msg->set_frame_number(position);
+                msg->set_timestamp(timestamps[position]);
+                msg->set_profile(std::make_shared<stream_profile>(
+                    stream,
+                    0,
+                    format,
+                    fps,
+                    0));
+
+                output->send(msg);
+
+                position++;
+            } }));
+    }
+
+    virtual void stop() override
+    {
+        playing.store(false);
+        if (th && th->joinable())
+        {
+            th->join();
+        }
+    }
+};
+
+CEREAL_REGISTER_TYPE(load_blob_node)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, load_blob_node)
+
+#define PLAYBACK
 
 class multiview_capture_pipeline::impl
 {
@@ -945,6 +1106,7 @@ public:
         int sync_fps = 90;
         std::vector<device_info> device_infos = infos;
 
+#ifndef PLAYBACK
         std::vector<std::shared_ptr<remote_cluster>> clusters;
         for (std::size_t i = 0; i < device_infos.size(); i++)
         {
@@ -992,21 +1154,34 @@ public:
                 clusters.emplace_back(std::make_unique<remote_cluster_rs_d435_color>(fps));
             }
         }
+#endif
 
         std::shared_ptr<subgraph> g(new subgraph());
 
         std::vector<std::shared_ptr<graph_node>> rcv_nodes;
         std::vector<std::shared_ptr<p2p_listener_node>> rcv_marker_nodes;
-        for (std::size_t i = 0; i < clusters.size(); i++)
+        for (std::size_t i = 0; i < device_infos.size(); i++)
         {
+#ifndef PLAYBACK
             auto &cluster = clusters[i];
-
             if (cluster->infra1_output)
+#else
+            if (true)
+#endif
             {
+#ifndef PLAYBACK
                 std::shared_ptr<p2p_listener_node> n1(new p2p_listener_node());
                 n1->set_input(cluster->infra1_output);
                 n1->set_endpoint(device_infos[i].endpoint, 0);
                 g->add_node(n1);
+#else
+                const auto data_dir = "../data/output";
+                std::shared_ptr<load_blob_node> n1(new load_blob_node());
+                n1->set_name("image_" + std::to_string(i + 1));
+                n1->set_data_dir(data_dir);
+                n1->set_ext(".jpg");
+                g->add_node(n1);
+#endif
 
                 std::shared_ptr<decode_image_node> n7(new decode_image_node());
                 n7->set_input(n1->get_output());
@@ -1021,7 +1196,7 @@ public:
                 n8->set_name("image#" + device_infos[i].name);
 
 #if 0
-                const auto data_dir = "./output";
+                const auto data_dir = "../data/output";
                 std::shared_ptr<fifo_node> n12(new fifo_node());
                 n12->set_input(n1->get_output());
                 g->add_node(n12);
@@ -1038,6 +1213,7 @@ public:
                 rcv_nodes.push_back(nullptr);
             }
 
+#ifndef PLAYBACK
             if (cluster->infra1_marker_output)
             {
                 std::shared_ptr<p2p_listener_node> n2(new p2p_listener_node());
@@ -1051,10 +1227,11 @@ public:
             {
                 rcv_marker_nodes.push_back(nullptr);
             }
+#endif
         }
 
         std::shared_ptr<approximate_time_sync_node> n3(new approximate_time_sync_node());
-        for (std::size_t i = 0; i < clusters.size(); i++)
+        for (std::size_t i = 0; i < rcv_nodes.size(); i++)
         {
             if (rcv_nodes[i])
             {
@@ -1073,7 +1250,7 @@ public:
 
         
         std::shared_ptr<approximate_time_sync_node> n6(new approximate_time_sync_node());
-        for (std::size_t i = 0; i < clusters.size(); i++)
+        for (std::size_t i = 0; i < rcv_marker_nodes.size(); i++)
         {
             if (rcv_marker_nodes[i])
             {
@@ -1186,10 +1363,12 @@ public:
         server.add_resource(callbacks);
         server.run();
 
+#ifndef PLAYBACK
         for (std::size_t i = 0; i < clusters.size(); i++)
         {
             client.deploy(io_service, device_infos[i].address, 31400, clusters[i]->g);
         }
+#endif
         client.deploy(io_service, "127.0.0.1", server.get_port(), g);
 
         io_thread.reset(new std::thread([this]
