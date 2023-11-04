@@ -1048,8 +1048,6 @@ public:
 CEREAL_REGISTER_TYPE(load_blob_node)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, load_blob_node)
 
-#define PLAYBACK
-
 class multiview_capture_pipeline::impl
 {
     local_server server;
