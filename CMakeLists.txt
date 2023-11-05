@@ -23,7 +23,11 @@ endif()
 
 if(${ENABLE_ONNXRUNTIME_EXT})
     set(ONNXRUNTIME_INCLUDE_DIRS $ENV{ONNXRUNTIME_ROOT}/include)
-    set(ONNXRUNTIME_LIBS $ENV{ONNXRUNTIME_ROOT}/lib/libonnxruntime.so)
+    if(MSVC)
+        set(ONNXRUNTIME_LIBS $ENV{ONNXRUNTIME_ROOT}/lib/onnxruntime.lib $ENV{ONNXRUNTIME_ROOT}/lib/onnxruntime_providers_cuda.lib $ENV{ONNXRUNTIME_ROOT}/lib/onnxruntime_providers_shared.lib)
+    else()
+        set(ONNXRUNTIME_LIBS $ENV{ONNXRUNTIME_ROOT}/lib/libonnxruntime.so)
+    endif()
 endif()
 
 include(third-party/CMakeLists.txt)
