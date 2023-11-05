@@ -1036,6 +1036,11 @@ std::vector<glm::vec3> dnn_reconstruction::dnn_reconstruct(const std::map<std::s
     std::vector<cv::Mat> images_list;
     std::vector<camera_data> cameras_list;
 
+    if (frame.size() <= 1)
+    {
+        return std::vector<glm::vec3>();
+    }
+
 #ifdef PANOPTIC
     const auto panoptic_cameras = load_cameras();
 
