@@ -217,11 +217,8 @@ void marker_stream_server::stop()
 
 #include <cereal/types/array.hpp>
 #include <nlohmann/json.hpp>
-#include <onnxruntime_cxx_api.h>
-#include <tensorrt_provider_factory.h>
-#include <cuda_runtime.h>
 
-namespace fs = std::filesystem;
+#include <cuda_runtime.h>
 
 #define CUDA_SAFE_CALL(func)                                                                                                  \
     do                                                                                                                        \
@@ -233,6 +230,14 @@ namespace fs = std::filesystem;
             exit(err);                                                                                                        \
         }                                                                                                                     \
     } while (0)
+
+namespace fs = std::filesystem;
+
+#define ENABLE_ONNXRUNTIME
+
+#ifdef ENABLE_ONNXRUNTIME
+#include <onnxruntime_cxx_api.h>
+#include <tensorrt_provider_factory.h>
 
 class dnn_reconstruction::dnn_inference
 {
@@ -646,6 +651,186 @@ public:
         return 128;
     }
 };
+#else
+#include <opencv2/dnn/dnn.hpp>
+
+class dnn_reconstruction::dnn_inference
+{
+    cv::dnn::Net net;
+
+    std::vector<std::string> input_node_names;
+    std::vector<std::string> output_node_names;
+
+    std::unordered_map<std::string, std::vector<int64_t>> input_node_dims;
+    std::unordered_map<std::string, std::vector<int64_t>> output_node_dims;
+
+    std::vector<float> input_data;
+    float* output_data = nullptr;
+
+public:
+    dnn_inference(const std::vector<uint8_t>& model_data, std::string cache_dir)
+    {
+        const auto backend = cv::dnn::getAvailableBackends();
+        net = cv::dnn::readNetFromONNX(model_data);
+
+        std::vector<cv::dnn::MatShape> input_layer_shapes;
+        std::vector<cv::dnn::MatShape> output_layer_shapes;
+        net.getLayerShapes(cv::dnn::MatShape(), 0, input_layer_shapes, output_layer_shapes);
+
+        assert(input_layer_shapes.size() == 1);
+        assert(output_layer_shapes.size() == 1);
+
+        const auto input_size = std::accumulate(input_layer_shapes[0].begin(), input_layer_shapes[0].end(), 1, std::multiplies<int64_t>());
+        input_data.resize(input_size);
+
+        const auto output_size = std::accumulate(output_layer_shapes[0].begin(), output_layer_shapes[0].end(), 1, std::multiplies<int64_t>());
+        cudaMalloc(&output_data, output_size * sizeof(float));
+    }
+
+    void inference(const float* input)
+    {
+        std::vector<cv::dnn::MatShape> input_layer_shapes;
+        std::vector<cv::dnn::MatShape> output_layer_shapes;
+        net.getLayerShapes(cv::dnn::MatShape(), 0, input_layer_shapes, output_layer_shapes);
+
+        assert(input_layer_shapes.size() == 1);
+        assert(output_layer_shapes.size() == 1);
+
+        cudaMemcpy(input_data.data(), input, input_data.size(), cudaMemcpyDeviceToHost);
+
+        cv::Mat input_mat(input_layer_shapes[0], CV_32FC1, (void*)input_data.data());
+        net.setInput(input_mat);
+        const auto output_mat = net.forward();
+
+        cudaMemcpy(output_data, output_mat.data, output_mat.total() * sizeof(float), cudaMemcpyHostToDevice);
+    }
+
+    const float* get_output_data() const
+    {
+        return output_data;
+    }
+};
+
+class dnn_reconstruction::dnn_inference_heatmap
+{
+    cv::dnn::Net net;
+
+    std::vector<std::string> input_node_names;
+    std::vector<std::string> output_node_names;
+
+    std::unordered_map<std::string, std::vector<int64_t>> input_node_dims;
+    std::unordered_map<std::string, std::vector<int64_t>> output_node_dims;
+
+    float* input_data = nullptr;
+    float* output_data = nullptr;
+    std::vector<float> input_data_cpu;
+
+    int input_image_width = 960;
+    int input_image_height = 540;
+
+    // int input_image_width = 1920;
+    // int input_image_height = 1080;
+
+    uint8_t* input_image_data = nullptr;
+
+public:
+
+    dnn_inference_heatmap(const std::vector<uint8_t>& model_data, size_t max_views)
+    {
+        const auto backends = cv::dnn::getAvailableBackends();
+        net = cv::dnn::readNetFromONNX(model_data);
+
+        const auto input_size = 960 * 512 * 3 * max_views;
+        cudaMalloc(&input_data, input_size * sizeof(float));
+        input_data_cpu.resize(input_size);
+
+        const auto output_size = 240 * 128 * 15 * max_views;
+        cudaMalloc(&output_data, output_size * sizeof(float));
+
+        cudaMalloc(&input_image_data, input_image_width * input_image_height * 3 * max_views);
+    }
+
+    ~dnn_inference_heatmap()
+    {
+    }
+
+    void process(const std::vector<cv::Mat>& images, std::vector<roi_data>& rois)
+    {
+        const auto&& image_size = cv::Size(960, 512);
+
+        for (size_t i = 0; i < images.size(); i++)
+        {
+            const auto& data = images.at(i);
+
+            const auto get_scale = [](const cv::Size2f& image_size, const cv::Size2f& resized_size)
+            {
+                float w_pad, h_pad;
+                if (image_size.width / resized_size.width < image_size.height / resized_size.height)
+                {
+                    w_pad = image_size.height / resized_size.height * resized_size.width;
+                    h_pad = image_size.height;
+                }
+                else
+                {
+                    w_pad = image_size.width;
+                    h_pad = image_size.width / resized_size.width * resized_size.height;
+                }
+
+                return cv::Size2f(w_pad / 200.0, h_pad / 200.0);
+            };
+
+            assert(data.size().width == input_image_width);
+            assert(data.size().height == input_image_height);
+
+            const auto scale = get_scale(data.size(), image_size);
+            const auto center = cv::Point2f(data.size().width / 2.0, data.size().height / 2.0);
+            const auto rotation = 0.0;
+
+            roi_data roi = { {scale.width, scale.height}, rotation, {center.x, center.y} };
+            rois.push_back(roi);
+
+            const std::array<float, 3> mean = { 0.485, 0.456, 0.406 };
+            const std::array<float, 3> std = { 0.229, 0.224, 0.225 };
+
+            CUDA_SAFE_CALL(cudaMemcpy2D(input_image_data + i * input_image_width * 3 * input_image_height, input_image_width * 3, data.data, data.step, data.cols * 3, data.rows, cudaMemcpyHostToDevice));
+
+            preprocess_cuda(input_image_data + i * input_image_width * 3 * input_image_height, input_image_width, input_image_height, input_image_width * 3, input_data + i * 960 * 512 * 3, 960, 512, 960, mean, std);
+        }
+
+        CUDA_SAFE_CALL(cudaDeviceSynchronize());
+
+        inference(images.size());
+    }
+
+    void inference(size_t num_views)
+    {
+        cudaMemcpy(input_data_cpu.data(), input_data, num_views * 960 * 512 * 3, cudaMemcpyDeviceToHost);
+
+        const cv::dnn::MatShape input_shape = { static_cast<int>(num_views), 3, 512, 960 };
+
+        cv::Mat input_mat(input_shape, CV_32FC1, (void*)input_data_cpu.data());
+        net.setInput(input_mat);
+        const auto output_mat = net.forward();
+
+        cudaMemcpy(output_data, output_mat.data, output_mat.total() * sizeof(float), cudaMemcpyHostToDevice);
+    }
+
+    const float* get_heatmaps() const
+    {
+        return output_data;
+    }
+
+    int get_heatmap_width() const
+    {
+        return 240;
+    }
+
+    int get_heatmap_height() const
+    {
+        return 128;
+    }
+};
+#endif
 
 class dnn_reconstruction::get_proposal
 {
