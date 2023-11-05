@@ -542,7 +542,7 @@ struct reconstruction_viewer : public window_base
                             dnn_reconstruction_.cameras[camera_name].extrin = camera.extrin;
                         }
 
-                        stargazer::save_camera_params("camera_params.json", camera_params);
+                        stargazer::save_camera_params("../data/config/camera_params.json", camera_params);
                         break;
                     }
                 }
@@ -580,7 +580,7 @@ struct reconstruction_viewer : public window_base
                 params.intrin.coeffs[4] = intrinsic_calib.calibrated_camera.intrin.coeffs[4];
                 params.width = intrinsic_calib.calibrated_camera.width;
                 params.height = intrinsic_calib.calibrated_camera.height;
-                stargazer::save_camera_params("camera_params.json", camera_params);
+                stargazer::save_camera_params("../data/config/camera_params.json", camera_params);
                 return true;
             }
         });
@@ -1068,7 +1068,7 @@ struct reconstruction_viewer : public window_base
         const auto &camera_names = calib.get_camera_names();
         const auto num_cameras = camera_names.size();
 
-        camera_params = stargazer::load_camera_params("camera_params.json");
+        camera_params = stargazer::load_camera_params("../data/config/camera_params.json");
 
         for (std::size_t i = 0; i < camera_names.size(); i++)
         {
@@ -1087,7 +1087,7 @@ struct reconstruction_viewer : public window_base
 
     void load_scene()
     {
-        const auto path = "scene.json";
+        const auto path = "../data/config/reconstruction.json";
 
         std::ifstream ifs;
         ifs.open(path, std::ios::binary | std::ios::in);
@@ -1104,7 +1104,7 @@ struct reconstruction_viewer : public window_base
 
     void save_scene()
     {
-        const auto path = "scene.json";
+        const auto path = "../data/config/reconstruction.json";
 
         std::ofstream ofs;
         ofs.open(path, std::ios::out);
@@ -1118,7 +1118,7 @@ struct reconstruction_viewer : public window_base
     {
         gladLoadGL();
 
-        config.reset(new stargazer::configuration_file("config.json"));
+        config.reset(new stargazer::configuration_file("../data/config/capture.json"));
 
         load_camera_params();
 
