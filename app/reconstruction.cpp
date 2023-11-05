@@ -269,37 +269,48 @@ public:
         session_options.SetIntraOpNumThreads(4);
         session_options.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_EXTENDED);
 
-#if 0
-        OrtCUDAProviderOptions cuda_options{};
+        try
+        {
+            fs::create_directory(fs::path(cache_dir));
 
-        cuda_options.device_id = 0;
-        cuda_options.arena_extend_strategy = 0;
-        cuda_options.gpu_mem_limit = 2ULL * 1024 * 1024 * 1024;
-        cuda_options.cudnn_conv_algo_search = OrtCudnnConvAlgoSearchExhaustive;
-        cuda_options.do_copy_in_default_stream = 1;
+            OrtTensorRTProviderOptions trt_options{};
 
-        session_options.AppendExecutionProvider_CUDA(cuda_options);
-#else
-        fs::create_directory(fs::path(cache_dir));
+            trt_options.device_id = 0;
+            trt_options.trt_max_workspace_size = 2147483648;
+            trt_options.trt_max_partition_iterations = 1000;
+            trt_options.trt_min_subgraph_size = 1;
+            trt_options.trt_fp16_enable = 1;
+            trt_options.trt_int8_enable = 0;
+            trt_options.trt_int8_use_native_calibration_table = 0;
+            trt_options.trt_engine_cache_enable = 1;
+            trt_options.trt_engine_cache_path = cache_dir.c_str();
+            trt_options.trt_dump_subgraphs = 1;
 
-        OrtTensorRTProviderOptions trt_options{};
+            session_options.AppendExecutionProvider_TensorRT(trt_options);
+        }
+        catch (const Ort::Exception& e)
+        {
+            spdlog::info(e.what());
+        }
 
-        trt_options.device_id = 0;
-        trt_options.trt_max_workspace_size = 2147483648;
-        trt_options.trt_max_partition_iterations = 1000;
-        trt_options.trt_min_subgraph_size = 1;
-        trt_options.trt_fp16_enable = 1;
-        trt_options.trt_int8_enable = 0;
-        trt_options.trt_int8_use_native_calibration_table = 0;
-        trt_options.trt_engine_cache_enable = 1;
-        trt_options.trt_engine_cache_path = cache_dir.c_str();
-        trt_options.trt_dump_subgraphs = 1;
+        try
+        {
+            OrtCUDAProviderOptions cuda_options{};
 
-        session_options.AppendExecutionProvider_TensorRT(trt_options);
-#endif
+            cuda_options.device_id = 0;
+            cuda_options.arena_extend_strategy = 1;
+            cuda_options.gpu_mem_limit = 2ULL * 1024 * 1024 * 1024;
+            cuda_options.cudnn_conv_algo_search = OrtCudnnConvAlgoSearchExhaustive;
+            cuda_options.do_copy_in_default_stream = 1;
+
+            session_options.AppendExecutionProvider_CUDA(cuda_options);
+        }
+        catch (const Ort::Exception& e)
+        {
+            spdlog::info(e.what());
+        }
 
         session = Ort::Session(env, model_data.data(), model_data.size(), session_options);
-        io_binding = Ort::IoBinding(session);
         io_binding = Ort::IoBinding(session);
         cuda_allocator = Ort::Allocator(session, info_cuda);
 
@@ -450,35 +461,47 @@ public:
         session_options.SetIntraOpNumThreads(4);
         session_options.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_EXTENDED);
 
-#if 0
-        OrtCUDAProviderOptions cuda_options{};
+        try
+        {
+            std::string cache_dir = "./cache";
+            fs::create_directory(fs::path(cache_dir));
 
-        cuda_options.device_id = 0;
-        cuda_options.arena_extend_strategy = 0;
-        cuda_options.gpu_mem_limit = 2ULL * 1024 * 1024 * 1024;
-        cuda_options.cudnn_conv_algo_search = OrtCudnnConvAlgoSearchExhaustive;
-        cuda_options.do_copy_in_default_stream = 1;
+            OrtTensorRTProviderOptions trt_options{};
 
-        session_options.AppendExecutionProvider_CUDA(cuda_options);
-#else
-        std::string cache_dir = "./cache";
-        fs::create_directory(fs::path(cache_dir));
+            trt_options.device_id = 0;
+            trt_options.trt_max_workspace_size = 2147483648;
+            trt_options.trt_max_partition_iterations = 1000;
+            trt_options.trt_min_subgraph_size = 1;
+            trt_options.trt_fp16_enable = 1;
+            trt_options.trt_int8_enable = 0;
+            trt_options.trt_int8_use_native_calibration_table = 0;
+            trt_options.trt_engine_cache_enable = 1;
+            trt_options.trt_engine_cache_path = cache_dir.c_str();
+            trt_options.trt_dump_subgraphs = 1;
 
-        OrtTensorRTProviderOptions trt_options{};
+            session_options.AppendExecutionProvider_TensorRT(trt_options);
+        }
+        catch (const Ort::Exception& e)
+        {
+            spdlog::info(e.what());
+        }
 
-        trt_options.device_id = 0;
-        trt_options.trt_max_workspace_size = 2147483648;
-        trt_options.trt_max_partition_iterations = 1000;
-        trt_options.trt_min_subgraph_size = 1;
-        trt_options.trt_fp16_enable = 1;
-        trt_options.trt_int8_enable = 0;
-        trt_options.trt_int8_use_native_calibration_table = 0;
-        trt_options.trt_engine_cache_enable = 1;
-        trt_options.trt_engine_cache_path = cache_dir.c_str();
-        trt_options.trt_dump_subgraphs = 1;
+        try
+        {
+            OrtCUDAProviderOptions cuda_options{};
 
-        session_options.AppendExecutionProvider_TensorRT(trt_options);
-#endif
+            cuda_options.device_id = 0;
+            cuda_options.arena_extend_strategy = 1;
+            cuda_options.gpu_mem_limit = 2ULL * 1024 * 1024 * 1024;
+            cuda_options.cudnn_conv_algo_search = OrtCudnnConvAlgoSearchExhaustive;
+            cuda_options.do_copy_in_default_stream = 1;
+
+            session_options.AppendExecutionProvider_CUDA(cuda_options);
+        }
+        catch (const Ort::Exception& e)
+        {
+            spdlog::info(e.what());
+        }
 
         session = Ort::Session(env, model_data.data(), model_data.size(), session_options);
         io_binding = Ort::IoBinding(session);
@@ -893,7 +916,6 @@ public:
 
     static coalsack::tensor<uint64_t, 2> get_index(const coalsack::tensor<uint64_t, 1> &indices, const std::array<uint64_t, 3> &shape)
     {
-        const auto num_people = indices.shape[3];
         const auto result = indices
                                 .transform_expand<1>({3},
                                                      [shape](const uint64_t value, auto...)
