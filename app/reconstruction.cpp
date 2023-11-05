@@ -143,11 +143,11 @@ std::vector<glm::vec3> reconstruct(const std::map<std::string, stargazer::camera
     return markers;
 }
 
-marker_stream_server::marker_stream_server()
+epipolar_reconstruction::epipolar_reconstruction()
     : service(new SensorServiceImpl()), reconstruction_workers(std::make_shared<task_queue<std::function<void()>>>(4)), task_id_gen(std::random_device()()) {}
-marker_stream_server::~marker_stream_server() = default;
+epipolar_reconstruction::~epipolar_reconstruction() = default;
 
-void marker_stream_server::push_frame(const frame_type &frame)
+void epipolar_reconstruction::push_frame(const frame_type &frame)
 {
     if (!running)
     {
@@ -186,7 +186,7 @@ void marker_stream_server::push_frame(const frame_type &frame)
         reconstruction_task_wait_queue_cv.notify_all(); });
 }
 
-void marker_stream_server::run()
+void epipolar_reconstruction::run()
 {
     running = true;
     server_th.reset(new std::thread([this]()
@@ -201,7 +201,7 @@ void marker_stream_server::run()
         server->Wait(); }));
 }
 
-void marker_stream_server::stop()
+void epipolar_reconstruction::stop()
 {
     if (running.load())
     {
@@ -212,6 +212,16 @@ void marker_stream_server::stop()
             server_th->join();
         }
     }
+}
+
+std::vector<glm::vec3> epipolar_reconstruction::get_markers() const
+{
+    std::vector<glm::vec3> result;
+    {
+        std::lock_guard lock(markers_mtx);
+        result = markers;
+    }
+    return result;
 }
 
 #include <cereal/types/array.hpp>
@@ -285,7 +295,7 @@ static std::map<std::tuple<int32_t, int32_t>, camera_data> load_cameras()
 }
 #endif
 
-std::vector<glm::vec3> dnn_reconstruction::dnn_reconstruct(const std::map<std::string, stargazer::camera_t> &cameras, const std::map<std::string, cv::Mat> &frame, glm::mat4 axis)
+std::vector<glm::vec3> voxelpose_reconstruction::dnn_reconstruct(const std::map<std::string, stargazer::camera_t> &cameras, const std::map<std::string, cv::Mat> &frame, glm::mat4 axis)
 {
     std::vector<std::string> names;
     std::vector<cv::Mat> images_list;
@@ -409,11 +419,11 @@ std::vector<glm::vec3> dnn_reconstruction::dnn_reconstruct(const std::map<std::s
     return points;
 }
 
-dnn_reconstruction::dnn_reconstruction()
+voxelpose_reconstruction::voxelpose_reconstruction()
     : service(new SensorServiceImpl()), reconstruction_workers(std::make_shared<task_queue<std::function<void()>>>(1)), task_id_gen(std::random_device()()) {}
-dnn_reconstruction::~dnn_reconstruction() = default;
+voxelpose_reconstruction::~voxelpose_reconstruction() = default;
 
-void dnn_reconstruction::push_frame(const frame_type &frame)
+void voxelpose_reconstruction::push_frame(const frame_type &frame)
 {
     if (!running)
     {
@@ -460,7 +470,7 @@ void dnn_reconstruction::push_frame(const frame_type &frame)
         reconstruction_task_wait_queue_cv.notify_all(); });
 }
 
-void dnn_reconstruction::run()
+void voxelpose_reconstruction::run()
 {
     running = true;
     server_th.reset(new std::thread([this]()
@@ -475,7 +485,7 @@ void dnn_reconstruction::run()
         server->Wait(); }));
 }
 
-void dnn_reconstruction::stop()
+void voxelpose_reconstruction::stop()
 {
     if (running.load())
     {
@@ -488,7 +498,7 @@ void dnn_reconstruction::stop()
     }
 }
 
-std::map<std::string, cv::Mat> dnn_reconstruction::get_features() const
+std::map<std::string, cv::Mat> voxelpose_reconstruction::get_features() const
 {
     coalsack::tensor<float, 4> features;
     std::vector<std::string> names;
@@ -513,6 +523,16 @@ std::map<std::string, cv::Mat> dnn_reconstruction::get_features() const
         cv::cvtColor(heatmap_mat, heatmap_mat, cv::COLOR_GRAY2BGR);
 
         result[name] = heatmap_mat;
+    }
+    return result;
+}
+
+std::vector<glm::vec3> voxelpose_reconstruction::get_markers() const
+{
+    std::vector<glm::vec3> result;
+    {
+        std::lock_guard lock(markers_mtx);
+        result = markers;
     }
     return result;
 }
