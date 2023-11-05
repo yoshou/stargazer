@@ -794,7 +794,7 @@ voxelpose::voxelpose()
 {
     std::vector<uint8_t> backbone_model_data;
     {
-        const auto model_path = "backbone.onnx";
+        const auto model_path = "../data/voxelpose/backbone.onnx";
         std::vector<uint8_t> data;
         load_model(model_path, data);
 
@@ -805,7 +805,7 @@ voxelpose::voxelpose()
 
     std::vector<uint8_t> proposal_v2v_net_model_data;
     {
-        const auto model_path = "proposal_v2v_net.onnx";
+        const auto model_path = "../data/voxelpose/proposal_v2v_net.onnx";
         std::vector<uint8_t> data;
         load_model(model_path, data);
 
@@ -816,7 +816,7 @@ voxelpose::voxelpose()
 
     std::vector<uint8_t> pose_v2v_net_model_data;
     {
-        const auto model_path = "pose_v2v_net.onnx";
+        const auto model_path = "../data/voxelpose/pose_v2v_net.onnx";
         std::vector<uint8_t> data;
         load_model(model_path, data);
 
