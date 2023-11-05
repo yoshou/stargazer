@@ -103,7 +103,7 @@ struct reconstruction_viewer : public window_base
     }
 
     reconstruction_viewer()
-        : window_base("Reconstruction Viewer", SCREEN_WIDTH, SCREEN_HEIGHT), calib(get_calibration_config_path())
+        : window_base("Reconstruction Viewer", SCREEN_WIDTH, SCREEN_HEIGHT), calib(get_calibration_config_path()), multiview_image_reconstruction_(std::make_unique<voxelpose_reconstruction>())
     {
     }
 
@@ -128,8 +128,8 @@ struct reconstruction_viewer : public window_base
     std::map<std::string, std::shared_ptr<capture_pipeline>> captures;
     std::shared_ptr<multiview_capture_pipeline> multiview_capture;
 
-    marker_stream_server marker_server;
-    dnn_reconstruction dnn_reconstruction_;
+    epipolar_reconstruction marker_server;
+    std::unique_ptr<multiview_image_reconstruction> multiview_image_reconstruction_;
     std::unique_ptr<playback_stream> playback;
     std::unique_ptr<stargazer::configuration_file> config;
 
@@ -538,8 +538,8 @@ struct reconstruction_viewer : public window_base
 
                             marker_server.cameras[name].extrin = camera.extrin;
                             camera_params[camera_id].cameras["infra1"].extrin = camera.extrin;
-                            // dnn_reconstruction_.cameras[camera_name].intrin = camera.intrin;
-                            dnn_reconstruction_.cameras[camera_name].extrin = camera.extrin;
+                            // multiview_image_reconstruction_->cameras[camera_name].intrin = camera.intrin;
+                            multiview_image_reconstruction_->cameras[camera_name].extrin = camera.extrin;
                         }
 
                         stargazer::save_camera_params("../data/config/camera_params.json", camera_params);
@@ -773,7 +773,7 @@ struct reconstruction_viewer : public window_base
                                 color_image_frame[name] = image;
                             }
                         }
-                        dnn_reconstruction_.push_frame(color_image_frame); });
+                        multiview_image_reconstruction_->push_frame(color_image_frame); });
 
                     multiview_capture->run(infos);
 
@@ -969,7 +969,7 @@ struct reconstruction_viewer : public window_base
                 save_scene();
 
                 this->marker_server.axis = axis;
-                this->dnn_reconstruction_.axis = axis;
+                this->multiview_image_reconstruction_->axis = axis;
                 this->pose_view_->axis = axis;
             }
             return true; });
@@ -1124,7 +1124,7 @@ struct reconstruction_viewer : public window_base
 
         for (const auto& device : config->get_device_infos())
         {
-            dnn_reconstruction_.cameras.insert(std::make_pair(device.name, camera_params.at(device.id).cameras.at("infra1")));
+            multiview_image_reconstruction_->cameras.insert(std::make_pair(device.name, camera_params.at(device.id).cameras.at("infra1")));
         }
 
         load_scene();
@@ -1231,7 +1231,7 @@ struct reconstruction_viewer : public window_base
 
         {
             this->marker_server.axis = this->axis;
-            this->dnn_reconstruction_.axis = this->axis;
+            this->multiview_image_reconstruction_->axis = this->axis;
             this->pose_view_->axis = this->axis;
         }
 
@@ -1275,7 +1275,7 @@ struct reconstruction_viewer : public window_base
         }
 
         marker_server.run();
-        dnn_reconstruction_.run();
+        multiview_image_reconstruction_->run();
 
         window_base::show();
     }
@@ -1283,7 +1283,7 @@ struct reconstruction_viewer : public window_base
     virtual void on_close() override
     {
         marker_server.stop();
-        dnn_reconstruction_.stop();
+        multiview_image_reconstruction_->stop();
 
         std::lock_guard<std::mutex> lock(mtx);
         window_manager::get_instance()->exit();
@@ -1713,7 +1713,7 @@ struct reconstruction_viewer : public window_base
                 {
                     pose_view_->points.push_back(point);
                 }
-                for (const auto &point : dnn_reconstruction_.get_markers())
+                for (const auto &point : multiview_image_reconstruction_->get_markers())
                 {
                     pose_view_->points.push_back(point);
                 }
@@ -1728,7 +1728,7 @@ struct reconstruction_viewer : public window_base
             {
                 if (multiview_capture)
                 {
-                    const auto frames = dnn_reconstruction_.get_features();
+                    const auto frames = multiview_image_reconstruction_->get_features();
                     for (const auto &[name, frame] : frames)
                     {
                         const auto device_name = name;

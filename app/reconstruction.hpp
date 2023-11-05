@@ -33,9 +33,26 @@ class SensorServiceImpl;
 
 std::vector<glm::vec3> reconstruct(const std::map<std::string, stargazer::camera_t> &cameras, const std::map<std::string, std::vector<stargazer::point_data>> &frame, glm::mat4 axis = glm::mat4(1.0f));
 
-class marker_stream_server
+class multiview_point_reconstruction
 {
+public:
     using frame_type = std::map<std::string, std::vector<stargazer::point_data>>;
+
+    std::map<std::string, stargazer::camera_t> cameras;
+    glm::mat4 axis;
+
+    multiview_point_reconstruction() = default;
+    virtual ~multiview_point_reconstruction() = default;
+
+    virtual void push_frame(const frame_type &frame) = 0;
+    virtual void run() = 0;
+    virtual void stop() = 0;
+
+    virtual std::vector<glm::vec3> get_markers() const = 0;
+};
+
+class epipolar_reconstruction : public multiview_point_reconstruction
+{
     std::atomic_bool running;
     std::mutex frames_mtx;
     std::shared_ptr<task_queue<std::function<void()>>> reconstruction_workers;
@@ -52,32 +69,39 @@ class marker_stream_server
 
 public:
 
-    marker_stream_server();
-    virtual ~marker_stream_server();
-
-    std::map<std::string, stargazer::camera_t> cameras;
-    glm::mat4 axis;
+    epipolar_reconstruction();
+    virtual ~epipolar_reconstruction();
 
     void push_frame(const frame_type &frame);
     void run();
     void stop();
 
-    std::vector<glm::vec3> get_markers() const
-    {
-        std::vector<glm::vec3> result;
-        {
-            std::lock_guard lock(markers_mtx);
-            result = markers;
-        }
-        return result;
-    }
+    std::vector<glm::vec3> get_markers() const;
 };
 
-class dnn_reconstruction
+class multiview_image_reconstruction
+{
+public:
+    using frame_type = std::map<std::string, cv::Mat>;
+
+    std::map<std::string, stargazer::camera_t> cameras;
+    glm::mat4 axis;
+
+    multiview_image_reconstruction() = default;
+    virtual ~multiview_image_reconstruction() = default;
+
+    virtual void push_frame(const frame_type &frame) = 0;
+    virtual void run() = 0;
+    virtual void stop() = 0;
+
+    virtual std::vector<glm::vec3> get_markers() const = 0;
+    virtual std::map<std::string, cv::Mat> get_features() const = 0;
+};
+
+class voxelpose_reconstruction : public multiview_image_reconstruction
 {
     std::vector<glm::vec3> dnn_reconstruct(const std::map<std::string, stargazer::camera_t> &cameras, const std::map<std::string, cv::Mat> &frame, glm::mat4 axis);
 
-    using frame_type = std::map<std::string, cv::Mat>;
     std::atomic_bool running;
     std::mutex frames_mtx;
     std::shared_ptr<task_queue<std::function<void()>>> reconstruction_workers;
@@ -100,25 +124,14 @@ class dnn_reconstruction
 
 public:
 
-    dnn_reconstruction();
-    virtual ~dnn_reconstruction();
-
-    std::map<std::string, stargazer::camera_t> cameras;
-    glm::mat4 axis;
+    voxelpose_reconstruction();
+    virtual ~voxelpose_reconstruction();
 
     void push_frame(const frame_type &frame);
     void run();
     void stop();
 
-    std::vector<glm::vec3> get_markers() const
-    {
-        std::vector<glm::vec3> result;
-        {
-            std::lock_guard lock(markers_mtx);
-            result = markers;
-        }
-        return result;
-    }
+    std::vector<glm::vec3> get_markers() const;
 
     std::map<std::string, cv::Mat> get_features() const;
 };
