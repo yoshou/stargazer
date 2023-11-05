@@ -1179,6 +1179,9 @@ public:
                 n1->set_data_dir(data_dir);
                 n1->set_ext(".jpg");
                 g->add_node(n1);
+
+                constexpr int fps = 30;
+                sync_fps = std::min(sync_fps, fps);
 #endif
 
                 std::shared_ptr<decode_image_node> n7(new decode_image_node());
