@@ -556,8 +556,10 @@ namespace stargazer_mvpose
                 output_node_names.push_back(this->output_node_names[1].c_str());
             }
 
+#if 0
             io_binding.ClearBoundInputs();
             io_binding.ClearBoundOutputs();
+#endif
 
             std::vector<Ort::Value> input_tensors;
             {
@@ -571,6 +573,7 @@ namespace stargazer_mvpose
                 input_tensors.emplace_back(std::move(input_tensor));
             }
 
+#if 0
             auto memory_info = Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU);
             std::vector<Ort::Value> output_tensors;
             {
@@ -602,6 +605,12 @@ namespace stargazer_mvpose
             session.Run(Ort::RunOptions{nullptr}, io_binding);
 
             io_binding.SynchronizeOutputs();
+#else
+            const auto output_tensors = session.Run(Ort::RunOptions{nullptr}, input_node_names.data(), input_tensors.data(), input_node_names.size(), output_node_names.data(), output_node_names.size());
+
+            std::copy_n(output_tensors[0].GetTensorData<float>(), 5 * num_people, dets_data);
+            std::copy_n(output_tensors[1].GetTensorData<int64_t>(), num_people, labels_data);
+#endif
         }
 
         void copy_labels_to_cpu(int64_t* labels) const
