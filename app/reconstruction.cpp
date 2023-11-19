@@ -326,11 +326,25 @@ namespace stargazer_mvpose
             const auto rotation = cam["R"].get<std::vector<std::vector<double>>>();
             const auto translation = cam["t"].get<std::vector<std::vector<double>>>();
 
-            const std::array<std::array<double, 3>, 3> m = {{
-                {{1.0, 0.0, 0.0}},
-                {{0.0, 0.0, -1.0}},
-                {{0.0, 1.0, 0.0}},
-            }};
+            glm::mat4 camera_pose(1.0f);
+            for (size_t i = 0; i < 3; i++)
+            {
+                for (size_t j = 0; j < 3; j++)
+                {
+                    camera_pose[j][i] = rotation[i][j];
+                }
+            }
+            for (size_t i = 0; i < 3; i++)
+            {
+                camera_pose[3][i] = translation[i][0] / 100;
+            }
+
+            glm::mat4 cv_to_gl(1.f);
+            cv_to_gl[0] = glm::vec4(1.f, 0.f, 0.f, 0.f);
+            cv_to_gl[1] = glm::vec4(0.f, -1.f, 0.f, 0.f);
+            cv_to_gl[2] = glm::vec4(0.f, 0.f, -1.f, 0.f);
+
+            camera_pose = camera_pose * cv_to_gl;
 
             camera_data cam_data = {};
             cam_data.fx = k[0][0];
@@ -341,12 +355,12 @@ namespace stargazer_mvpose
             {
                 for (size_t j = 0; j < 3; j++)
                 {
-                    cam_data.rotation[j][i] = rotation[i][j];
+                    cam_data.rotation[i][j] = camera_pose[i][j];
                 }
             }
             for (size_t i = 0; i < 3; i++)
             {
-                cam_data.translation[i] = translation[i][0];
+                cam_data.translation[i] = camera_pose[3][i];
             }
             cam_data.k[0] = dist_coeffs[0];
             cam_data.k[1] = dist_coeffs[1];
@@ -649,7 +663,7 @@ void output_server::notify_sphere(const std::vector<glm::vec3> &spheres)
 }
 
 mvpose_reconstruction::mvpose_reconstruction()
-    : output("0.0.0.0:50053")
+    : output("0.0.0.0:50053"), processor(1)
 {
 }
 mvpose_reconstruction::~mvpose_reconstruction()
@@ -720,12 +734,7 @@ std::tuple<std::vector<std::string>, coalsack::tensor<float, 4>, std::vector<glm
         camera.p[0] = src_camera.intrin.coeffs[1];
         camera.p[1] = src_camera.intrin.coeffs[2];
 
-        glm::mat4 basis(1.f);
-        basis[0] = glm::vec4(-1.f, 0.f, 0.f, 0.f);
-        basis[1] = glm::vec4(0.f, 0.f, 1.f, 0.f);
-        basis[2] = glm::vec4(0.f, 1.f, 0.f, 0.f);
-
-        const auto camera_pose = glm::inverse(basis) * axis * glm::inverse(src_camera.extrin.rotation);
+        const auto camera_pose = glm::inverse(axis * glm::inverse(src_camera.extrin.rotation));
 
         for (size_t i = 0; i < 3; i++)
         {
@@ -733,7 +742,7 @@ std::tuple<std::vector<std::string>, coalsack::tensor<float, 4>, std::vector<glm
             {
                 camera.rotation[i][j] = camera_pose[i][j];
             }
-            camera.translation[i] = camera_pose[3][i] * 1000.0;
+            camera.translation[i] = camera_pose[3][i];
         }
 
         cameras_list.push_back(camera);
