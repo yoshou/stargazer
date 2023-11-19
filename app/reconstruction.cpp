@@ -16,6 +16,7 @@
 #include "multiview_point_data.hpp"
 
 #include "voxelpose.hpp"
+#include "mvpose.hpp"
 
 class SensorServiceImpl final : public stargazer::Sensor::Service
 {
@@ -232,71 +233,138 @@ namespace fs = std::filesystem;
 // #define PANOPTIC
 
 #ifdef PANOPTIC
-static std::map<std::tuple<int32_t, int32_t>, camera_data> load_cameras()
+namespace stargazer_voxelpose
 {
-    std::map<std::tuple<int32_t, int32_t>, camera_data> cameras;
-
-    const auto camera_file = fs::path("/workspace/data/panoptic/calibration_171204_pose1.json");
-
-    std::ifstream f;
-    f.open(camera_file, std::ios::in | std::ios::binary);
-    std::string str((std::istreambuf_iterator<char>(f)),
-                    std::istreambuf_iterator<char>());
-
-    nlohmann::json calib = nlohmann::json::parse(str);
-
-    for (const auto &cam : calib["cameras"])
+    static std::map<std::tuple<int32_t, int32_t>, camera_data> load_cameras()
     {
-        const auto panel = cam["panel"].get<int32_t>();
-        const auto node = cam["node"].get<int32_t>();
+        using namespace stargazer_voxelpose;
 
-        const auto k = cam["K"].get<std::vector<std::vector<double>>>();
-        const auto dist_coeffs = cam["distCoef"].get<std::vector<double>>();
-        const auto rotation = cam["R"].get<std::vector<std::vector<double>>>();
-        const auto translation = cam["t"].get<std::vector<std::vector<double>>>();
+        std::map<std::tuple<int32_t, int32_t>, camera_data> cameras;
 
-        const std::array<std::array<double, 3>, 3> m = {{
-            {{1.0, 0.0, 0.0}},
-            {{0.0, 0.0, -1.0}},
-            {{0.0, 1.0, 0.0}},
-        }};
+        const auto camera_file = fs::path("/workspace/data/panoptic/calibration_171204_pose1.json");
 
-        camera_data cam_data = {};
-        cam_data.fx = k[0][0];
-        cam_data.fy = k[1][1];
-        cam_data.cx = k[0][2];
-        cam_data.cy = k[1][2];
-        for (size_t i = 0; i < 3; i++)
+        std::ifstream f;
+        f.open(camera_file, std::ios::in | std::ios::binary);
+        std::string str((std::istreambuf_iterator<char>(f)),
+                        std::istreambuf_iterator<char>());
+
+        nlohmann::json calib = nlohmann::json::parse(str);
+
+        for (const auto &cam : calib["cameras"])
         {
-            for (size_t j = 0; j < 3; j++)
+            const auto panel = cam["panel"].get<int32_t>();
+            const auto node = cam["node"].get<int32_t>();
+
+            const auto k = cam["K"].get<std::vector<std::vector<double>>>();
+            const auto dist_coeffs = cam["distCoef"].get<std::vector<double>>();
+            const auto rotation = cam["R"].get<std::vector<std::vector<double>>>();
+            const auto translation = cam["t"].get<std::vector<std::vector<double>>>();
+
+            const std::array<std::array<double, 3>, 3> m = {{
+                {{1.0, 0.0, 0.0}},
+                {{0.0, 0.0, -1.0}},
+                {{0.0, 1.0, 0.0}},
+            }};
+
+            camera_data cam_data = {};
+            cam_data.fx = k[0][0];
+            cam_data.fy = k[1][1];
+            cam_data.cx = k[0][2];
+            cam_data.cy = k[1][2];
+            for (size_t i = 0; i < 3; i++)
             {
-                for (size_t k = 0; k < 3; k++)
+                for (size_t j = 0; j < 3; j++)
                 {
-                    cam_data.rotation[i][j] += rotation[i][k] * m[k][j];
+                    for (size_t k = 0; k < 3; k++)
+                    {
+                        cam_data.rotation[i][j] += rotation[i][k] * m[k][j];
+                    }
                 }
             }
-        }
-        for (size_t i = 0; i < 3; i++)
-        {
-            for (size_t j = 0; j < 3; j++)
+            for (size_t i = 0; i < 3; i++)
             {
-                cam_data.translation[i] += -translation[j][0] * cam_data.rotation[j][i] * 10.0;
+                for (size_t j = 0; j < 3; j++)
+                {
+                    cam_data.translation[i] += -translation[j][0] * cam_data.rotation[j][i] * 10.0;
+                }
             }
-        }
-        cam_data.k[0] = dist_coeffs[0];
-        cam_data.k[1] = dist_coeffs[1];
-        cam_data.k[2] = dist_coeffs[4];
-        cam_data.p[0] = dist_coeffs[2];
-        cam_data.p[1] = dist_coeffs[3];
+            cam_data.k[0] = dist_coeffs[0];
+            cam_data.k[1] = dist_coeffs[1];
+            cam_data.k[2] = dist_coeffs[4];
+            cam_data.p[0] = dist_coeffs[2];
+            cam_data.p[1] = dist_coeffs[3];
 
-        cameras[std::make_pair(panel, node)] = cam_data;
+            cameras[std::make_pair(panel, node)] = cam_data;
+        }
+        return cameras;
     }
-    return cameras;
+}
+namespace stargazer_mvpose
+{
+    static std::map<std::tuple<int32_t, int32_t>, camera_data> load_cameras()
+    {
+        using namespace stargazer_voxelpose;
+
+        std::map<std::tuple<int32_t, int32_t>, camera_data> cameras;
+
+        const auto camera_file = fs::path("/workspace/data/panoptic/calibration_171204_pose1.json");
+
+        std::ifstream f;
+        f.open(camera_file, std::ios::in | std::ios::binary);
+        std::string str((std::istreambuf_iterator<char>(f)),
+                        std::istreambuf_iterator<char>());
+
+        nlohmann::json calib = nlohmann::json::parse(str);
+
+        for (const auto &cam : calib["cameras"])
+        {
+            const auto panel = cam["panel"].get<int32_t>();
+            const auto node = cam["node"].get<int32_t>();
+
+            const auto k = cam["K"].get<std::vector<std::vector<double>>>();
+            const auto dist_coeffs = cam["distCoef"].get<std::vector<double>>();
+            const auto rotation = cam["R"].get<std::vector<std::vector<double>>>();
+            const auto translation = cam["t"].get<std::vector<std::vector<double>>>();
+
+            const std::array<std::array<double, 3>, 3> m = {{
+                {{1.0, 0.0, 0.0}},
+                {{0.0, 0.0, -1.0}},
+                {{0.0, 1.0, 0.0}},
+            }};
+
+            camera_data cam_data = {};
+            cam_data.fx = k[0][0];
+            cam_data.fy = k[1][1];
+            cam_data.cx = k[0][2];
+            cam_data.cy = k[1][2];
+            for (size_t i = 0; i < 3; i++)
+            {
+                for (size_t j = 0; j < 3; j++)
+                {
+                    cam_data.rotation[j][i] = rotation[i][j];
+                }
+            }
+            for (size_t i = 0; i < 3; i++)
+            {
+                cam_data.translation[i] = translation[i][0];
+            }
+            cam_data.k[0] = dist_coeffs[0];
+            cam_data.k[1] = dist_coeffs[1];
+            cam_data.k[2] = dist_coeffs[4];
+            cam_data.p[0] = dist_coeffs[2];
+            cam_data.p[1] = dist_coeffs[3];
+
+            cameras[std::make_pair(panel, node)] = cam_data;
+        }
+        return cameras;
+    }
 }
 #endif
 
 std::vector<glm::vec3> voxelpose_reconstruction::dnn_reconstruct(const std::map<std::string, stargazer::camera_t> &cameras, const std::map<std::string, cv::Mat> &frame, glm::mat4 axis)
 {
+    using namespace stargazer_voxelpose;
+
     std::vector<std::string> names;
     std::vector<cv::Mat> images_list;
     std::vector<camera_data> cameras_list;
@@ -528,6 +596,220 @@ std::map<std::string, cv::Mat> voxelpose_reconstruction::get_features() const
 }
 
 std::vector<glm::vec3> voxelpose_reconstruction::get_markers() const
+{
+    std::vector<glm::vec3> result;
+    {
+        std::lock_guard lock(markers_mtx);
+        result = markers;
+    }
+    return result;
+}
+
+output_server::output_server(const std::string &server_address)
+    : server_address(server_address), service(new SensorServiceImpl())
+{
+}
+
+output_server::~output_server()
+{
+}
+
+void output_server::run()
+{
+    running = true;
+    server_th.reset(new std::thread([this]()
+                                    {
+        grpc::ServerBuilder builder;
+        builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
+        builder.RegisterService(service.get());
+        server = builder.BuildAndStart();
+        spdlog::info("Server listening on " + server_address);
+        server->Wait(); }));
+}
+
+void output_server::stop()
+{
+    if (running.load())
+    {
+        running.store(false);
+        server->Shutdown();
+        if (server_th && server_th->joinable())
+        {
+            server_th->join();
+        }
+    }
+}
+
+void output_server::notify_sphere(const std::vector<glm::vec3> &spheres)
+{
+    if (running && service)
+    {
+        service->notify_sphere(spheres);
+    }
+}
+
+mvpose_reconstruction::mvpose_reconstruction()
+    : output("0.0.0.0:50053")
+{
+}
+mvpose_reconstruction::~mvpose_reconstruction()
+{
+}
+
+std::tuple<std::vector<std::string>, coalsack::tensor<float, 4>, std::vector<glm::vec3>> mvpose_reconstruction::mvpose_reconstruct(const std::map<std::string, stargazer::camera_t> &cameras, const std::map<std::string, cv::Mat> &frame, glm::mat4 axis)
+{
+    using namespace stargazer_mvpose;
+
+    std::vector<std::string> names;
+    coalsack::tensor<float, 4> heatmaps;
+    std::vector<cv::Mat> images_list;
+    std::vector<camera_data> cameras_list;
+
+    if (frame.size() <= 1)
+    {
+        std::vector<glm::vec3> points;
+        return std::forward_as_tuple(names, heatmaps, points);
+    }
+
+#ifdef PANOPTIC
+    const auto panoptic_cameras = load_cameras();
+
+    std::vector<std::tuple<int32_t, int32_t>> camera_list = {
+        {0, 3},
+        {0, 6},
+        {0, 12},
+        {0, 13},
+        {0, 23},
+    };
+    for (const auto &[camera_panel, camera_node] : camera_list)
+    {
+        const auto camera_name = cv::format("camera_%02d_%02d", camera_panel, camera_node);
+
+        const auto prefix = cv::format("%02d_%02d", camera_panel, camera_node);
+        std::string postfix = "_00000000";
+        const auto image_file = (fs::path("/workspace/data/panoptic") / prefix / (prefix + postfix + ".jpg")).string();
+
+        auto data = cv::imread(image_file, cv::IMREAD_UNCHANGED | cv::IMREAD_IGNORE_ORIENTATION);
+        // cv::resize(data, data, cv::Size(960, 540));
+        images_list.push_back(data);
+
+        cameras_list.push_back(panoptic_cameras.at(std::make_tuple(camera_panel, camera_node)));
+        names.push_back(camera_name);
+    }
+#else
+    for (const auto &[camera_name, image] : frame)
+    {
+        names.push_back(camera_name);
+    }
+
+    for (size_t i = 0; i < frame.size(); i++)
+    {
+        const auto name = names[i];
+
+        camera_data camera;
+
+        const auto &src_camera = cameras.at(name);
+
+        camera.fx = src_camera.intrin.fx;
+        camera.fy = src_camera.intrin.fy;
+        camera.cx = src_camera.intrin.cx;
+        camera.cy = src_camera.intrin.cy;
+        camera.k[0] = src_camera.intrin.coeffs[0];
+        camera.k[1] = src_camera.intrin.coeffs[3];
+        camera.k[2] = src_camera.intrin.coeffs[4];
+        camera.p[0] = src_camera.intrin.coeffs[1];
+        camera.p[1] = src_camera.intrin.coeffs[2];
+
+        glm::mat4 basis(1.f);
+        basis[0] = glm::vec4(-1.f, 0.f, 0.f, 0.f);
+        basis[1] = glm::vec4(0.f, 0.f, 1.f, 0.f);
+        basis[2] = glm::vec4(0.f, 1.f, 0.f, 0.f);
+
+        const auto camera_pose = glm::inverse(basis) * axis * glm::inverse(src_camera.extrin.rotation);
+
+        for (size_t i = 0; i < 3; i++)
+        {
+            for (size_t j = 0; j < 3; j++)
+            {
+                camera.rotation[i][j] = camera_pose[i][j];
+            }
+            camera.translation[i] = camera_pose[3][i] * 1000.0;
+        }
+
+        cameras_list.push_back(camera);
+        images_list.push_back(frame.at(name));
+    }
+#endif
+
+    const auto points = pose_estimator.inference(images_list, cameras_list);
+
+    return std::forward_as_tuple(names, heatmaps, points);
+}
+
+void mvpose_reconstruction::push_frame(const frame_type &frame)
+{
+    processor.push([this, frame = frame]() {
+        auto [names, features, markers] = mvpose_reconstruct(cameras, frame, axis);
+
+        task_result result;
+        result.markers = markers;
+        result.camera_names = names;
+        result.features = std::move(features);
+        return result;
+    });
+}
+void mvpose_reconstruction::run()
+{
+    output.run();
+    processor.run([this](const task_result& result) {
+        {
+            std::lock_guard lock(markers_mtx);
+            this->markers = result.markers;
+        }
+        {
+            std::lock_guard lock(features_mtx);
+            this->names = result.camera_names;
+            this->features = result.features;
+        }
+        output.notify_sphere(result.markers);
+    });
+}
+void mvpose_reconstruction::stop()
+{
+    processor.stop();
+    output.stop();
+}
+
+std::map<std::string, cv::Mat> mvpose_reconstruction::get_features() const
+{
+    coalsack::tensor<float, 4> features;
+    std::vector<std::string> names;
+    {
+        std::lock_guard lock(features_mtx);
+        features = this->features;
+        names = this->names;
+    }
+    std::map<std::string, cv::Mat> result;
+    if (features.get_size() == 0)
+    {
+        return result;
+    }
+    for (size_t i = 0; i < names.size(); i++)
+    {
+        const auto name = names[i];
+        const auto heatmap = features.view<3>({features.shape[0], features.shape[1], features.shape[2], 0}, {0, 0, 0, static_cast<uint32_t>(i)}).contiguous().sum<1>({2});
+
+        cv::Mat heatmap_mat;
+        cv::Mat(heatmap.shape[1], heatmap.shape[0], CV_32FC1, (float *)heatmap.get_data()).clone().convertTo(heatmap_mat, CV_8U, 255);
+        cv::resize(heatmap_mat, heatmap_mat, cv::Size(960, 540));
+        cv::cvtColor(heatmap_mat, heatmap_mat, cv::COLOR_GRAY2BGR);
+
+        result[name] = heatmap_mat;
+    }
+    return result;
+}
+
+std::vector<glm::vec3> mvpose_reconstruction::get_markers() const
 {
     std::vector<glm::vec3> result;
     {
