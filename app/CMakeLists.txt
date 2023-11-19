@@ -39,6 +39,33 @@ target_link_libraries(stargazer_voxelpose
     CUDA::cuda_driver
 )
 
+add_library(stargazer_mvpose SHARED
+    ${CMAKE_CURRENT_LIST_DIR}/mvpose.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/mvpose_cuda.cu
+)
+
+target_include_directories(stargazer_mvpose
+    PRIVATE
+    $<$<BOOL:${ENABLE_ONNXRUNTIME_EXT}>:${ONNXRUNTIME_INCLUDE_DIRS}>
+)
+
+set_target_properties(stargazer_mvpose PROPERTIES
+    LINKER_LANGUAGE CUDA C CXX
+    CUDA_RESOLVE_DEVICE_SYMBOLS ON
+    CUDA_SEPARABLE_COMPILATION ON)
+
+target_link_libraries(stargazer_mvpose
+    opencv_imgproc
+    opencv_highgui
+    opencv_features2d
+    opencv_calib3d
+    opencv_sfm
+    multiview
+    $<$<BOOL:${ENABLE_ONNXRUNTIME_EXT}>:${ONNXRUNTIME_LIBS}>
+    CUDA::cudart
+    CUDA::cuda_driver
+)
+
 add_executable(stargazer_viewer
     ${CMAKE_CURRENT_LIST_DIR}/viewer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/views.cpp
@@ -50,9 +77,10 @@ add_executable(stargazer_viewer
 )
 
 add_dependencies(stargazer_viewer
-    stargazer_sensor_grpc_proto
     stargazer
+    stargazer_sensor_grpc_proto
     stargazer_voxelpose
+    stargazer_mvpose
 )
 
 target_include_directories(stargazer_viewer
@@ -74,6 +102,7 @@ target_link_libraries(stargazer_viewer
     stargazer
     stargazer_sensor_grpc_proto
     stargazer_voxelpose
+    stargazer_mvpose
     opencv_imgproc
     opencv_highgui
     opencv_videoio

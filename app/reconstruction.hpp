@@ -26,6 +26,7 @@
 #include "graph_proc_tensor.h"
 
 #include "voxelpose.hpp"
+#include "mvpose.hpp"
 
 class ServiceImpl;
 
@@ -118,12 +119,176 @@ class voxelpose_reconstruction : public multiview_image_reconstruction
     coalsack::tensor<float, 4> features;
     mutable std::mutex features_mtx;
 
-    voxelpose pose_estimator;
+    stargazer_voxelpose::voxelpose pose_estimator;
 
 public:
 
     voxelpose_reconstruction();
     virtual ~voxelpose_reconstruction();
+
+    void push_frame(const frame_type &frame);
+    void run();
+    void stop();
+
+    std::vector<glm::vec3> get_markers() const;
+
+    std::map<std::string, cv::Mat> get_features() const;
+};
+
+#define USE_THREAD_POOL 1
+
+template <typename T>
+class task_queue_processor
+{
+    std::deque<std::future<T>> results;
+    mutable std::mutex results_mtx;
+    std::condition_variable results_cv;
+    task_queue<std::function<void()>> workers;
+    std::atomic_bool running;
+    std::shared_ptr<std::thread> th;
+
+    template<typename Func>
+    struct function_wrapper
+    {
+        Func func;
+        function_wrapper(Func &&func)
+            : func(std::move(func))
+        {}
+
+        auto operator()() {
+            return func();
+        }
+    };
+
+public:
+    task_queue_processor(size_t thread_count = 4)
+        : workers(thread_count)
+    {
+    }
+
+    template <typename Task>
+    void push(Task task)
+    {
+        if (!running)
+        {
+            return;
+        }
+        {
+            std::lock_guard lock(results_mtx);
+#if USE_THREAD_POOL
+            if (workers.size() > 10)
+            {
+                return;
+            }
+
+            std::promise<T> p;
+            auto f = p.get_future();
+
+            auto callback = [p = std::move(p), task]() mutable {
+                p.set_value(task());
+            };
+
+            auto copyable_callback = std::make_shared<function_wrapper<decltype(callback)>>(std::move(callback));
+
+            workers.push_task([copyable_callback]()
+                              { (*copyable_callback)(); });
+#else
+            auto f = std::async(std::launch::async, task);
+#endif
+            results.emplace_back(std::move(f));
+        }
+        results_cv.notify_one();
+    }
+
+    template<typename F>
+    bool pop(T &result, F pred)
+    {
+        std::unique_lock<std::mutex> lock(results_mtx);
+        results_cv.wait(lock, [this, &pred]
+                        { return pred() || results.size() > 0; });
+
+        if (results.size() == 0)
+        {
+            return false;
+        }
+
+        auto&& f = results.front();
+        result = f.get();
+
+        results.pop_front();
+        return true;
+    }
+
+    template<typename F>
+    void run(F callback)
+    {
+        running = true;
+        th.reset(new std::thread([this, callback]()
+                                 {
+            while (running)
+            {
+                T result;
+                if (pop(result, [this]() { return running.load(); }))
+                {
+                    callback(result);
+                }
+            } }));
+    }
+
+    void stop()
+    {
+        running.store(false);
+        if (th && th->joinable())
+        {
+            th->join();
+        }
+    }
+};
+
+class output_server
+{
+    std::string server_address;
+    std::atomic_bool running;
+    std::shared_ptr<std::thread> server_th;
+    std::unique_ptr<grpc::Server> server;
+    std::unique_ptr<SensorServiceImpl> service;
+
+public:
+    output_server(const std::string& server_address);
+    ~output_server();
+
+    void run();
+    void stop();
+
+    void notify_sphere(const std::vector<glm::vec3> &spheres);
+};
+
+class mvpose_reconstruction : public multiview_image_reconstruction
+{
+    std::tuple<std::vector<std::string>, coalsack::tensor<float, 4>, std::vector<glm::vec3>> mvpose_reconstruct(const std::map<std::string, stargazer::camera_t> &cameras, const std::map<std::string, cv::Mat> &frame, glm::mat4 axis);
+
+    std::vector<glm::vec3> markers;
+    mutable std::mutex markers_mtx;
+
+    std::vector<std::string> names;
+    coalsack::tensor<float, 4> features;
+    mutable std::mutex features_mtx;
+
+    stargazer_mvpose::mvpose pose_estimator;
+
+    struct task_result
+    {
+        std::vector<std::string> camera_names;
+        coalsack::tensor<float, 4> features;
+        std::vector<glm::vec3> markers;
+    };
+
+    task_queue_processor<task_result> processor;
+    output_server output;
+
+public:
+    mvpose_reconstruction();
+    virtual ~mvpose_reconstruction();
 
     void push_frame(const frame_type &frame);
     void run();
