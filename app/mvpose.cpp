@@ -1275,7 +1275,7 @@ namespace stargazer_mvpose
                     pts.push_back(glm::vec2(pt.x, pt.y));
                     cams.push_back(cameras_list[matched[i].first]);
                 }
-                const auto marker = triangulate(pts, cameras_list);
+                const auto marker = triangulate(pts, cams);
                 markers.push_back(marker * 0.01f);
             }
         }
