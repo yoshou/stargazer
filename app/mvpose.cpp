@@ -14,7 +14,6 @@
 
 #include <opencv2/imgcodecs/imgcodecs.hpp>
 #include <opencv2/calib3d/calib3d.hpp>
-#include <opencv2/sfm.hpp>
 
 #define CUDA_SAFE_CALL(func)                                                                                                  \
     do                                                                                                                        \
@@ -33,6 +32,192 @@
 #include <onnxruntime_cxx_api.h>
 #include <tensorrt_provider_factory.h>
 #include <cpu_provider_factory.h>
+
+#include <Eigen/Core>
+#include <opencv2/core/eigen.hpp>
+
+namespace
+{
+    using namespace cv;
+    using namespace std;
+
+    template <typename T>
+    void homogeneousToEuclidean(const Mat &X_, Mat &x_)
+    {
+        int d = X_.rows - 1;
+
+        const Mat_<T> &X_rows = X_.rowRange(0, d);
+        const Mat_<T> h = X_.row(d);
+
+        const T *h_ptr = h[0], *h_ptr_end = h_ptr + h.cols;
+        const T *X_ptr = X_rows[0];
+        T *x_ptr = x_.ptr<T>(0);
+        for (; h_ptr != h_ptr_end; ++h_ptr, ++X_ptr, ++x_ptr)
+        {
+            const T *X_col_ptr = X_ptr;
+            T *x_col_ptr = x_ptr, *x_col_ptr_end = x_col_ptr + d * x_.step1();
+            for (; x_col_ptr != x_col_ptr_end; X_col_ptr += X_rows.step1(), x_col_ptr += x_.step1())
+                *x_col_ptr = (*X_col_ptr) / (*h_ptr);
+        }
+    }
+
+    void homogeneousToEuclidean(InputArray X_, OutputArray x_)
+    {
+        // src
+        const Mat X = X_.getMat();
+
+        // dst
+        x_.create(X.rows - 1, X.cols, X.type());
+        Mat x = x_.getMat();
+
+        // type
+        if (X.depth() == CV_32F)
+        {
+            homogeneousToEuclidean<float>(X, x);
+        }
+        else
+        {
+            homogeneousToEuclidean<double>(X, x);
+        }
+    }
+
+    /** @brief Triangulates the a 3d position between two 2d correspondences, using the DLT.
+      @param xl Input vector with first 2d point.
+      @param xr Input vector with second 2d point.
+      @param Pl Input 3x4 first projection matrix.
+      @param Pr Input 3x4 second projection matrix.
+      @param objectPoint Output vector with computed 3d point.
+
+      Reference: @cite HartleyZ00 12.2 pag.312
+     */
+    static void
+    triangulateDLT(const Vec2d &xl, const Vec2d &xr,
+                   const Matx34d &Pl, const Matx34d &Pr,
+                   Vec3d &point3d)
+    {
+        Matx44d design;
+        for (int i = 0; i < 4; ++i)
+        {
+            design(0, i) = xl(0) * Pl(2, i) - Pl(0, i);
+            design(1, i) = xl(1) * Pl(2, i) - Pl(1, i);
+            design(2, i) = xr(0) * Pr(2, i) - Pr(0, i);
+            design(3, i) = xr(1) * Pr(2, i) - Pr(1, i);
+        }
+
+        Vec4d XHomogeneous;
+        cv::SVD::solveZ(design, XHomogeneous);
+
+        homogeneousToEuclidean(XHomogeneous, point3d);
+    }
+
+    /** @brief Triangulates the 3d position of 2d correspondences between n images, using the DLT
+     * @param x Input vectors of 2d points (the inner vector is per image). Has to be 2xN
+     * @param Ps Input vector with 3x4 projections matrices of each image.
+     * @param X Output vector with computed 3d point.
+
+     * Reference: it is the standard DLT; for derivation see appendix of Keir's thesis
+     */
+    static void
+    triangulateNViews(const Mat_<double> &x, const std::vector<Matx34d> &Ps, Vec3d &X)
+    {
+        CV_Assert(x.rows == 2);
+        unsigned nviews = x.cols;
+        CV_Assert(nviews == Ps.size());
+
+        cv::Mat_<double> design = cv::Mat_<double>::zeros(3 * nviews, 4 + nviews);
+        for (unsigned i = 0; i < nviews; ++i)
+        {
+            for (char jj = 0; jj < 3; ++jj)
+                for (char ii = 0; ii < 4; ++ii)
+                    design(3 * i + jj, ii) = -Ps[i](jj, ii);
+            design(3 * i + 0, 4 + i) = x(0, i);
+            design(3 * i + 1, 4 + i) = x(1, i);
+            design(3 * i + 2, 4 + i) = 1.0;
+        }
+
+        Mat X_and_alphas;
+        cv::SVD::solveZ(design, X_and_alphas);
+        homogeneousToEuclidean(X_and_alphas.rowRange(0, 4), X);
+    }
+
+    void
+    triangulatePoints(InputArrayOfArrays _points2d, InputArrayOfArrays _projection_matrices,
+                      OutputArray _points3d)
+    {
+        // check
+        size_t nviews = (unsigned)_points2d.total();
+        CV_Assert(nviews >= 2 && nviews == _projection_matrices.total());
+
+        // inputs
+        size_t n_points;
+        std::vector<Mat_<double>> points2d(nviews);
+        std::vector<Matx34d> projection_matrices(nviews);
+        {
+            std::vector<Mat> points2d_tmp;
+            _points2d.getMatVector(points2d_tmp);
+            n_points = points2d_tmp[0].cols;
+
+            std::vector<Mat> projection_matrices_tmp;
+            _projection_matrices.getMatVector(projection_matrices_tmp);
+
+            // Make sure the dimensions are right
+            for (size_t i = 0; i < nviews; ++i)
+            {
+                CV_Assert(points2d_tmp[i].rows == 2 && points2d_tmp[i].cols == n_points);
+                if (points2d_tmp[i].type() == CV_64F)
+                    points2d[i] = points2d_tmp[i];
+                else
+                    points2d_tmp[i].convertTo(points2d[i], CV_64F);
+
+                CV_Assert(projection_matrices_tmp[i].rows == 3 && projection_matrices_tmp[i].cols == 4);
+                if (projection_matrices_tmp[i].type() == CV_64F)
+                    projection_matrices[i] = projection_matrices_tmp[i];
+                else
+                    projection_matrices_tmp[i].convertTo(projection_matrices[i], CV_64F);
+            }
+        }
+
+        // output
+        _points3d.create(3, n_points, CV_64F);
+        cv::Mat points3d = _points3d.getMat();
+
+        // Two view
+        if (nviews == 2)
+        {
+            const Mat_<double> &xl = points2d[0], &xr = points2d[1];
+
+            const Matx34d &Pl = projection_matrices[0]; // left matrix projection
+            const Matx34d &Pr = projection_matrices[1]; // right matrix projection
+
+            // triangulate
+            for (unsigned i = 0; i < n_points; ++i)
+            {
+                Vec3d point3d;
+                triangulateDLT(Vec2d(xl(0, i), xl(1, i)), Vec2d(xr(0, i), xr(1, i)), Pl, Pr, point3d);
+                for (char j = 0; j < 3; ++j)
+                    points3d.at<double>(j, i) = point3d[j];
+            }
+        }
+        else if (nviews > 2)
+        {
+            // triangulate
+            for (unsigned i = 0; i < n_points; ++i)
+            {
+                // build x matrix (one point per view)
+                Mat_<double> x(2, nviews);
+                for (unsigned k = 0; k < nviews; ++k)
+                {
+                    points2d.at(k).col(i).copyTo(x.col(k));
+                }
+
+                Vec3d point3d;
+                triangulateNViews(x, projection_matrices, point3d);
+                for (char j = 0; j < 3; ++j)
+                    points3d.at<double>(j, i) = point3d[j];
+            }
+        }
+    }
+}
 
 namespace stargazer_mvpose
 {
@@ -978,7 +1163,7 @@ namespace stargazer_mvpose
 
         static Eigen::MatrixXi solve_svt(Eigen::MatrixXf affinity_matrix, const std::vector<size_t> &dim_group)
         {
-            const bool dual_stochastic = true;
+            const bool dual_stochastic = false;
             const int N = affinity_matrix.rows();
             const int max_iter = 500;
             const float alpha = 0.1f;
@@ -1160,7 +1345,7 @@ namespace stargazer_mvpose
         }
 
         cv::Mat output;
-        cv::sfm::triangulatePoints(pts, projs, output);
+        triangulatePoints(pts, projs, output);
 
         return glm::vec3(
             output.at<double>(0, 0),
@@ -1205,6 +1390,20 @@ namespace stargazer_mvpose
                         const auto bbox_left_top = inv_trans * cv::Point2f(bbox_left, bbox_top);
                         const auto bbox_right_bottom = inv_trans * cv::Point2f(bbox_right, bbox_bottom);
 
+#if 0
+                        cv::Mat trans = cv::Mat::zeros(2, 3, CV_64FC1);
+                        trans.at<double>(0, 0) = 1;
+                        trans.at<double>(1, 1) = 1;
+                        trans.at<double>(0, 2) = -bbox_left_top.x;
+                        trans.at<double>(1, 2) = -bbox_left_top.y;
+
+                        cv::Mat image_part;
+                        cv::warpAffine(images_list.at(i), image_part, trans, cv::Rect(bbox_left_top, bbox_right_bottom).size(), cv::INTER_LINEAR);
+
+                        static int count = 0;
+                        cv::imwrite("image_" + std::to_string(count++) + ".jpg", image_part);
+#endif
+
                         rects[i].push_back(cv::Rect2f(bbox_left_top, bbox_right_bottom));
                     }
                 }
@@ -1248,10 +1447,11 @@ namespace stargazer_mvpose
                     const auto pose_y = max_y_pos / 2.0f;
                     const auto score_y = *y_biggest_iter;
 
-                    // const auto  score = (score_x + score_y) / 2;
-                    const auto score = std::max(score_x, score_y);
+                    const auto score = (score_x + score_y) / 2;
+                    // const auto score = std::max(score_x, score_y);
 
-                    const auto joint = std::make_tuple(inv_trans * cv::Point2f(pose_x, pose_y), score);
+                    const auto pose = inv_trans * cv::Point2f(pose_x, pose_y);
+                    const auto joint = std::make_tuple(pose, score);
                     pose_joints.emplace_back(joint);
                 }
 
@@ -1265,18 +1465,56 @@ namespace stargazer_mvpose
         std::vector<glm::vec3> markers;
         for (const auto &matched : matched_list)
         {
-            for (size_t j = 0; j < 17; j++)
+#if 1
+            static int count = 0;
+            for (std::size_t i = 0; i < matched.size(); i++)
+            {
+                const auto rect = rects[matched[i].first][matched[i].second];
+
+                cv::Mat affine = cv::Mat::zeros(2, 3, CV_64FC1);
+                affine.at<double>(0, 0) = 1;
+                affine.at<double>(1, 1) = 1;
+                affine.at<double>(0, 2) = -rect.x;
+                affine.at<double>(1, 2) = -rect.y;
+
+                cv::Mat image_part;
+                cv::warpAffine(images_list.at(matched[i].first), image_part, affine, cv::Rect(rect).size(), cv::INTER_LINEAR);
+
+                for (size_t j = 5; j < 17; j++)
+                {
+                    const auto pt = std::get<0>(pose_joints_list[matched[i].first][matched[i].second][j]);
+                    const auto score = std::get<1>(pose_joints_list[matched[i].first][matched[i].second][j]);
+                    if (score > 0.7f)
+                    {
+                        cv::circle(image_part, cv::Point(pt.x - rect.x, pt.y - rect.y), 3, cv::Scalar(255, 0, 0), cv::FILLED);
+                        cv::putText(image_part, std::to_string(score), cv::Point(pt.x - rect.x + 5, pt.y - rect.y), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 0, 0), 1);
+                    }
+                }
+
+                cv::imwrite("image_" + std::to_string(count) + "_" + std::to_string(matched[i].first) + ".jpg", image_part);
+            }
+            count++;
+#endif
+
+            for (size_t j = 5; j < 17; j++)
             {
                 std::vector<glm::vec2> pts;
                 std::vector<camera_data> cams;
                 for (std::size_t i = 0; i < matched.size(); i++)
                 {
                     const auto pt = std::get<0>(pose_joints_list[matched[i].first][matched[i].second][j]);
-                    pts.push_back(glm::vec2(pt.x, pt.y));
-                    cams.push_back(cameras_list[matched[i].first]);
+                    const auto score = std::get<1>(pose_joints_list[matched[i].first][matched[i].second][j]);
+                    if (score > 0.7f)
+                    {
+                        pts.push_back(glm::vec2(pt.x, pt.y));
+                        cams.push_back(cameras_list[matched[i].first]);
+                    }
                 }
-                const auto marker = triangulate(pts, cams);
-                markers.push_back(marker);
+                if (pts.size() >= 2)
+                {
+                    const auto marker = triangulate(pts, cams);
+                    markers.push_back(marker);
+                }
             }
         }
         return markers;

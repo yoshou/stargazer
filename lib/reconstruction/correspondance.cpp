@@ -3,7 +3,6 @@
 #include <vector>
 #include <unordered_set>
 #include <opencv2/opencv.hpp>
-#include <glm/gtx/string_cast.hpp>
 #include <nanoflann.hpp>
 
 #include "correspondance.hpp"
