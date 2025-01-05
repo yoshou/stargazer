@@ -734,8 +734,6 @@ public:
                 {
                     std::lock_guard lock(frame_mtx);
                     markers = frame_msg->get_data();
-
-                    std::cout << "marker: " << markers.size() << std::endl;
                 }
             } });
 
