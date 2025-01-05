@@ -567,7 +567,7 @@ private:
             {
                 device_type_index = 0;
                 ip_address = "192.168.0.1";
-                gateway_address = "192.168.0.253";
+                gateway_address = "192.168.0.254";
                 device_name = "camera";
                 ImGui::OpenPopup("Network Device");
             }
