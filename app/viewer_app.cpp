@@ -1323,30 +1323,40 @@ struct reconstruction_viewer : public window_base
             const auto camera_ids = j_config["camera_ids"].get<std::vector<std::string>>();
             const auto num_cameras = camera_names.size();
 
-            const auto markers_directory = fs::path(data_dir) / j_config["directory"].get<std::string>() / (prefix + "_5715_248_150_90");
+            const auto markers_filename = fs::path(data_dir) / j_config["directory"].get<std::string>() / (prefix + "_marker_sync.db");
 
-            std::vector<std::vector<std::vector<stargazer::point_data>>> frames_data(num_cameras);
-            read_points(markers_directory.string(), camera_names, frames_data);
-
-            std::size_t max_frames = 0;
-            for (const auto &frames : frames_data)
+            sqlite3 *db = nullptr;
+            if (sqlite3_open(markers_filename.c_str(), &db) != SQLITE_OK)
             {
-                max_frames = std::max(max_frames, frames.size());
+                spdlog::error("Failed to open db[%s]", sqlite3_errmsg(db));
+                return;
             }
-            for (auto &frames : frames_data)
+            sqlite3_stmt *stmt = nullptr;
+            if (sqlite3_prepare(db, "SELECT timestamp,data FROM messages ORDER BY timestamp ASC", -1, &stmt, 0) != SQLITE_OK)
             {
-                frames.resize(max_frames);
+                spdlog::error("Failed to select db[%s]", sqlite3_errmsg(db));
+                return;
             }
 
-            for (size_t f = 0; f < max_frames; f++)
+            while (sqlite3_step(stmt) == SQLITE_ROW)
             {
+                const std::string data(reinterpret_cast<const char *>(sqlite3_column_text(stmt, 1)));
+
+                std::vector<std::vector<stargazer::point_data>> frame_data(num_cameras);
+                read_frame_text(data, camera_names, frame_data);
+
                 std::map<std::string, std::vector<stargazer::point_data>> frame;
                 for (size_t c = 0; c < num_cameras; c++)
                 {
-                    frame.insert(std::make_pair(camera_names[c], frames_data[c][f]));
+                    frame.insert(std::make_pair(camera_names[c], frame_data[c]));
                 }
                 calib.add_frame(frame);
             }
+
+            sqlite3_finalize(stmt);
+            stmt = nullptr;
+            sqlite3_close(db);
+            db = nullptr;
         }
 
         marker_server.run();
