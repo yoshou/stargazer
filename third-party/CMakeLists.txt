@@ -21,6 +21,7 @@ find_package(glm CONFIG REQUIRED)
 find_package(gRPC CONFIG REQUIRED)
 find_package(imgui CONFIG REQUIRED)
 find_package(JPEG REQUIRED)
+find_package(unofficial-sqlite3 CONFIG REQUIRED)
 
 include_directories(
     ${CMAKE_SOURCE_DIR}/third-party/vcpkg/installed/x64-include

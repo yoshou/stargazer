@@ -14,6 +14,8 @@ namespace stargazer
     };
 
     void list_frame_numbers(const std::string &directory, std::vector<std::uint64_t> &frame_numbers, const std::string &prefix = "marker_");
+    
+    void read_frame_text(const std::string& text, const std::vector<std::string> &names, std::vector<std::vector<point_data>> &frame_data);
 
     void read_frame(std::string filename, const std::vector<std::string> &names, std::vector<std::vector<point_data>> &frame_data);
 

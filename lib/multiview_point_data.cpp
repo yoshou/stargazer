@@ -30,14 +30,9 @@ namespace stargazer
         std::sort(frame_numbers.begin(), frame_numbers.end());
     }
 
-    void read_frame(std::string filename, const std::vector<std::string> &names, std::vector<std::vector<point_data>> &frame_data)
+    void read_frame_text(const std::string& text, const std::vector<std::string> &names, std::vector<std::vector<point_data>> &frame_data)
     {
-        std::ifstream f;
-        f.open(filename, std::ios::in | std::ios::binary);
-        std::string str((std::istreambuf_iterator<char>(f)),
-                        std::istreambuf_iterator<char>());
-
-        nlohmann::json j_frame = nlohmann::json::parse(str);
+        nlohmann::json j_frame = nlohmann::json::parse(text);
 
         for (std::size_t i = 0; i < names.size(); i++)
         {
@@ -53,6 +48,15 @@ namespace stargazer
                 frame_data[i].push_back(point_data{glm::vec2(j_kpts[j]["x"].get<float>(), j_kpts[j]["y"].get<float>()), j_kpts[j]["r"].get<double>(), timestamp});
             }
         }
+    }
+
+    void read_frame(std::string filename, const std::vector<std::string> &names, std::vector<std::vector<point_data>> &frame_data)
+    {
+        std::ifstream f;
+        f.open(filename, std::ios::in | std::ios::binary);
+        std::string str((std::istreambuf_iterator<char>(f)),
+                        std::istreambuf_iterator<char>());
+        read_frame_text(str, names, frame_data);
     }
 
     void read_points(const std::string &directory, const std::vector<std::string> &names, std::vector<std::vector<std::vector<point_data>>> &frame_data, const std::string &prefix)

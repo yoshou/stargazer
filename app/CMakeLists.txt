@@ -61,6 +61,7 @@ target_link_libraries(stargazer_mvpose
     opencv_features2d
     opencv_calib3d
     glm::glm
+    unofficial::sqlite3::sqlite3
     $<$<BOOL:${ENABLE_ONNXRUNTIME_EXT}>:${ONNXRUNTIME_LIBS}>
     CUDA::cudart
     CUDA::cuda_driver
