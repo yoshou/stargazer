@@ -70,6 +70,7 @@ namespace stargazer_voxelpose
             session_options.SetIntraOpNumThreads(4);
             session_options.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_EXTENDED);
 
+#if 0
             try
             {
                 fs::create_directory(fs::path(cache_dir));
@@ -93,6 +94,7 @@ namespace stargazer_voxelpose
             {
                 spdlog::info(e.what());
             }
+#endif
 
             try
             {
@@ -263,6 +265,7 @@ namespace stargazer_voxelpose
             session_options.SetIntraOpNumThreads(4);
             session_options.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_EXTENDED);
 
+#if 0
             try
             {
                 std::string cache_dir = "./cache";
@@ -287,6 +290,7 @@ namespace stargazer_voxelpose
             {
                 spdlog::info(e.what());
             }
+#endif
 
             try
             {
