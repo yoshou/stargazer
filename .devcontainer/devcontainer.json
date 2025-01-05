@@ -30,8 +30,7 @@
 		"--privileged",
 		"--runtime=nvidia",
 		"--ipc=host",
-		"--network=br1-network",
-		"--ip=192.168.0.253"
+		"--network=host"
 	],
 
 	"appPort": [
