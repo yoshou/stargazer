@@ -28,6 +28,7 @@ set_target_properties(stargazer_voxelpose PROPERTIES
     CUDA_SEPARABLE_COMPILATION ON)
 
 target_link_libraries(stargazer_voxelpose
+    glm::glm
     opencv_imgproc
     opencv_highgui
     opencv_features2d
@@ -59,8 +60,7 @@ target_link_libraries(stargazer_mvpose
     opencv_highgui
     opencv_features2d
     opencv_calib3d
-    opencv_sfm
-    multiview
+    glm::glm
     $<$<BOOL:${ENABLE_ONNXRUNTIME_EXT}>:${ONNXRUNTIME_LIBS}>
     CUDA::cudart
     CUDA::cuda_driver
@@ -108,9 +108,7 @@ target_link_libraries(stargazer_viewer
     opencv_videoio
     opencv_features2d
     opencv_calib3d
-    opencv_sfm
     opencv_aruco
-    multiview
     $<$<NOT:$<BOOL:${WIN32}>>:GL>
     $<$<NOT:$<BOOL:${WIN32}>>:GLU>
     $<$<NOT:$<BOOL:${WIN32}>>:dl>
@@ -123,6 +121,7 @@ target_link_libraries(stargazer_viewer
     ceres
     gRPC::grpc++
     imgui::imgui
+    glm::glm
 )
 
 target_compile_options(stargazer_viewer

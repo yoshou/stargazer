@@ -11,6 +11,7 @@ add_library(stargazer
 target_compile_definitions(stargazer
     PUBLIC
     $<$<BOOL:${MSVC}>:GLOG_NO_ABBREVIATED_SEVERITIES>
+    GLOG_USE_GLOG_EXPORT
 )
 
 target_include_directories(stargazer
@@ -21,6 +22,7 @@ target_include_directories(stargazer
 )
 
 target_link_libraries(stargazer
+    glm::glm
     opencv_imgproc
     $<$<NOT:$<BOOL:${MSVC}>>:pthread>
     $<$<NOT:$<BOOL:${MSVC}>>:stdc++fs>

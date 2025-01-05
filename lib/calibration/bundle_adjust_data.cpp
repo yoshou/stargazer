@@ -1,8 +1,8 @@
 #include "bundle_adjust_data.hpp"
 
 #include <nlohmann/json.hpp>
-#include "ceres/ceres.h"
-#include "ceres/rotation.h"
+#include <ceres/ceres.h>
+#include <ceres/rotation.h>
 
 namespace stargazer::calibration
 {

@@ -11,12 +11,6 @@ find_package(Ceres CONFIG REQUIRED)
 set_target_properties(glog::glog PROPERTIES
     INTERFACE_LINK_LIBRARIES "gflags"
 )
-set_target_properties(multiview PROPERTIES
-    INTERFACE_LINK_LIBRARIES "gflags"
-)
-set_target_properties(opencv_sfm PROPERTIES
-    INTERFACE_LINK_LIBRARIES "gflags"
-)
 
 find_package(Boost REQUIRED COMPONENTS program_options)
 find_package(nlohmann_json CONFIG REQUIRED)
