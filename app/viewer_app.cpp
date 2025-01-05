@@ -1,5 +1,3 @@
-#include <functional>
-#include <iostream>
 #include "viewer.hpp"
 
 #include <opencv2/core.hpp>
@@ -11,10 +9,15 @@
 #define GLFW_INCLUDE_GLU
 #include <GLFW/glfw3.h>
 
+#include <functional>
+#include <iostream>
 #include <sstream>
 #include <map>
 #include <cmath>
 #include <memory>
+#include <filesystem>
+
+#include <sqlite3.h>
 
 #include "camera_info.hpp"
 #include "correspondance.hpp"
@@ -25,8 +28,6 @@
 #include "config_file.hpp"
 #include "glm_json.hpp"
 #include "triangulation.hpp"
-
-#include <filesystem>
 
 class playback_stream
 {
@@ -88,6 +89,80 @@ public:
     }
 };
 
+class db_playback_stream
+{
+    std::string filename;
+    std::size_t initial_frame_no;
+    std::vector<std::uint64_t> frame_numbers;
+    std::shared_ptr<std::thread> th;
+    std::atomic_bool playing;
+    sqlite3 *db = nullptr;
+
+public:
+    db_playback_stream(std::string filename, std::size_t initial_frame_no = 0)
+        : filename(filename), initial_frame_no(initial_frame_no), playing(false)
+    {
+        if (sqlite3_open(filename.c_str(), &db) != SQLITE_OK)
+        {
+            spdlog::error("Failed to open db[%s]", sqlite3_errmsg(db));
+            return;
+        }
+    }
+
+    ~db_playback_stream()
+    {
+        sqlite3_close(db);
+        db = nullptr;
+    }
+
+    void start(const std::vector<std::string> &names, std::function<void(const std::map<std::string, std::vector<stargazer::point_data>> &)> callback)
+    {
+        th.reset(new std::thread([this, callback, names]()
+                                 {
+            sqlite3_stmt *stmt = nullptr;
+            if (sqlite3_prepare(db, "SELECT timestamp,data FROM messages ORDER BY timestamp ASC", -1, &stmt, 0) != SQLITE_OK)
+            {
+                spdlog::error("Failed to select db[%s]", sqlite3_errmsg(db));
+                return;
+            }
+
+            playing = true;
+            auto frame_no = initial_frame_no;
+            auto next_time = std::chrono::system_clock::now() + std::chrono::duration<double>(1.0 / 90);
+            while (playing && sqlite3_step(stmt) == SQLITE_ROW) {
+                const std::string data(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1)));
+
+                std::vector<std::vector<stargazer::point_data>> frame_data(names.size());
+                read_frame_text(data, names, frame_data);
+
+                std::map<std::string, std::vector<stargazer::point_data>> markers;
+                for (size_t i = 0; i < names.size(); i++)
+                {
+                    markers.insert(std::make_pair(names[i], frame_data[i]));
+                }
+
+                callback(markers);
+
+                frame_no++;
+
+                std::this_thread::sleep_until(next_time);
+                next_time = next_time + std::chrono::duration<double>(1.0 / 90);
+            }
+
+            sqlite3_finalize(stmt);
+            stmt = nullptr; }));
+    }
+
+    void stop()
+    {
+        playing.store(false);
+        if (th && th->joinable())
+        {
+            th->join();
+        }
+    }
+};
+
 const int SCREEN_WIDTH = 1680;
 const int SCREEN_HEIGHT = 1050;
 struct reconstruction_viewer : public window_base
@@ -130,7 +205,7 @@ struct reconstruction_viewer : public window_base
 
     epipolar_reconstruction marker_server;
     std::unique_ptr<multiview_image_reconstruction> multiview_image_reconstruction_;
-    std::unique_ptr<playback_stream> playback;
+    std::unique_ptr<db_playback_stream> playback;
     std::unique_ptr<stargazer::configuration_file> config;
 
     std::string generate_new_id() const
@@ -711,9 +786,9 @@ struct reconstruction_viewer : public window_base
                     nlohmann::json j_config = nlohmann::json::parse(ifs);
                     const std::string prefix = "capture";
 
-                    const auto markers_directory = fs::path(data_dir) / j_config["directory"].get<std::string>() / (prefix + "_5715_248_150_90");
+                    const auto markers_directory = fs::path(data_dir) / j_config["directory"].get<std::string>() / (prefix + "_marker_sync.db");
 
-                    playback.reset(new playback_stream(markers_directory.string(), 0));
+                    playback.reset(new db_playback_stream(markers_directory.string(), 0));
                     playback->start(names, [this](const std::map<std::string, std::vector<stargazer::point_data>> &frame)
                                     {
                         marker_server.push_frame(frame); });

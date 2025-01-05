@@ -14,7 +14,7 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
     && apt-get -y install --no-install-recommends gfortran bison python3 python3-setuptools libarchive-dev libblas-dev liblapack-dev \
     libxinerama-dev libxcursor-dev xorg-dev libglu1-mesa-dev pkg-config
 
-RUN su vscode -c "${VCPKG_ROOT}/vcpkg install boost-program-options boost-asio boost-graph ceres opencv4[core,highgui,calib3d,contrib] glm grpc glfw3 glad nanoflann nlohmann-json imgui[opengl3-binding,glfw-binding] libjpeg-turbo"
+RUN su vscode -c "${VCPKG_ROOT}/vcpkg install boost-program-options boost-asio boost-graph ceres opencv4[core,highgui,calib3d,contrib] glm grpc glfw3 glad nanoflann nlohmann-json imgui[opengl3-binding,glfw-binding] libjpeg-turbo sqlite3"
 
 ENV PATH $PATH:${VCPKG_ROOT}/installed/x64-linux
 ENV PATH $PATH:${VCPKG_ROOT}/installed/x64-linux/tools/protobuf
