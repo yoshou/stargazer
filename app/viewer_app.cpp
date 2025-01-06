@@ -1697,7 +1697,14 @@ struct reconstruction_viewer : public window_base
             }
 
             calibration_panel_view_->render(context.get());
+        }
+        else if (top_bar_view_->view_mode == top_bar_view::Mode::Reconstruction)
+        {
+            reconstruction_panel_view_->render(context.get());
+        }
 
+        if (top_bar_view_->view_mode == top_bar_view::Mode::Calibration)
+        {
             if (top_bar_view_->view_type == top_bar_view::ViewType::Pose)
             {
                 view_controller->update(mouse_state::get_mouse_state(handle));
@@ -1760,8 +1767,6 @@ struct reconstruction_viewer : public window_base
         }
         else if (top_bar_view_->view_mode == top_bar_view::Mode::Reconstruction)
         {
-            reconstruction_panel_view_->render(context.get());
-
             if (top_bar_view_->view_type == top_bar_view::ViewType::Pose)
             {
                 view_controller->update(mouse_state::get_mouse_state(handle));
