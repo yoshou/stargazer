@@ -1665,11 +1665,7 @@ struct reconstruction_viewer : public window_base
             }
         }
 
-        if (top_bar_view_->view_mode == top_bar_view::Mode::Capture)
-        {
-            capture_panel_view_->render(context.get());
-        }
-        else if (top_bar_view_->view_mode == top_bar_view::Mode::Calibration)
+        if (top_bar_view_->view_mode == top_bar_view::Mode::Calibration)
         {
             if (calibration_panel_view_->calibration_target_index == 0)
             {
@@ -1695,7 +1691,14 @@ struct reconstruction_viewer : public window_base
             {
                 calibration_panel_view_->devices[calibration_panel_view_->intrinsic_calibration_device_index].num_points = intrinsic_calib.get_num_frames();
             }
+        }
 
+        if (top_bar_view_->view_mode == top_bar_view::Mode::Capture)
+        {
+            capture_panel_view_->render(context.get());
+        }
+        else if (top_bar_view_->view_mode == top_bar_view::Mode::Calibration)
+        {
             calibration_panel_view_->render(context.get());
         }
         else if (top_bar_view_->view_mode == top_bar_view::Mode::Reconstruction)
