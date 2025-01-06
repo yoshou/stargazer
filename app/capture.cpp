@@ -495,7 +495,7 @@ class local_server
     std::atomic_bool running;
 
 public:
-    local_server(uint16_t port = 31400)
+    local_server(uint16_t port = 0)
         : io_service(), resources(std::make_shared<resource_list>()), server(std::make_shared<graph_proc_server>(io_service, "0.0.0.0", port, resources)), th(), running(false)
     {
     }
