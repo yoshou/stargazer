@@ -1663,8 +1663,6 @@ struct reconstruction_viewer : public window_base
                     }
                 }
             }
-
-            frame_tile_view_->render(context.get());
         }
 
         if (top_bar_view_->view_mode == top_bar_view::Mode::Capture)
@@ -1725,8 +1723,6 @@ struct reconstruction_viewer : public window_base
                         glm::inverse(camera.extrin.rotation),
                     };
                 }
-
-                pose_view_->render(context.get());
             }
             else if (top_bar_view_->view_type == top_bar_view::ViewType::Contrail)
             {
@@ -1760,8 +1756,6 @@ struct reconstruction_viewer : public window_base
                     }
                     stream->texture.upload_image(cloud_image.cols, cloud_image.rows, cloud_image.data, GL_RGB);
                 }
-
-                contrail_tile_view_->render(context.get());
             }
         }
         else if (top_bar_view_->view_mode == top_bar_view::Mode::Reconstruction)
@@ -1806,8 +1800,6 @@ struct reconstruction_viewer : public window_base
                 {
                     pose_view_->points.push_back(point);
                 }
-
-                pose_view_->render(context.get());
             }
             else if (top_bar_view_->view_type == top_bar_view::ViewType::Point)
             {
@@ -1870,9 +1862,24 @@ struct reconstruction_viewer : public window_base
                         }
                     }
                 }
-
-                frame_tile_view_->render(context.get());
             }
+        }
+
+        if (top_bar_view_->view_type == top_bar_view::ViewType::Image)
+        {
+            frame_tile_view_->render(context.get());
+        }
+        else if (top_bar_view_->view_type == top_bar_view::ViewType::Contrail)
+        {
+            contrail_tile_view_->render(context.get());
+        }
+        else if (top_bar_view_->view_type == top_bar_view::ViewType::Point)
+        {
+            frame_tile_view_->render(context.get());
+        }
+        else if (top_bar_view_->view_type == top_bar_view::ViewType::Pose)
+        {
+            pose_view_->render(context.get());
         }
 
         ImGui::Render();
