@@ -392,14 +392,84 @@ public:
 CEREAL_REGISTER_TYPE(epipolar_reconstruct_node)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, epipolar_reconstruct_node)
 
+class grpc_server_node : public graph_node
+{
+    std::atomic_bool running;
+    std::shared_ptr<std::thread> server_th;
+    std::unique_ptr<grpc::Server> server;
+    std::unique_ptr<SensorServiceImpl> service;
+
+public:
+    grpc_server_node()
+        : graph_node(), running(false), server_th(), server(), service(std::make_unique<SensorServiceImpl>())
+    {
+    }
+
+    virtual std::string get_proc_name() const override
+    {
+        return "grpc_server_node";
+    }
+
+    template <typename Archive>
+    void serialize(Archive &archive)
+    {
+    }
+
+    virtual void run() override
+    {
+        running = true;
+        server_th.reset(new std::thread([this]()
+        {
+            std::string server_address("0.0.0.0:50051");
+
+            grpc::ServerBuilder builder;
+            builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
+            builder.RegisterService(service.get());
+            server = builder.BuildAndStart();
+            spdlog::info("Server listening on " + server_address);
+            server->Wait();
+        }));
+    }
+
+    virtual void process(std::string input_name, graph_message_ptr message) override
+    {
+        if (input_name == "sphere")
+        {
+            if (const auto msg = std::dynamic_pointer_cast<float3_list_message>(message))
+            {
+                std::vector<glm::vec3> spheres;
+                for (const auto &data : msg->get_data())
+                {
+                    spheres.push_back(glm::vec3(data.x, data.y, data.z));
+                }
+
+                service->notify_sphere(spheres);
+            }
+        }
+    }
+
+    virtual void stop() override
+    {
+        if (running.load())
+        {
+            running.store(false);
+            server->Shutdown();
+            if (server_th && server_th->joinable())
+            {
+                server_th->join();
+            }
+        }
+    }
+};
+
+CEREAL_REGISTER_TYPE(grpc_server_node)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, grpc_server_node)
+
 class epipolar_reconstruction_pipeline
 {
     graph_proc graph;
 
     std::atomic_bool running;
-    std::shared_ptr<std::thread> server_th;
-    std::unique_ptr<grpc::Server> server;
-    std::unique_ptr<SensorServiceImpl> service;
 
     mutable std::mutex markers_mtx;
     std::vector<glm::vec3> markers;
@@ -422,7 +492,7 @@ public:
     }
 
     epipolar_reconstruction_pipeline()
-        : graph(), running(false), server_th(), server(), service(std::make_unique<SensorServiceImpl>()), markers(), markers_received(), reconstruct_node(), input_node()
+        : graph(), running(false), markers(), markers_received(), reconstruct_node(), input_node()
     {
     }
 
@@ -459,7 +529,7 @@ public:
         {
             return;
         }
-        
+
         auto msg = std::make_shared<object_message>();
         for (const auto &[name, field] : frame)
         {
@@ -500,6 +570,10 @@ public:
 
         n2->set_name("markers");
 
+        std::shared_ptr<grpc_server_node> n3(new grpc_server_node());
+        n3->set_input(n1->get_output(), "sphere");
+        g->add_node(n3);
+
         const auto callbacks = std::make_shared<callback_list>();
 
         callbacks->add([this](const callback_node *node, std::string input_name, graph_message_ptr message)
@@ -523,8 +597,6 @@ public:
                     {
                         f(markers);
                     }
-
-                    service->notify_sphere(markers);
                 }
             } });
 
@@ -533,30 +605,11 @@ public:
         graph.run();
 
         running = true;
-        server_th.reset(new std::thread([this]()
-                                        {
-        std::string server_address("0.0.0.0:50051");
-
-        grpc::ServerBuilder builder;
-        builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
-        builder.RegisterService(service.get());
-        server = builder.BuildAndStart();
-        spdlog::info("Server listening on " + server_address);
-        server->Wait(); }));
     }
 
     void stop()
     {
-        if (running.load())
-        {
-            running.store(false);
-            server->Shutdown();
-            if (server_th && server_th->joinable())
-            {
-                server_th->join();
-            }
-        }
-
+        running.store(false);
         graph.stop();
     }
 
