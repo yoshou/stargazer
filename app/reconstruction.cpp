@@ -191,6 +191,9 @@ CEREAL_REGISTER_POLYMORPHIC_RELATION(coalsack::frame_message_base, float3_list_m
 CEREAL_REGISTER_TYPE(mat4_message)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(coalsack::frame_message_base, mat4_message)
 
+CEREAL_REGISTER_TYPE(frame_message<object_message>)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(coalsack::frame_message_base, frame_message<object_message>)
+
 class callback_node;
 
 class callback_list : public resource_base
@@ -349,8 +352,10 @@ public:
             return;
         }
 
-        if (auto obj_msg = std::dynamic_pointer_cast<object_message>(message))
+        if (auto frame_msg = std::dynamic_pointer_cast<frame_message<object_message>>(message))
         {
+            const auto obj_msg = frame_msg->get_data();
+            
             std::vector<std::vector<glm::vec2>> camera_pts;
             std::vector<stargazer::camera_t> camera_list;
 
@@ -360,7 +365,7 @@ public:
                 cameras = this->cameras;
             }
 
-            for (const auto &[name, field] : obj_msg->get_fields())
+            for (const auto &[name, field] : obj_msg.get_fields())
             {
                 if (auto points_msg = std::dynamic_pointer_cast<float2_list_message>(field))
                 {
@@ -465,6 +470,42 @@ public:
 CEREAL_REGISTER_TYPE(grpc_server_node)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, grpc_server_node)
 
+class frame_number_renumbering_node : public graph_node
+{
+    uint64_t frame_number;
+    graph_edge_ptr output;
+
+public:
+    frame_number_renumbering_node()
+        : graph_node(), frame_number(0), output(std::make_shared<graph_edge>(this))
+    {
+        set_output(output);
+    }
+
+    virtual std::string get_proc_name() const override
+    {
+        return "frame_number_renumbering_node";
+    }
+
+    template <typename Archive>
+    void serialize(Archive &archive)
+    {
+        archive(frame_number);
+    }
+
+    virtual void process(std::string input_name, graph_message_ptr message) override
+    {
+        if (auto msg = std::dynamic_pointer_cast<frame_message_base>(message))
+        {
+            msg->set_frame_number(frame_number++);
+            output->send(msg);
+        }
+    }
+};
+
+CEREAL_REGISTER_TYPE(frame_number_renumbering_node)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, frame_number_renumbering_node)
+
 class epipolar_reconstruction_pipeline
 {
     graph_proc graph;
@@ -543,9 +584,12 @@ public:
             msg->add_field(name, float2_msg);
         }
 
+        auto frame_msg = std::make_shared<frame_message<object_message>>();
+        frame_msg->set_data(*msg);
+
         if (input_node)
         {
-            graph.process(input_node.get(), msg);
+            graph.process(input_node.get(), frame_msg);
         }
     }
 
@@ -553,10 +597,14 @@ public:
     {
         std::shared_ptr<subgraph> g(new subgraph());
 
-        std::shared_ptr<fifo_node> n0(new fifo_node());
-        g->add_node(n0);
+        std::shared_ptr<frame_number_renumbering_node> n4(new frame_number_renumbering_node());
+        g->add_node(n4);
 
-        input_node = n0;
+        input_node = n4;
+
+        std::shared_ptr<fifo_node> n0(new fifo_node());
+        n0->set_input(n4->get_output());
+        g->add_node(n0);
 
         std::shared_ptr<epipolar_reconstruct_node> n1(new epipolar_reconstruct_node());
         n1->set_input(n0->get_output());
