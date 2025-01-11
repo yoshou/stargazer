@@ -579,7 +579,7 @@ struct reconstruction_viewer : public window_base
 
                         for (const auto &[name, camera] : calib.calibrated_cameras)
                         {
-                            marker_server.cameras[name] = camera;
+                            marker_server.set_camera(name, camera);
                         }
                         break;
                     }
@@ -611,7 +611,7 @@ struct reconstruction_viewer : public window_base
                         {
                             const auto& camera_id = device_name_to_id.at(camera_name);
 
-                            marker_server.cameras[name].extrin = camera.extrin;
+                            marker_server.get_camera(name).extrin = camera.extrin;
                             camera_params[camera_id].cameras["infra1"].extrin = camera.extrin;
                             // multiview_image_reconstruction_->cameras[camera_name].intrin = camera.intrin;
                             multiview_image_reconstruction_->cameras[camera_name].extrin = camera.extrin;
@@ -1043,7 +1043,7 @@ struct reconstruction_viewer : public window_base
 
                 save_scene();
 
-                this->marker_server.axis = axis;
+                this->marker_server.set_axis(axis);
                 this->multiview_image_reconstruction_->axis = axis;
                 this->pose_view_->axis = axis;
             }
@@ -1305,7 +1305,7 @@ struct reconstruction_viewer : public window_base
         pose_view_ = std::make_unique<pose_view>();
 
         {
-            this->marker_server.axis = this->axis;
+            this->marker_server.set_axis(this->axis);
             this->multiview_image_reconstruction_->axis = this->axis;
             this->pose_view_->axis = this->axis;
         }

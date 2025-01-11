@@ -22,12 +22,24 @@ namespace stargazer
                 0, fy, 0,
                 cx, cy, 1);
         }
+
+        template <typename Archive>
+        void serialize(Archive &archive)
+        {
+            archive(fx, fy, cx, cy, coeffs);
+        }
     };
 
     struct camera_extrin_t
     {
         glm::vec3 translation;
         glm::mat4 rotation;
+
+        template <typename Archive>
+        void serialize(Archive &archive)
+        {
+            archive(translation, rotation);
+        }
     };
 
     struct camera_t
@@ -35,6 +47,12 @@ namespace stargazer
         camera_intrin_t intrin;
         camera_extrin_t extrin;
         uint32_t width, height;
+
+        template <typename Archive>
+        void serialize(Archive &archive)
+        {
+            archive(intrin, extrin, width, height);
+        }
     };
 
     struct camera_module_t
