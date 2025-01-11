@@ -389,6 +389,7 @@ public:
                 marker_data.push_back({marker.x, marker.y, marker.z});
             }
             marker_msg->set_data(marker_data);
+            marker_msg->set_frame_number(frame_msg->get_frame_number());
             output->send(marker_msg);
         }
     }
@@ -506,6 +507,167 @@ public:
 CEREAL_REGISTER_TYPE(frame_number_renumbering_node)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, frame_number_renumbering_node)
 
+class parallel_queue_node : public graph_node
+{
+    std::shared_ptr<task_queue<std::function<void()>>> workers;
+    graph_edge_ptr output;
+
+public:
+    parallel_queue_node()
+        : graph_node(), workers(std::make_shared<task_queue<std::function<void()>>>()), output(std::make_shared<graph_edge>(this))
+    {
+        set_output(output);
+    }
+
+    virtual std::string get_proc_name() const override
+    {
+        return "parallel_queue_node";
+    }
+
+    template <typename Archive>
+    void serialize(Archive &archive)
+    {
+    }
+
+    virtual void run() override
+    {
+    }
+
+    virtual void stop() override
+    {
+    }
+
+    virtual void process(std::string input_name, graph_message_ptr message) override
+    {
+        if (auto msg = std::dynamic_pointer_cast<frame_message_base>(message))
+        {
+            workers->push_task([this, msg]()
+                          {
+                output->send(msg);
+            });
+        }
+    }
+};
+
+CEREAL_REGISTER_TYPE(parallel_queue_node)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, parallel_queue_node)
+
+class greater_graph_message_ptr
+{
+public:
+    bool operator()(const graph_message_ptr &lhs, const graph_message_ptr &rhs) const
+    {
+        return std::dynamic_pointer_cast<frame_message_base>(lhs)->get_frame_number() > std::dynamic_pointer_cast<frame_message_base>(rhs)->get_frame_number();
+    }
+};
+
+class reordering_node : public graph_node
+{
+    graph_edge_ptr output;
+    std::mutex mtx;
+
+    std::priority_queue<
+        graph_message_ptr,
+        std::deque<graph_message_ptr>,
+        greater_graph_message_ptr> messages;
+
+    std::shared_ptr<std::thread> th;
+    std::atomic_bool running;
+    std::condition_variable cv;
+    std::uint32_t max_size;
+    std::atomic_ullong frame_number;
+
+public:
+    reordering_node()
+        : graph_node(), output(std::make_shared<graph_edge>(this)), max_size(100), frame_number(0)
+    {
+        set_output(output);
+    }
+
+    virtual std::string get_proc_name() const override
+    {
+        return "reordering_node";
+    }
+
+    void set_max_size(std::uint32_t value)
+    {
+        max_size = value;
+    }
+    std::uint32_t get_max_size() const
+    {
+        return max_size;
+    }
+
+    template <typename Archive>
+    void serialize(Archive &archive)
+    {
+        archive(max_size, frame_number);
+    }
+
+    virtual void process(std::string input_name, graph_message_ptr message) override
+    {
+        if (!running)
+        {
+            return;
+        }
+
+        if (input_name == "default")
+        {
+            std::lock_guard<std::mutex> lock(mtx);
+
+            if (messages.size() >= max_size)
+            {
+                std::cout << "Fifo overflow" << std::endl;
+                spdlog::error("Fifo overflow");
+            }
+            else
+            {
+                messages.push(message);
+                cv.notify_one();
+            }
+        }
+    }
+
+    virtual void run() override
+    {
+        th.reset(new std::thread([this]()
+                                 {
+            running.store(true);
+            while (running.load())
+            {
+                std::unique_lock<std::mutex> lock(mtx);
+                cv.wait(lock, [&]
+                        { return (!messages.empty() && std::dynamic_pointer_cast<frame_message_base>(messages.top())->get_frame_number() == frame_number) || !running; });
+
+                if (!running)
+                {
+                    break;
+                }
+                if (!messages.empty() && std::dynamic_pointer_cast<frame_message_base>(messages.top())->get_frame_number() == frame_number)
+                {
+                    const auto message = messages.top();
+                    messages.pop();
+                    output->send(message);
+
+                    frame_number++;
+                }
+            } }));
+    }
+
+    virtual void stop() override
+    {
+        if (running.load())
+        {
+            running.store(false);
+            cv.notify_one();
+            if (th && th->joinable())
+            {
+                th->join();
+            }
+        }
+    }
+};
+
 class epipolar_reconstruction_pipeline
 {
     graph_proc graph;
@@ -597,29 +759,37 @@ public:
     {
         std::shared_ptr<subgraph> g(new subgraph());
 
-        std::shared_ptr<frame_number_renumbering_node> n4(new frame_number_renumbering_node());
-        g->add_node(n4);
-
-        input_node = n4;
-
         std::shared_ptr<fifo_node> n0(new fifo_node());
-        n0->set_input(n4->get_output());
         g->add_node(n0);
 
+        input_node = n0;
+
+        std::shared_ptr<frame_number_renumbering_node> n4(new frame_number_renumbering_node());
+        n4->set_input(n0->get_output());
+        g->add_node(n4);
+
+        std::shared_ptr<parallel_queue_node> n6(new parallel_queue_node());
+        n6->set_input(n4->get_output());
+        g->add_node(n6);
+
         std::shared_ptr<epipolar_reconstruct_node> n1(new epipolar_reconstruct_node());
-        n1->set_input(n0->get_output());
+        n1->set_input(n6->get_output());
         g->add_node(n1);
 
         reconstruct_node = n1;
 
+        std::shared_ptr<reordering_node> n5(new reordering_node());
+        n5->set_input(n1->get_output());
+        g->add_node(n5);
+
         std::shared_ptr<callback_node> n2(new callback_node());
-        n2->set_input(n1->get_output());
+        n2->set_input(n5->get_output());
         g->add_node(n2);
 
         n2->set_name("markers");
 
         std::shared_ptr<grpc_server_node> n3(new grpc_server_node());
-        n3->set_input(n1->get_output(), "sphere");
+        n3->set_input(n5->get_output(), "sphere");
         g->add_node(n3);
 
         const auto callbacks = std::make_shared<callback_list>();
