@@ -471,13 +471,13 @@ public:
 CEREAL_REGISTER_TYPE(grpc_server_node)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, grpc_server_node)
 
-class frame_number_renumbering_node : public graph_node
+class frame_number_numbering_node : public graph_node
 {
     uint64_t frame_number;
     graph_edge_ptr output;
 
 public:
-    frame_number_renumbering_node()
+    frame_number_numbering_node()
         : graph_node(), frame_number(0), output(std::make_shared<graph_edge>(this))
     {
         set_output(output);
@@ -485,7 +485,7 @@ public:
 
     virtual std::string get_proc_name() const override
     {
-        return "frame_number_renumbering_node";
+        return "frame_number_numbering_node";
     }
 
     template <typename Archive>
@@ -504,8 +504,8 @@ public:
     }
 };
 
-CEREAL_REGISTER_TYPE(frame_number_renumbering_node)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, frame_number_renumbering_node)
+CEREAL_REGISTER_TYPE(frame_number_numbering_node)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, frame_number_numbering_node)
 
 class parallel_queue_node : public graph_node
 {
@@ -561,7 +561,7 @@ public:
     }
 };
 
-class reordering_node : public graph_node
+class frame_number_ordering_node : public graph_node
 {
     graph_edge_ptr output;
     std::mutex mtx;
@@ -578,7 +578,7 @@ class reordering_node : public graph_node
     std::atomic_ullong frame_number;
 
 public:
-    reordering_node()
+    frame_number_ordering_node()
         : graph_node(), output(std::make_shared<graph_edge>(this)), max_size(100), frame_number(0)
     {
         set_output(output);
@@ -586,7 +586,7 @@ public:
 
     virtual std::string get_proc_name() const override
     {
-        return "reordering_node";
+        return "frame_number_ordering_node";
     }
 
     void set_max_size(std::uint32_t value)
@@ -759,14 +759,10 @@ public:
     {
         std::shared_ptr<subgraph> g(new subgraph());
 
-        std::shared_ptr<fifo_node> n0(new fifo_node());
-        g->add_node(n0);
-
-        input_node = n0;
-
-        std::shared_ptr<frame_number_renumbering_node> n4(new frame_number_renumbering_node());
-        n4->set_input(n0->get_output());
+        std::shared_ptr<frame_number_numbering_node> n4(new frame_number_numbering_node());
         g->add_node(n4);
+
+        input_node = n4;
 
         std::shared_ptr<parallel_queue_node> n6(new parallel_queue_node());
         n6->set_input(n4->get_output());
@@ -778,7 +774,7 @@ public:
 
         reconstruct_node = n1;
 
-        std::shared_ptr<reordering_node> n5(new reordering_node());
+        std::shared_ptr<frame_number_ordering_node> n5(new frame_number_ordering_node());
         n5->set_input(n1->get_output());
         g->add_node(n5);
 
