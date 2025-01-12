@@ -441,11 +441,6 @@ struct reconstruction_viewer : public window_base
                     if (calib.get_num_frames(device.name) > 0)
                     {
                         calib.calibrate();
-
-                        for (const auto &[name, camera] : calib.get_calibrated_cameras())
-                        {
-                            marker_server.set_camera(name, camera);
-                        }
                         break;
                     }
                 }
@@ -1211,6 +1206,15 @@ struct reconstruction_viewer : public window_base
 
         marker_server.run();
         multiview_image_reconstruction_->run();
+
+        calib.add_calibrated([&](const std::unordered_map<std::string, stargazer::camera_t> &cameras)
+        {
+            for (const auto &[name, camera] : cameras)
+            {
+                marker_server.set_camera(name, camera);
+            }
+        });
+        
         calib.run();
 
 #if 1

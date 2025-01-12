@@ -1227,6 +1227,18 @@ public:
 
     std::unordered_map<std::string, stargazer::camera_t> calibrated_cameras;
 
+    std::vector<std::function<void(const std::unordered_map<std::string, stargazer::camera_t> &)>> calibrated;
+
+    void add_calibrated(std::function<void(const std::unordered_map<std::string, stargazer::camera_t> &)> callback)
+    {
+        calibrated.push_back(callback);
+    }
+
+    void clear_calibrated()
+    {
+        calibrated.clear();
+    }
+
     void push_frame(const std::map<std::string, std::vector<stargazer::point_data>> &frame)
     {
         calib_node->push_frame(frame);
@@ -1272,6 +1284,10 @@ public:
                         {
                             calibrated_cameras[name] = camera_msg->get_camera();
                         }
+                    }
+                    for (const auto &f : calibrated)
+                    {
+                        f(calibrated_cameras);
                     }
                 }
             } });
@@ -1320,6 +1336,16 @@ void calibration::run()
 void calibration::stop()
 {
     pimpl->stop();
+}
+
+void calibration::add_calibrated(std::function<void(const std::unordered_map<std::string, stargazer::camera_t> &)> callback)
+{
+    pimpl->add_calibrated(callback);
+}
+
+void calibration::clear_calibrated()
+{
+    pimpl->clear_calibrated();
 }
 
 size_t calibration::get_num_frames(std::string name) const
