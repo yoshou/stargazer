@@ -15,6 +15,7 @@
 #include "triangulation.hpp"
 #include "multiview_point_data.hpp"
 #include "glm_serialize.hpp"
+#include "glm_json.hpp"
 
 #include "graph_proc.h"
 #include "graph_proc_cv.h"
@@ -1507,4 +1508,258 @@ std::vector<glm::vec3> mvpose_reconstruction::get_markers() const
         result = markers;
     }
     return result;
+}
+
+void axis_reconstruction::set_camera(const std::string &name, const stargazer::camera_t &camera)
+{
+    cameras[name] = camera;
+}
+
+void axis_reconstruction::load_axis()
+{
+    const auto path = "../data/config/reconstruction.json";
+
+    std::ifstream ifs;
+    ifs.open(path, std::ios::binary | std::ios::in);
+
+    if (!ifs)
+    {
+        axis = glm::mat4(1.0f);
+        return;
+    }
+
+    const auto j = nlohmann::json::parse(ifs);
+    axis = j["scene"]["axis"].get<glm::mat4>();
+}
+
+void axis_reconstruction::save_axis()
+{
+    const auto path = "../data/config/reconstruction.json";
+
+    std::ofstream ofs;
+    ofs.open(path, std::ios::out);
+
+    auto j = nlohmann::json{};
+    j["scene"]["axis"] = axis;
+    ofs << j.dump(2);
+}
+
+bool axis_reconstruction::compute_axis(glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::mat4 &axis)
+{
+    if (!(std::abs(glm::dot(p1 - p0, p2 - p0)) < 0.01))
+    {
+        return false;
+    }
+    const auto origin = p0;
+    const auto e1 = p1 - p0;
+    const auto e2 = p2 - p0;
+
+    glm::vec3 x_axis = e1;
+    glm::vec3 y_axis = e2;
+
+    auto z_axis = glm::cross(glm::normalize(x_axis), glm::normalize(y_axis));
+    z_axis = glm::normalize(z_axis);
+
+    const auto y_axis_length = 0.196f;
+    const auto scale = y_axis_length / glm::length(y_axis);
+    x_axis = glm::normalize(x_axis);
+    y_axis = glm::normalize(y_axis);
+
+    axis = glm::mat4(1.0f);
+
+    axis[0] = glm::vec4(x_axis / scale, 0.0f);
+    axis[1] = glm::vec4(y_axis / scale, 0.0f);
+    axis[2] = glm::vec4(z_axis / scale, 0.0f);
+    axis[3] = glm::vec4(origin, 1.0f);
+
+    axis = glm::inverse(axis);
+
+    return true;
+}
+
+bool axis_reconstruction::detect_axis(glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::mat4 &axis)
+{
+    glm::vec3 origin;
+    glm::vec3 e1, e2;
+
+    // Find origin
+    if (std::abs(glm::dot(p1 - p0, p2 - p0)) < 0.01)
+    {
+        origin = p0;
+        e1 = p1 - p0;
+        e2 = p2 - p0;
+    }
+    else if (std::abs(glm::dot(p0 - p1, p2 - p1)) < 0.01)
+    {
+        origin = p1;
+        e1 = p0 - p1;
+        e2 = p2 - p1;
+    }
+    else if (std::abs(glm::dot(p0 - p2, p1 - p2)) < 0.01)
+    {
+        origin = p2;
+        e1 = p0 - p2;
+        e2 = p1 - p2;
+    }
+    else
+    {
+        return false;
+    }
+
+    glm::vec3 x_axis, y_axis;
+    if (glm::length(e1) < glm::length(e2))
+    {
+        x_axis = e1;
+        y_axis = e2;
+    }
+    else
+    {
+        x_axis = e2;
+        y_axis = e1;
+    }
+
+    auto z_axis = glm::cross(x_axis, y_axis);
+    z_axis = glm::normalize(z_axis);
+
+    const auto x_axis_length = 0.14f;
+    const auto y_axis_length = 0.17f;
+    const auto scale = x_axis_length / glm::length(x_axis);
+    if ((std::abs(scale - y_axis_length / glm::length(y_axis)) / scale) > 0.05)
+    {
+        return false;
+    }
+    x_axis = glm::normalize(x_axis);
+    y_axis = glm::normalize(y_axis);
+
+    axis[0] = glm::vec4(x_axis / scale, 0.0f);
+    axis[1] = glm::vec4(y_axis / scale, 0.0f);
+    axis[2] = glm::vec4(z_axis / scale, 0.0f);
+    axis[3] = glm::vec4(origin, 1.0f);
+
+    axis = glm::inverse(axis);
+
+    return true;
+}
+
+static void detect_aruco_marker(cv::Mat image, std::vector<std::vector<cv::Point2f>> &points, std::vector<int> &ids)
+{
+    cv::aruco::DetectorParameters detector_params = cv::aruco::DetectorParameters();
+    cv::aruco::RefineParameters refine_params = cv::aruco::RefineParameters();
+    const auto dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_4X4_250);
+    const auto detector = cv::aruco::ArucoDetector(dictionary, detector_params, refine_params);
+
+    points.clear();
+    ids.clear();
+    detector.detectMarkers(image, points, ids);
+}
+
+static bool detect_aruco_marker(cv::Mat image, std::vector<cv::Point2f> &points, std::vector<int> &ids)
+{
+    std::vector<int> marker_ids;
+    std::vector<std::vector<cv::Point2f>> marker_corners;
+    detect_aruco_marker(image, marker_corners, marker_ids);
+
+    for (size_t i = 0; i < marker_ids.size(); i++)
+    {
+        const auto marker_id = marker_ids[i];
+        const auto &marker_corner = marker_corners[i];
+        if (marker_id == 0)
+        {
+            for (size_t i = 0; i < 4; i++)
+            {
+                points.push_back(marker_corner[i]);
+                ids.push_back(marker_id * 4 + i);
+            }
+            return true;
+        }
+    }
+
+    return false;
+}
+
+void axis_reconstruction::push_frame(const std::map<std::string, cv::Mat> &frame)
+{
+    std::map<std::string, std::vector<stargazer::point_data>> points;
+
+    for (const auto &[name, image] : frame)
+    {
+        std::vector<int> marker_ids;
+        std::vector<std::vector<cv::Point2f>> marker_corners;
+        detect_aruco_marker(image, marker_corners, marker_ids);
+
+        for (size_t i = 0; i < marker_ids.size(); i++)
+        {
+            if (marker_ids[i] == 0)
+            {
+                auto &corner_points = points[name];
+                for (size_t j = 0; j < 3; j++)
+                {
+                    stargazer::point_data point{};
+                    point.point.x = marker_corners[i][j].x;
+                    point.point.y = marker_corners[i][j].y;
+                    corner_points.push_back(point);
+                }
+            }
+        }
+    }
+
+    std::vector<glm::vec3> markers;
+    for (size_t j = 0; j < 3; j++)
+    {
+        std::vector<glm::vec2> pts;
+        std::vector<stargazer::camera_t> cams;
+
+        for (const auto &[name, camera] : cameras)
+        {
+            pts.push_back(points[name][j].point);
+            cams.push_back(camera);
+        }
+        const auto marker = stargazer::reconstruction::triangulate(pts, cams);
+        markers.push_back(marker);
+    }
+
+    if (markers.size() == 3)
+    {
+        if (!compute_axis(markers[1], markers[0], markers[2], axis))
+        {
+            std::cout << "Failed to compute axis" << std::endl;
+            return;
+        }
+    }
+
+    glm::mat4 basis(1.f);
+    basis[0] = glm::vec4(-1.f, 0.f, 0.f, 0.f);
+    basis[1] = glm::vec4(0.f, 0.f, 1.f, 0.f);
+    basis[2] = glm::vec4(0.f, 1.f, 0.f, 0.f);
+
+    glm::mat4 cv_to_gl(1.f);
+    cv_to_gl[0] = glm::vec4(1.f, 0.f, 0.f, 0.f);
+    cv_to_gl[1] = glm::vec4(0.f, -1.f, 0.f, 0.f);
+    cv_to_gl[2] = glm::vec4(0.f, 0.f, -1.f, 0.f);
+
+    // z down -> z up -> opengl
+    axis = basis * axis;
+    // axis = basis * cv_to_gl * extrinsic_calib.axis;
+}
+
+void axis_reconstruction::push_frame(const std::map<std::string, std::vector<stargazer::point_data>>& frame)
+{
+    const auto markers = reconstruct(cameras, frame);
+
+    glm::mat4 axis;
+    if (markers.size() == 3)
+    {
+        if (detect_axis(markers[0], markers[1], markers[2], axis))
+        {
+            glm::mat4 basis(1.f);
+            basis[0] = glm::vec4(-1.f, 0.f, 0.f, 0.f);
+            basis[1] = glm::vec4(0.f, 0.f, 1.f, 0.f);
+            basis[2] = glm::vec4(0.f, 1.f, 0.f, 0.f);
+
+            // z up -> opengl
+            axis = basis * axis;
+
+            this->axis = axis;
+        }
+    }
 }

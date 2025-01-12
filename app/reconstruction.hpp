@@ -314,3 +314,30 @@ public:
 
     std::map<std::string, cv::Mat> get_features() const;
 };
+
+class axis_reconstruction
+{
+    glm::mat4 axis;
+    std::map<std::string, stargazer::camera_t> cameras;
+
+public:
+
+    void set_camera(const std::string &name, const stargazer::camera_t &camera);
+
+    glm::mat4 get_axis() const
+    {
+        return axis;
+    }
+
+    void load_axis();
+
+    void save_axis();
+
+    static bool compute_axis(glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::mat4 &axis);
+
+    static bool detect_axis(glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::mat4 &axis);
+
+    void push_frame(const std::map<std::string, cv::Mat> &frame);
+
+    void push_frame(const std::map<std::string, std::vector<stargazer::point_data>>& points);
+};
