@@ -31,27 +31,10 @@
 
 const int SCREEN_WIDTH = 1680;
 const int SCREEN_HEIGHT = 1050;
-struct reconstruction_viewer : public window_base
+
+class reconstruction_viewer : public window_base
 {
     std::mutex mtx;
-
-    static std::string get_calibration_config_path()
-    {
-        namespace fs = std::filesystem;
-        const std::string data_dir = "../data";
-
-        return (fs::path(data_dir) / "config.json").string();
-    }
-
-    reconstruction_viewer()
-        : window_base("Reconstruction Viewer", SCREEN_WIDTH, SCREEN_HEIGHT), calib(), multiview_image_reconstruction_(std::make_unique<voxelpose_reconstruction>())
-    {
-    }
-
-    virtual void initialize() override
-    {
-        window_base::initialize();
-    }
 
     ImFont *large_font;
     ImFont *default_font;
@@ -65,6 +48,9 @@ struct reconstruction_viewer : public window_base
     std::unique_ptr<frame_tile_view> contrail_tile_view_;
     std::unique_ptr<pose_view> pose_view_;
     std::shared_ptr<azimuth_elevation> view_controller;
+
+    std::map<std::string, stargazer::camera_module_t> camera_params;
+    std::map<std::string, cv::Mat> masks;
 
     std::map<std::string, std::shared_ptr<capture_pipeline>> captures;
     std::shared_ptr<multiview_capture_pipeline> multiview_capture;
@@ -81,6 +67,14 @@ struct reconstruction_viewer : public window_base
     std::unique_ptr<stargazer::configuration_file> capture_config;
     std::unique_ptr<stargazer::configuration_file> calibration_config;
 
+    static std::string get_calibration_config_path()
+    {
+        namespace fs = std::filesystem;
+        const std::string data_dir = "../data";
+
+        return (fs::path(data_dir) / "config.json").string();
+    }
+
     std::string generate_new_id() const
     {
         uint64_t max_id = 0;
@@ -95,6 +89,34 @@ struct reconstruction_viewer : public window_base
             }
         }
         return fmt::format("{:>012d}", max_id);
+    }
+
+    void load_camera_params()
+    {
+        const auto config_path = get_calibration_config_path();
+
+        std::ifstream ifs;
+        ifs.open(config_path, std::ios::in);
+        nlohmann::json j_config = nlohmann::json::parse(ifs);
+
+        const auto camera_names = j_config["cameras"].get<std::vector<std::string>>();
+        const auto camera_ids = j_config["camera_ids"].get<std::vector<std::string>>();
+
+        const auto num_cameras = camera_names.size();
+
+        camera_params = stargazer::load_camera_params("../data/config/camera_params.json");
+
+        for (std::size_t i = 0; i < camera_names.size(); i++)
+        {
+            calib.set_camera(camera_names[i], camera_params.at(camera_ids[i]).cameras.at("infra1"));
+        }
+        assert(calib.get_camera_size() == num_cameras);
+
+        for (auto &[camera_name, camera] : calib.get_cameras())
+        {
+            camera.extrin.rotation = glm::mat4(1.0);
+            camera.extrin.translation = glm::vec3(1.0);
+        }
     }
 
     void init_capture_panel()
@@ -217,8 +239,6 @@ struct reconstruction_viewer : public window_base
             }
         });
     }
-
-    std::map<std::string, cv::Mat> masks;
 
     void init_calibration_panel()
     {
@@ -855,34 +875,16 @@ struct reconstruction_viewer : public window_base
         }
     }
 
-    std::map<std::string, stargazer::camera_module_t> camera_params;
+public:
 
-    void load_camera_params()
+    reconstruction_viewer()
+        : window_base("Reconstruction Viewer", SCREEN_WIDTH, SCREEN_HEIGHT), calib(), multiview_image_reconstruction_(std::make_unique<voxelpose_reconstruction>())
     {
-        const auto config_path = get_calibration_config_path();
+    }
 
-        std::ifstream ifs;
-        ifs.open(config_path, std::ios::in);
-        nlohmann::json j_config = nlohmann::json::parse(ifs);
-
-        const auto camera_names = j_config["cameras"].get<std::vector<std::string>>();
-        const auto camera_ids = j_config["camera_ids"].get<std::vector<std::string>>();
-
-        const auto num_cameras = camera_names.size();
-
-        camera_params = stargazer::load_camera_params("../data/config/camera_params.json");
-
-        for (std::size_t i = 0; i < camera_names.size(); i++)
-        {
-            calib.set_camera(camera_names[i], camera_params.at(camera_ids[i]).cameras.at("infra1"));
-        }
-        assert(calib.get_camera_size() == num_cameras);
-
-        for (auto &[camera_name, camera] : calib.get_cameras())
-        {
-            camera.extrin.rotation = glm::mat4(1.0);
-            camera.extrin.translation = glm::vec3(1.0);
-        }
+    virtual void initialize() override
+    {
+        window_base::initialize();
     }
 
     virtual void show() override
