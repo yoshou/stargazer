@@ -77,6 +77,10 @@ public:
 
 static std::vector<glm::vec3> reconstruct(const std::vector<stargazer::camera_t> &camera_list, const std::vector<std::vector<glm::vec2>>& camera_pts, glm::mat4 axis)
 {
+    if (camera_list.size() < 2)
+    {
+        return {};
+    }
     std::vector<stargazer::reconstruction::node_t> nodes;
     stargazer::reconstruction::adj_list_t adj;
 
@@ -369,6 +373,10 @@ public:
             {
                 if (auto points_msg = std::dynamic_pointer_cast<float2_list_message>(field))
                 {
+                    if (cameras.find(name) == cameras.end())
+                    {
+                        continue;
+                    }
                     const auto &camera = cameras.at(name);
                     std::vector<glm::vec2> pts;
                     for (const auto &pt : points_msg->get_data())
