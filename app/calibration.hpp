@@ -60,9 +60,6 @@ struct observed_points_t
 
 class calibration
 {
-    std::vector<std::string> camera_names;
-    std::vector<std::string> camera_ids;
-
     std::unordered_map<std::string, stargazer::camera_t> cameras;
 
     class impl;
