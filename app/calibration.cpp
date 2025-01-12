@@ -1373,11 +1373,6 @@ void calibration::calibrate()
     pimpl->calibrate(cameras);
 }
 
-void intrinsic_calibration::add_frame(const std::vector<stargazer::point_data> &frame)
-{
-    frames.push_back(frame);
-}
-
 void calc_board_corner_positions(cv::Size board_size, cv::Size2f square_size, std::vector<cv::Point3f> &corners, const calibration_pattern pattern_type)
 {
     corners.clear();
@@ -1407,6 +1402,139 @@ void calc_board_corner_positions(cv::Size board_size, cv::Size2f square_size, st
     }
 }
 
+bool detect_calibration_board(cv::Mat frame, std::vector<cv::Point2f> &points, const calibration_pattern pattern_type)
+{
+    if (frame.empty())
+    {
+        return false;
+    }
+    constexpr auto use_fisheye = false;
+
+    cv::Size board_size;
+    switch (pattern_type)
+    {
+    case calibration_pattern::CHESSBOARD:
+        board_size = cv::Size(10, 7);
+        break;
+    case calibration_pattern::CIRCLES_GRID:
+        board_size = cv::Size(10, 7);
+        break;
+    case calibration_pattern::ASYMMETRIC_CIRCLES_GRID:
+        board_size = cv::Size(4, 11);
+        break;
+    }
+    const auto win_size = 5;
+
+    int chessboard_flags = cv::CALIB_CB_ADAPTIVE_THRESH | cv::CALIB_CB_NORMALIZE_IMAGE;
+    if (!use_fisheye)
+    {
+        chessboard_flags |= cv::CALIB_CB_FAST_CHECK;
+    }
+
+    bool found = false;
+    switch (pattern_type)
+    {
+    case calibration_pattern::CHESSBOARD:
+        found = cv::findChessboardCorners(frame, board_size, points, chessboard_flags);
+        break;
+    case calibration_pattern::CIRCLES_GRID:
+        found = cv::findCirclesGrid(frame, board_size, points);
+        break;
+    case calibration_pattern::ASYMMETRIC_CIRCLES_GRID:
+    {
+        auto params = cv::SimpleBlobDetector::Params();
+        params.minDistBetweenBlobs = 3;
+        auto detector = cv::SimpleBlobDetector::create(params);
+        found = cv::findCirclesGrid(frame, board_size, points, cv::CALIB_CB_ASYMMETRIC_GRID, detector);
+    }
+    break;
+    default:
+        found = false;
+        break;
+    }
+
+    if (found)
+    {
+        if (pattern_type == calibration_pattern::CHESSBOARD)
+        {
+            cv::Mat gray;
+            cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
+            cv::cornerSubPix(gray, points, cv::Size(win_size, win_size),
+                             cv::Size(-1, -1), cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 30, 0.0001));
+        }
+    }
+
+    return found;
+}
+
+#include <opencv2/aruco/charuco.hpp>
+
+static inline cv::aruco::CharucoBoard create_charuco_board()
+{
+    const auto dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_4X4_250);
+    const auto board = cv::aruco::CharucoBoard(cv::Size(3, 5), 0.0575, 0.0575 * 0.75f, dictionary);
+    return board;
+}
+
+static bool detect_charuco_board(cv::Mat image, std::vector<cv::Point2f> &points, std::vector<int> &ids)
+{
+    cv::aruco::DetectorParameters detector_params = cv::aruco::DetectorParameters();
+    cv::aruco::CharucoParameters charuco_params = cv::aruco::CharucoParameters();
+    const auto board = create_charuco_board();
+    const auto detector = cv::aruco::CharucoDetector(board, charuco_params, detector_params);
+    std::vector<int> marker_ids;
+    std::vector<std::vector<cv::Point2f>> marker_corners;
+    std::vector<int> charuco_ids;
+    std::vector<cv::Point2f> charuco_corners;
+    detector.detectBoard(image, charuco_corners, charuco_ids, marker_corners, marker_ids);
+
+    if (charuco_ids.size() == 0)
+    {
+        return false;
+    }
+
+    points = charuco_corners;
+    ids = charuco_ids;
+
+    return true;
+}
+
+static void detect_aruco_marker(cv::Mat image, std::vector<std::vector<cv::Point2f>> &points, std::vector<int> &ids)
+{
+    cv::aruco::DetectorParameters detector_params = cv::aruco::DetectorParameters();
+    cv::aruco::RefineParameters refine_params = cv::aruco::RefineParameters();
+    const auto dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_4X4_250);
+    const auto detector = cv::aruco::ArucoDetector(dictionary, detector_params, refine_params);
+
+    points.clear();
+    ids.clear();
+    detector.detectMarkers(image, points, ids);
+}
+
+static bool detect_aruco_marker(cv::Mat image, std::vector<cv::Point2f> &points, std::vector<int> &ids)
+{
+    std::vector<int> marker_ids;
+    std::vector<std::vector<cv::Point2f>> marker_corners;
+    detect_aruco_marker(image, marker_corners, marker_ids);
+
+    for (size_t i = 0; i < marker_ids.size(); i++)
+    {
+        const auto marker_id = marker_ids[i];
+        const auto &marker_corner = marker_corners[i];
+        if (marker_id == 0)
+        {
+            for (size_t i = 0; i < 4; i++)
+            {
+                points.push_back(marker_corner[i]);
+                ids.push_back(marker_id * 4 + i);
+            }
+            return true;
+        }
+    }
+
+    return false;
+}
+
 static std::vector<size_t> create_random_indices(size_t size)
 {
     std::vector<size_t> data(size);
@@ -1421,6 +1549,11 @@ static std::vector<size_t> create_random_indices(size_t size)
     std::shuffle(data.begin(), data.end(), engine);
 
     return data;
+}
+
+void intrinsic_calibration::add_frame(const std::vector<stargazer::point_data> &frame)
+{
+    frames.push_back(frame);
 }
 
 void intrinsic_calibration::calibrate()
@@ -1471,139 +1604,6 @@ void intrinsic_calibration::calibrate()
     calibrated_camera.intrin.coeffs[4] = dist_coeffs.at<double>(4);
     calibrated_camera.width = image_width;
     calibrated_camera.height = image_height;
-}
-
-bool detect_calibration_board(cv::Mat frame, std::vector<cv::Point2f> &points, const calibration_pattern pattern_type)
-{
-    if (frame.empty())
-    {
-        return false;
-    }
-    constexpr auto use_fisheye = false;
-
-    cv::Size board_size;
-    switch (pattern_type)
-    {
-    case calibration_pattern::CHESSBOARD:
-        board_size = cv::Size(10, 7);
-        break;
-    case calibration_pattern::CIRCLES_GRID:
-        board_size = cv::Size(10, 7);
-        break;
-    case calibration_pattern::ASYMMETRIC_CIRCLES_GRID:
-        board_size = cv::Size(4, 11);
-        break;
-    }
-    const auto win_size = 5;
-
-    int chessboard_flags = cv::CALIB_CB_ADAPTIVE_THRESH | cv::CALIB_CB_NORMALIZE_IMAGE;
-    if (!use_fisheye)
-    {
-        chessboard_flags |= cv::CALIB_CB_FAST_CHECK;
-    }
-
-    bool found = false;
-    switch (pattern_type)
-    {
-    case calibration_pattern::CHESSBOARD:
-        found = cv::findChessboardCorners(frame, board_size, points, chessboard_flags);
-        break;
-    case calibration_pattern::CIRCLES_GRID:
-        found = cv::findCirclesGrid(frame, board_size, points);
-        break;
-    case calibration_pattern::ASYMMETRIC_CIRCLES_GRID:
-    {
-        auto params = cv::SimpleBlobDetector::Params();
-        params.minDistBetweenBlobs = 3;
-        auto detector = cv::SimpleBlobDetector::create(params);
-        found = cv::findCirclesGrid(frame, board_size, points, cv::CALIB_CB_ASYMMETRIC_GRID, detector);
-    }
-        break;
-    default:
-        found = false;
-        break;
-    }
-
-    if (found)
-    {
-        if (pattern_type == calibration_pattern::CHESSBOARD)
-        {
-            cv::Mat gray;
-            cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
-            cv::cornerSubPix(gray, points, cv::Size(win_size, win_size),
-                             cv::Size(-1, -1), cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 30, 0.0001));
-        }
-    }
-
-    return found;
-}
-
-#include <opencv2/aruco/charuco.hpp>
-
-static inline cv::aruco::CharucoBoard create_charuco_board()
-{
-    const auto dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_4X4_250);
-    const auto board = cv::aruco::CharucoBoard(cv::Size(3, 5), 0.0575, 0.0575 * 0.75f, dictionary);
-    return board;
-}
-
-bool detect_charuco_board(cv::Mat image, std::vector<cv::Point2f> &points, std::vector<int>& ids)
-{
-    cv::aruco::DetectorParameters detector_params = cv::aruco::DetectorParameters();
-    cv::aruco::CharucoParameters charuco_params = cv::aruco::CharucoParameters();
-    const auto board = create_charuco_board();
-    const auto detector = cv::aruco::CharucoDetector(board, charuco_params, detector_params);
-    std::vector<int> marker_ids;
-    std::vector<std::vector<cv::Point2f>> marker_corners;
-    std::vector<int> charuco_ids;
-    std::vector<cv::Point2f> charuco_corners;
-    detector.detectBoard(image, charuco_corners, charuco_ids, marker_corners, marker_ids);
-
-    if (charuco_ids.size() == 0)
-    {
-        return false;
-    }
-
-    points = charuco_corners;
-    ids = charuco_ids;
-
-    return true;
-}
-
-void detect_aruco_marker(cv::Mat image, std::vector<std::vector<cv::Point2f>> &points, std::vector<int> &ids)
-{
-    cv::aruco::DetectorParameters detector_params = cv::aruco::DetectorParameters();
-    cv::aruco::RefineParameters refine_params = cv::aruco::RefineParameters();
-    const auto dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_4X4_250);
-    const auto detector = cv::aruco::ArucoDetector(dictionary, detector_params, refine_params);
-    
-    points.clear();
-    ids.clear();
-    detector.detectMarkers(image, points, ids);
-}
-
-bool detect_aruco_marker(cv::Mat image, std::vector<cv::Point2f> &points, std::vector<int> &ids)
-{
-    std::vector<int> marker_ids;
-    std::vector<std::vector<cv::Point2f>> marker_corners;
-    detect_aruco_marker(image, marker_corners, marker_ids);
-
-    for (size_t i = 0; i < marker_ids.size(); i++)
-    {
-        const auto marker_id = marker_ids[i];
-        const auto& marker_corner = marker_corners[i];
-        if (marker_id == 0)
-        {
-            for (size_t i = 0; i < 4; i++)
-            {
-                points.push_back(marker_corner[i]);
-                ids.push_back(marker_id * 4 + i);
-            }
-            return true;
-        }
-    }
-
-    return false;
 }
 
 extrinsic_calibration::extrinsic_calibration(calibration_pattern pattern)

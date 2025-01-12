@@ -70,6 +70,13 @@ struct reconstruction_viewer : public window_base
     std::shared_ptr<multiview_capture_pipeline> multiview_capture;
 
     epipolar_reconstruction epipolar_reconstruction_;
+    
+    calibration calib;
+    intrinsic_calibration intrinsic_calib;
+    extrinsic_calibration extrinsic_calib;
+
+    axis_reconstruction axis_reconstruction_;
+
     std::unique_ptr<multiview_image_reconstruction> multiview_image_reconstruction_;
     std::unique_ptr<stargazer::configuration_file> capture_config;
     std::unique_ptr<stargazer::configuration_file> calibration_config;
@@ -522,105 +529,6 @@ struct reconstruction_viewer : public window_base
         });
     }
 
-    static bool compute_axis(glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::mat4 &axis)
-    {
-        if (!(std::abs(glm::dot(p1 - p0, p2 - p0)) < 0.01))
-        {
-            return false;
-        }
-        const auto origin = p0;
-        const auto e1 = p1 - p0;
-        const auto e2 = p2 - p0;
-
-        glm::vec3 x_axis = e1;
-        glm::vec3 y_axis = e2;
-
-        auto z_axis = glm::cross(glm::normalize(x_axis), glm::normalize(y_axis));
-        z_axis = glm::normalize(z_axis);
-
-        const auto y_axis_length = 0.196f;
-        const auto scale = y_axis_length / glm::length(y_axis);
-        x_axis = glm::normalize(x_axis);
-        y_axis = glm::normalize(y_axis);
-
-        axis = glm::mat4(1.0f);
-
-        axis[0] = glm::vec4(x_axis / scale, 0.0f);
-        axis[1] = glm::vec4(y_axis / scale, 0.0f);
-        axis[2] = glm::vec4(z_axis / scale, 0.0f);
-        axis[3] = glm::vec4(origin, 1.0f);
-
-        axis = glm::inverse(axis);
-
-        return true;
-    }
-
-    static bool detect_axis(glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::mat4& axis)
-    {
-        glm::vec3 origin;
-        glm::vec3 e1, e2;
-
-        // Find origin
-        if (std::abs(glm::dot(p1 - p0, p2 - p0)) < 0.01)
-        {
-            origin = p0;
-            e1 = p1 - p0;
-            e2 = p2 - p0;
-        }
-        else if (std::abs(glm::dot(p0 - p1, p2 - p1)) < 0.01)
-        {
-            origin = p1;
-            e1 = p0 - p1;
-            e2 = p2 - p1;
-        }
-        else if (std::abs(glm::dot(p0 - p2, p1 - p2)) < 0.01)
-        {
-            origin = p2;
-            e1 = p0 - p2;
-            e2 = p1 - p2;
-        }
-        else
-        {
-            return false;
-        }
-
-        glm::vec3 x_axis, y_axis;
-        if (glm::length(e1) < glm::length(e2))
-        {
-            x_axis = e1;
-            y_axis = e2;
-        }
-        else
-        {
-            x_axis = e2;
-            y_axis = e1;
-        }
-
-        auto z_axis = glm::cross(x_axis, y_axis);
-        z_axis = glm::normalize(z_axis);
-
-        const auto x_axis_length = 0.14f;
-        const auto y_axis_length = 0.17f;
-        const auto scale = x_axis_length / glm::length(x_axis);
-        if ((std::abs(scale - y_axis_length / glm::length(y_axis)) / scale) > 0.05)
-        {
-            return false;
-        }
-        x_axis = glm::normalize(x_axis);
-        y_axis = glm::normalize(y_axis);
-
-        axis[0] = glm::vec4(x_axis / scale, 0.0f);
-        axis[1] = glm::vec4(y_axis / scale, 0.0f);
-        axis[2] = glm::vec4(z_axis / scale, 0.0f);
-        axis[3] = glm::vec4(origin, 1.0f);
-
-        axis = glm::inverse(axis);
-
-        return true;
-    }
-
-    std::vector<glm::vec3> points;
-
     void init_reconstruction_panel()
     {
         reconstruction_panel_view_ = std::make_unique<reconstruction_panel_view>();
@@ -783,6 +691,8 @@ struct reconstruction_viewer : public window_base
                                                                   {
             namespace fs = std::filesystem;
             {
+                spdlog::info("Start axis reconstruction");
+
                 glm::mat4 axis(1.0);
 
                 if (calib.get_calibrated_cameras().size() > 0)
@@ -826,121 +736,36 @@ struct reconstruction_viewer : public window_base
                         }
 
                         const auto& calibrated_cameras = calib.get_calibrated_cameras();
-                        const std::map<std::string, stargazer::camera_t> cameras(calibrated_cameras.begin(), calibrated_cameras.end());
 
-                        const auto markers = reconstruct(cameras, points);
-
-                        if (markers.size() == 3)
+                        for (const auto &[camera_name, camera] : calibrated_cameras)
                         {
-                            if (detect_axis(markers[0], markers[1], markers[2], axis))
-                            {
-                                break;
-                            }
+                            axis_reconstruction_.set_camera(camera_name, camera);
                         }
+
+                        axis_reconstruction_.push_frame(points);
                     }
-
-                    glm::mat4 basis(1.f);
-                    basis[0] = glm::vec4(-1.f, 0.f, 0.f, 0.f);
-                    basis[1] = glm::vec4(0.f, 0.f, 1.f, 0.f);
-                    basis[2] = glm::vec4(0.f, 1.f, 0.f, 0.f);
-
-                    // z up -> opengl
-                    axis = basis * axis;
                 }
                 if (reconstruction_panel_view_->source == 2)
                 {
                     const auto images = multiview_capture->get_frames();
 
-                    std::map<std::string, std::vector<stargazer::point_data>> points;
-                    std::map<std::string, stargazer::camera_t> cameras;
+                    const auto &calibrated_cameras = extrinsic_calib.calibrated_cameras;
 
-                    for (const auto& [name, image]: images)
+                    for (const auto &[camera_name, camera] : calibrated_cameras)
                     {
-                        std::vector<int> marker_ids;
-                        std::vector<std::vector<cv::Point2f>> marker_corners;
-                        detect_aruco_marker(image, marker_corners, marker_ids);
-
-                        std::cout << name << ", " << marker_ids.size() << std::endl;
-
-                        for (size_t i = 0; i < marker_ids.size(); i++)
-                        {
-                            if (marker_ids[i] == 0)
-                            {
-                                auto& corner_points = points[name];
-                                for (size_t j = 0; j < 3; j++)
-                                {
-                                    stargazer::point_data point {};
-                                    point.point.x = marker_corners[i][j].x;
-                                    point.point.y = marker_corners[i][j].y;
-                                    corner_points.push_back(point);
-                                }
-
-                                for (const auto &device : capture_config->get_device_infos())
-                                {
-                                    if (name == device.name)
-                                    {
-                                        cameras[name] = camera_params.at(device.id).cameras.at("infra1");
-                                        break;
-                                    }
-                                }
-                            }
-                        }
+                        axis_reconstruction_.set_camera(camera_name, camera);
                     }
 
-                    std::vector<glm::vec3> markers;
-                    for (size_t j = 0; j < 3; j++)
-                    {
-                        std::vector<glm::vec2> pts;
-                        std::vector<stargazer::camera_t> cams;
-
-                        for (const auto& [name, camera]: cameras)
-                        {
-                            pts.push_back(points[name][j].point);
-                            cams.push_back(camera);
-                        }
-                        const auto marker = stargazer::reconstruction::triangulate(pts, cams);
-                        markers.push_back(marker);
-                    }
-
-                    std::cout << markers.size() << std::endl;
-
-                    if (markers.size() == 3)
-                    {
-                        if (!compute_axis(markers[1], markers[0], markers[2], axis))
-                        {
-                            std::cout << "Failed to compute axis" << std::endl;
-                            return true;
-                        }
-                    }
-
-                    glm::mat4 basis(1.f);
-                    basis[0] = glm::vec4(-1.f, 0.f, 0.f, 0.f);
-                    basis[1] = glm::vec4(0.f, 0.f, 1.f, 0.f);
-                    basis[2] = glm::vec4(0.f, 1.f, 0.f, 0.f);
-
-                    glm::mat4 cv_to_gl(1.f);
-                    cv_to_gl[0] = glm::vec4(1.f, 0.f, 0.f, 0.f);
-                    cv_to_gl[1] = glm::vec4(0.f, -1.f, 0.f, 0.f);
-                    cv_to_gl[2] = glm::vec4(0.f, 0.f, -1.f, 0.f);
-
-                    // z down -> z up -> opengl
-                    axis = basis * axis;
-                    // axis = basis * cv_to_gl * extrinsic_calib.axis;
-
-                    this->points.clear();
-                    for (const auto &marker : markers)
-                    {
-                        this->points.push_back(glm::vec3(axis * glm::vec4(marker, 1.0f)));
-                    }
+                    axis_reconstruction_.push_frame(images);
                 }
 
-                this->axis = axis;
+                axis_reconstruction_.save_axis();
 
-                save_scene();
+                this->epipolar_reconstruction_.set_axis(axis_reconstruction_.get_axis());
+                this->multiview_image_reconstruction_->axis = axis_reconstruction_.get_axis();
+                this->pose_view_->axis = axis_reconstruction_.get_axis();
 
-                this->epipolar_reconstruction_.set_axis(axis);
-                this->multiview_image_reconstruction_->axis = axis;
-                this->pose_view_->axis = axis;
+                spdlog::info("End axis reconstruction");
             }
             return true; });
     }
@@ -1060,37 +885,6 @@ struct reconstruction_viewer : public window_base
         }
     }
 
-    glm::mat4 axis;
-
-    void load_scene()
-    {
-        const auto path = "../data/config/reconstruction.json";
-
-        std::ifstream ifs;
-        ifs.open(path, std::ios::binary | std::ios::in);
-
-        if (!ifs)
-        {
-            axis = glm::mat4(1.0f);
-            return;
-        }
-
-        const auto j = nlohmann::json::parse(ifs);
-        axis = j["scene"]["axis"].get<glm::mat4>();
-    }
-
-    void save_scene()
-    {
-        const auto path = "../data/config/reconstruction.json";
-
-        std::ofstream ofs;
-        ofs.open(path, std::ios::out);
-
-        auto j = nlohmann::json{};
-        j["scene"]["axis"] = axis;
-        ofs << j.dump(2);
-    }
-
     virtual void show() override
     {
         gladLoadGL();
@@ -1105,7 +899,7 @@ struct reconstruction_viewer : public window_base
             multiview_image_reconstruction_->cameras.insert(std::make_pair(device.name, camera_params.at(device.id).cameras.at("infra1")));
         }
 
-        load_scene();
+        axis_reconstruction_.load_axis();
 
         init_gui();
 
@@ -1210,9 +1004,9 @@ struct reconstruction_viewer : public window_base
         epipolar_reconstruction_.run();
 
         {
-            this->epipolar_reconstruction_.set_axis(this->axis);
-            this->multiview_image_reconstruction_->axis = this->axis;
-            this->pose_view_->axis = this->axis;
+            this->epipolar_reconstruction_.set_axis(axis_reconstruction_.get_axis());
+            this->multiview_image_reconstruction_->axis = axis_reconstruction_.get_axis();
+            this->pose_view_->axis = axis_reconstruction_.get_axis();
         }
         multiview_image_reconstruction_->run();
 
@@ -1297,10 +1091,6 @@ struct reconstruction_viewer : public window_base
             view_controller->scroll(x, y);
         }
     }
-
-    calibration calib;
-    intrinsic_calibration intrinsic_calib;
-    extrinsic_calibration extrinsic_calib;
 
     virtual void update() override
     {
@@ -1726,10 +1516,6 @@ struct reconstruction_viewer : public window_base
                     pose_view_->points.push_back(point);
                 }
                 for (const auto &point : multiview_image_reconstruction_->get_markers())
-                {
-                    pose_view_->points.push_back(point);
-                }
-                for (const auto &point : this->points)
                 {
                     pose_view_->points.push_back(point);
                 }

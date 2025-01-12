@@ -135,10 +135,6 @@ void calc_board_corner_positions(cv::Size board_size, cv::Size2f square_size, st
 
 bool detect_calibration_board(cv::Mat frame, std::vector<cv::Point2f> &points, const calibration_pattern pattern_type = calibration_pattern::CHESSBOARD);
 
-void detect_aruco_marker(cv::Mat image, std::vector<std::vector<cv::Point2f>> &points, std::vector<int> &id);
-
-bool detect_charuco_board(cv::Mat image, std::vector<cv::Point2f> &points, std::vector<int>& ids);
-
 class extrinsic_calibration
 {
     using frame_type = std::unordered_map<std::string, cv::Mat>;
