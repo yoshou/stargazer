@@ -1373,7 +1373,7 @@ public:
                         {
                             float point[3];
                             float pixel[2]{x, y};
-                            deproject_pixel_to_point(point, &camera, pixel, d * 0.1f);
+                            deproject_pixel_to_point(point, &camera, pixel, d * 0.03f);
                             glVertex3f(0.f, 0.f, 0.f);
                             glVertex3fv(point);
                             return {point[0], point[1], point[2]};

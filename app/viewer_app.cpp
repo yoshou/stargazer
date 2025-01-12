@@ -1636,17 +1636,22 @@ struct reconstruction_viewer : public window_base
 
                 for (const auto &device : calibration_config->get_device_infos())
                 {
-                    const auto &camera = camera_params.at(device.id).cameras.at("infra1");
-                    pose_view_->cameras[device.name] = pose_view::camera_t{
-                        (int)camera.width,
-                        (int)camera.height,
-                        camera.intrin.cx,
-                        camera.intrin.cy,
-                        camera.intrin.fx,
-                        camera.intrin.fy,
-                        camera.intrin.coeffs,
-                        glm::inverse(camera.extrin.rotation),
-                    };
+                    const auto &cameras = calib.get_calibrated_cameras();
+
+                    if (cameras.find(device.name) != cameras.end())
+                    {
+                        const auto &camera = cameras.at(device.name);
+                        pose_view_->cameras[device.name] = pose_view::camera_t{
+                            (int)camera.width,
+                            (int)camera.height,
+                            camera.intrin.cx,
+                            camera.intrin.cy,
+                            camera.intrin.fx,
+                            camera.intrin.fy,
+                            camera.intrin.coeffs,
+                            glm::inverse(camera.extrin.rotation),
+                        };
+                    }
                 }
             }
             else if (top_bar_view_->view_type == top_bar_view::ViewType::Contrail)
@@ -1698,17 +1703,22 @@ struct reconstruction_viewer : public window_base
 
                 for (const auto &device : calibration_config->get_device_infos())
                 {
-                    const auto &camera = camera_params.at(device.id).cameras.at("infra1");
-                    pose_view_->cameras[device.name] = pose_view::camera_t{
-                        (int)camera.width,
-                        (int)camera.height,
-                        camera.intrin.cx,
-                        camera.intrin.cy,
-                        camera.intrin.fx,
-                        camera.intrin.fy,
-                        camera.intrin.coeffs,
-                        glm::inverse(camera.extrin.rotation),
-                    };
+                    const auto& cameras = epipolar_reconstruction_.get_cameras();
+
+                    if (cameras.find(device.name) != cameras.end())
+                    {
+                        const auto& camera = cameras.at(device.name);
+                        pose_view_->cameras[device.name] = pose_view::camera_t{
+                            (int)camera.width,
+                            (int)camera.height,
+                            camera.intrin.cx,
+                            camera.intrin.cy,
+                            camera.intrin.fx,
+                            camera.intrin.fy,
+                            camera.intrin.coeffs,
+                            glm::inverse(camera.extrin.rotation),
+                        };
+                    }
                 }
                 pose_view_->points.clear();
                 for (const auto& point : epipolar_reconstruction_.get_markers())
