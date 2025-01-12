@@ -908,7 +908,7 @@ class load_blob_node : public graph_node
 
 public:
     load_blob_node()
-        : graph_node(), stream(stream_type::COLOR), format(stream_format::BGR8), fps(30), timestamps(), output(std::make_shared<graph_edge>(this)), start_timestamp(0)
+        : graph_node(), stream(stream_type::COLOR), format(stream_format::BGR8), fps(90), timestamps(), output(std::make_shared<graph_edge>(this)), start_timestamp(0)
     {
         set_output(output);
     }
@@ -1092,7 +1092,7 @@ class load_marker_node : public graph_node
 
 public:
     load_marker_node()
-        : graph_node(), stream(stream_type::COLOR), format(stream_format::BGR8), fps(90), output(std::make_shared<graph_edge>(this)), start_timestamp(0)
+        : graph_node(), stream(stream_type::ANY), format(stream_format::ANY), fps(90), output(std::make_shared<graph_edge>(this)), start_timestamp(0)
     {
         set_output(output);
     }
