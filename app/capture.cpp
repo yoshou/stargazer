@@ -11,8 +11,6 @@
 #include <nlohmann/json.hpp>
 #include <sqlite3.h>
 
-#define PLAYBACK
-
 using namespace coalsack;
 
 using encode_image_node = encode_jpeg_node;
