@@ -1517,7 +1517,7 @@ void axis_reconstruction::set_camera(const std::string &name, const stargazer::c
 
 void axis_reconstruction::load_axis()
 {
-    const auto path = "../data/config/reconstruction.json";
+    const auto path = "../data/config/scene.json";
 
     std::ifstream ifs;
     ifs.open(path, std::ios::binary | std::ios::in);
@@ -1534,7 +1534,7 @@ void axis_reconstruction::load_axis()
 
 void axis_reconstruction::save_axis()
 {
-    const auto path = "../data/config/reconstruction.json";
+    const auto path = "../data/config/scene.json";
 
     std::ofstream ofs;
     ofs.open(path, std::ios::out);

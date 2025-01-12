@@ -61,7 +61,7 @@ class reconstruction_viewer : public window_base
     axis_reconstruction axis_reconstruction_;
 
     std::unique_ptr<multiview_image_reconstruction> multiview_image_reconstruction_;
-    std::unique_ptr<stargazer::configuration_file> capture_config;
+    std::unique_ptr<stargazer::configuration_file> reconstruction_config;
     std::unique_ptr<stargazer::configuration_file> calibration_config;
 
     static std::string get_calibration_config_path()
@@ -75,7 +75,7 @@ class reconstruction_viewer : public window_base
     std::string generate_new_id() const
     {
         uint64_t max_id = 0;
-        for (const auto &device_info : capture_config->get_device_infos())
+        for (const auto &device_info : reconstruction_config->get_device_infos())
         {
             size_t idx = 0;
             const auto id = std::stoull(device_info.id, &idx);
@@ -119,7 +119,7 @@ class reconstruction_viewer : public window_base
     void init_capture_panel()
     {
         capture_panel_view_ = std::make_unique<capture_panel_view>();
-        for (const auto &device_info : capture_config->get_device_infos())
+        for (const auto &device_info : reconstruction_config->get_device_infos())
         {
             capture_panel_view_->devices.push_back(capture_panel_view::device_info{device_info.name, device_info.address, device_info.params});
         }
@@ -127,7 +127,7 @@ class reconstruction_viewer : public window_base
         capture_panel_view_->is_streaming_changed.push_back([this](const capture_panel_view::device_info &device) {
             if (device.is_streaming == true)
             {
-                const auto& device_infos = capture_config->get_device_infos();
+                const auto& device_infos = reconstruction_config->get_device_infos();
                 auto found = std::find_if(device_infos.begin(), device_infos.end(), [device](const auto& x) { return x.name == device.name; });
                 if (found == device_infos.end()) {
                     return false;
@@ -204,7 +204,7 @@ class reconstruction_viewer : public window_base
                 break;
             }
 
-            auto &device_infos = capture_config->get_device_infos();
+            auto &device_infos = reconstruction_config->get_device_infos();
             if (const auto found = std::find_if(device_infos.begin(), device_infos.end(), [&](const auto &x) {
                 return x.name == device_name; });
                 found == device_infos.end())
@@ -215,12 +215,12 @@ class reconstruction_viewer : public window_base
                 {
                     capture_panel_view_->devices.push_back(capture_panel_view::device_info{device_info.name, device_info.address, device_info.params});
                 }
-                capture_config->update();
+                reconstruction_config->update();
             }
         });
 
         capture_panel_view_->on_remove_device.push_back([this](const std::string& device_name) {
-            auto& device_infos = capture_config->get_device_infos();
+            auto& device_infos = reconstruction_config->get_device_infos();
             if (const auto found = std::find_if(device_infos.begin(), device_infos.end(), [&](const auto &x) {
                 return x.name == device_name; });
                 found != device_infos.end())
@@ -232,7 +232,7 @@ class reconstruction_viewer : public window_base
                 {
                     capture_panel_view_->devices.push_back(capture_panel_view::device_info{device_info.name, device_info.address, device_info.params});
                 }
-                capture_config->update();
+                reconstruction_config->update();
             }
         });
     }
@@ -549,7 +549,7 @@ class reconstruction_viewer : public window_base
     void init_reconstruction_panel()
     {
         reconstruction_panel_view_ = std::make_unique<reconstruction_panel_view>();
-        for (const auto &device_info : capture_config->get_device_infos())
+        for (const auto &device_info : reconstruction_config->get_device_infos())
         {
             reconstruction_panel_view_->devices.push_back(reconstruction_panel_view::device_info{device_info.name, device_info.address});
         }
@@ -570,7 +570,7 @@ class reconstruction_viewer : public window_base
 
                     for (const auto &device : devices)
                     {
-                        const auto &device_infos = capture_config->get_device_infos();
+                        const auto &device_infos = reconstruction_config->get_device_infos();
                         auto found = std::find_if(device_infos.begin(), device_infos.end(), [device](const auto &x)
                                                   { return x.name == device.name; });
                         if (found == device_infos.end())
@@ -628,7 +628,7 @@ class reconstruction_viewer : public window_base
 
                     for (const auto &device : devices)
                     {
-                        const auto &device_infos = capture_config->get_device_infos();
+                        const auto &device_infos = reconstruction_config->get_device_infos();
                         auto found = std::find_if(device_infos.begin(), device_infos.end(), [device](const auto &x)
                                                   { return x.name == device.name; });
                         if (found == device_infos.end())
@@ -888,12 +888,12 @@ public:
     {
         gladLoadGL();
 
-        capture_config.reset(new stargazer::configuration_file("../data/config/capture.json"));
+        reconstruction_config.reset(new stargazer::configuration_file("../data/config/reconstruction.json"));
         calibration_config.reset(new stargazer::configuration_file("../data/config/calibration.json"));
 
         load_camera_params();
 
-        for (const auto &device : capture_config->get_device_infos())
+        for (const auto &device : reconstruction_config->get_device_infos())
         {
             multiview_image_reconstruction_->cameras.insert(std::make_pair(device.name, camera_params.at(device.id).cameras.at("infra1")));
         }
@@ -914,6 +914,7 @@ public:
         init_capture_panel();
         init_calibration_panel();
         init_reconstruction_panel();
+
 #if 0
         {
             struct camera_data
@@ -928,7 +929,7 @@ public:
                 std::array<double, 3> translation;
             };
 
-            const auto& devices = this->capture_config->get_device_infos();
+            const auto& devices = this->reconstruction_config->get_device_infos();
             for (size_t i = 0; i < devices.size(); i++)
             {
                 const auto name = devices[i].name;
@@ -1001,13 +1002,13 @@ public:
         pose_view_ = std::make_unique<pose_view>();
 
         epipolar_reconstruction_.run();
+        multiview_image_reconstruction_->run();
 
         {
             this->epipolar_reconstruction_.set_axis(axis_reconstruction_.get_axis());
             this->multiview_image_reconstruction_->axis = axis_reconstruction_.get_axis();
             this->pose_view_->axis = axis_reconstruction_.get_axis();
         }
-        multiview_image_reconstruction_->run();
 
         calib.add_calibrated([&](const std::unordered_map<std::string, stargazer::camera_t> &cameras)
         {
@@ -1169,7 +1170,7 @@ public:
 
                                         cv::Mat camera_matrix;
                                         cv::Mat dist_coeffs;
-                                        const auto &device_infos = capture_config->get_device_infos();
+                                        const auto &device_infos = reconstruction_config->get_device_infos();
                                         if (const auto device_info = std::find_if(device_infos.begin(), device_infos.end(), [&](const auto &x)
                                                                                   { return x.name == device.name; });
                                             device_info != device_infos.end())
