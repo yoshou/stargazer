@@ -599,15 +599,22 @@ struct reconstruction_viewer : public window_base
         auto z_axis = glm::cross(x_axis, y_axis);
         z_axis = glm::normalize(z_axis);
 
+        const auto x_axis_length = 0.14f;
         const auto y_axis_length = 0.17f;
-        const auto scale = y_axis_length / glm::length(y_axis);
+        const auto scale = x_axis_length / glm::length(x_axis);
+        if ((std::abs(scale - y_axis_length / glm::length(y_axis)) / scale) > 0.05)
+        {
+            return false;
+        }
         x_axis = glm::normalize(x_axis);
         y_axis = glm::normalize(y_axis);
 
-        axis[0] = glm::vec4(x_axis * scale, 0.0f);
-        axis[1] = glm::vec4(y_axis * scale, 0.0f);
-        axis[2] = glm::vec4(z_axis * scale, 0.0f);
-        axis[3] = glm::vec4(glm::mat3(axis) * -origin, 1.0f);
+        axis[0] = glm::vec4(x_axis / scale, 0.0f);
+        axis[1] = glm::vec4(y_axis / scale, 0.0f);
+        axis[2] = glm::vec4(z_axis / scale, 0.0f);
+        axis[3] = glm::vec4(origin, 1.0f);
+
+        axis = glm::inverse(axis);
 
         return true;
     }
