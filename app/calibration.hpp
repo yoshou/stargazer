@@ -11,6 +11,7 @@
 #include "bundle_adjust_data.hpp"
 #include "camera_info.hpp"
 #include "task_queue.hpp"
+#include "graph_proc.h"
 
 class calibration_target
 {
@@ -59,51 +60,47 @@ struct observed_points_t
 
 class calibration
 {
-    std::map<std::string, std::vector<observed_points_t>> observed_frames;
-    std::map<std::string, size_t> num_frames;
-
-    std::shared_ptr<calibration_target> detector;
-
-    std::map<std::string, size_t> camera_name_to_index;
-
     std::vector<std::string> camera_names;
     std::vector<std::string> camera_ids;
 
-public:
     std::unordered_map<std::string, stargazer::camera_t> cameras;
-    std::unordered_map<std::string, stargazer::camera_t> calibrated_cameras;
 
-    const std::vector<std::string>& get_camera_names() const
+    class impl;
+    std::unique_ptr<impl> pimpl;
+
+public:
+
+    void set_camera(const std::string &name, const stargazer::camera_t &camera)
     {
-        return camera_names;
+        cameras[name] = camera;
     }
 
-    const std::vector<std::string> &get_camera_ids() const
+    size_t get_camera_size() const
     {
-        return camera_ids;
+        return cameras.size();
     }
 
-    calibration(const std::string& config_path);
-
-    size_t get_num_frames(std::string name) const
+    const std::unordered_map<std::string, stargazer::camera_t>& get_cameras() const
     {
-        if (num_frames.find(name) == num_frames.end())
-        {
-            return 0;
-        }
-        return num_frames.at(name);
-    }
-    const std::vector<observed_points_t> &get_observed_points(std::string name) const
-    {
-        static std::vector<observed_points_t> empty;
-        if (observed_frames.find(name) == observed_frames.end())
-        {
-            return empty;
-        }
-        return observed_frames.at(name);
+        return cameras;
     }
 
-    void add_frame(const std::map<std::string, std::vector<stargazer::point_data>>& frame);
+    std::unordered_map<std::string, stargazer::camera_t> &get_cameras()
+    {
+        return cameras;
+    }
+
+    const std::unordered_map<std::string, stargazer::camera_t>& get_calibrated_cameras() const;
+
+    calibration();
+    virtual ~calibration();
+
+    size_t get_num_frames(std::string name) const;
+    const std::vector<observed_points_t> &get_observed_points(std::string name) const;
+
+    void push_frame(const std::map<std::string, std::vector<stargazer::point_data>> &frame);
+    void run();
+    void stop();
 
     void calibrate();
 };

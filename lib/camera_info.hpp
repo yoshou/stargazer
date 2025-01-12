@@ -6,6 +6,7 @@
 #include <fstream>
 #include <opencv2/core.hpp>
 #include <nlohmann/json.hpp>
+#include <cereal/types/array.hpp>
 
 namespace stargazer
 {
