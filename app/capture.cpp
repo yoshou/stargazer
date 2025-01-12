@@ -8,6 +8,11 @@
 #include "ext/graph_proc_depthai.h"
 #include "ext/graph_proc_rs_d435.h"
 
+#include <nlohmann/json.hpp>
+#include <sqlite3.h>
+
+#define PLAYBACK
+
 using namespace coalsack;
 
 using encode_image_node = encode_jpeg_node;
@@ -889,8 +894,7 @@ public:
 
 class load_blob_node : public graph_node
 {
-    std::string data_dir;
-    std::string ext;
+    std::string db_path;
     std::string name;
     stream_type stream;
     stream_format format;
@@ -902,6 +906,7 @@ class load_blob_node : public graph_node
     graph_edge_ptr output;
 
     uint64_t start_timestamp;
+    uint64_t id;
 
 public:
     load_blob_node()
@@ -910,14 +915,9 @@ public:
         set_output(output);
     }
 
-    void set_data_dir(std::string value)
+    void set_db_path(std::string value)
     {
-        data_dir = value;
-    }
-
-    void set_ext(std::string value)
-    {
-        ext = value;
+        db_path = value;
     }
 
     void set_name(std::string value)
@@ -948,8 +948,7 @@ public:
     template <typename Archive>
     void serialize(Archive &archive)
     {
-        archive(data_dir);
-        archive(ext);
+        archive(db_path);
         archive(name);
         archive(stream);
         archive(format);
@@ -958,68 +957,97 @@ public:
 
     virtual void initialize() override
     {
-        namespace fs = std::filesystem;
-
-        const std::regex all_path_pattern(".+?_([0-9]+)" + ext);
-        const std::regex path_pattern(name + "_([0-9]+)" + ext);
-
-        timestamps.clear();
         start_timestamp = std::numeric_limits<uint64_t>::max();
 
-        for (const auto &entry : fs::directory_iterator(data_dir))
+        sqlite3 *db;
+        if (sqlite3_open(db_path.c_str(), &db) != SQLITE_OK)
         {
-            const std::string s = entry.path().filename().string();
-            std::smatch m;
-            if (std::regex_search(s, m, path_pattern))
-            {
-                if (m[1].matched)
-                {
-                    const auto frame_no = std::stoull(m[1].str());
-                    timestamps.push_back(frame_no);
-                }
-            }
-            if (std::regex_search(s, m, all_path_pattern))
-            {
-                if (m[1].matched)
-                {
-                    const auto frame_no = std::stoull(m[1].str());
-                    start_timestamp = std::min(start_timestamp, static_cast<uint64_t>(frame_no));
-                }
-            }
+            throw std::runtime_error("Failed to open database");
         }
 
-        std::sort(timestamps.begin(), timestamps.end());
+        {
+            sqlite3_stmt *stmt;
+            if (sqlite3_prepare_v2(db, "SELECT timestamp FROM messages ORDER BY timestamp ASC", -1, &stmt, nullptr) != SQLITE_OK)
+            {
+                throw std::runtime_error("Failed to prepare statement");
+            }
 
-        assert(timestamps.size() == 0 || start_timestamp <= timestamps.front());
+            if (sqlite3_step(stmt) == SQLITE_ROW)
+            {
+                const auto timestamp = sqlite3_column_int64(stmt, 0);
+                start_timestamp = std::min(start_timestamp, static_cast<uint64_t>(timestamp));
+            }
+
+            sqlite3_finalize(stmt);
+        }
+
+        {
+            sqlite3_stmt *stmt;
+            if (sqlite3_prepare_v2(db, "SELECT id, name FROM topics WHERE name = ?", -1, &stmt, nullptr) != SQLITE_OK)
+            {
+                throw std::runtime_error("Failed to prepare statement");
+            }
+
+            if (sqlite3_bind_text(stmt, 1, name.c_str(), -1, SQLITE_STATIC) != SQLITE_OK)
+            {
+                throw std::runtime_error("Failed to bind text");
+            }
+
+            if (sqlite3_step(stmt) == SQLITE_ROW)
+            {
+                id = sqlite3_column_int64(stmt, 0);
+            }
+            else
+            {
+                throw std::runtime_error("Failed to get topic id");
+            }
+
+            sqlite3_finalize(stmt);
+        }
+
+        sqlite3_close(db);
     }
 
     virtual void run() override
     {
-        namespace fs = std::filesystem;
-
         th.reset(new std::thread([this]()
                                  {
+            sqlite3 *db;
+            if (sqlite3_open(db_path.c_str(), &db) != SQLITE_OK)
+            {
+                throw std::runtime_error("Failed to open database");
+            }
+
+            sqlite3_stmt *stmt;
+            if (sqlite3_prepare_v2(db, "SELECT timestamp, topic_id, data FROM messages WHERE topic_id = ? ORDER BY timestamp ASC", -1, &stmt, nullptr) != SQLITE_OK)
+            {
+                throw std::runtime_error("Failed to prepare statement");
+            }
+            
+            const auto id_str = std::to_string(id);
+            if (sqlite3_bind_text(stmt, 1, id_str.c_str(), -1, SQLITE_STATIC) != SQLITE_OK)
+            {
+                throw std::runtime_error("Failed to bind text");
+            }
+
             playing = true;
             uint64_t position = 0;
             const auto start_time = std::chrono::system_clock::now();
-            while (playing && position < timestamps.size())
+            while (playing && sqlite3_step(stmt) == SQLITE_ROW)
             {
-                std::this_thread::sleep_until(start_time + std::chrono::duration<double>(static_cast<double>(timestamps[position] - start_timestamp) / 1000.0));
+                const auto timestamp = sqlite3_column_int64(stmt, 0);
+                const auto elapsed_time = timestamp - start_timestamp;
 
-                std::string filename = (fs::path(data_dir) / (name + "_" + std::to_string(timestamps[position]) + ext)).string();
-                if (!fs::exists(filename))
-                {
-                    continue;
-                }
+                const auto data_size = static_cast<size_t>(sqlite3_column_bytes(stmt, 2));
+                const auto data_ptr = reinterpret_cast<const uint8_t *>(sqlite3_column_blob(stmt, 2));
+                const std::vector<uint8_t> data(data_ptr, data_ptr + data_size);
 
-                std::ifstream f;
-                f.open(filename, std::ios::in | std::ios::binary);
-                std::vector<uint8_t> data(std::istreambuf_iterator<char>(f), {});
+                std::this_thread::sleep_until(start_time + std::chrono::duration<double>(static_cast<double>(elapsed_time) / 1000.0));
 
-                auto msg = std::make_shared<frame_message<blob>>();
+                auto msg = std::make_shared<blob_frame_message>();
                 msg->set_data(std::move(data));
                 msg->set_frame_number(position);
-                msg->set_timestamp(timestamps[position]);
+                msg->set_timestamp(timestamp);
                 msg->set_profile(std::make_shared<stream_profile>(
                     stream,
                     0,
@@ -1030,7 +1058,10 @@ public:
                 output->send(msg);
 
                 position++;
-            } }));
+            }
+
+            sqlite3_finalize(stmt);
+            stmt = nullptr; }));
     }
 
     virtual void stop() override
@@ -1045,6 +1076,205 @@ public:
 
 CEREAL_REGISTER_TYPE(load_blob_node)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, load_blob_node)
+
+class load_marker_node : public graph_node
+{
+    std::string db_path;
+    std::string name;
+    stream_type stream;
+    stream_format format;
+    int fps;
+
+    std::shared_ptr<std::thread> th;
+    std::atomic_bool playing;
+    graph_edge_ptr output;
+
+    uint64_t start_timestamp;
+    uint64_t id;
+
+public:
+    load_marker_node()
+        : graph_node(), stream(stream_type::COLOR), format(stream_format::BGR8), fps(90), output(std::make_shared<graph_edge>(this)), start_timestamp(0)
+    {
+        set_output(output);
+    }
+
+    void set_db_path(std::string value)
+    {
+        db_path = value;
+    }
+
+    void set_name(std::string value)
+    {
+        name = value;
+    }
+
+    void set_stream(stream_type value)
+    {
+        stream = value;
+    }
+
+    void set_format(stream_format value)
+    {
+        format = value;
+    }
+
+    void set_fps(int value)
+    {
+        fps = value;
+    }
+
+    virtual std::string get_proc_name() const override
+    {
+        return "load_marker_node";
+    }
+
+    template <typename Archive>
+    void serialize(Archive &archive)
+    {
+        archive(db_path);
+        archive(name);
+        archive(stream);
+        archive(format);
+        archive(fps);
+    }
+
+    virtual void initialize() override
+    {
+        start_timestamp = std::numeric_limits<uint64_t>::max();
+
+        sqlite3 *db;
+        if (sqlite3_open(db_path.c_str(), &db) != SQLITE_OK)
+        {
+            throw std::runtime_error("Failed to open database");
+        }
+
+        {
+            sqlite3_stmt *stmt;
+            if (sqlite3_prepare_v2(db, "SELECT timestamp FROM messages ORDER BY timestamp ASC", -1, &stmt, nullptr) != SQLITE_OK)
+            {
+                throw std::runtime_error("Failed to prepare statement");
+            }
+
+            if (sqlite3_step(stmt) == SQLITE_ROW)
+            {
+                const auto timestamp = sqlite3_column_int64(stmt, 0);
+                start_timestamp = std::min(start_timestamp, static_cast<uint64_t>(timestamp));
+            }
+
+            sqlite3_finalize(stmt);
+        }
+
+        {
+            sqlite3_stmt *stmt;
+            if (sqlite3_prepare_v2(db, "SELECT id, name FROM topics WHERE name = ?", -1, &stmt, nullptr) != SQLITE_OK)
+            {
+                throw std::runtime_error("Failed to prepare statement");
+            }
+
+            if (sqlite3_bind_text(stmt, 1, name.c_str(), -1, SQLITE_STATIC) != SQLITE_OK)
+            {
+                throw std::runtime_error("Failed to bind text");
+            }
+
+            if (sqlite3_step(stmt) == SQLITE_ROW)
+            {
+                id = sqlite3_column_int64(stmt, 0);
+            }
+            else
+            {
+                throw std::runtime_error("Failed to get topic id");
+            }
+
+            sqlite3_finalize(stmt);
+        }
+
+        sqlite3_close(db);
+    }
+
+    void read_frame(const std::string &text, std::vector<keypoint> &frame_data)
+    {
+        nlohmann::json j_frame = nlohmann::json::parse(text);
+
+        const auto j_kpts = j_frame["points"];
+        const auto timestamp = j_frame["timestamp"].get<double>();
+
+        for (std::size_t j = 0; j < j_kpts.size(); j++)
+        {
+            frame_data.push_back(keypoint{j_kpts[j]["x"].get<float>(), j_kpts[j]["y"].get<float>()});
+        }
+    }
+
+    virtual void run() override
+    {
+        th.reset(new std::thread([this]()
+                                 {
+            sqlite3 *db;
+            if (sqlite3_open(db_path.c_str(), &db) != SQLITE_OK)
+            {
+                throw std::runtime_error("Failed to open database");
+            }
+
+            sqlite3_stmt *stmt;
+            if (sqlite3_prepare_v2(db, "SELECT timestamp, topic_id, data FROM messages WHERE topic_id = ? ORDER BY timestamp ASC", -1, &stmt, nullptr) != SQLITE_OK)
+            {
+                throw std::runtime_error("Failed to prepare statement");
+            }
+            
+            const auto id_str = std::to_string(id);
+            if (sqlite3_bind_text(stmt, 1, id_str.c_str(), -1, SQLITE_STATIC) != SQLITE_OK)
+            {
+                throw std::runtime_error("Failed to bind text");
+            }
+
+            playing = true;
+            uint64_t position = 0;
+            const auto start_time = std::chrono::system_clock::now();
+            while (playing && sqlite3_step(stmt) == SQLITE_ROW)
+            {
+                const auto timestamp = sqlite3_column_int64(stmt, 0);
+                const auto elapsed_time = timestamp - start_timestamp;
+
+                const std::string data(reinterpret_cast<const char *>(sqlite3_column_text(stmt, 2)));
+
+                std::this_thread::sleep_until(start_time + std::chrono::duration<double>(static_cast<double>(elapsed_time) / 1000.0));
+
+                std::vector<keypoint> points;
+                read_frame(data, points);
+
+                auto msg = std::make_shared<keypoint_frame_message>();
+                msg->set_data(std::move(points));
+                msg->set_frame_number(position);
+                msg->set_timestamp(timestamp);
+                msg->set_profile(std::make_shared<stream_profile>(
+                    stream,
+                    0,
+                    format,
+                    fps,
+                    0));
+
+                output->send(msg);
+
+                position++;
+            }
+
+            sqlite3_finalize(stmt);
+            stmt = nullptr;
+        }));
+    }
+
+    virtual void stop() override
+    {
+        playing.store(false);
+        if (th && th->joinable())
+        {
+            th->join();
+        }
+    }
+};
+
+CEREAL_REGISTER_TYPE(load_marker_node)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, load_marker_node)
 
 class multiview_capture_pipeline::impl
 {
@@ -1102,7 +1332,6 @@ public:
         int sync_fps = 90;
         std::vector<device_info> device_infos = infos;
 
-#ifndef PLAYBACK
         std::vector<std::shared_ptr<remote_cluster>> clusters;
         for (std::size_t i = 0; i < device_infos.size(); i++)
         {
@@ -1149,38 +1378,27 @@ public:
                 sync_fps = std::min(sync_fps, fps);
                 clusters.emplace_back(std::make_unique<remote_cluster_rs_d435_color>(fps));
             }
+            else if (device_infos[i].type == device_type::raspi_playback)
+            {
+                constexpr int fps = 90;
+                sync_fps = std::min(sync_fps, fps);
+                clusters.push_back(nullptr);
+            }
         }
-#endif
 
         std::shared_ptr<subgraph> g(new subgraph());
 
         std::vector<std::shared_ptr<graph_node>> rcv_nodes;
-        std::vector<std::shared_ptr<p2p_listener_node>> rcv_marker_nodes;
+        std::vector<std::shared_ptr<graph_node>> rcv_marker_nodes;
         for (std::size_t i = 0; i < device_infos.size(); i++)
         {
-#ifndef PLAYBACK
             auto &cluster = clusters[i];
-            if (cluster->infra1_output)
-#else
-            if (true)
-#endif
+            if (cluster && cluster->infra1_output)
             {
-#ifndef PLAYBACK
                 std::shared_ptr<p2p_listener_node> n1(new p2p_listener_node());
                 n1->set_input(cluster->infra1_output);
                 n1->set_endpoint(device_infos[i].endpoint, 0);
                 g->add_node(n1);
-#else
-                const auto data_dir = "../data/output";
-                std::shared_ptr<load_blob_node> n1(new load_blob_node());
-                n1->set_name("image_" + std::to_string(i + 1));
-                n1->set_data_dir(data_dir);
-                n1->set_ext(".jpg");
-                g->add_node(n1);
-
-                constexpr int fps = 30;
-                sync_fps = std::min(sync_fps, fps);
-#endif
 
                 std::shared_ptr<decode_image_node> n7(new decode_image_node());
                 n7->set_input(n1->get_output());
@@ -1207,13 +1425,31 @@ public:
                 g->add_node(n5);
 #endif
             }
+            else if (device_infos[i].type == device_type::raspi_playback)
+            {
+                std::shared_ptr<load_blob_node> n1(new load_blob_node());
+                n1->set_name("image_" + std::to_string(i + 1));
+                n1->set_db_path(device_infos[i].db_path);
+                g->add_node(n1);
+
+                std::shared_ptr<decode_image_node> n7(new decode_image_node());
+                n7->set_input(n1->get_output());
+                g->add_node(n7);
+
+                rcv_nodes.push_back(n7);
+
+                std::shared_ptr<callback_node> n8(new callback_node());
+                n8->set_input(n7->get_output());
+                g->add_node(n8);
+
+                n8->set_name("image#" + device_infos[i].name);
+            }
             else
             {
                 rcv_nodes.push_back(nullptr);
             }
 
-#ifndef PLAYBACK
-            if (cluster->infra1_marker_output)
+            if (cluster && cluster->infra1_marker_output)
             {
                 std::shared_ptr<p2p_listener_node> n2(new p2p_listener_node());
                 n2->set_input(cluster->infra1_marker_output);
@@ -1222,11 +1458,19 @@ public:
 
                 rcv_marker_nodes.push_back(n2);
             }
+            else if (device_infos[i].type == device_type::raspi_playback)
+            {
+                std::shared_ptr<load_marker_node> n1(new load_marker_node());
+                n1->set_name("marker_" + std::to_string(i + 1));
+                n1->set_db_path(device_infos[i].db_path);
+                g->add_node(n1);
+
+                rcv_marker_nodes.push_back(n1);
+            }
             else
             {
                 rcv_marker_nodes.push_back(nullptr);
             }
-#endif
         }
 
         std::shared_ptr<approximate_time_sync_node> n3(new approximate_time_sync_node());
@@ -1362,12 +1606,13 @@ public:
         server.add_resource(callbacks);
         server.run();
 
-#ifndef PLAYBACK
         for (std::size_t i = 0; i < clusters.size(); i++)
         {
-            client.deploy(io_service, device_infos[i].address, 31400, clusters[i]->g);
+            if (clusters[i])
+            {
+                client.deploy(io_service, device_infos[i].address, 31400, clusters[i]->g);
+            }
         }
-#endif
         client.deploy(io_service, "127.0.0.1", server.get_port(), g);
 
         io_thread.reset(new std::thread([this]

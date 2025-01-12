@@ -10,6 +10,7 @@ enum class device_type
     depthai_color,
     rs_d435,
     rs_d435_color,
+    raspi_playback,
 };
 
 struct device_info
@@ -19,5 +20,6 @@ struct device_info
     std::string id;
     std::string address;
     std::string endpoint;
+    std::string db_path;
     std::unordered_map<std::string, float> params;
 };
