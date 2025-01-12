@@ -1345,7 +1345,7 @@ public:
 
                 glColor4f(1.f, 1.f, 1.f, 1.f);
 
-                for (const auto p : cameras)
+                for (const auto &p : cameras)
                 {
                     const auto &camera = p.second;
 
