@@ -44,7 +44,7 @@ struct reconstruction_viewer : public window_base
     }
 
     reconstruction_viewer()
-        : window_base("Reconstruction Viewer", SCREEN_WIDTH, SCREEN_HEIGHT), calib(get_calibration_config_path()), multiview_image_reconstruction_(std::make_unique<voxelpose_reconstruction>())
+        : window_base("Reconstruction Viewer", SCREEN_WIDTH, SCREEN_HEIGHT), calib(), multiview_image_reconstruction_(std::make_unique<voxelpose_reconstruction>())
     {
     }
 
@@ -442,7 +442,7 @@ struct reconstruction_viewer : public window_base
                     {
                         calib.calibrate();
 
-                        for (const auto &[name, camera] : calib.calibrated_cameras)
+                        for (const auto &[name, camera] : calib.get_calibrated_cameras())
                         {
                             marker_server.set_camera(name, camera);
                         }
@@ -782,7 +782,7 @@ struct reconstruction_viewer : public window_base
             {
                 glm::mat4 axis(1.0);
 
-                if (calib.calibrated_cameras.size() > 0)
+                if (calib.get_calibrated_cameras().size() > 0)
                 {
                     std::vector<std::string> names;
                     for (const auto &device : devices)
@@ -822,7 +822,8 @@ struct reconstruction_viewer : public window_base
                             points.insert(std::make_pair(names[i], frame_data[i]));
                         }
 
-                        const std::map<std::string, stargazer::camera_t> cameras(calib.calibrated_cameras.begin(), calib.calibrated_cameras.end());
+                        const auto& calibrated_cameras = calib.get_calibrated_cameras();
+                        const std::map<std::string, stargazer::camera_t> cameras(calibrated_cameras.begin(), calibrated_cameras.end());
 
                         const auto markers = reconstruct(cameras, points);
 
@@ -1030,19 +1031,26 @@ struct reconstruction_viewer : public window_base
 
     void load_camera_params()
     {
-        const auto &camera_ids = calib.get_camera_ids();
-        const auto &camera_names = calib.get_camera_names();
+        const auto config_path = get_calibration_config_path();
+
+        std::ifstream ifs;
+        ifs.open(config_path, std::ios::in);
+        nlohmann::json j_config = nlohmann::json::parse(ifs);
+
+        const auto camera_names = j_config["cameras"].get<std::vector<std::string>>();
+        const auto camera_ids = j_config["camera_ids"].get<std::vector<std::string>>();
+
         const auto num_cameras = camera_names.size();
 
         camera_params = stargazer::load_camera_params("../data/config/camera_params.json");
 
         for (std::size_t i = 0; i < camera_names.size(); i++)
         {
-            calib.cameras.insert(std::make_pair(camera_names[i], camera_params.at(camera_ids[i]).cameras.at("infra1")));
+            calib.set_camera(camera_names[i], camera_params.at(camera_ids[i]).cameras.at("infra1"));
         }
-        assert(calib.cameras.size() == num_cameras);
+        assert(calib.get_camera_size() == num_cameras);
 
-        for (auto &[camera_name, camera] : calib.cameras)
+        for (auto &[camera_name, camera] : calib.get_cameras())
         {
             camera.extrin.rotation = glm::mat4(1.0);
             camera.extrin.translation = glm::vec3(1.0);
@@ -1201,6 +1209,11 @@ struct reconstruction_viewer : public window_base
             this->pose_view_->axis = this->axis;
         }
 
+        marker_server.run();
+        multiview_image_reconstruction_->run();
+        calib.run();
+
+#if 1
         {
             namespace fs = std::filesystem;
             const std::string prefix = "calibrate";
@@ -1241,7 +1254,7 @@ struct reconstruction_viewer : public window_base
                 {
                     frame.insert(std::make_pair(camera_names[c], frame_data[c]));
                 }
-                calib.add_frame(frame);
+                calib.push_frame(frame);
             }
 
             sqlite3_finalize(stmt);
@@ -1249,9 +1262,7 @@ struct reconstruction_viewer : public window_base
             sqlite3_close(db);
             db = nullptr;
         }
-
-        marker_server.run();
-        multiview_image_reconstruction_->run();
+#endif
 
         window_base::show();
     }
@@ -1312,7 +1323,7 @@ struct reconstruction_viewer : public window_base
                         }
                         frame.insert(std::make_pair(name, points));
                     }
-                    calib.add_frame(frame);
+                    calib.push_frame(frame);
                 }
             }
             else

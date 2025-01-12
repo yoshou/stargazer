@@ -7,7 +7,13 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <random>
+
+#include "camera_info.hpp"
 #include "utils.hpp"
+#include "graph_proc.h"
+#include "graph_proc_cv.h"
+#include "graph_proc_img.h"
+#include "glm_serialize.hpp"
 
 class three_point_bar_calibration_target : public calibration_target
 {
@@ -65,64 +71,86 @@ public:
     }
 };
 
-calibration::calibration(const std::string &config_path) : detector(std::make_shared<three_point_bar_calibration_target>())
+using namespace coalsack;
+
+struct float2
 {
-    std::ifstream ifs;
-    ifs.open(config_path, std::ios::in);
-    nlohmann::json j_config = nlohmann::json::parse(ifs);
+    float x;
+    float y;
 
-    camera_names = j_config["cameras"].get<std::vector<std::string>>();
-    camera_ids = j_config["camera_ids"].get<std::vector<std::string>>();
-}
-
-void calibration::add_frame(const std::map<std::string, std::vector<stargazer::point_data>> &frame)
-{
-    for (const auto &p : frame)
+    template <typename Archive>
+    void serialize(Archive &archive)
     {
-        const auto &name = p.first;
-        if (num_frames.find(name) == num_frames.end())
-        {
-            num_frames.insert(std::make_pair(name, 0));
-        }
-        if (camera_name_to_index.find(name) == camera_name_to_index.end())
-        {
-            camera_name_to_index.insert(std::make_pair(name, camera_name_to_index.size()));
-        }
-        if (observed_frames.find(name) == observed_frames.end())
-        {
-
-            if (observed_frames.empty())
-            {
-                observed_frames.insert(std::make_pair(name, std::vector<observed_points_t>()));
-            }
-            else
-            {
-                observed_points_t obs = {};
-                obs.camera_idx = camera_name_to_index.at(name);
-                observed_frames.insert(std::make_pair(name, std::vector<observed_points_t>(observed_frames.begin()->second.size(), obs)));
-            }
-        }
-    }
-    for (auto &[name, observed_points] : observed_frames)
-    {
-        observed_points_t obs = {};
-        obs.camera_idx = camera_name_to_index.at(name);
-        if (frame.find(name) != frame.end())
-        {
-            const auto points = detector->detect_points(frame.at(name));
-            if (points.size() > 0)
-            {
-                obs.points = std::move(points);
-            }
-        }
-        observed_points.push_back(obs);
-
-        if (obs.points.size() > 0)
-        {
-            num_frames.at(name) += 1;
-        }
+        archive(x, y);
     }
 };
+
+struct float3
+{
+    float x;
+    float y;
+    float z;
+
+    template <typename Archive>
+    void serialize(Archive &archive)
+    {
+        archive(x, y, z);
+    }
+};
+
+using float2_list_message = frame_message<std::vector<float2>>;
+using float3_list_message = frame_message<std::vector<float3>>;
+using mat4_message = frame_message<glm::mat4>;
+
+CEREAL_REGISTER_TYPE(float2_list_message)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(coalsack::frame_message_base, float2_list_message)
+
+CEREAL_REGISTER_TYPE(float3_list_message)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(coalsack::frame_message_base, float3_list_message)
+
+CEREAL_REGISTER_TYPE(mat4_message)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(coalsack::frame_message_base, mat4_message)
+
+CEREAL_REGISTER_TYPE(frame_message<object_message>)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(coalsack::frame_message_base, frame_message<object_message>)
+
+class camera_message : public graph_message
+{
+    stargazer::camera_t camera;
+
+public:
+    camera_message() : graph_message(), camera()
+    {
+    }
+
+    camera_message(const stargazer::camera_t &camera) : graph_message(), camera(camera)
+    {
+    }
+
+    static std::string get_type()
+    {
+        return "camera";
+    }
+
+    stargazer::camera_t get_camera() const
+    {
+        return camera;
+    }
+
+    void set_camera(const stargazer::camera_t &value)
+    {
+        camera = value;
+    }
+
+    template <typename Archive>
+    void serialize(Archive &archive)
+    {
+        archive(camera);
+    }
+};
+
+CEREAL_REGISTER_TYPE(camera_message)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_message, camera_message)
 
 static void zip_points(const std::vector<observed_points_t> &points1, const std::vector<observed_points_t> &points2,
                         std::vector<std::pair<glm::vec2, glm::vec2>> &corresponding_points)
@@ -701,257 +729,622 @@ struct snavely_reprojection_error_extrinsic_intrinsic_point
     double observed_y;
 };
 
-void calibration::calibrate()
+class calibration_node : public graph_node
 {
+    mutable std::mutex cameras_mtx;
+
+    std::map<std::string, std::vector<observed_points_t>> observed_frames;
+    std::map<std::string, size_t> num_frames;
+
+    std::shared_ptr<calibration_target> detector;
+
+    std::map<std::string, size_t> camera_name_to_index;
+
+    std::vector<std::string> camera_names;
+    std::vector<std::string> camera_ids;
+
+    std::unordered_map<std::string, stargazer::camera_t> cameras;
+    std::unordered_map<std::string, stargazer::camera_t> calibrated_cameras;
+
+    graph_edge_ptr output;
+
+public:
+    calibration_node()
+        : graph_node(), detector(std::make_shared<three_point_bar_calibration_target>()), output(std::make_shared<graph_edge>(this))
     {
-        std::string base_camera_name1;
-        std::string base_camera_name2;
-        glm::mat4 base_camera_pose1;
-        glm::mat4 base_camera_pose2;
+        set_output(output);
+    }
 
-        bool found_base_pair = false;
-        const float min_base_angle = 15.0f;
+    virtual std::string get_proc_name() const override
+    {
+        return "calibration_node";
+    }
 
-        for (const auto& camera_name1 : camera_names)
+    template <typename Archive>
+    void serialize(Archive &archive)
+    {
+        archive(cameras);
+    }
+
+    size_t get_num_frames(std::string name) const
+    {
+        if (num_frames.find(name) == num_frames.end())
         {
-            if (found_base_pair)
+            return 0;
+        }
+        return num_frames.at(name);
+    }
+
+    const std::vector<observed_points_t> &get_observed_points(std::string name) const
+    {
+        static std::vector<observed_points_t> empty;
+        if (observed_frames.find(name) == observed_frames.end())
+        {
+            return empty;
+        }
+        return observed_frames.at(name);
+    }
+
+    void calibrate()
+    {
+        {
+            std::string base_camera_name1;
+            std::string base_camera_name2;
+            glm::mat4 base_camera_pose1;
+            glm::mat4 base_camera_pose2;
+
+            bool found_base_pair = false;
+            const float min_base_angle = 15.0f;
+
+            for (const auto &camera_name1 : camera_names)
             {
-                break;
-            }
-            for (const auto &camera_name2 : camera_names)
-            {
-                if (camera_name1 == camera_name2)
-                {
-                    continue;
-                }
                 if (found_base_pair)
                 {
                     break;
                 }
-
-                std::vector<std::pair<glm::vec2, glm::vec2>> corresponding_points;
-                zip_points(observed_frames.at(camera_name1), observed_frames.at(camera_name2), corresponding_points);
-
-                const auto pose1 = glm::mat4(1.0);
-                const auto pose2 = estimate_relative_pose(corresponding_points, cameras.at(camera_name1), cameras.at(camera_name2));
-
-                const auto angle = compute_diff_camera_angle(glm::mat3(pose1), glm::mat3(pose2));
-
-                if (glm::degrees(angle) > min_base_angle)
+                for (const auto &camera_name2 : camera_names)
                 {
-                    base_camera_name1 = camera_name1;
-                    base_camera_name2 = camera_name2;
-                    base_camera_pose1 = pose1;
-                    base_camera_pose2 = pose2;
-                    found_base_pair = true;
-                    break;
+                    if (camera_name1 == camera_name2)
+                    {
+                        continue;
+                    }
+                    if (found_base_pair)
+                    {
+                        break;
+                    }
+
+                    std::vector<std::pair<glm::vec2, glm::vec2>> corresponding_points;
+                    zip_points(observed_frames.at(camera_name1), observed_frames.at(camera_name2), corresponding_points);
+
+                    const auto pose1 = glm::mat4(1.0);
+                    const auto pose2 = estimate_relative_pose(corresponding_points, cameras.at(camera_name1), cameras.at(camera_name2));
+
+                    const auto angle = compute_diff_camera_angle(glm::mat3(pose1), glm::mat3(pose2));
+
+                    if (glm::degrees(angle) > min_base_angle)
+                    {
+                        base_camera_name1 = camera_name1;
+                        base_camera_name2 = camera_name2;
+                        base_camera_pose1 = pose1;
+                        base_camera_pose2 = pose2;
+                        found_base_pair = true;
+                        break;
+                    }
                 }
             }
-        }
 
-        cameras[base_camera_name1].extrin.rotation = base_camera_pose1;
-        cameras[base_camera_name1].extrin.translation = glm::vec3(base_camera_pose1[3]);
-        cameras[base_camera_name2].extrin.rotation = base_camera_pose2;
-        cameras[base_camera_name2].extrin.translation = glm::vec3(base_camera_pose2[3]);
+            cameras[base_camera_name1].extrin.rotation = base_camera_pose1;
+            cameras[base_camera_name1].extrin.translation = glm::vec3(base_camera_pose1[3]);
+            cameras[base_camera_name2].extrin.rotation = base_camera_pose2;
+            cameras[base_camera_name2].extrin.translation = glm::vec3(base_camera_pose2[3]);
 
-        std::vector<std::string> processed_cameras = {base_camera_name1, base_camera_name2};
-        for (const auto& camera_name : camera_names)
-        {
-            if (camera_name == base_camera_name1)
+            std::vector<std::string> processed_cameras = {base_camera_name1, base_camera_name2};
+            for (const auto &camera_name : camera_names)
             {
-                continue;
-            }
-            if (camera_name == base_camera_name2)
-            {
-                continue;
-            }
-
-            std::vector<std::tuple<glm::vec2, glm::vec2, glm::vec2>> corresponding_points;
-            zip_points(observed_frames.at(base_camera_name1), observed_frames.at(base_camera_name2), observed_frames.at(camera_name), corresponding_points);
-
-            if (corresponding_points.size() < 7)
-            {
-                continue;
-            }
-
-            const auto pose = estimate_pose(corresponding_points, cameras.at(base_camera_name1), cameras.at(base_camera_name2), cameras.at(camera_name));
-            cameras[camera_name].extrin.rotation = pose;
-            cameras[camera_name].extrin.translation = glm::vec3(pose[3]);
-
-            processed_cameras.push_back(camera_name);
-        }
-
-        assert(processed_cameras.size() == camera_names.size());
-    }
-
-    stargazer::calibration::bundle_adjust_data ba_data;
-
-    for (const auto& camera_name : camera_names)
-    {
-        const auto& camera = cameras[camera_name];
-        cv::Mat rot_vec;
-        cv::Rodrigues(stargazer::glm_to_cv_mat3(camera.extrin.rotation), rot_vec);
-        const auto trans_vec = camera.extrin.translation;
-
-        std::vector<double> camera_params;
-        for (size_t j = 0; j < 3; j++)
-        {
-            camera_params.push_back(rot_vec.at<float>(j));
-        }
-        for (size_t j = 0; j < 3; j++)
-        {
-            camera_params.push_back(trans_vec[j]);
-        }
-        camera_params.push_back(camera.intrin.fx);
-        camera_params.push_back(camera.intrin.fy);
-        camera_params.push_back(camera.intrin.cx);
-        camera_params.push_back(camera.intrin.cy);
-        camera_params.push_back(camera.intrin.coeffs[0]);
-        camera_params.push_back(camera.intrin.coeffs[1]);
-        camera_params.push_back(camera.intrin.coeffs[4]);
-        camera_params.push_back(camera.intrin.coeffs[2]);
-        camera_params.push_back(camera.intrin.coeffs[3]);
-        for (size_t j = 0; j < 3; j++)
-        {
-            camera_params.push_back(0.0);
-        }
-
-        ba_data.add_camera(camera_params.data());
-    }
-
-    {
-        std::vector<stargazer::camera_t> camera_list;
-        std::map<std::string, size_t> camera_name_to_index;
-        for (size_t i = 0; i < camera_names.size(); i++)
-        {
-            camera_list.push_back(cameras.at(camera_names[i]));
-            camera_name_to_index.insert(std::make_pair(camera_names[i], i));
-        }
-        size_t point_idx = 0;
-        for (size_t f = 0; f < observed_frames.begin()->second.size(); f++)
-        {
-            std::vector<std::vector<glm::vec2>> pts;
-            std::vector<size_t> camera_idxs;
-            for (const auto& camera_name : camera_names)
-            {
-                const auto& point = observed_frames.at(camera_name).at(f);
-                if (point.points.size() == 0)
+                if (camera_name == base_camera_name1)
                 {
                     continue;
                 }
-                std::vector<glm::vec2> pt;
-                std::copy(point.points.begin(), point.points.end(), std::back_inserter(pt));
-
-                pts.push_back(pt);
-                camera_idxs.push_back(camera_name_to_index.at(camera_name));
-            }
-
-            if (pts.size() < 2)
-            {
-                continue;
-            }
-
-            const auto point3ds = stargazer::reconstruction::triangulate(pts, camera_idxs, camera_list);
-
-            for (const auto &point3d : point3ds)
-            {
-                std::vector<double> point_params;
-                for (size_t i = 0; i < 3; i++)
+                if (camera_name == base_camera_name2)
                 {
-                    point_params.push_back(point3d[i]);
+                    continue;
                 }
-                ba_data.add_point(point_params.data());
+
+                std::vector<std::tuple<glm::vec2, glm::vec2, glm::vec2>> corresponding_points;
+                zip_points(observed_frames.at(base_camera_name1), observed_frames.at(base_camera_name2), observed_frames.at(camera_name), corresponding_points);
+
+                if (corresponding_points.size() < 7)
+                {
+                    continue;
+                }
+
+                const auto pose = estimate_pose(corresponding_points, cameras.at(base_camera_name1), cameras.at(base_camera_name2), cameras.at(camera_name));
+                cameras[camera_name].extrin.rotation = pose;
+                cameras[camera_name].extrin.translation = glm::vec3(pose[3]);
+
+                processed_cameras.push_back(camera_name);
             }
 
-            for (size_t i = 0; i < pts.size(); i++)
+            assert(processed_cameras.size() == camera_names.size());
+        }
+
+        stargazer::calibration::bundle_adjust_data ba_data;
+
+        for (const auto &camera_name : camera_names)
+        {
+            const auto &camera = cameras[camera_name];
+            cv::Mat rot_vec;
+            cv::Rodrigues(stargazer::glm_to_cv_mat3(camera.extrin.rotation), rot_vec);
+            const auto trans_vec = camera.extrin.translation;
+
+            std::vector<double> camera_params;
+            for (size_t j = 0; j < 3; j++)
             {
-                for (size_t j = 0; j < pts[i].size(); j++)
+                camera_params.push_back(rot_vec.at<float>(j));
+            }
+            for (size_t j = 0; j < 3; j++)
+            {
+                camera_params.push_back(trans_vec[j]);
+            }
+            camera_params.push_back(camera.intrin.fx);
+            camera_params.push_back(camera.intrin.fy);
+            camera_params.push_back(camera.intrin.cx);
+            camera_params.push_back(camera.intrin.cy);
+            camera_params.push_back(camera.intrin.coeffs[0]);
+            camera_params.push_back(camera.intrin.coeffs[1]);
+            camera_params.push_back(camera.intrin.coeffs[4]);
+            camera_params.push_back(camera.intrin.coeffs[2]);
+            camera_params.push_back(camera.intrin.coeffs[3]);
+            for (size_t j = 0; j < 3; j++)
+            {
+                camera_params.push_back(0.0);
+            }
+
+            ba_data.add_camera(camera_params.data());
+        }
+
+        {
+            std::vector<stargazer::camera_t> camera_list;
+            std::map<std::string, size_t> camera_name_to_index;
+            for (size_t i = 0; i < camera_names.size(); i++)
+            {
+                camera_list.push_back(cameras.at(camera_names[i]));
+                camera_name_to_index.insert(std::make_pair(camera_names[i], i));
+            }
+            size_t point_idx = 0;
+            for (size_t f = 0; f < observed_frames.begin()->second.size(); f++)
+            {
+                std::vector<std::vector<glm::vec2>> pts;
+                std::vector<size_t> camera_idxs;
+                for (const auto &camera_name : camera_names)
                 {
-                    const auto &pt = pts[i][j];
-                    std::array<double, 2> observation;
-                    for (size_t k = 0; k < 2; k++)
+                    const auto &point = observed_frames.at(camera_name).at(f);
+                    if (point.points.size() == 0)
                     {
-                        observation[k] = pt[k];
+                        continue;
                     }
-                    ba_data.add_observation(observation.data(), camera_idxs[i], point_idx + j);
+                    std::vector<glm::vec2> pt;
+                    std::copy(point.points.begin(), point.points.end(), std::back_inserter(pt));
+
+                    pts.push_back(pt);
+                    camera_idxs.push_back(camera_name_to_index.at(camera_name));
+                }
+
+                if (pts.size() < 2)
+                {
+                    continue;
+                }
+
+                const auto point3ds = stargazer::reconstruction::triangulate(pts, camera_idxs, camera_list);
+
+                for (const auto &point3d : point3ds)
+                {
+                    std::vector<double> point_params;
+                    for (size_t i = 0; i < 3; i++)
+                    {
+                        point_params.push_back(point3d[i]);
+                    }
+                    ba_data.add_point(point_params.data());
+                }
+
+                for (size_t i = 0; i < pts.size(); i++)
+                {
+                    for (size_t j = 0; j < pts[i].size(); j++)
+                    {
+                        const auto &pt = pts[i][j];
+                        std::array<double, 2> observation;
+                        for (size_t k = 0; k < 2; k++)
+                        {
+                            observation[k] = pt[k];
+                        }
+                        ba_data.add_observation(observation.data(), camera_idxs[i], point_idx + j);
+                    }
+                }
+
+                point_idx += point3ds.size();
+            }
+        }
+
+        {
+            const auto only_extrinsic = false;
+
+            const double *observations = ba_data.observations();
+            ceres::Problem problem;
+            for (int i = 0; i < ba_data.num_observations(); ++i)
+            {
+                ceres::LossFunction *loss_function = new ceres::HuberLoss(1.0);
+                if (only_extrinsic)
+                {
+                    ceres::CostFunction *cost_function =
+                        snavely_reprojection_error_extrinsics::create(observations[2 * i + 0],
+                                                                      observations[2 * i + 1], ba_data.mutable_camera_for_observation(i) + 6);
+                    problem.AddResidualBlock(cost_function,
+                                             loss_function /* squared loss */,
+                                             ba_data.mutable_camera_for_observation(i),
+                                             ba_data.mutable_point_for_observation(i));
+                }
+                else
+                {
+                    ceres::CostFunction *cost_function =
+                        snavely_reprojection_error_extrinsic_intrinsic_point<true>::create(observations[2 * i + 0],
+                                                                                           observations[2 * i + 1]);
+                    problem.AddResidualBlock(cost_function,
+                                             NULL /* squared loss */,
+                                             ba_data.mutable_camera_for_observation(i),
+                                             ba_data.mutable_point_for_observation(i));
                 }
             }
 
-            point_idx += point3ds.size();
+            std::cout << "Num cameras: " << ba_data.num_cameras() << std::endl;
+            std::cout << "Num points: " << ba_data.num_points() << std::endl;
+            std::cout << "Num Observations: " << ba_data.num_observations() << std::endl;
+
+            ceres::Solver::Options options;
+            options.linear_solver_type = ceres::DENSE_SCHUR;
+            options.minimizer_progress_to_stdout = true;
+            options.max_num_iterations = 100;
+            // options.gradient_tolerance = 1e-16;
+            // options.function_tolerance = 1e-16;
+            ceres::Solver::Summary summary;
+            ceres::Solve(options, &problem, &summary);
+            std::cout << summary.FullReport() << "\n";
+
+            calibrated_cameras = cameras;
+
+            {
+                for (size_t i = 0; i < camera_names.size(); i++)
+                {
+                    calibrated_cameras[camera_names[i]].extrin.rotation = ba_data.get_camera_extrinsic(i);
+                    calibrated_cameras[camera_names[i]].extrin.translation = ba_data.get_camera_extrinsic(i)[3];
+                }
+            }
+
+            if (!only_extrinsic)
+            {
+                for (size_t i = 0; i < camera_names.size(); i++)
+                {
+                    double *intrin = &ba_data.mutable_camera(i)[6];
+                    calibrated_cameras[camera_names[i]].intrin.fx = intrin[0];
+                    calibrated_cameras[camera_names[i]].intrin.fy = intrin[1];
+                    calibrated_cameras[camera_names[i]].intrin.cx = intrin[2];
+                    calibrated_cameras[camera_names[i]].intrin.cy = intrin[3];
+                    calibrated_cameras[camera_names[i]].intrin.coeffs[0] = intrin[4];
+                    calibrated_cameras[camera_names[i]].intrin.coeffs[1] = intrin[5];
+                    calibrated_cameras[camera_names[i]].intrin.coeffs[4] = intrin[6];
+                    calibrated_cameras[camera_names[i]].intrin.coeffs[2] = intrin[7];
+                    calibrated_cameras[camera_names[i]].intrin.coeffs[3] = intrin[8];
+                }
+            }
         }
     }
 
+    void push_frame(const std::map<std::string, std::vector<stargazer::point_data>> &frame)
     {
-        const auto only_extrinsic = false;
-
-        const double *observations = ba_data.observations();
-        ceres::Problem problem;
-        for (int i = 0; i < ba_data.num_observations(); ++i)
+        for (const auto &p : frame)
         {
-            ceres::LossFunction *loss_function = new ceres::HuberLoss(1.0);
-            if (only_extrinsic)
+            const auto &name = p.first;
+            if (num_frames.find(name) == num_frames.end())
             {
-                ceres::CostFunction *cost_function =
-                    snavely_reprojection_error_extrinsics::create(observations[2 * i + 0],
-                                                                  observations[2 * i + 1], ba_data.mutable_camera_for_observation(i) + 6);
-                problem.AddResidualBlock(cost_function,
-                                         loss_function /* squared loss */,
-                                         ba_data.mutable_camera_for_observation(i),
-                                         ba_data.mutable_point_for_observation(i));
+                num_frames.insert(std::make_pair(name, 0));
             }
-            else
+            if (camera_name_to_index.find(name) == camera_name_to_index.end())
             {
-                ceres::CostFunction *cost_function =
-                    snavely_reprojection_error_extrinsic_intrinsic_point<true>::create(observations[2 * i + 0],
-                                                                                       observations[2 * i + 1]);
-                problem.AddResidualBlock(cost_function,
-                                         NULL /* squared loss */,
-                                         ba_data.mutable_camera_for_observation(i),
-                                         ba_data.mutable_point_for_observation(i));
+                camera_name_to_index.insert(std::make_pair(name, camera_name_to_index.size()));
+            }
+            if (observed_frames.find(name) == observed_frames.end())
+            {
+
+                if (observed_frames.empty())
+                {
+                    observed_frames.insert(std::make_pair(name, std::vector<observed_points_t>()));
+                }
+                else
+                {
+                    observed_points_t obs = {};
+                    obs.camera_idx = camera_name_to_index.at(name);
+                    observed_frames.insert(std::make_pair(name, std::vector<observed_points_t>(observed_frames.begin()->second.size(), obs)));
+                }
             }
         }
-
-        std::cout << "Num cameras: " << ba_data.num_cameras() << std::endl;
-        std::cout << "Num points: " << ba_data.num_points() << std::endl;
-        std::cout << "Num Observations: " << ba_data.num_observations() << std::endl;
-
-        ceres::Solver::Options options;
-        options.linear_solver_type = ceres::DENSE_SCHUR;
-        options.minimizer_progress_to_stdout = true;
-        options.max_num_iterations = 100;
-        // options.gradient_tolerance = 1e-16;
-        // options.function_tolerance = 1e-16;
-        ceres::Solver::Summary summary;
-        ceres::Solve(options, &problem, &summary);
-        std::cout << summary.FullReport() << "\n";
-
-        calibrated_cameras = cameras;
-
+        for (auto &[name, observed_points] : observed_frames)
         {
-            for (size_t i = 0; i < camera_names.size(); i++)
+            observed_points_t obs = {};
+            obs.camera_idx = camera_name_to_index.at(name);
+            if (frame.find(name) != frame.end())
             {
-                calibrated_cameras[camera_names[i]].extrin.rotation = ba_data.get_camera_extrinsic(i);
-                calibrated_cameras[camera_names[i]].extrin.translation = ba_data.get_camera_extrinsic(i)[3];
+                const auto points = detector->detect_points(frame.at(name));
+                if (points.size() > 0)
+                {
+                    obs.points = std::move(points);
+                }
             }
-        }
+            observed_points.push_back(obs);
 
-        if (!only_extrinsic)
-        {
-            for (size_t i = 0; i < camera_names.size(); i++)
+            if (obs.points.size() > 0)
             {
-                double *intrin = &ba_data.mutable_camera(i)[6];
-                calibrated_cameras[camera_names[i]].intrin.fx = intrin[0];
-                calibrated_cameras[camera_names[i]].intrin.fy = intrin[1];
-                calibrated_cameras[camera_names[i]].intrin.cx = intrin[2];
-                calibrated_cameras[camera_names[i]].intrin.cy = intrin[3];
-                calibrated_cameras[camera_names[i]].intrin.coeffs[0] = intrin[4];
-                calibrated_cameras[camera_names[i]].intrin.coeffs[1] = intrin[5];
-                calibrated_cameras[camera_names[i]].intrin.coeffs[4] = intrin[6];
-                calibrated_cameras[camera_names[i]].intrin.coeffs[2] = intrin[7];
-                calibrated_cameras[camera_names[i]].intrin.coeffs[3] = intrin[8];
+                num_frames.at(name) += 1;
             }
         }
     }
+
+    virtual void process(std::string input_name, graph_message_ptr message) override
+    {
+        if (input_name == "calibrate")
+        {
+            camera_names.clear();
+
+            if (auto camera_msg = std::dynamic_pointer_cast<object_message>(message))
+            {
+                for (const auto &[name, field] : camera_msg->get_fields())
+                {
+                    if (auto camera_msg = std::dynamic_pointer_cast<camera_message>(field))
+                    {
+                        std::lock_guard lock(cameras_mtx);
+                        cameras[name] = camera_msg->get_camera();
+                        camera_names.push_back(name);
+                    }
+                }
+            }
+
+            calibrate();
+
+            std::shared_ptr<object_message> msg(new object_message());
+            for (const auto &[name, camera] : calibrated_cameras)
+            {
+                std::shared_ptr<camera_message> camera_msg(new camera_message(camera));
+                msg->add_field(name, camera_msg);
+            }
+            output->send(msg);
+
+            return;
+        }
+
+        if (auto frame_msg = std::dynamic_pointer_cast<frame_message<object_message>>(message))
+        {
+            const auto obj_msg = frame_msg->get_data();
+
+            std::map<std::string, std::vector<stargazer::point_data>> frame;
+
+            for (const auto &[name, field] : obj_msg.get_fields())
+            {
+                if (auto points_msg = std::dynamic_pointer_cast<float2_list_message>(field))
+                {
+                    std::vector<stargazer::point_data> points;
+                    for (const auto &pt : points_msg->get_data())
+                    {
+                        points.push_back(stargazer::point_data{glm::vec2(pt.x, pt.y), 0, 0});
+                    }
+                    frame.insert(std::make_pair(name, points));
+                }
+            }
+
+            push_frame(frame);
+        }
+    }
+};
+
+CEREAL_REGISTER_TYPE(calibration_node);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, calibration_node);
+
+class callback_node;
+
+class callback_list : public resource_base
+{
+    using callback_func = std::function<void(const callback_node *, std::string, graph_message_ptr)>;
+    std::vector<callback_func> callbacks;
+
+public:
+    virtual std::string get_name() const
+    {
+        return "callback_list";
+    }
+
+    void add(callback_func callback)
+    {
+        callbacks.push_back(callback);
+    }
+
+    void invoke(const callback_node *node, std::string input_name, graph_message_ptr message) const
+    {
+        for (auto &callback : callbacks)
+        {
+            callback(node, input_name, message);
+        }
+    }
+};
+
+class callback_node : public graph_node
+{
+    std::string name;
+
+public:
+    callback_node()
+        : graph_node()
+    {
+    }
+
+    virtual std::string get_proc_name() const override
+    {
+        return "callback_node";
+    }
+
+    void set_name(const std::string &value)
+    {
+        name = value;
+    }
+    std::string get_name() const
+    {
+        return name;
+    }
+
+    template <typename Archive>
+    void serialize(Archive &archive)
+    {
+        archive(name);
+    }
+
+    virtual void process(std::string input_name, graph_message_ptr message) override
+    {
+        if (const auto resource = resources->get("callback_list"))
+        {
+            if (const auto callbacks = std::dynamic_pointer_cast<callback_list>(resource))
+            {
+                callbacks->invoke(this, input_name, message);
+            }
+        }
+    }
+};
+
+CEREAL_REGISTER_TYPE(callback_node)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, callback_node)
+
+class calibration::impl
+{
+public:
+    graph_proc graph;
+
+    std::shared_ptr<calibration_node> calib_node;
+
+    std::unordered_map<std::string, stargazer::camera_t> calibrated_cameras;
+
+    void push_frame(const std::map<std::string, std::vector<stargazer::point_data>> &frame)
+    {
+        calib_node->push_frame(frame);
+    }
+
+    void calibrate(const std::unordered_map<std::string, stargazer::camera_t>& cameras)
+    {
+        std::shared_ptr<object_message> msg(new object_message());
+        for (const auto &[name, camera] : cameras)
+        {
+            std::shared_ptr<camera_message> camera_msg(new camera_message(camera));
+            msg->add_field(name, camera_msg);
+        }
+        graph.process(calib_node.get(), "calibrate", msg);
+    }
+
+    void run()
+    {
+        std::shared_ptr<subgraph> g(new subgraph());
+
+        std::shared_ptr<calibration_node> n1(new calibration_node());
+        g->add_node(n1);
+
+        calib_node = n1;
+
+        std::shared_ptr<callback_node> n2(new callback_node());
+        n2->set_input(n1->get_output());
+        g->add_node(n2);
+
+        n2->set_name("cameras");
+
+        const auto callbacks = std::make_shared<callback_list>();
+
+        callbacks->add([this](const callback_node *node, std::string input_name, graph_message_ptr message)
+                       {
+            if (node->get_name() == "cameras")
+            {
+                if (auto obj_msg = std::dynamic_pointer_cast<object_message>(message))
+                {
+                    for (const auto &[name, field] : obj_msg->get_fields())
+                    {
+                        if (auto camera_msg = std::dynamic_pointer_cast<camera_message>(field))
+                        {
+                            calibrated_cameras[name] = camera_msg->get_camera();
+                        }
+                    }
+                }
+            } });
+
+        graph.deploy(g);
+        graph.get_resources()->add(callbacks);
+        graph.run();
+    }
+
+    void stop()
+    {
+        graph.stop();
+    }
+
+    size_t get_num_frames(std::string name) const
+    {
+        if (!calib_node)
+        {
+            return 0;
+        }
+        return calib_node->get_num_frames(name);
+    }
+
+    const std::vector<observed_points_t> &get_observed_points(std::string name) const
+    {
+        if (!calib_node)
+        {
+            static std::vector<observed_points_t> empty;
+            return empty;
+        }
+        return calib_node->get_observed_points(name);
+    }
+};
+
+calibration::calibration() : pimpl(std::make_unique<impl>())
+{
+}
+
+calibration::~calibration() = default;
+
+void calibration::run()
+{
+    pimpl->run();
+}
+
+void calibration::stop()
+{
+    pimpl->stop();
+}
+
+size_t calibration::get_num_frames(std::string name) const
+{
+    return pimpl->get_num_frames(name);
+}
+
+const std::vector<observed_points_t> &calibration::get_observed_points(std::string name) const
+{
+    return pimpl->get_observed_points(name);
+}
+
+const std::unordered_map<std::string, stargazer::camera_t> &calibration::get_calibrated_cameras() const
+{
+    return pimpl->calibrated_cameras;
+}
+
+void calibration::push_frame(const std::map<std::string, std::vector<stargazer::point_data>> &frame)
+{
+    pimpl->push_frame(frame);
+}
+
+void calibration::calibrate()
+{
+    pimpl->calibrate(cameras);
 }
 
 void intrinsic_calibration::add_frame(const std::vector<stargazer::point_data> &frame)
