@@ -66,6 +66,8 @@ class calibration
     std::unique_ptr<impl> pimpl;
 
 public:
+    void add_calibrated(std::function<void(const std::unordered_map<std::string, stargazer::camera_t> &)> f);
+    void clear_calibrated();
 
     void set_camera(const std::string &name, const stargazer::camera_t &camera)
     {
