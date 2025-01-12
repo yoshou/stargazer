@@ -20,14 +20,11 @@
 #include <sqlite3.h>
 
 #include "camera_info.hpp"
-#include "correspondance.hpp"
 #include "capture.hpp"
 #include "views.hpp"
 #include "calibration.hpp"
 #include "reconstruction.hpp"
 #include "config_file.hpp"
-#include "glm_json.hpp"
-#include "triangulation.hpp"
 
 const int SCREEN_WIDTH = 1680;
 const int SCREEN_HEIGHT = 1050;
