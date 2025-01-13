@@ -1199,7 +1199,7 @@ public:
 
         for (std::size_t j = 0; j < j_kpts.size(); j++)
         {
-            frame_data.push_back(keypoint{j_kpts[j]["x"].get<float>(), j_kpts[j]["y"].get<float>()});
+            frame_data.push_back(keypoint{j_kpts[j]["x"].get<float>(), j_kpts[j]["y"].get<float>(), j_kpts[j]["r"].get<float>()});
         }
     }
 
