@@ -64,14 +64,6 @@ class reconstruction_viewer : public window_base
     std::unique_ptr<stargazer::configuration_file> reconstruction_config;
     std::unique_ptr<stargazer::configuration_file> calibration_config;
 
-    static std::string get_calibration_config_path()
-    {
-        namespace fs = std::filesystem;
-        const std::string data_dir = "../data";
-
-        return (fs::path(data_dir) / "config.json").string();
-    }
-
     std::string generate_new_id() const
     {
         uint64_t max_id = 0;
@@ -86,34 +78,6 @@ class reconstruction_viewer : public window_base
             }
         }
         return fmt::format("{:>012d}", max_id);
-    }
-
-    void load_camera_params()
-    {
-        const auto config_path = get_calibration_config_path();
-
-        std::ifstream ifs;
-        ifs.open(config_path, std::ios::in);
-        nlohmann::json j_config = nlohmann::json::parse(ifs);
-
-        const auto camera_names = j_config["cameras"].get<std::vector<std::string>>();
-        const auto camera_ids = j_config["camera_ids"].get<std::vector<std::string>>();
-
-        const auto num_cameras = camera_names.size();
-
-        camera_params = stargazer::load_camera_params("../data/config/camera_params.json");
-
-        for (std::size_t i = 0; i < camera_names.size(); i++)
-        {
-            calib.set_camera(camera_names[i], camera_params.at(camera_ids[i]).cameras.at("infra1"));
-        }
-        assert(calib.get_camera_size() == num_cameras);
-
-        for (auto &[camera_name, camera] : calib.get_cameras())
-        {
-            camera.extrin.rotation = glm::mat4(1.0);
-            camera.extrin.translation = glm::vec3(1.0);
-        }
     }
 
     void init_capture_panel()
@@ -465,7 +429,28 @@ class reconstruction_viewer : public window_base
                 {
                     if (calib.get_num_frames(device.name) > 0)
                     {
+                        spdlog::info("Start calibration");
+
                         calib.calibrate();
+
+                        std::unordered_map<std::string, std::string> device_name_to_id;
+                        for (const auto &device : devices)
+                        {
+                            device_name_to_id[device.name] = device.id;
+                        }
+
+                        for (const auto &[camera_name, camera] : calib.get_calibrated_cameras())
+                        {
+                            const auto &camera_id = device_name_to_id.at(camera_name);
+
+                            camera_params[camera_id].cameras["infra1"].extrin = camera.extrin;
+                            camera_params[camera_id].cameras["infra1"].intrin = camera.intrin;
+                        }
+
+                        stargazer::save_camera_params("../data/config/camera_params.json", camera_params);
+
+                        spdlog::info("End calibration");
+
                         break;
                     }
                 }
@@ -891,12 +876,7 @@ public:
         reconstruction_config.reset(new stargazer::configuration_file("../data/config/reconstruction.json"));
         calibration_config.reset(new stargazer::configuration_file("../data/config/calibration.json"));
 
-        load_camera_params();
-
-        for (const auto &device : reconstruction_config->get_device_infos())
-        {
-            multiview_image_reconstruction_->cameras.insert(std::make_pair(device.name, camera_params.at(device.id).cameras.at("infra1")));
-        }
+        camera_params = stargazer::load_camera_params("../data/config/camera_params.json");
 
         axis_reconstruction_.load_axis();
 
@@ -1004,10 +984,18 @@ public:
         epipolar_reconstruction_.run();
         multiview_image_reconstruction_->run();
 
+        epipolar_reconstruction_.set_axis(axis_reconstruction_.get_axis());
+
+        for (const auto& device : reconstruction_config->get_device_infos())
         {
-            this->epipolar_reconstruction_.set_axis(axis_reconstruction_.get_axis());
-            this->multiview_image_reconstruction_->axis = axis_reconstruction_.get_axis();
-            this->pose_view_->axis = axis_reconstruction_.get_axis();
+            epipolar_reconstruction_.set_camera(device.name, camera_params.at(device.id).cameras.at("infra1"));
+        }
+
+        multiview_image_reconstruction_->axis = axis_reconstruction_.get_axis();
+
+        for (const auto &device : reconstruction_config->get_device_infos())
+        {
+            multiview_image_reconstruction_->cameras.insert(std::make_pair(device.name, camera_params.at(device.id).cameras.at("infra1")));
         }
 
         calib.add_calibrated([&](const std::unordered_map<std::string, stargazer::camera_t> &cameras)
@@ -1020,56 +1008,23 @@ public:
         
         calib.run();
 
-#if 0
+        for (const auto& device : calibration_config->get_device_infos())
         {
-            namespace fs = std::filesystem;
-            const std::string prefix = "calibrate";
-            const std::string data_dir = "../data";
-
-            std::ifstream ifs;
-            ifs.open((fs::path(data_dir) / "config.json").string(), std::ios::in);
-            nlohmann::json j_config = nlohmann::json::parse(ifs);
-
-            const auto camera_names = j_config["cameras"].get<std::vector<std::string>>();
-            const auto camera_ids = j_config["camera_ids"].get<std::vector<std::string>>();
-            const auto num_cameras = camera_names.size();
-
-            const auto markers_filename = fs::path(data_dir) / j_config["directory"].get<std::string>() / (prefix + "_marker_sync.db");
-
-            sqlite3 *db = nullptr;
-            if (sqlite3_open(markers_filename.c_str(), &db) != SQLITE_OK)
+            if (camera_params.find(device.id) != camera_params.end())
             {
-                spdlog::error("Failed to open db[%s]", sqlite3_errmsg(db));
-                return;
+                calib.set_camera(device.name, camera_params.at(device.id).cameras.at("infra1"));
             }
-            sqlite3_stmt *stmt = nullptr;
-            if (sqlite3_prepare(db, "SELECT timestamp,data FROM messages ORDER BY timestamp ASC", -1, &stmt, 0) != SQLITE_OK)
+            else
             {
-                spdlog::error("Failed to select db[%s]", sqlite3_errmsg(db));
-                return;
+                spdlog::error("No camera params found for device: {}", device.name);
             }
-
-            while (sqlite3_step(stmt) == SQLITE_ROW)
-            {
-                const std::string data(reinterpret_cast<const char *>(sqlite3_column_text(stmt, 1)));
-
-                std::vector<std::vector<stargazer::point_data>> frame_data(num_cameras);
-                read_frame_text(data, camera_names, frame_data);
-
-                std::map<std::string, std::vector<stargazer::point_data>> frame;
-                for (size_t c = 0; c < num_cameras; c++)
-                {
-                    frame.insert(std::make_pair(camera_names[c], frame_data[c]));
-                }
-                calib.push_frame(frame);
-            }
-
-            sqlite3_finalize(stmt);
-            stmt = nullptr;
-            sqlite3_close(db);
-            db = nullptr;
         }
-#endif
+
+        for (auto &[camera_name, camera] : calib.get_cameras())
+        {
+            camera.extrin.rotation = glm::mat4(1.0);
+            camera.extrin.translation = glm::vec3(1.0);
+        }
 
         window_base::show();
     }
@@ -1424,6 +1379,8 @@ public:
 
                 context->view = view;
 
+                pose_view_->cameras.clear();
+
                 for (const auto &device : calibration_config->get_device_infos())
                 {
                     const auto &cameras = calib.get_calibrated_cameras();
@@ -1443,6 +1400,8 @@ public:
                         };
                     }
                 }
+                
+                pose_view_->axis = glm::mat4(1.0);
             }
             else if (top_bar_view_->view_type == top_bar_view::ViewType::Contrail)
             {
@@ -1491,7 +1450,9 @@ public:
 
                 context->view = view;
 
-                for (const auto &device : calibration_config->get_device_infos())
+                pose_view_->cameras.clear();
+
+                for (const auto &device : reconstruction_config->get_device_infos())
                 {
                     const auto& cameras = epipolar_reconstruction_.get_cameras();
 
@@ -1510,6 +1471,9 @@ public:
                         };
                     }
                 }
+        
+                pose_view_->axis = axis_reconstruction_.get_axis();
+
                 pose_view_->points.clear();
                 for (const auto& point : epipolar_reconstruction_.get_markers())
                 {
