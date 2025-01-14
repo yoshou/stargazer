@@ -69,7 +69,7 @@ class reconstruction_viewer : public window_base
     std::string generate_new_id() const
     {
         uint64_t max_id = 0;
-        for (const auto &device_info : reconstruction_config->get_device_infos())
+        for (const auto &device_info : capture_config->get_device_infos())
         {
             size_t idx = 0;
             const auto id = std::stoull(device_info.id, &idx);
