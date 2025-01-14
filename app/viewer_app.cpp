@@ -61,6 +61,8 @@ class reconstruction_viewer : public window_base
     axis_reconstruction axis_reconstruction_;
 
     std::unique_ptr<multiview_image_reconstruction> multiview_image_reconstruction_;
+    
+    std::unique_ptr<stargazer::configuration_file> capture_config;
     std::unique_ptr<stargazer::configuration_file> reconstruction_config;
     std::unique_ptr<stargazer::configuration_file> calibration_config;
 
@@ -83,7 +85,7 @@ class reconstruction_viewer : public window_base
     void init_capture_panel()
     {
         capture_panel_view_ = std::make_unique<capture_panel_view>();
-        for (const auto &device_info : reconstruction_config->get_device_infos())
+        for (const auto &device_info : capture_config->get_device_infos())
         {
             capture_panel_view_->devices.push_back(capture_panel_view::device_info{device_info.name, device_info.address, device_info.params});
         }
@@ -91,7 +93,7 @@ class reconstruction_viewer : public window_base
         capture_panel_view_->is_streaming_changed.push_back([this](const capture_panel_view::device_info &device) {
             if (device.is_streaming == true)
             {
-                const auto& device_infos = reconstruction_config->get_device_infos();
+                const auto& device_infos = capture_config->get_device_infos();
                 auto found = std::find_if(device_infos.begin(), device_infos.end(), [device](const auto& x) { return x.name == device.name; });
                 if (found == device_infos.end()) {
                     return false;
@@ -168,7 +170,7 @@ class reconstruction_viewer : public window_base
                 break;
             }
 
-            auto &device_infos = reconstruction_config->get_device_infos();
+            auto &device_infos = capture_config->get_device_infos();
             if (const auto found = std::find_if(device_infos.begin(), device_infos.end(), [&](const auto &x) {
                 return x.name == device_name; });
                 found == device_infos.end())
@@ -179,12 +181,12 @@ class reconstruction_viewer : public window_base
                 {
                     capture_panel_view_->devices.push_back(capture_panel_view::device_info{device_info.name, device_info.address, device_info.params});
                 }
-                reconstruction_config->update();
+                capture_config->update();
             }
         });
 
         capture_panel_view_->on_remove_device.push_back([this](const std::string& device_name) {
-            auto& device_infos = reconstruction_config->get_device_infos();
+            auto& device_infos = capture_config->get_device_infos();
             if (const auto found = std::find_if(device_infos.begin(), device_infos.end(), [&](const auto &x) {
                 return x.name == device_name; });
                 found != device_infos.end())
@@ -196,7 +198,7 @@ class reconstruction_viewer : public window_base
                 {
                     capture_panel_view_->devices.push_back(capture_panel_view::device_info{device_info.name, device_info.address, device_info.params});
                 }
-                reconstruction_config->update();
+                capture_config->update();
             }
         });
     }
@@ -873,6 +875,7 @@ public:
     {
         gladLoadGL();
 
+        capture_config.reset(new stargazer::configuration_file("../data/config/capture.json"));
         reconstruction_config.reset(new stargazer::configuration_file("../data/config/reconstruction.json"));
         calibration_config.reset(new stargazer::configuration_file("../data/config/calibration.json"));
 
