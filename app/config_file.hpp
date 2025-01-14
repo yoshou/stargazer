@@ -28,10 +28,10 @@ namespace stargazer
 
                 pipeline_name = j["pipeline"].get<std::string>();
 
-                for (const auto &j_camera : j["pipelines"][pipeline_name]["cameras"])
+                for (const auto &j_node : j["pipelines"][pipeline_name]["nodes"])
                 {
                     device_info device;
-                    const auto type = j_camera["node"]["type"].get<std::string>();
+                    const auto type = j_node["type"].get<std::string>();
                     if (type == "raspi")
                     {
                         device.type = device_type::raspi;
@@ -62,19 +62,19 @@ namespace stargazer
                     }
                     if (type == "raspi_playback")
                     {
-                        device.id = j_camera["node"]["id"].get<std::string>();
-                        device.db_path = j_camera["node"]["db_path"].get<std::string>();
-                        device.name = j_camera["name"].get<std::string>();
-                        device.params = j_camera["node"]["params"].get<std::unordered_map<std::string, float>>();
+                        device.id = j_node["id"].get<std::string>();
+                        device.db_path = j_node["db_path"].get<std::string>();
+                        device.name = j_node["name"].get<std::string>();
+                        device.params = j_node["params"].get<std::unordered_map<std::string, float>>();
                         device_infos.push_back(device);
                     }
                     else
                     {
-                        device.id = j_camera["node"]["id"].get<std::string>();
-                        device.address = j_camera["node"]["address"].get<std::string>();
-                        device.endpoint = j_camera["node"]["gateway"].get<std::string>();
-                        device.name = j_camera["name"].get<std::string>();
-                        device.params = j_camera["node"]["params"].get<std::unordered_map<std::string, float>>();
+                        device.id = j_node["id"].get<std::string>();
+                        device.address = j_node["address"].get<std::string>();
+                        device.endpoint = j_node["gateway"].get<std::string>();
+                        device.name = j_node["name"].get<std::string>();
+                        device.params = j_node["params"].get<std::unordered_map<std::string, float>>();
                         device_infos.push_back(device);
                     }
                 }
@@ -97,10 +97,10 @@ namespace stargazer
 
         void update()
         {
-            std::vector<nlohmann::json> j_devices;
+            std::vector<nlohmann::json> j_nodes;
             for (const auto &device : device_infos)
             {
-                nlohmann::json j_device;
+                nlohmann::json j_node;
 
                 std::string device_type_name;
                 switch (device.type)
@@ -124,18 +124,18 @@ namespace stargazer
                     throw std::runtime_error("Invalid node type");
                 }
 
-                j_device["node"]["type"] = device_type_name;
-                j_device["node"]["id"] = device.id;
-                j_device["node"]["address"] = device.address;
-                j_device["node"]["gateway"] = device.endpoint;
-                j_device["node"]["params"] = device.params;
-                j_device["name"] = device.name;
-                j_devices.push_back(j_device);
+                j_node["type"] = device_type_name;
+                j_node["id"] = device.id;
+                j_node["address"] = device.address;
+                j_node["gateway"] = device.endpoint;
+                j_node["params"] = device.params;
+                j_node["name"] = device.name;
+                j_nodes.push_back(j_node);
             }
 
             
             nlohmann::json j;
-            j["cameras"] = j_devices;
+            j["nodes"] = j_nodes;
 
             std::ofstream ofs;
             ofs.open(path, std::ios::out);
