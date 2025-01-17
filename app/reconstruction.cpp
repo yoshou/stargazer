@@ -639,9 +639,9 @@ public:
 
     virtual void run() override
     {
+        running = true;
         th.reset(new std::thread([this]()
                                  {
-            running.store(true);
             while (running.load())
             {
                 std::unique_lock<std::mutex> lock(mtx);
