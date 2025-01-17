@@ -63,8 +63,6 @@ namespace stargazer_voxelpose
         {
             namespace fs = std::filesystem;
 
-            const auto &api = Ort::GetApi();
-
             // Create session
             Ort::SessionOptions session_options;
             session_options.SetIntraOpNumThreads(4);
@@ -257,8 +255,6 @@ namespace stargazer_voxelpose
             : session(nullptr), io_binding(nullptr)
         {
             namespace fs = std::filesystem;
-
-            const auto &api = Ort::GetApi();
 
             // Create session
             Ort::SessionOptions session_options;
@@ -866,8 +862,6 @@ namespace stargazer_voxelpose
     {
         const auto cube_size = get_cube_size();
 
-        const auto start = std::chrono::system_clock::now();
-
         std::vector<roi_data> rois_list;
         inference_heatmap->process(images_list, rois_list);
 
@@ -996,9 +990,6 @@ namespace stargazer_voxelpose
 #endif
             }
         }
-        const auto end = std::chrono::system_clock::now();
-        double elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-        // std::cout << "voxelpose: " << elapsed << std::endl;
 
         return points;
     }
