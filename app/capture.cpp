@@ -8,6 +8,7 @@
 #include "ext/graph_proc_depthai.h"
 #include "ext/graph_proc_rs_d435.h"
 
+#include <regex>
 #include <nlohmann/json.hpp>
 #include <sqlite3.h>
 
@@ -836,27 +837,31 @@ void capture_pipeline::set_mask(cv::Mat mask)
 {
 }
 
-#include <fstream>
-
 class dump_blob_node : public graph_node
 {
-    std::string data_dir;
-    std::string ext;
+    std::string db_path;
+    std::string name;
+
+    sqlite3 *db;
+    sqlite3_stmt *stmt;
+    int topic_id;
+
+    std::deque<std::shared_ptr<frame_message<blob>>> queue;
 
 public:
     dump_blob_node()
-        : graph_node()
+        : graph_node(), db(nullptr), stmt(nullptr), topic_id(-1)
     {
     }
 
-    void set_data_dir(std::string value)
+    void set_db_path(std::string value)
     {
-        data_dir = value;
+        db_path = value;
     }
 
-    void set_ext(std::string value)
+    void set_name(std::string value)
     {
-        ext = value;
+        name = value;
     }
 
     virtual std::string get_proc_name() const override
@@ -867,28 +872,454 @@ public:
     template <typename Archive>
     void serialize(Archive &archive)
     {
-        archive(data_dir);
-        archive(ext);
+        archive(db_path);
+        archive(name);
+    }
+    
+    virtual void initialize() override
+    {
+        if (sqlite3_open(db_path.c_str(), &db) != SQLITE_OK)
+        {
+            throw std::runtime_error("Failed to open database");
+        }
+
+        if (sqlite3_exec(db, "CREATE TABLE IF NOT EXISTS topics(id INTEGER PRIMARY KEY, name TEXT NOT NULL, type TEXT NOT NULL)", nullptr, nullptr, nullptr) != SQLITE_OK)
+        {
+            throw std::runtime_error("Failed to create table");
+        }
+
+        if (sqlite3_exec(db, "CREATE TABLE IF NOT EXISTS messages(id INTEGER PRIMARY KEY, topic_id INTEGER NOT NULL, timestamp INTEGER NOT NULL, data BLOB NOT NULL)", nullptr, nullptr, nullptr) != SQLITE_OK)
+        {
+            throw std::runtime_error("Failed to create table");
+        }
+        
+        if (sqlite3_exec(db, "CREATE INDEX IF NOT EXISTS timestamp_idx ON messages (timestamp ASC)", nullptr, nullptr, nullptr) != SQLITE_OK)
+        {
+            throw std::runtime_error("Failed to create index");
+        }
+
+        {
+            sqlite3_stmt *stmt;
+            if (sqlite3_prepare_v2(db, "SELECT id FROM topics WHERE name = ?", -1, &stmt, nullptr) != SQLITE_OK)
+            {
+                throw std::runtime_error("Failed to prepare statement");
+            }
+
+            if (sqlite3_bind_text(stmt, 1, name.c_str(), -1, SQLITE_STATIC) != SQLITE_OK)
+            {
+                throw std::runtime_error("Failed to bind text");
+            }
+
+            if (sqlite3_step(stmt) == SQLITE_ROW)
+            {
+                topic_id = sqlite3_column_int(stmt, 0);
+            }
+            else
+            {
+                topic_id = -1;
+            }
+
+            sqlite3_finalize(stmt);
+        }
+
+        if (topic_id == -1)
+        {
+            sqlite3_stmt *stmt;
+            if (sqlite3_prepare_v2(db, "INSERT INTO topics (name, type) VALUES (?, ?)", -1, &stmt, nullptr) != SQLITE_OK)
+            {
+                throw std::runtime_error("Failed to prepare statement");
+            }
+
+            if (sqlite3_bind_text(stmt, 1, name.c_str(), -1, SQLITE_STATIC) != SQLITE_OK)
+            {
+                throw std::runtime_error("Failed to bind text");
+            }
+
+            if (sqlite3_bind_text(stmt, 2, "blob", -1, SQLITE_STATIC) != SQLITE_OK)
+            {
+                throw std::runtime_error("Failed to bind text");
+            }
+
+            auto result = sqlite3_step(stmt);
+
+            while (result == SQLITE_BUSY)
+            {
+                result = sqlite3_step(stmt);
+            }
+
+            if (result != SQLITE_DONE)
+            {
+                throw std::runtime_error("Failed to step");
+            }
+
+            sqlite3_finalize(stmt);
+
+            if (sqlite3_prepare_v2(db, "SELECT last_insert_rowid()", -1, &stmt, nullptr) != SQLITE_OK)
+            {
+                throw std::runtime_error("Failed to prepare statement");
+            }
+
+            if (sqlite3_step(stmt) == SQLITE_ROW)
+            {
+                topic_id = sqlite3_column_int(stmt, 0);
+            }
+            else
+            {
+                throw std::runtime_error("Failed to get last insert id");
+            }
+
+            sqlite3_finalize(stmt);
+        }
+
+        if (sqlite3_prepare_v2(db, "INSERT INTO messages (topic_id, timestamp, data) VALUES (?, ?, ?)", -1, &stmt, nullptr) != SQLITE_OK)
+        {
+            throw std::runtime_error("Failed to prepare statement");
+        }
+    }
+
+    virtual void finalize() override
+    {
+        flush_queue();
+
+        if (stmt)
+        {
+            sqlite3_finalize(stmt);
+            stmt = nullptr;
+        }
+        if (db)
+        {
+            sqlite3_close(db);
+            db = nullptr;
+        }
+    }
+
+    void flush_queue()
+    {
+        if (sqlite3_exec(db, "BEGIN TRANSACTION", nullptr, nullptr, nullptr) != SQLITE_OK)
+        {
+            throw std::runtime_error("Failed to begin transaction");
+        }
+
+        while (queue.size() > 0)
+        {
+            const auto &frame_msg = queue.front();
+            const auto &data = frame_msg->get_data();
+
+            if (sqlite3_reset(stmt) != SQLITE_OK)
+            {
+                throw std::runtime_error("Failed to reset");
+            }
+
+            if (sqlite3_bind_int64(stmt, 1, topic_id) != SQLITE_OK)
+            {
+                throw std::runtime_error("Failed to bind int64");
+            }
+
+            if (sqlite3_bind_int64(stmt, 2, frame_msg->get_timestamp()) != SQLITE_OK)
+            {
+                throw std::runtime_error("Failed to bind int64");
+            }
+
+            if (sqlite3_bind_blob(stmt, 3, data.data(), data.size(), SQLITE_STATIC) != SQLITE_OK)
+            {
+                throw std::runtime_error("Failed to bind blob");
+            }
+
+            auto result = sqlite3_step(stmt);
+
+            while (result == SQLITE_BUSY)
+            {
+                result = sqlite3_step(stmt);
+            }
+
+            if (result != SQLITE_DONE)
+            {
+                throw std::runtime_error("Failed to step");
+            }
+
+            queue.pop_front();
+        }
+
+        auto result = sqlite3_exec(db, "END TRANSACTION", nullptr, nullptr, nullptr);
+
+        while (result == SQLITE_BUSY)
+        {
+            result = sqlite3_exec(db, "END TRANSACTION", nullptr, nullptr, nullptr);
+        }
+
+        if (result != SQLITE_OK)
+        {
+            throw std::runtime_error("Failed to end transaction");
+        }
     }
 
     virtual void process(std::string input_name, graph_message_ptr message) override
     {
         if (auto frame_msg = std::dynamic_pointer_cast<frame_message<blob>>(message))
         {
-            const auto &data = frame_msg->get_data();
+            queue.push_back(frame_msg);
 
-            const auto path = data_dir + "/" + input_name + "_" + std::to_string((uint64_t)frame_msg->get_timestamp()) + ext;
-            std::ofstream ofs;
-            ofs.open(path, std::ios::binary | std::ios::out);
-            ofs.write((const char *)data.data(), data.size());
-
-            spdlog::debug("Saved image to '{0}'", path);
+            if (queue.size() >= 200)
+            {
+                flush_queue();
+            }
         }
     }
 };
 
-#include <regex>
-#include <filesystem>
+CEREAL_REGISTER_TYPE(dump_blob_node)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, dump_blob_node)
+
+class dump_keypoint_node : public graph_node
+{
+    std::string db_path;
+    std::string name;
+
+    sqlite3 *db;
+    sqlite3_stmt *stmt;
+    int topic_id;
+
+    std::deque<std::tuple<double, std::string>> queue;
+
+public:
+    dump_keypoint_node()
+        : graph_node(), db(nullptr), stmt(nullptr), topic_id(-1)
+    {
+    }
+
+    void set_db_path(std::string value)
+    {
+        db_path = value;
+    }
+
+    void set_name(std::string value)
+    {
+        name = value;
+    }
+
+    virtual std::string get_proc_name() const override
+    {
+        return "dump_keypoint_node";
+    }
+
+    template <typename Archive>
+    void serialize(Archive &archive)
+    {
+        archive(db_path);
+        archive(name);
+    }
+
+    virtual void initialize() override
+    {
+        if (sqlite3_open(db_path.c_str(), &db) != SQLITE_OK)
+        {
+            throw std::runtime_error("Failed to open database");
+        }
+
+        if (sqlite3_exec(db, "CREATE TABLE IF NOT EXISTS topics(id INTEGER PRIMARY KEY, name TEXT NOT NULL, type TEXT NOT NULL)", nullptr, nullptr, nullptr) != SQLITE_OK)
+        {
+            throw std::runtime_error("Failed to create table");
+        }
+
+        if (sqlite3_exec(db, "CREATE TABLE IF NOT EXISTS messages(id INTEGER PRIMARY KEY, topic_id INTEGER NOT NULL, timestamp INTEGER NOT NULL, data BLOB NOT NULL)", nullptr, nullptr, nullptr) != SQLITE_OK)
+        {
+            throw std::runtime_error("Failed to create table");
+        }
+
+        if (sqlite3_exec(db, "CREATE INDEX IF NOT EXISTS timestamp_idx ON messages (timestamp ASC)", nullptr, nullptr, nullptr) != SQLITE_OK)
+        {
+            throw std::runtime_error("Failed to create index");
+        }
+
+        {
+            sqlite3_stmt *stmt;
+            if (sqlite3_prepare_v2(db, "SELECT id FROM topics WHERE name = ?", -1, &stmt, nullptr) != SQLITE_OK)
+            {
+                throw std::runtime_error("Failed to prepare statement");
+            }
+
+            if (sqlite3_bind_text(stmt, 1, name.c_str(), -1, SQLITE_STATIC) != SQLITE_OK)
+            {
+                throw std::runtime_error("Failed to bind text");
+            }
+
+            if (sqlite3_step(stmt) == SQLITE_ROW)
+            {
+                topic_id = sqlite3_column_int(stmt, 0);
+            }
+            else
+            {
+                topic_id = -1;
+            }
+
+            sqlite3_finalize(stmt);
+        }
+
+        if (topic_id == -1)
+        {
+            sqlite3_stmt *stmt;
+            if (sqlite3_prepare_v2(db, "INSERT INTO topics (name, type) VALUES (?, ?)", -1, &stmt, nullptr) != SQLITE_OK)
+            {
+                throw std::runtime_error("Failed to prepare statement");
+            }
+
+            if (sqlite3_bind_text(stmt, 1, name.c_str(), -1, SQLITE_STATIC) != SQLITE_OK)
+            {
+                throw std::runtime_error("Failed to bind text");
+            }
+
+            if (sqlite3_bind_text(stmt, 2, "keypoint", -1, SQLITE_STATIC) != SQLITE_OK)
+            {
+                throw std::runtime_error("Failed to bind text");
+            }
+
+            auto result = sqlite3_step(stmt);
+
+            while (result == SQLITE_BUSY)
+            {
+                result = sqlite3_step(stmt);
+            }
+
+            if (result != SQLITE_DONE)
+            {
+                throw std::runtime_error("Failed to step");
+            }
+
+            sqlite3_finalize(stmt);
+
+            if (sqlite3_prepare_v2(db, "SELECT last_insert_rowid()", -1, &stmt, nullptr) != SQLITE_OK)
+            {
+                throw std::runtime_error("Failed to prepare statement");
+            }
+
+            if (sqlite3_step(stmt) == SQLITE_ROW)
+            {
+                topic_id = sqlite3_column_int(stmt, 0);
+            }
+            else
+            {
+                throw std::runtime_error("Failed to get last insert id");
+            }
+
+            sqlite3_finalize(stmt);
+        }
+
+        if (sqlite3_prepare_v2(db, "INSERT INTO messages (topic_id, timestamp, data) VALUES (?, ?, ?)", -1, &stmt, nullptr) != SQLITE_OK)
+        {
+            throw std::runtime_error("Failed to prepare statement");
+        }
+    }
+
+    virtual void finalize() override
+    {
+        flush_queue();
+
+        if (stmt)
+        {
+            sqlite3_finalize(stmt);
+            stmt = nullptr;
+        }
+        if (db)
+        {
+            sqlite3_close(db);
+            db = nullptr;
+        }
+    }
+
+    void flush_queue()
+    {
+        if (sqlite3_exec(db, "BEGIN TRANSACTION", nullptr, nullptr, nullptr) != SQLITE_OK)
+        {
+            throw std::runtime_error("Failed to begin transaction");
+        }
+
+        while (queue.size() > 0)
+        {
+            const auto& [timestamp, str] = queue.front();
+
+            if (sqlite3_reset(stmt) != SQLITE_OK)
+            {
+                throw std::runtime_error("Failed to reset");
+            }
+
+            if (sqlite3_bind_int64(stmt, 1, topic_id) != SQLITE_OK)
+            {
+                throw std::runtime_error("Failed to bind int64");
+            }
+
+            if (sqlite3_bind_int64(stmt, 2, timestamp) != SQLITE_OK)
+            {
+                throw std::runtime_error("Failed to bind int64");
+            }
+
+            if (sqlite3_bind_blob(stmt, 3, str.c_str(), str.size(), SQLITE_STATIC) != SQLITE_OK)
+            {
+                throw std::runtime_error("Failed to bind text");
+            }
+
+            auto result = sqlite3_step(stmt);
+
+            while (result == SQLITE_BUSY)
+            {
+                result = sqlite3_step(stmt);
+            }
+
+            if (result != SQLITE_DONE)
+            {
+                throw std::runtime_error("Failed to step");
+            }
+
+            queue.pop_front();
+        }
+
+        auto result = sqlite3_exec(db, "END TRANSACTION", nullptr, nullptr, nullptr);
+
+        while (result == SQLITE_BUSY)
+        {
+            result = sqlite3_exec(db, "END TRANSACTION", nullptr, nullptr, nullptr);
+        }
+
+        if (result != SQLITE_OK)
+        {
+            throw std::runtime_error("Failed to end transaction");
+        }
+    }
+
+    virtual void process(std::string input_name, graph_message_ptr message) override
+    {
+        if (auto frame_msg = std::dynamic_pointer_cast<keypoint_frame_message>(message))
+        {
+            const auto &data = frame_msg->get_data();
+
+            nlohmann::json frame;
+            std::vector<nlohmann::json> kps;
+            for (const auto &keypoint : data)
+            {
+                nlohmann::json kp;
+                kp["x"] = keypoint.pt_x;
+                kp["y"] = keypoint.pt_y;
+                kp["r"] = keypoint.size;
+                kps.push_back(kp);
+            }
+
+            frame["points"] = kps;
+            frame["timestamp"] = frame_msg->get_timestamp();
+            frame["frame_number"] = frame_msg->get_frame_number();
+
+            const auto j_str = frame.dump(2);
+
+            queue.emplace_back(frame_msg->get_timestamp(), j_str);
+
+            if (queue.size() >= 200)
+            {
+                flush_queue();
+            }
+        }
+    }
+};
+
+CEREAL_REGISTER_TYPE(dump_keypoint_node)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, dump_keypoint_node)
 
 class load_blob_node : public graph_node
 {
@@ -958,7 +1389,7 @@ public:
         start_timestamp = std::numeric_limits<uint64_t>::max();
 
         sqlite3 *db;
-        if (sqlite3_open(db_path.c_str(), &db) != SQLITE_OK)
+        if (sqlite3_open_v2(db_path.c_str(), &db, SQLITE_OPEN_READONLY | SQLITE_OPEN_NOMUTEX, nullptr) != SQLITE_OK)
         {
             throw std::runtime_error("Failed to open database");
         }
@@ -1009,9 +1440,9 @@ public:
     virtual void run() override
     {
         th.reset(new std::thread([this]()
-                                 {
+        {
             sqlite3 *db;
-            if (sqlite3_open(db_path.c_str(), &db) != SQLITE_OK)
+            if (sqlite3_open_v2(db_path.c_str(), &db, SQLITE_OPEN_READONLY | SQLITE_OPEN_NOMUTEX, nullptr) != SQLITE_OK)
             {
                 throw std::runtime_error("Failed to open database");
             }
@@ -1031,6 +1462,9 @@ public:
             playing = true;
             uint64_t position = 0;
             const auto start_time = std::chrono::system_clock::now();
+
+            spdlog::info("Start playback: {}", name);
+
             while (playing && sqlite3_step(stmt) == SQLITE_ROW)
             {
                 const auto timestamp = sqlite3_column_int64(stmt, 0);
@@ -1039,8 +1473,6 @@ public:
                 const auto data_size = static_cast<size_t>(sqlite3_column_bytes(stmt, 2));
                 const auto data_ptr = reinterpret_cast<const uint8_t *>(sqlite3_column_blob(stmt, 2));
                 const std::vector<uint8_t> data(data_ptr, data_ptr + data_size);
-
-                std::this_thread::sleep_until(start_time + std::chrono::duration<double>(static_cast<double>(elapsed_time) / 1000.0));
 
                 auto msg = std::make_shared<blob_frame_message>();
                 msg->set_data(std::move(data));
@@ -1053,13 +1485,18 @@ public:
                     fps,
                     0));
 
+                std::this_thread::sleep_until(start_time + std::chrono::duration<double>(static_cast<double>(elapsed_time) / 1000.0));
+
                 output->send(msg);
 
                 position++;
             }
 
             sqlite3_finalize(stmt);
-            stmt = nullptr; }));
+            stmt = nullptr;
+
+            spdlog::info("End playback: {}", name);
+        }));
     }
 
     virtual void stop() override
@@ -1142,7 +1579,7 @@ public:
         start_timestamp = std::numeric_limits<uint64_t>::max();
 
         sqlite3 *db;
-        if (sqlite3_open(db_path.c_str(), &db) != SQLITE_OK)
+        if (sqlite3_open_v2(db_path.c_str(), &db, SQLITE_OPEN_READONLY | SQLITE_OPEN_NOMUTEX, nullptr) != SQLITE_OK)
         {
             throw std::runtime_error("Failed to open database");
         }
@@ -1206,7 +1643,7 @@ public:
     virtual void run() override
     {
         th.reset(new std::thread([this]()
-                                 {
+        {
             sqlite3 *db;
             if (sqlite3_open(db_path.c_str(), &db) != SQLITE_OK)
             {
@@ -1228,14 +1665,15 @@ public:
             playing = true;
             uint64_t position = 0;
             const auto start_time = std::chrono::system_clock::now();
+
+            spdlog::info("Start playback: {}", name);
+
             while (playing && sqlite3_step(stmt) == SQLITE_ROW)
             {
                 const auto timestamp = sqlite3_column_int64(stmt, 0);
                 const auto elapsed_time = timestamp - start_timestamp;
 
                 const std::string data(reinterpret_cast<const char *>(sqlite3_column_text(stmt, 2)));
-
-                std::this_thread::sleep_until(start_time + std::chrono::duration<double>(static_cast<double>(elapsed_time) / 1000.0));
 
                 std::vector<keypoint> points;
                 read_frame(data, points);
@@ -1251,6 +1689,8 @@ public:
                     fps,
                     0));
 
+                std::this_thread::sleep_until(start_time + std::chrono::duration<double>(static_cast<double>(elapsed_time) / 1000.0));
+
                 output->send(msg);
 
                 position++;
@@ -1258,6 +1698,8 @@ public:
 
             sqlite3_finalize(stmt);
             stmt = nullptr;
+
+            spdlog::info("End playback: {}", name);
         }));
     }
 
@@ -1330,9 +1772,16 @@ public:
         int sync_fps = 90;
         std::vector<device_info> device_infos = infos;
 
+        std::shared_ptr<subgraph> g(new subgraph());
+
+        std::unordered_map<std::string, std::shared_ptr<graph_node>> rcv_nodes;
+        std::unordered_map<std::string, std::shared_ptr<graph_node>> rcv_marker_nodes;
+        std::unordered_map<std::string, std::shared_ptr<graph_node>> rcv_blob_nodes;
         std::vector<std::shared_ptr<remote_cluster>> clusters;
         for (std::size_t i = 0; i < device_infos.size(); i++)
         {
+            std::shared_ptr<remote_cluster> cluster;
+
             if (device_infos[i].type == device_type::raspi)
             {
                 constexpr int fps = 90;
@@ -1343,7 +1792,7 @@ public:
                     const auto& mask = masks.at(device_infos[i].name);
                     mask_img.reset(new image(mask.cols, mask.rows, CV_8UC1, mask.step, (const uint8_t *)mask.data));
                 }
-                auto cluster = std::make_shared<remote_cluster_raspi>(fps, mask_img.get());
+                cluster = std::make_shared<remote_cluster_raspi>(fps, mask_img.get());
                 mask_nodes.insert(std::make_pair(device_infos[i].name, cluster->mask_node_));
                 clusters.emplace_back(cluster);
             }
@@ -1351,13 +1800,15 @@ public:
             {
                 constexpr int fps = 30;
                 sync_fps = std::min(sync_fps, fps);
-                clusters.emplace_back(std::make_shared<remote_cluster_raspi_color>(fps));
+                cluster = std::make_shared<remote_cluster_raspi_color>(fps);
+                clusters.emplace_back(cluster);
             }
             else if (device_infos[i].type == device_type::depthai_color)
             {
                 constexpr int fps = 30;
                 sync_fps = std::min(sync_fps, fps);
-                clusters.emplace_back(std::make_unique<remote_cluster_depthai_color>(fps));
+                cluster = std::make_unique<remote_cluster_depthai_color>(fps);
+                clusters.emplace_back(cluster);
             }
             else if (device_infos[i].type == device_type::rs_d435)
             {
@@ -1368,13 +1819,15 @@ public:
                 constexpr int laser_power = 150;
                 constexpr bool with_image = true;
                 constexpr bool emitter_enabled = false;
-                clusters.emplace_back(std::make_unique<remote_cluster_rs_d435>(fps, exposure, gain, laser_power, with_image, emitter_enabled));
+                cluster = std::make_unique<remote_cluster_rs_d435>(fps, exposure, gain, laser_power, with_image, emitter_enabled);
+                clusters.emplace_back(cluster);
             }
             else if (device_infos[i].type == device_type::rs_d435_color)
             {
                 constexpr int fps = 30;
                 sync_fps = std::min(sync_fps, fps);
-                clusters.emplace_back(std::make_unique<remote_cluster_rs_d435_color>(fps));
+                cluster = std::make_unique<remote_cluster_rs_d435_color>(fps);
+                clusters.emplace_back(cluster);
             }
             else if (device_infos[i].type == device_type::raspi_playback)
             {
@@ -1382,15 +1835,7 @@ public:
                 sync_fps = std::min(sync_fps, fps);
                 clusters.push_back(nullptr);
             }
-        }
 
-        std::shared_ptr<subgraph> g(new subgraph());
-
-        std::vector<std::shared_ptr<graph_node>> rcv_nodes;
-        std::vector<std::shared_ptr<graph_node>> rcv_marker_nodes;
-        for (std::size_t i = 0; i < device_infos.size(); i++)
-        {
-            auto &cluster = clusters[i];
             if (cluster && cluster->infra1_output)
             {
                 std::shared_ptr<p2p_listener_node> n1(new p2p_listener_node());
@@ -1398,53 +1843,40 @@ public:
                 n1->set_endpoint(device_infos[i].endpoint, 0);
                 g->add_node(n1);
 
+                rcv_blob_nodes[device_infos[i].name] = n1;
+
                 std::shared_ptr<decode_image_node> n7(new decode_image_node());
                 n7->set_input(n1->get_output());
                 g->add_node(n7);
 
-                rcv_nodes.push_back(n7);
+                rcv_nodes[device_infos[i].name] = n7;
 
                 std::shared_ptr<callback_node> n8(new callback_node());
                 n8->set_input(n7->get_output());
                 g->add_node(n8);
 
                 n8->set_name("image#" + device_infos[i].name);
-
-#if 0
-                const auto data_dir = "../data/output";
-                std::shared_ptr<fifo_node> n12(new fifo_node());
-                n12->set_input(n1->get_output());
-                g->add_node(n12);
-
-                std::shared_ptr<dump_blob_node> n5(new dump_blob_node());
-                n5->set_input(n12->get_output(), "image_" + std::to_string(i + 1));
-                n5->set_data_dir(data_dir);
-                n5->set_ext(".jpg");
-                g->add_node(n5);
-#endif
             }
             else if (device_infos[i].type == device_type::raspi_playback)
             {
                 std::shared_ptr<load_blob_node> n1(new load_blob_node());
-                n1->set_name("image_" + std::to_string(i + 1));
+                n1->set_name(std::regex_replace(device_infos[i].name, std::regex("camera"), "image_"));
                 n1->set_db_path(device_infos[i].db_path);
                 g->add_node(n1);
+
+                rcv_blob_nodes[device_infos[i].name] = n1;
 
                 std::shared_ptr<decode_image_node> n7(new decode_image_node());
                 n7->set_input(n1->get_output());
                 g->add_node(n7);
 
-                rcv_nodes.push_back(n7);
+                rcv_nodes[device_infos[i].name] = n7;
 
                 std::shared_ptr<callback_node> n8(new callback_node());
                 n8->set_input(n7->get_output());
                 g->add_node(n8);
 
                 n8->set_name("image#" + device_infos[i].name);
-            }
-            else
-            {
-                rcv_nodes.push_back(nullptr);
             }
 
             if (cluster && cluster->infra1_marker_output)
@@ -1454,29 +1886,73 @@ public:
                 n2->set_endpoint(device_infos[i].endpoint, 0);
                 g->add_node(n2);
 
-                rcv_marker_nodes.push_back(n2);
+                rcv_marker_nodes[device_infos[i].name] = n2;
             }
             else if (device_infos[i].type == device_type::raspi_playback)
             {
                 std::shared_ptr<load_marker_node> n1(new load_marker_node());
-                n1->set_name("marker_" + std::to_string(i + 1));
+                n1->set_name(std::regex_replace(device_infos[i].name, std::regex("camera"), "marker_"));
                 n1->set_db_path(device_infos[i].db_path);
                 g->add_node(n1);
 
-                rcv_marker_nodes.push_back(n1);
+                rcv_marker_nodes[device_infos[i].name] = n1;
             }
-            else
+        }
+
+        for (std::size_t i = 0; i < device_infos.size(); i++)
+        {
+            if (device_infos[i].type == device_type::record)
             {
-                rcv_marker_nodes.push_back(nullptr);
+                {
+                    const auto& input = device_infos[i].inputs.at("default");
+                    if (rcv_blob_nodes.find(input) != rcv_blob_nodes.end())
+                    {
+                        const auto &n = rcv_blob_nodes[input];
+                        if (n)
+                        {
+                            std::shared_ptr<fifo_node> n12(new fifo_node());
+                            n12->set_max_size(1000);
+                            n12->set_input(n->get_output());
+                            g->add_node(n12);
+
+                            std::shared_ptr<dump_blob_node> n5(new dump_blob_node());
+                            n5->set_input(n12->get_output());
+                            n5->set_name(std::regex_replace(device_infos[i].name, std::regex("record"), "image_"));
+                            n5->set_db_path(device_infos[i].db_path);
+                            g->add_node(n5);
+                        }
+                    }
+                }
+
+                {
+                    const auto& input = device_infos[i].inputs.at("default");
+                    if (rcv_marker_nodes.find(input) != rcv_marker_nodes.end())
+                    {
+                        const auto &n = rcv_marker_nodes[input];
+                        if (n)
+                        {
+                            std::shared_ptr<fifo_node> n12(new fifo_node());
+                            n12->set_max_size(1000);
+                            n12->set_input(n->get_output());
+                            g->add_node(n12);
+
+                            std::shared_ptr<dump_keypoint_node> n5(new dump_keypoint_node());
+                            n5->set_input(n12->get_output());
+                            n5->set_name(std::regex_replace(device_infos[i].name, std::regex("record"), "marker_"));
+                            n5->set_db_path(device_infos[i].db_path);
+                            g->add_node(n5);
+                        }
+                    }
+                }
             }
         }
 
         std::shared_ptr<approximate_time_sync_node> n3(new approximate_time_sync_node());
-        for (std::size_t i = 0; i < rcv_nodes.size(); i++)
+        for (const auto& [name, recv_node] : rcv_nodes)
         {
-            if (rcv_nodes[i])
+            if (recv_node)
             {
-                n3->set_input(rcv_nodes[i]->get_output(), device_infos[i].name);
+                n3->set_input(recv_node->get_output(), name);
             }
         }
         // Allow fps variation
@@ -1489,13 +1965,12 @@ public:
 
         n8->set_name("images");
 
-        
         std::shared_ptr<approximate_time_sync_node> n6(new approximate_time_sync_node());
-        for (std::size_t i = 0; i < rcv_marker_nodes.size(); i++)
+        for (const auto& [name, recv_node] : rcv_marker_nodes)
         {
-            if (rcv_marker_nodes[i])
+            if (recv_node)
             {
-                n6->set_input(rcv_marker_nodes[i]->get_output(), "camera" + std::to_string(i + 1));
+                n6->set_input(recv_node->get_output(), name);
             }
         }
         // Allow fps variation

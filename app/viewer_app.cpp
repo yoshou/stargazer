@@ -222,20 +222,7 @@ class reconstruction_viewer : public window_base
 
                 if (calibration_panel_view_->calibration_target_index == 0)
                 {
-                    std::vector<device_info> infos;
-
-                    for (const auto& device : devices)
-                    {
-                        const auto &device_infos = calibration_config->get_device_infos();
-                        auto found = std::find_if(device_infos.begin(), device_infos.end(), [device](const auto &x)
-                                                { return x.name == device.name; });
-                        if (found == device_infos.end())
-                        {
-                            return false;
-                        }
-                        
-                        infos.push_back(*found);
-                    }
+                    const auto& devices = calibration_config->get_device_infos();
 
                     if (calibration_panel_view_->is_masking)
                     {
@@ -287,12 +274,15 @@ class reconstruction_viewer : public window_base
                         }
                     });
 
-                    multiview_capture->run(infos);
+                    multiview_capture->run(devices);
 
                     for (const auto& device : devices)
                     {
-                        const auto stream = std::make_shared<frame_tile_view::stream_info>(device.name, float2{(float)width, (float)height});
-                        frame_tile_view_->streams.push_back(stream);
+                        if (device.is_camera())
+                        {
+                            const auto stream = std::make_shared<frame_tile_view::stream_info>(device.name, float2{(float)width, (float)height});
+                            frame_tile_view_->streams.push_back(stream);
+                        }
                     }
                 }
                 else if (calibration_panel_view_->calibration_target_index == 1)
@@ -332,6 +322,8 @@ class reconstruction_viewer : public window_base
                 {
                     multiview_capture->stop();
                     multiview_capture.reset();
+
+                    const auto& devices = calibration_config->get_device_infos();
 
                     for (const auto &device : devices)
                     {
@@ -553,20 +545,7 @@ class reconstruction_viewer : public window_base
                         return false;
                     }
 
-                    std::vector<device_info> infos;
-
-                    for (const auto &device : devices)
-                    {
-                        const auto &device_infos = reconstruction_config->get_device_infos();
-                        auto found = std::find_if(device_infos.begin(), device_infos.end(), [device](const auto &x)
-                                                  { return x.name == device.name; });
-                        if (found == device_infos.end())
-                        {
-                            return false;
-                        }
-
-                        infos.push_back(*found);
-                    }
+                    const auto &devices = reconstruction_config->get_device_infos();
 
                     if (calibration_panel_view_->is_masking)
                     {
@@ -593,15 +572,21 @@ class reconstruction_viewer : public window_base
 
                     for (const auto &device : devices)
                     {
-                        multiview_capture->enable_marker_collecting(device.name);
+                        if (device.is_camera())
+                        {
+                            multiview_capture->enable_marker_collecting(device.name);
+                        }
                     }
 
-                    multiview_capture->run(infos);
+                    multiview_capture->run(devices);
 
                     for (const auto &device : devices)
                     {
-                        const auto stream = std::make_shared<frame_tile_view::stream_info>(device.name, float2{(float)width, (float)height});
-                        frame_tile_view_->streams.push_back(stream);
+                        if (device.is_camera())
+                        {
+                            const auto stream = std::make_shared<frame_tile_view::stream_info>(device.name, float2{(float)width, (float)height});
+                            frame_tile_view_->streams.push_back(stream);
+                        }
                     }
                 }
                 else if (reconstruction_panel_view_->source == 1 || reconstruction_panel_view_->source == 2)
@@ -611,20 +596,7 @@ class reconstruction_viewer : public window_base
                         return false;
                     }
 
-                    std::vector<device_info> infos;
-
-                    for (const auto &device : devices)
-                    {
-                        const auto &device_infos = reconstruction_config->get_device_infos();
-                        auto found = std::find_if(device_infos.begin(), device_infos.end(), [device](const auto &x)
-                                                  { return x.name == device.name; });
-                        if (found == device_infos.end())
-                        {
-                            return false;
-                        }
-
-                        infos.push_back(*found);
-                    }
+                    const auto &devices = reconstruction_config->get_device_infos();
 
                     if (calibration_panel_view_->is_masking)
                     {
@@ -661,12 +633,15 @@ class reconstruction_viewer : public window_base
                         }
                         multiview_image_reconstruction_->push_frame(color_image_frame); });
 
-                    multiview_capture->run(infos);
+                    multiview_capture->run(devices);
 
                     for (const auto &device : devices)
                     {
-                        const auto stream = std::make_shared<frame_tile_view::stream_info>(device.name, float2{(float)width, (float)height});
-                        frame_tile_view_->streams.push_back(stream);
+                        if (device.is_camera())
+                        {
+                            const auto stream = std::make_shared<frame_tile_view::stream_info>(device.name, float2{(float)width, (float)height});
+                            frame_tile_view_->streams.push_back(stream);
+                        }
                     }
                 }
             }
@@ -676,6 +651,8 @@ class reconstruction_viewer : public window_base
                 {
                     multiview_capture->stop();
                     multiview_capture.reset();
+
+                    const auto& devices = reconstruction_config->get_device_infos();
 
                     for (const auto &device : devices)
                     {
@@ -908,14 +885,20 @@ public:
 
         for (const auto& device : reconstruction_config->get_device_infos())
         {
-            epipolar_reconstruction_.set_camera(device.name, camera_params.at(device.id).cameras.at("infra1"));
+            if (device.is_camera())
+            {
+                epipolar_reconstruction_.set_camera(device.name, camera_params.at(device.id).cameras.at("infra1"));
+            }
         }
 
         multiview_image_reconstruction_->axis = axis_reconstruction_.get_axis();
 
         for (const auto &device : reconstruction_config->get_device_infos())
         {
-            multiview_image_reconstruction_->cameras.insert(std::make_pair(device.name, camera_params.at(device.id).cameras.at("infra1")));
+            if (device.is_camera())
+            {
+                multiview_image_reconstruction_->cameras.insert(std::make_pair(device.name, camera_params.at(device.id).cameras.at("infra1")));
+            }
         }
 
         calib.add_calibrated([&](const std::unordered_map<std::string, stargazer::camera_t> &cameras)
@@ -932,7 +915,10 @@ public:
         {
             if (camera_params.find(device.id) != camera_params.end())
             {
-                calib.set_camera(device.name, camera_params.at(device.id).cameras.at("infra1"));
+                if (device.is_camera())
+                {
+                    calib.set_camera(device.name, camera_params.at(device.id).cameras.at("infra1"));
+                }
             }
             else
             {
