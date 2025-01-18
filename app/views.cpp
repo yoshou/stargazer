@@ -1,5 +1,59 @@
 #include "views.hpp"
 
+namespace
+{
+    struct float3
+    {
+        float x, y, z;
+
+        float length() const { return sqrt(x * x + y * y + z * z); }
+
+        float3 normalize() const { return (length() > 0) ? float3{x / length(), y / length(), z / length()} : *this; }
+    };
+
+    inline float3 cross(const float3 &a, const float3 &b)
+    {
+        return {a.y * b.z - b.y * a.z, a.x * b.z - b.x * a.z, a.x * b.y - a.y * b.x};
+    }
+
+    inline float3 operator*(const float3 &a, float t)
+    {
+        return {a.x * t, a.y * t, a.z * t};
+    }
+
+    inline float3 operator/(const float3 &a, float t)
+    {
+        return {a.x / t, a.y / t, a.z / t};
+    }
+
+    inline float3 operator+(const float3 &a, const float3 &b)
+    {
+        return {a.x + b.x, a.y + b.y, a.z + b.z};
+    }
+
+    inline float3 operator-(const float3 &a, const float3 &b)
+    {
+        return {a.x - b.x, a.y - b.y, a.z - b.z};
+    }
+
+    inline float3 lerp(const float3 &a, const float3 &b, float t)
+    {
+        return b * t + a * (1 - t);
+    }
+
+    inline float3 lerp(const std::array<float3, 4> &rect, const float2 &p)
+    {
+        auto v1 = lerp(rect[0], rect[1], p.x);
+        auto v2 = lerp(rect[3], rect[2], p.x);
+        return lerp(v1, v2, p.y);
+    }
+
+    inline float operator*(const float3 &a, const float3 &b)
+    {
+        return a.x * b.x + a.y * b.y + a.z * b.z;
+    }
+}
+
 void azimuth_elevation::update(mouse_state mouse)
 {
     auto mouse_x = static_cast<int>(mouse.x);
@@ -820,4 +874,221 @@ float calibration_panel_view::draw_control_panel(view_context *context)
     ImGui::PopFont();
 
     return device_panel_height;
+}
+
+static void deproject_pixel_to_point(float point[3], const pose_view::camera_t *intrin, const float pixel[2], float depth)
+{
+    float x = (pixel[0] - intrin->ppx) / intrin->fx;
+    float y = (pixel[1] - intrin->ppy) / intrin->fy;
+
+    point[0] = depth * x;
+    point[1] = depth * y;
+    point[2] = depth;
+}
+
+static void draw_sphere(double r, int lats, int longs)
+{
+    int i, j;
+    for (i = 0; i <= lats; i++)
+    {
+        double lat0 = M_PI * (-0.5 + (double)(i - 1) / lats);
+        double z0 = sin(lat0);
+        double zr0 = cos(lat0);
+
+        double lat1 = M_PI * (-0.5 + (double)i / lats);
+        double z1 = sin(lat1);
+        double zr1 = cos(lat1);
+
+        glBegin(GL_QUAD_STRIP);
+        for (j = 0; j <= longs; j++)
+        {
+            double lng = 2 * M_PI * (double)(j - 1) / longs;
+            double x = cos(lng);
+            double y = sin(lng);
+
+            glNormal3f(x * zr0, y * zr0, z0);
+            glVertex3f(r * x * zr0, r * y * zr0, r * z0);
+            glNormal3f(x * zr1, y * zr1, z1);
+            glVertex3f(r * x * zr1, r * y * zr1, r * z1);
+        }
+        glEnd();
+    }
+}
+
+void pose_view::render(view_context *context)
+{
+    int left, top, right, bottom;
+    glfwGetWindowFrameSize(context->window, &left, &top, &right, &bottom);
+
+    const auto window_width = context->get_window_size().x;
+    const auto window_height = context->get_window_size().y;
+
+    const auto framebuf_width = window_width + left + right;
+    const auto framebuf_height = window_height + top + bottom;
+
+    auto output_height = 30;
+    auto panel_width = 350;
+    const auto top_bar_height = 50;
+
+    const float x = panel_width;
+    const float y = top_bar_height;
+    const float width = window_width - panel_width;
+    const float height = window_height - top_bar_height - output_height;
+
+    auto viewer_rect = rect{
+        x, y, width, height};
+
+    rect window_size{0, 0, window_width, window_height};
+    rect fb_size{0, 0, framebuf_width, framebuf_height};
+    viewer_rect = viewer_rect.normalize(window_size).unnormalize(fb_size);
+
+    glViewport(viewer_rect.x, viewer_rect.y,
+               static_cast<GLsizei>(viewer_rect.w), static_cast<GLsizei>(viewer_rect.h));
+    glClearColor(0, 0, 0, 1);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    glLoadIdentity();
+
+    matrix4 perspective_mat;
+    {
+        glMatrixMode(GL_PROJECTION);
+        glPushMatrix();
+        gluPerspective(45, viewer_rect.w / framebuf_height, 0.001f, 100.0f);
+        glGetFloatv(GL_PROJECTION_MATRIX, (GLfloat *)&perspective_mat);
+        glPopMatrix();
+    }
+
+    {
+        glMatrixMode(GL_PROJECTION);
+        glPushMatrix();
+        glLoadMatrixf((float *)perspective_mat.mat);
+
+        glMatrixMode(GL_MODELVIEW);
+        glPushMatrix();
+
+        matrix4 view_mat;
+        memcpy(&view_mat, (float *)&context->view, sizeof(matrix4));
+        glLoadMatrixf((float *)view_mat);
+
+        glDisable(GL_TEXTURE_2D);
+
+        glEnable(GL_DEPTH_TEST);
+
+        {
+            float tiles = 24;
+            const auto metric_system = true;
+            static const float FEET_TO_METER = 0.3048f;
+            if (!metric_system)
+                tiles *= 1.f / FEET_TO_METER;
+
+            glTranslatef(0, 0, 0);
+            glLineWidth(1);
+
+            // Render "floor" grid
+            glBegin(GL_LINES);
+
+            auto T = tiles * 0.5f;
+
+            if (!metric_system)
+                T *= FEET_TO_METER;
+
+            for (int i = 0; i <= ceil(tiles); i++)
+            {
+                float I = float(i);
+                if (!metric_system)
+                    I *= FEET_TO_METER;
+
+                if (i == tiles / 2)
+                    glColor4f(0.7f, 0.7f, 0.7f, 1.f);
+                else
+                    glColor4f(0.4f, 0.4f, 0.4f, 1.f);
+
+                glVertex3f(I - T, 0, -T);
+                glVertex3f(I - T, 0, T);
+                glVertex3f(-T, 0, I - T);
+                glVertex3f(T, 0, I - T);
+            }
+            glEnd();
+        }
+
+        {
+
+            glColor4f(1.f, 1.f, 1.f, 1.f);
+
+            for (const auto &p : cameras)
+            {
+                const auto &camera = p.second;
+
+                const auto camera_pose = axis * camera.pose;
+
+                matrix4 r1;
+                memcpy(&r1, (float *)&camera_pose, sizeof(matrix4));
+                glMatrixMode(GL_MODELVIEW);
+                glPushMatrix();
+                glLoadMatrixf(r1 * view_mat);
+
+                glTranslatef(0, 0, 0);
+                glLineWidth(1.f);
+                glBegin(GL_LINES);
+
+                const auto _pc_selected = false;
+                if (_pc_selected)
+                    glColor4f(light_blue.x, light_blue.y, light_blue.z, 0.5f);
+                else
+                    glColor4f(sensor_bg.x, sensor_bg.y, sensor_bg.z, 0.5f);
+
+                for (float d = 1; d < 6; d += 2)
+                {
+                    auto get_point = [&](float x, float y) -> float3
+                    {
+                        float point[3];
+                        float pixel[2]{x, y};
+                        deproject_pixel_to_point(point, &camera, pixel, d * 0.03f);
+                        glVertex3f(0.f, 0.f, 0.f);
+                        glVertex3fv(point);
+                        return {point[0], point[1], point[2]};
+                    };
+
+                    auto top_left = get_point(0, 0);
+                    auto top_right = get_point(static_cast<float>(camera.width), 0);
+                    auto bottom_right = get_point(static_cast<float>(camera.width), static_cast<float>(camera.height));
+                    auto bottom_left = get_point(0, static_cast<float>(camera.height));
+
+                    glVertex3fv(&top_left.x);
+                    glVertex3fv(&top_right.x);
+                    glVertex3fv(&top_right.x);
+                    glVertex3fv(&bottom_right.x);
+                    glVertex3fv(&bottom_right.x);
+                    glVertex3fv(&bottom_left.x);
+                    glVertex3fv(&bottom_left.x);
+                    glVertex3fv(&top_left.x);
+                }
+
+                glEnd();
+
+                glPopMatrix();
+
+                glColor4f(1.f, 1.f, 1.f, 1.f);
+            }
+        }
+
+        {
+            glColor4f(1.f, 1.f, 1.f, 1.f);
+
+            for (const auto p : points)
+            {
+                glPushMatrix();
+                glTranslatef(p.x, p.y, p.z);
+
+                draw_sphere(0.01, 20, 20);
+
+                glPopMatrix();
+                glColor4f(1.f, 1.f, 1.f, 1.f);
+            }
+        }
+
+        glPopMatrix();
+        glMatrixMode(GL_PROJECTION);
+        glPopMatrix();
+    }
 }
