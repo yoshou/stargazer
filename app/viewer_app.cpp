@@ -31,6 +31,8 @@ class viewer_app : public window_base
 {
     std::mutex mtx;
 
+    std::shared_ptr<rendering_thread> rendering_th;
+
     ImFont *large_font;
     ImFont *default_font;
 
@@ -904,6 +906,17 @@ public:
     {
     }
 
+    void start()
+    {
+        rendering_th = std::make_shared<rendering_thread>();
+        rendering_th->start(this);
+    }
+
+    void stop()
+    {
+        rendering_th->stop();
+    }
+
     virtual void initialize() override
     {
         window_base::initialize();
@@ -998,12 +1011,27 @@ public:
 
     virtual void on_close() override
     {
-        epipolar_reconstruction_.stop();
-        multiview_image_reconstruction_->stop();
-
-        std::lock_guard<std::mutex> lock(mtx);
+        stop();
         window_manager::get_instance()->exit();
         window_base::on_close();
+    }
+
+    virtual void destroy() override
+    {
+        std::lock_guard<std::mutex> lock(mtx);
+
+        if (ImGui::GetIO().BackendRendererUserData)
+        {
+            ImGui_ImplOpenGL3_Shutdown();
+        }
+        ImGui_ImplGlfw_Shutdown();
+        ImGui::DestroyContext();
+
+        epipolar_reconstruction_.stop();
+        calib.stop();
+        multiview_image_reconstruction_->stop();
+
+        window_base::destroy();
     }
 
     virtual void on_scroll(double x, double y) override
@@ -1542,40 +1570,33 @@ public:
     }
 };
 
-static std::vector<std::function<void()>> on_shutdown_handlers;
-static std::atomic_bool exit_flag(false);
+static std::shared_ptr<viewer_app> viewer;
 
-static void shutdown()
+static void sigint_handler(int)
 {
-    std::for_each(std::rbegin(on_shutdown_handlers), std::rend(on_shutdown_handlers), [](auto handler)
-                  { handler(); });
-    exit_flag.store(true);
+    viewer->stop();
+    window_manager::get_instance()->exit();
 }
 
 int viewer_app_main()
 {
+    signal(SIGINT, sigint_handler);
+
     const auto win_mgr = window_manager::get_instance();
     win_mgr->initialize();
 
-    on_shutdown_handlers.push_back([win_mgr]()
-                                   { win_mgr->terminate(); });
+    viewer = std::make_shared<viewer_app>();
 
-    const auto viewer = std::make_shared<viewer_app>();
-
-    const auto rendering_th = std::make_shared<rendering_thread>();
-    rendering_th->start(viewer.get());
-
-    on_shutdown_handlers.push_back([rendering_th, viewer]()
-                                   {
-        rendering_th->stop();
-        viewer->destroy(); });
+    viewer->start();
 
     while (!win_mgr->should_close())
     {
         win_mgr->handle_event();
     }
 
-    shutdown();
+    win_mgr->terminate();
+
+    viewer.reset();
 
     return 0;
 }
