@@ -409,14 +409,13 @@ CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, epipolar_reconstruct_node)
 
 class grpc_server_node : public graph_node
 {
-    std::atomic_bool running;
     std::shared_ptr<std::thread> server_th;
     std::unique_ptr<grpc::Server> server;
     std::unique_ptr<SensorServiceImpl> service;
 
 public:
     grpc_server_node()
-        : graph_node(), running(false), server_th(), server(), service(std::make_unique<SensorServiceImpl>())
+        : graph_node(), server_th(), server(), service(std::make_unique<SensorServiceImpl>())
     {
     }
 
@@ -432,16 +431,16 @@ public:
 
     virtual void run() override
     {
-        running = true;
+        std::string server_address("0.0.0.0:50051");
+
+        grpc::ServerBuilder builder;
+        builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
+        builder.RegisterService(service.get());
+        server = builder.BuildAndStart();
+        spdlog::info("Server listening on " + server_address);
+
         server_th.reset(new std::thread([this]()
         {
-            std::string server_address("0.0.0.0:50051");
-
-            grpc::ServerBuilder builder;
-            builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
-            builder.RegisterService(service.get());
-            server = builder.BuildAndStart();
-            spdlog::info("Server listening on " + server_address);
             server->Wait();
         }));
     }
@@ -465,9 +464,8 @@ public:
 
     virtual void stop() override
     {
-        if (running.load())
+        if (server)
         {
-            running.store(false);
             server->Shutdown();
             if (server_th && server_th->joinable())
             {

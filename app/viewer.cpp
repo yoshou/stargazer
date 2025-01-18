@@ -234,7 +234,6 @@ bool window_base::is_closed() const
 
 void window_base::on_close()
 {
-    destroy();
 }
 void window_base::on_key(int key, int scancode, int action, int mods)
 {
@@ -330,5 +329,4 @@ void graphics_context::swap_buffer()
 
 graphics_context::~graphics_context()
 {
-    detach();
 }
