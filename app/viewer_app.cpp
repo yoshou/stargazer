@@ -17,8 +17,6 @@
 #include <memory>
 #include <filesystem>
 
-#include <sqlite3.h>
-
 #include "camera_info.hpp"
 #include "capture.hpp"
 #include "views.hpp"
@@ -29,7 +27,7 @@
 const int SCREEN_WIDTH = 1680;
 const int SCREEN_HEIGHT = 1050;
 
-class reconstruction_viewer : public window_base
+class viewer_app : public window_base
 {
     std::mutex mtx;
 
@@ -41,8 +39,8 @@ class reconstruction_viewer : public window_base
     std::unique_ptr<capture_panel_view> capture_panel_view_;
     std::unique_ptr<calibration_panel_view> calibration_panel_view_;
     std::unique_ptr<reconstruction_panel_view> reconstruction_panel_view_;
-    std::unique_ptr<frame_tile_view> frame_tile_view_;
-    std::unique_ptr<frame_tile_view> contrail_tile_view_;
+    std::unique_ptr<image_tile_view> image_tile_view_;
+    std::unique_ptr<image_tile_view> contrail_tile_view_;
     std::unique_ptr<pose_view> pose_view_;
     std::shared_ptr<azimuth_elevation> view_controller;
 
@@ -114,8 +112,8 @@ class reconstruction_viewer : public window_base
                 const int width = static_cast<int>(std::round(device.params.at("width")));
                 const int height = static_cast<int>(std::round(device.params.at("height")));
 
-                const auto stream = std::make_shared<frame_tile_view::stream_info>(device.name, float2{(float)width, (float)height});
-                frame_tile_view_->streams.push_back(stream);
+                const auto stream = std::make_shared<image_tile_view::stream_info>(device.name, float2{(float)width, (float)height});
+                image_tile_view_->streams.push_back(stream);
             }
             else
             {
@@ -126,17 +124,80 @@ class reconstruction_viewer : public window_base
                     captures.erase(captures.find(device.name));
                 }
 
-                const auto stream_it = std::find_if(frame_tile_view_->streams.begin(), frame_tile_view_->streams.end(), [&](const auto &x)
+                const auto stream_it = std::find_if(image_tile_view_->streams.begin(), image_tile_view_->streams.end(), [&](const auto &x)
                                                     { return x->name == device.name; });
 
-                if (stream_it != frame_tile_view_->streams.end())
+                if (stream_it != image_tile_view_->streams.end())
                 {
-                    frame_tile_view_->streams.erase(stream_it);
+                    image_tile_view_->streams.erase(stream_it);
                 }
             }
 
             return true;
         });
+
+        capture_panel_view_->is_streaming_changed2.push_back([this](const std::vector<capture_panel_view::device_info> &devices, bool is_streaming)
+                                                                   {
+            namespace fs = std::filesystem;
+            if (is_streaming)
+            {
+                if (multiview_capture)
+                {
+                    return false;
+                }
+
+                const auto &devices = capture_config->get_device_infos();
+
+                if (calibration_panel_view_->is_masking)
+                {
+                    multiview_capture.reset(new multiview_capture_pipeline(masks));
+                }
+                else
+                {
+                    multiview_capture.reset(new multiview_capture_pipeline());
+                }
+
+                for (const auto &device : devices)
+                {
+                    if (device.is_camera())
+                    {
+                        multiview_capture->enable_marker_collecting(device.name);
+                    }
+                }
+
+                multiview_capture->run(devices);
+
+                for (const auto &device : devices)
+                {
+                    if (device.is_camera())
+                    {
+                        const auto stream = std::make_shared<image_tile_view::stream_info>(device.name, float2{(float)width, (float)height});
+                        image_tile_view_->streams.push_back(stream);
+                    }
+                }
+            }
+            else
+            {
+                if (multiview_capture)
+                {
+                    multiview_capture->stop();
+                    multiview_capture.reset();
+
+                    const auto &devices = capture_config->get_device_infos();
+
+                    for (const auto &device : devices)
+                    {
+                        const auto stream_it = std::find_if(image_tile_view_->streams.begin(), image_tile_view_->streams.end(), [&](const auto &x)
+                                                            { return x->name == device.name; });
+
+                        if (stream_it != image_tile_view_->streams.end())
+                        {
+                            image_tile_view_->streams.erase(stream_it);
+                        }
+                    }
+                }
+            }
+            return true; });
 
         capture_panel_view_->on_add_device.push_back([this](const std::string& device_name, device_type device_type, const std::string& ip_address, const std::string& gateway_address) {
             device_info new_device {};
@@ -280,8 +341,8 @@ class reconstruction_viewer : public window_base
                     {
                         if (device.is_camera())
                         {
-                            const auto stream = std::make_shared<frame_tile_view::stream_info>(device.name, float2{(float)width, (float)height});
-                            frame_tile_view_->streams.push_back(stream);
+                            const auto stream = std::make_shared<image_tile_view::stream_info>(device.name, float2{(float)width, (float)height});
+                            image_tile_view_->streams.push_back(stream);
                         }
                     }
                 }
@@ -312,8 +373,8 @@ class reconstruction_viewer : public window_base
                     const int width = static_cast<int>(std::round(device.params.at("width")));
                     const int height = static_cast<int>(std::round(device.params.at("height")));
 
-                    const auto stream = std::make_shared<frame_tile_view::stream_info>(device.name, float2{(float)width, (float)height});
-                    frame_tile_view_->streams.push_back(stream);
+                    const auto stream = std::make_shared<image_tile_view::stream_info>(device.name, float2{(float)width, (float)height});
+                    image_tile_view_->streams.push_back(stream);
                 }
             }
             else
@@ -327,12 +388,12 @@ class reconstruction_viewer : public window_base
 
                     for (const auto &device : devices)
                     {
-                        const auto stream_it = std::find_if(frame_tile_view_->streams.begin(), frame_tile_view_->streams.end(), [&](const auto &x)
+                        const auto stream_it = std::find_if(image_tile_view_->streams.begin(), image_tile_view_->streams.end(), [&](const auto &x)
                                                             { return x->name == device.name; });
 
-                        if (stream_it != frame_tile_view_->streams.end())
+                        if (stream_it != image_tile_view_->streams.end())
                         {
-                            frame_tile_view_->streams.erase(stream_it);
+                            image_tile_view_->streams.erase(stream_it);
                         }
                     }
                 }
@@ -347,12 +408,12 @@ class reconstruction_viewer : public window_base
                         captures.erase(captures.find(device.name));
                     }
 
-                    const auto stream_it = std::find_if(frame_tile_view_->streams.begin(), frame_tile_view_->streams.end(), [&](const auto &x)
+                    const auto stream_it = std::find_if(image_tile_view_->streams.begin(), image_tile_view_->streams.end(), [&](const auto &x)
                                                         { return x->name == device.name; });
 
-                    if (stream_it != frame_tile_view_->streams.end())
+                    if (stream_it != image_tile_view_->streams.end())
                     {
-                        frame_tile_view_->streams.erase(stream_it);
+                        image_tile_view_->streams.erase(stream_it);
                     }
                 }
 
@@ -584,8 +645,8 @@ class reconstruction_viewer : public window_base
                     {
                         if (device.is_camera())
                         {
-                            const auto stream = std::make_shared<frame_tile_view::stream_info>(device.name, float2{(float)width, (float)height});
-                            frame_tile_view_->streams.push_back(stream);
+                            const auto stream = std::make_shared<image_tile_view::stream_info>(device.name, float2{(float)width, (float)height});
+                            image_tile_view_->streams.push_back(stream);
                         }
                     }
                 }
@@ -639,8 +700,8 @@ class reconstruction_viewer : public window_base
                     {
                         if (device.is_camera())
                         {
-                            const auto stream = std::make_shared<frame_tile_view::stream_info>(device.name, float2{(float)width, (float)height});
-                            frame_tile_view_->streams.push_back(stream);
+                            const auto stream = std::make_shared<image_tile_view::stream_info>(device.name, float2{(float)width, (float)height});
+                            image_tile_view_->streams.push_back(stream);
                         }
                     }
                 }
@@ -656,12 +717,12 @@ class reconstruction_viewer : public window_base
 
                     for (const auto &device : devices)
                     {
-                        const auto stream_it = std::find_if(frame_tile_view_->streams.begin(), frame_tile_view_->streams.end(), [&](const auto &x)
+                        const auto stream_it = std::find_if(image_tile_view_->streams.begin(), image_tile_view_->streams.end(), [&](const auto &x)
                                                             { return x->name == device.name; });
 
-                        if (stream_it != frame_tile_view_->streams.end())
+                        if (stream_it != image_tile_view_->streams.end())
                         {
-                            frame_tile_view_->streams.erase(stream_it);
+                            image_tile_view_->streams.erase(stream_it);
                         }
                     }
                 }
@@ -838,8 +899,8 @@ class reconstruction_viewer : public window_base
 
 public:
 
-    reconstruction_viewer()
-        : window_base("Reconstruction Viewer", SCREEN_WIDTH, SCREEN_HEIGHT), calib(), multiview_image_reconstruction_(std::make_unique<voxelpose_reconstruction>())
+    viewer_app()
+        : window_base("Stargazer", SCREEN_WIDTH, SCREEN_HEIGHT), calib(), multiview_image_reconstruction_(std::make_unique<voxelpose_reconstruction>())
     {
     }
 
@@ -868,8 +929,8 @@ public:
         context->large_font = large_font;
 
         top_bar_view_ = std::make_unique<top_bar_view>();
-        frame_tile_view_ = std::make_unique<frame_tile_view>();
-        contrail_tile_view_ = std::make_unique<frame_tile_view>();
+        image_tile_view_ = std::make_unique<image_tile_view>();
+        contrail_tile_view_ = std::make_unique<image_tile_view>();
 
         init_capture_panel();
         init_calibration_panel();
@@ -1172,10 +1233,10 @@ public:
                     const auto device_name = name;
                     if (!frame.empty())
                     {
-                        const auto stream_it = std::find_if(frame_tile_view_->streams.begin(), frame_tile_view_->streams.end(), [device_name](const auto &x)
+                        const auto stream_it = std::find_if(image_tile_view_->streams.begin(), image_tile_view_->streams.end(), [device_name](const auto &x)
                                                             { return x->name == device_name; });
 
-                        if (stream_it != frame_tile_view_->streams.end())
+                        if (stream_it != image_tile_view_->streams.end())
                         {
                             cv::Mat image = frame;
                             cv::Mat color_image;
@@ -1203,10 +1264,10 @@ public:
 
                     if (!frame.empty())
                     {
-                        const auto stream_it = std::find_if(frame_tile_view_->streams.begin(), frame_tile_view_->streams.end(), [&](const auto &x)
+                        const auto stream_it = std::find_if(image_tile_view_->streams.begin(), image_tile_view_->streams.end(), [&](const auto &x)
                                                             { return x->name == device.name; });
 
-                        if (stream_it != frame_tile_view_->streams.end())
+                        if (stream_it != image_tile_view_->streams.end())
                         {
                             cv::Mat image = frame;
 #if 1
@@ -1313,7 +1374,7 @@ public:
             {
                 for (const auto &device : calibration_panel_view_->devices)
                 {
-                    std::shared_ptr<frame_tile_view::stream_info> stream;
+                    std::shared_ptr<image_tile_view::stream_info> stream;
                     const int width = static_cast<int>(std::round(device.params.at("width")));
                     const int height = static_cast<int>(std::round(device.params.at("height")));
 
@@ -1321,7 +1382,7 @@ public:
                                                     { return x->name == device.name; });
                     if (found == contrail_tile_view_->streams.end())
                     {
-                        stream = std::make_shared<frame_tile_view::stream_info>(device.name, float2{(float)width, (float)height});
+                        stream = std::make_shared<image_tile_view::stream_info>(device.name, float2{(float)width, (float)height});
                         contrail_tile_view_->streams.push_back(stream);
                     }
                     else
@@ -1400,10 +1461,10 @@ public:
                         const auto device_name = name;
                         if (!frame.empty())
                         {
-                            const auto stream_it = std::find_if(frame_tile_view_->streams.begin(), frame_tile_view_->streams.end(), [device_name](const auto &x)
+                            const auto stream_it = std::find_if(image_tile_view_->streams.begin(), image_tile_view_->streams.end(), [device_name](const auto &x)
                                                                 { return x->name == device_name; });
 
-                            if (stream_it != frame_tile_view_->streams.end())
+                            if (stream_it != image_tile_view_->streams.end())
                             {
                                 cv::Mat image = frame;
                                 cv::Mat color_image;
@@ -1431,10 +1492,10 @@ public:
 
                         if (!frame.empty())
                         {
-                            const auto stream_it = std::find_if(frame_tile_view_->streams.begin(), frame_tile_view_->streams.end(), [&](const auto &x)
+                            const auto stream_it = std::find_if(image_tile_view_->streams.begin(), image_tile_view_->streams.end(), [&](const auto &x)
                                                                 { return x->name == device.name; });
 
-                            if (stream_it != frame_tile_view_->streams.end())
+                            if (stream_it != image_tile_view_->streams.end())
                             {
                                 cv::Mat image = frame;
                                 cv::Mat color_image;
@@ -1456,7 +1517,7 @@ public:
 
         if (top_bar_view_->view_type == top_bar_view::ViewType::Image)
         {
-            frame_tile_view_->render(context.get());
+            image_tile_view_->render(context.get());
         }
         else if (top_bar_view_->view_type == top_bar_view::ViewType::Contrail)
         {
@@ -1464,7 +1525,7 @@ public:
         }
         else if (top_bar_view_->view_type == top_bar_view::ViewType::Point)
         {
-            frame_tile_view_->render(context.get());
+            image_tile_view_->render(context.get());
         }
         else if (top_bar_view_->view_type == top_bar_view::ViewType::Pose)
         {
@@ -1491,7 +1552,7 @@ static void shutdown()
     exit_flag.store(true);
 }
 
-int reconstruction_viewer_main()
+int viewer_app_main()
 {
     const auto win_mgr = window_manager::get_instance();
     win_mgr->initialize();
@@ -1499,7 +1560,7 @@ int reconstruction_viewer_main()
     on_shutdown_handlers.push_back([win_mgr]()
                                    { win_mgr->terminate(); });
 
-    const auto viewer = std::make_shared<reconstruction_viewer>();
+    const auto viewer = std::make_shared<viewer_app>();
 
     const auto rendering_th = std::make_shared<rendering_thread>();
     rendering_th->start(viewer.get());
@@ -1521,5 +1582,5 @@ int reconstruction_viewer_main()
 
 int main()
 {
-    return reconstruction_viewer_main();
+    return viewer_app_main();
 }
