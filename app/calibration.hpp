@@ -11,7 +11,6 @@
 #include "bundle_adjust_data.hpp"
 #include "camera_info.hpp"
 #include "task_queue.hpp"
-#include "graph_proc.h"
 
 class calibration_target
 {
