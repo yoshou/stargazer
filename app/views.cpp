@@ -1092,3 +1092,57 @@ void pose_view::render(view_context *context)
         glPopMatrix();
     }
 }
+
+void image_tile_view::render(view_context *context)
+{
+    auto flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
+
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {5, 5});
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0);
+
+    const auto window_size = context->get_window_size();
+    const auto window_width = window_size.x;
+    const auto window_height = window_size.y;
+
+    auto output_height = 30;
+    auto panel_width = 350;
+    const auto top_bar_height = 50;
+
+    const float x = panel_width;
+    const float y = top_bar_height;
+    const float width = window_width - panel_width;
+    const float height = window_height - top_bar_height - output_height;
+
+    ImGui::SetNextWindowPos({x, y});
+    ImGui::SetNextWindowSize({width, height});
+
+    ImGui::Begin("Viewport", nullptr, flags);
+
+    stream_index.clear();
+    for (size_t i = 0; i < streams.size(); i++)
+    {
+        stream_index[streams[i].get()] = i;
+    }
+
+    const auto r = rect{
+        x, y, width, height};
+
+    auto layout = calc_layout(r);
+
+    for (auto &&kvp : layout)
+    {
+        auto &&view_rect = kvp.second;
+        auto stream = kvp.first;
+        auto &&stream_mv = streams[stream];
+        auto &&stream_size = stream_mv->size;
+
+        draw_stream_header(context, view_rect);
+
+        ImGui::SetCursorPos(ImVec2{view_rect.x - r.x, view_rect.y - r.y});
+
+        stream_mv->texture.show(view_rect, 1.f);
+    }
+
+    ImGui::End();
+    ImGui::PopStyleVar(2);
+}
