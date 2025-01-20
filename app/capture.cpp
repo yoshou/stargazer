@@ -31,6 +31,7 @@ class remote_cluster_raspi : public remote_cluster
 public:
     explicit remote_cluster_raspi(int fps, const image *mask, bool is_master = false, bool emitter_enabled = true)
     {
+        constexpr bool with_image = true;
         constexpr bool with_marker = true;
 
         g.reset(new subgraph());
@@ -133,6 +134,7 @@ public:
             infra1 = mask_node_->get_output();
         }
 
+        if (with_image)
         {
             std::shared_ptr<fifo_node> n4(new fifo_node());
             n4->set_input(infra1);
@@ -149,6 +151,7 @@ public:
             infra1_output = n3->get_output();
         }
 
+        if (with_marker)
         {
             std::shared_ptr<fifo_node> n9(new fifo_node());
             n9->set_input(infra1);
@@ -686,8 +689,12 @@ public:
                 n1->set_endpoint(device_infos[i].endpoint, 0);
                 g->add_node(n1);
 
+                std::shared_ptr<fifo_node> n6(new fifo_node());
+                n6->set_input(n1->get_output());
+                g->add_node(n6);
+
                 std::shared_ptr<decode_image_node> n7(new decode_image_node());
-                n7->set_input(n1->get_output());
+                n7->set_input(n6->get_output());
                 g->add_node(n7);
 
                 rcv_nodes.push_back(n7);
@@ -1774,10 +1781,13 @@ public:
 
         std::shared_ptr<subgraph> g(new subgraph());
 
+        bool is_master = true;
+
         std::unordered_map<std::string, std::shared_ptr<graph_node>> rcv_nodes;
         std::unordered_map<std::string, std::shared_ptr<graph_node>> rcv_marker_nodes;
         std::unordered_map<std::string, std::shared_ptr<graph_node>> rcv_blob_nodes;
         std::vector<std::shared_ptr<remote_cluster>> clusters;
+
         for (std::size_t i = 0; i < device_infos.size(); i++)
         {
             std::shared_ptr<remote_cluster> cluster;
@@ -1792,7 +1802,8 @@ public:
                     const auto& mask = masks.at(device_infos[i].name);
                     mask_img.reset(new image(mask.cols, mask.rows, CV_8UC1, mask.step, (const uint8_t *)mask.data));
                 }
-                cluster = std::make_shared<remote_cluster_raspi>(fps, mask_img.get());
+                cluster = std::make_shared<remote_cluster_raspi>(fps, mask_img.get(), is_master);
+                is_master = false;
                 mask_nodes.insert(std::make_pair(device_infos[i].name, cluster->mask_node_));
                 clusters.emplace_back(cluster);
             }
@@ -1800,7 +1811,8 @@ public:
             {
                 constexpr int fps = 30;
                 sync_fps = std::min(sync_fps, fps);
-                cluster = std::make_shared<remote_cluster_raspi_color>(fps);
+                cluster = std::make_shared<remote_cluster_raspi_color>(fps, is_master);
+                is_master = false;
                 clusters.emplace_back(cluster);
             }
             else if (device_infos[i].type == device_type::depthai_color)
@@ -1850,12 +1862,6 @@ public:
                 g->add_node(n7);
 
                 rcv_nodes[device_infos[i].name] = n7;
-
-                std::shared_ptr<callback_node> n8(new callback_node());
-                n8->set_input(n7->get_output());
-                g->add_node(n8);
-
-                n8->set_name("image#" + device_infos[i].name);
             }
             else if (device_infos[i].type == device_type::raspi_playback)
             {
@@ -1871,12 +1877,6 @@ public:
                 g->add_node(n7);
 
                 rcv_nodes[device_infos[i].name] = n7;
-
-                std::shared_ptr<callback_node> n8(new callback_node());
-                n8->set_input(n7->get_output());
-                g->add_node(n8);
-
-                n8->set_name("image#" + device_infos[i].name);
             }
 
             if (cluster && cluster->infra1_marker_output)
@@ -1961,9 +1961,8 @@ public:
 
         std::shared_ptr<callback_node> n8(new callback_node());
         n8->set_input(n3->get_output());
-        g->add_node(n8);
-
         n8->set_name("images");
+        g->add_node(n8);
 
         std::shared_ptr<approximate_time_sync_node> n6(new approximate_time_sync_node());
         for (const auto& [name, recv_node] : rcv_marker_nodes)
@@ -1979,9 +1978,8 @@ public:
 
         std::shared_ptr<callback_node> n9(new callback_node());
         n9->set_input(n6->get_output());
-        g->add_node(n9);
-
         n9->set_name("markers");
+        g->add_node(n9);
 
         const auto callbacks = std::make_shared<callback_list>();
 
