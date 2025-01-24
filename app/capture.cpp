@@ -144,7 +144,7 @@ public:
             n2->set_input(n4->get_output());
             g->add_node(n2);
 
-            std::shared_ptr<p2p_talker_node> n3(new p2p_talker_node());
+            std::shared_ptr<p2p_tcp_talker_node> n3(new p2p_tcp_talker_node());
             n3->set_input(n2->get_output());
             g->add_node(n3);
 
@@ -176,7 +176,7 @@ public:
             n4->set_parameters(params);
             g->add_node(n4);
 
-            std::shared_ptr<p2p_talker_node> n5(new p2p_talker_node());
+            std::shared_ptr<p2p_tcp_talker_node> n5(new p2p_tcp_talker_node());
             n5->set_input(n4->get_output());
             g->add_node(n5);
 
@@ -272,7 +272,7 @@ public:
             n2->set_input(n4->get_output());
             g->add_node(n2);
 
-            std::shared_ptr<p2p_talker_node> n3(new p2p_talker_node());
+            std::shared_ptr<p2p_tcp_talker_node> n3(new p2p_tcp_talker_node());
             n3->set_input(n2->get_output());
             g->add_node(n3);
 
@@ -289,7 +289,7 @@ public:
             n4->set_input(n9->get_output());
             g->add_node(n4);
 
-            std::shared_ptr<p2p_talker_node> n5(new p2p_talker_node());
+            std::shared_ptr<p2p_tcp_talker_node> n5(new p2p_tcp_talker_node());
             n5->set_input(n4->get_output());
             g->add_node(n5);
 
@@ -335,7 +335,7 @@ public:
             n2->set_input(n4->get_output());
             g->add_node(n2);
 
-            std::shared_ptr<p2p_talker_node> n3(new p2p_talker_node());
+            std::shared_ptr<p2p_tcp_talker_node> n3(new p2p_tcp_talker_node());
             n3->set_input(n2->get_output());
             g->add_node(n3);
 
@@ -389,7 +389,7 @@ public:
             n2->set_input(infra1);
             g->add_node(n2);
 
-            std::shared_ptr<p2p_talker_node> n3(new p2p_talker_node());
+            std::shared_ptr<p2p_tcp_talker_node> n3(new p2p_tcp_talker_node());
             n3->set_input(n2->get_output());
             g->add_node(n3);
 
@@ -420,7 +420,7 @@ public:
             n4->set_parameters(params);
             g->add_node(n4);
 
-            std::shared_ptr<p2p_talker_node> n5(new p2p_talker_node());
+            std::shared_ptr<p2p_tcp_talker_node> n5(new p2p_tcp_talker_node());
             n5->set_input(n4->get_output());
             g->add_node(n5);
 
@@ -467,7 +467,7 @@ public:
             n2->set_input(n4->get_output());
             g->add_node(n2);
 
-            std::shared_ptr<p2p_talker_node> n3(new p2p_talker_node());
+            std::shared_ptr<p2p_tcp_talker_node> n3(new p2p_tcp_talker_node());
             n3->set_input(n2->get_output());
             g->add_node(n3);
 
@@ -484,7 +484,7 @@ public:
             n4->set_input(n9->get_output());
             g->add_node(n4);
 
-            std::shared_ptr<p2p_talker_node> n5(new p2p_talker_node());
+            std::shared_ptr<p2p_tcp_talker_node> n5(new p2p_tcp_talker_node());
             n5->set_input(n4->get_output());
             g->add_node(n5);
 
@@ -677,14 +677,14 @@ public:
         std::shared_ptr<subgraph> g(new subgraph());
 
         std::vector<std::shared_ptr<graph_node>> rcv_nodes;
-        std::vector<std::shared_ptr<p2p_listener_node>> rcv_marker_nodes;
+        std::vector<std::shared_ptr<p2p_tcp_listener_node>> rcv_marker_nodes;
         for (std::size_t i = 0; i < clusters.size(); i++)
         {
             auto &cluster = clusters[i];
 
             if (cluster->infra1_output)
             {
-                std::shared_ptr<p2p_listener_node> n1(new p2p_listener_node());
+                std::shared_ptr<p2p_tcp_listener_node> n1(new p2p_tcp_listener_node());
                 n1->set_input(cluster->infra1_output);
                 n1->set_endpoint(device_infos[i].endpoint, 0);
                 g->add_node(n1);
@@ -708,7 +708,7 @@ public:
 
             if (cluster->infra1_marker_output)
             {
-                std::shared_ptr<p2p_listener_node> n2(new p2p_listener_node());
+                std::shared_ptr<p2p_tcp_listener_node> n2(new p2p_tcp_listener_node());
                 n2->set_input(cluster->infra1_marker_output);
                 n2->set_endpoint(device_infos[i].endpoint, 0);
                 g->add_node(n2);
@@ -1850,7 +1850,7 @@ public:
 
             if (cluster && cluster->infra1_output)
             {
-                std::shared_ptr<p2p_listener_node> n1(new p2p_listener_node());
+                std::shared_ptr<p2p_tcp_listener_node> n1(new p2p_tcp_listener_node());
                 n1->set_input(cluster->infra1_output);
                 n1->set_endpoint(device_infos[i].endpoint, 0);
                 g->add_node(n1);
@@ -1881,7 +1881,7 @@ public:
 
             if (cluster && cluster->infra1_marker_output)
             {
-                std::shared_ptr<p2p_listener_node> n2(new p2p_listener_node());
+                std::shared_ptr<p2p_tcp_listener_node> n2(new p2p_tcp_listener_node());
                 n2->set_input(cluster->infra1_marker_output);
                 n2->set_endpoint(device_infos[i].endpoint, 0);
                 g->add_node(n2);
