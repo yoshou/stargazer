@@ -14,7 +14,7 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
     && apt-get -y install --no-install-recommends gfortran bison python3 python3-setuptools libarchive-dev libblas-dev liblapack-dev \
     libxinerama-dev libxcursor-dev xorg-dev libglu1-mesa-dev pkg-config
 
-RUN su vscode -c "${VCPKG_ROOT}/vcpkg install boost-program-options boost-asio boost-graph ceres opencv4[core,highgui,calib3d,contrib] glm grpc glfw3 glad nanoflann nlohmann-json imgui[opengl3-binding,glfw-binding] libjpeg-turbo sqlite3"
+RUN su vscode -c "${VCPKG_ROOT}/vcpkg install boost-program-options boost-asio boost-graph ceres opencv4[core,highgui,calib3d,contrib] glm grpc glfw3 glad nanoflann nlohmann-json imgui[opengl3-binding,glfw-binding] libjpeg-turbo sqlite3 cereal spdlog"
 
 ENV PATH $PATH:${VCPKG_ROOT}/installed/x64-linux
 ENV PATH $PATH:${VCPKG_ROOT}/installed/x64-linux/tools/protobuf
@@ -24,8 +24,7 @@ WORKDIR /onnxruntime/
 
 RUN curl -L \
     https://github.com/microsoft/onnxruntime/releases/download/v1.15.1/onnxruntime-linux-x64-gpu-1.15.1.tgz \
-    -o /tmp/onnxruntime-linux-x64-gpu-1.15.1.tgz
-
-RUN tar -zxvf /tmp/onnxruntime-linux-x64-gpu-1.15.1.tgz --strip-components 1 -C /onnxruntime
+    -o /tmp/onnxruntime-linux-x64-gpu-1.15.1.tgz \
+    && tar -zxvf /tmp/onnxruntime-linux-x64-gpu-1.15.1.tgz --strip-components 1 -C /onnxruntime
 
 ENV ONNXRUNTIME_ROOT /onnxruntime
