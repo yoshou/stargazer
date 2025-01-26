@@ -38,6 +38,8 @@ target_link_libraries(stargazer_voxelpose
     CUDA::cublas
     CUDA::cudart
     CUDA::cuda_driver
+    spdlog::spdlog_header_only
+    cereal::cereal
 )
 
 add_library(stargazer_mvpose SHARED
@@ -65,6 +67,8 @@ target_link_libraries(stargazer_mvpose
     $<$<BOOL:${ENABLE_ONNXRUNTIME_EXT}>:${ONNXRUNTIME_LIBS}>
     CUDA::cudart
     CUDA::cuda_driver
+    spdlog::spdlog_header_only
+    cereal::cereal
 )
 
 add_executable(stargazer_viewer
@@ -84,15 +88,6 @@ add_dependencies(stargazer_viewer
     stargazer_mvpose
 )
 
-target_include_directories(stargazer_viewer
-    PRIVATE
-)
-
-target_link_directories(stargazer_viewer
-    PUBLIC
-    ${CMAKE_BINARY_DIR}/libjpeg-turbo/lib
-)
-
 target_compile_definitions(stargazer_viewer
     PUBLIC
     $<$<BOOL:${MSVC}>:_USE_MATH_DEFINES>
@@ -100,6 +95,7 @@ target_compile_definitions(stargazer_viewer
 )
 
 target_link_libraries(stargazer_viewer
+    PRIVATE
     stargazer
     stargazer_sensor_grpc_proto
     stargazer_voxelpose
@@ -116,8 +112,11 @@ target_link_libraries(stargazer_viewer
     glfw
     glad::glad
     $<$<NOT:$<BOOL:${WIN32}>>:pthread>
+    spdlog::spdlog_header_only
+    cereal::cereal
     Boost::program_options
     JPEG::JPEG
+    lz4::lz4
     glog::glog
     ceres
     gRPC::grpc++
