@@ -117,8 +117,7 @@ target_link_libraries(stargazer_viewer
     Boost::program_options
     JPEG::JPEG
     lz4::lz4
-    glog::glog
-    ceres
+    Ceres::ceres
     gRPC::grpc++
     imgui::imgui
     glm::glm
