@@ -5,13 +5,10 @@ else()
     set(Boost_INCLUDE_DIR /usr/local/vcpkg/installed/x64-linux/include)
 endif()
 
+set(GFLAGS_USE_TARGET_NAMESPACE ON)
+
 find_package(OpenCV REQUIRED)
 find_package(Ceres CONFIG REQUIRED)
-
-set_target_properties(glog::glog PROPERTIES
-    INTERFACE_LINK_LIBRARIES "gflags"
-)
-
 find_package(Boost REQUIRED COMPONENTS program_options)
 find_package(nlohmann_json CONFIG REQUIRED)
 find_package(glfw3 REQUIRED)
@@ -25,7 +22,3 @@ find_package(lz4 CONFIG REQUIRED)
 find_package(cereal CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
 find_package(unofficial-sqlite3 CONFIG REQUIRED)
-
-include_directories(
-    ${CMAKE_SOURCE_DIR}/third-party/vcpkg/installed/x64-include
-)
