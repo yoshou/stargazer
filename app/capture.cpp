@@ -191,7 +191,7 @@ public:
     explicit remote_cluster_raspi_color(int fps, bool is_master = false)
     {
         constexpr bool with_image = true;
-        constexpr bool with_marker = false;
+        constexpr bool with_marker = true;
 
         g.reset(new subgraph());
 
@@ -285,12 +285,24 @@ public:
             n9->set_input(infra1);
             g->add_node(n9);
 
-            std::shared_ptr<charuco_detector_node> n4(new charuco_detector_node());
-            n4->set_input(n9->get_output());
-            g->add_node(n4);
+            std::shared_ptr<detect_circle_grid_node> n10(new detect_circle_grid_node());
+            n10->set_input(n9->get_output());
+            n10->get_parameters().min_threshold = 140;
+            n10->get_parameters().max_threshold = 200;
+            n10->get_parameters().threshold_step = 20;
+            n10->get_parameters().min_dist_between_blobs = 3;
+            n10->get_parameters().min_area = 10;
+            n10->get_parameters().max_area = 100;
+            n10->get_parameters().filter_by_area = true;
+            n10->get_parameters().min_circularity = 0.8;
+            n10->get_parameters().max_circularity = 1.0;
+            n10->get_parameters().filter_by_circularity = true;
+            n10->get_parameters().blob_color = 0;
+            n10->get_parameters().filter_by_color = true;
+            g->add_node(n10);
 
             std::shared_ptr<p2p_tcp_talker_node> n5(new p2p_tcp_talker_node());
-            n5->set_input(n4->get_output());
+            n5->set_input(n10->get_output());
             g->add_node(n5);
 
             infra1_marker_output = n5->get_output();

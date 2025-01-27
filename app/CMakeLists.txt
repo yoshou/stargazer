@@ -32,6 +32,7 @@ target_link_libraries(stargazer_voxelpose
     opencv_imgproc
     opencv_highgui
     opencv_features2d
+    opencv_calib3d
     $<$<BOOL:${ENABLE_ONNXRUNTIME_EXT}>:${ONNXRUNTIME_LIBS}>
     $<$<BOOL:${MSVC}>:${CUDAToolkit_LIBRARY_DIR}/cudnn.lib>
     $<$<NOT:$<BOOL:${MSVC}>>:cudnn>
