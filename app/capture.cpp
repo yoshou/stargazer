@@ -207,7 +207,7 @@ public:
         std::shared_ptr<libcamera_capture_node> n1(new libcamera_capture_node());
         n1->set_stream(stream_type::COLOR);
         n1->set_emitter_enabled(false);
-        n1->set_option(libcamera_capture_node::option::exposure, 5000);
+        n1->set_option(libcamera_capture_node::option::exposure, 7000);
         n1->set_option(libcamera_capture_node::option::gain, 10);
 
         n1->set_fps(fps);
@@ -287,16 +287,18 @@ public:
 
             std::shared_ptr<detect_circle_grid_node> n10(new detect_circle_grid_node());
             n10->set_input(n9->get_output());
-            n10->get_parameters().min_threshold = 140;
-            n10->get_parameters().max_threshold = 200;
-            n10->get_parameters().threshold_step = 20;
+            n10->get_parameters().min_threshold = 150;
+            n10->get_parameters().max_threshold = 250;
+            n10->get_parameters().threshold_step = 10;
             n10->get_parameters().min_dist_between_blobs = 3;
-            n10->get_parameters().min_area = 10;
+            n10->get_parameters().min_area = 5;
             n10->get_parameters().max_area = 100;
             n10->get_parameters().filter_by_area = true;
-            n10->get_parameters().min_circularity = 0.8;
+            n10->get_parameters().min_circularity = 0.5;
             n10->get_parameters().max_circularity = 1.0;
             n10->get_parameters().filter_by_circularity = true;
+            n10->get_parameters().filter_by_inertia = false;
+            n10->get_parameters().filter_by_convexity = false;
             n10->get_parameters().blob_color = 0;
             n10->get_parameters().filter_by_color = true;
             g->add_node(n10);
