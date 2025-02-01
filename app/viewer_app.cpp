@@ -56,7 +56,6 @@ class viewer_app : public window_base
     
     calibration calib;
     intrinsic_calibration intrinsic_calib;
-    extrinsic_calibration extrinsic_calib;
 
     axis_reconstruction axis_reconstruction_;
 
@@ -310,33 +309,6 @@ class viewer_app : public window_base
                         }
                         epipolar_reconstruction_.push_frame(frame); });
 
-                    multiview_capture->add_image_received([this](const std::map<std::string, cv::Mat> &image_frame)
-                                                          {
-                        if (!calibration_panel_view_->is_marker_collecting)
-                        {
-                            return;
-                        }
-                        std::unordered_map<std::string, cv::Mat> color_camera_images;
-                        for (const auto &[camera_name, camera_image] : image_frame)
-                        {
-                            const auto &device_infos = calibration_config->get_device_infos();
-                            if (const auto device_info = std::find_if(device_infos.begin(), device_infos.end(), [&camera_name = camera_name](const auto &x)
-                                                                    { return x.name == camera_name; });
-                                device_info != device_infos.end())
-                            {
-                                if (device_info->type == device_type::depthai_color || device_info->type == device_type::raspi_color || device_info->type == device_type::rs_d435_color)
-                                {
-                                    color_camera_images[camera_name] = camera_image;
-                                }
-                            }
-                        }
-
-                        if (color_camera_images.size() > 0)
-                        {
-                            extrinsic_calib.add_frame(color_camera_images);
-                        }
-                    });
-
                     multiview_capture->run(devices);
 
                     for (const auto& device : devices)
@@ -508,43 +480,6 @@ class viewer_app : public window_base
 
                         spdlog::info("End calibration");
 
-                        break;
-                    }
-                }
-
-                for (const auto &device : devices)
-                {
-                    if (extrinsic_calib.get_num_frames(device.name) > 0)
-                    {
-                        std::unordered_map<std::string, std::string> device_name_to_id;
-                        for (const auto& device : devices)
-                        {
-                            device_name_to_id[device.name] = device.id;
-                        }
-                        for (const auto& device : devices)
-                        {
-                            extrinsic_calib.cameras.insert(std::make_pair(device.name, camera_params.at(device.id).cameras.at("infra1")));
-                        }
-
-                        for (auto &[camera_name, camera] : extrinsic_calib.cameras)
-                        {
-                            camera.extrin.rotation = glm::mat4(1.0);
-                            camera.extrin.translation = glm::vec3(1.0);
-                        }
-
-                        extrinsic_calib.calibrate();
-
-                        for (const auto &[camera_name, camera] : extrinsic_calib.calibrated_cameras)
-                        {
-                            const auto& camera_id = device_name_to_id.at(camera_name);
-
-                            epipolar_reconstruction_.get_camera(name).extrin = camera.extrin;
-                            camera_params[camera_id].cameras["infra1"].extrin = camera.extrin;
-                            // multiview_image_reconstruction_->cameras[camera_name].intrin = camera.intrin;
-                            multiview_image_reconstruction_->cameras[camera_name].extrin = camera.extrin;
-                        }
-
-                        stargazer::save_camera_params("../data/config/camera_params.json", camera_params);
                         break;
                     }
                 }
@@ -789,19 +724,6 @@ class viewer_app : public window_base
                         axis_reconstruction_.push_frame(points);
                     }
                 }
-                if (reconstruction_panel_view_->source == 2)
-                {
-                    const auto images = multiview_capture->get_frames();
-
-                    const auto &calibrated_cameras = extrinsic_calib.calibrated_cameras;
-
-                    for (const auto &[camera_name, camera] : calibrated_cameras)
-                    {
-                        axis_reconstruction_.set_camera(camera_name, camera);
-                    }
-
-                    axis_reconstruction_.push_frame(images);
-                }
 
                 axis_reconstruction_.save_axis();
 
@@ -982,23 +904,23 @@ public:
                 epipolar_reconstruction_.set_camera(name, camera);
             }
         });
-        
-        calib.run();
 
         for (const auto& device : calibration_config->get_device_infos())
         {
-            if (camera_params.find(device.id) != camera_params.end())
+            if (device.is_camera())
             {
-                if (device.is_camera())
+                if (camera_params.find(device.id) != camera_params.end())
                 {
                     calib.set_camera(device.name, camera_params.at(device.id).cameras.at("infra1"));
                 }
-            }
-            else
-            {
-                spdlog::error("No camera params found for device: {}", device.name);
+                else
+                {
+                    spdlog::error("No camera params found for device: {}", device.name);
+                }
             }
         }
+
+        calib.run();
 
         for (auto &[camera_name, camera] : calib.get_cameras())
         {
@@ -1331,14 +1253,7 @@ public:
                                                               { return x.name == device.name; });
                         device_info != device_infos.end())
                     {
-                        if (device_info->type == device_type::depthai_color || device_info->type == device_type::raspi_color || device_info->type == device_type::rs_d435_color)
-                        {
-                            device.num_points = extrinsic_calib.get_num_frames(device.name);
-                        }
-                        else
-                        {
-                            device.num_points = calib.get_num_frames(device.name);
-                        }
+                        device.num_points = calib.get_num_frames(device.name);
                     }
                 }
             }
