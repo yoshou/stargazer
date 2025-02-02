@@ -18,22 +18,25 @@ get_filename_component(sensor_proto "${CMAKE_CURRENT_LIST_DIR}/sensor.proto" ABS
 get_filename_component(sensor_proto_path "${sensor_proto}" PATH)
 
 # Generated sources
-set(sensor_proto_srcs "${CMAKE_CURRENT_LIST_DIR}/sensor.pb.cc")
-set(sensor_proto_hdrs "${CMAKE_CURRENT_LIST_DIR}/sensor.pb.h")
-set(sensor_grpc_srcs "${CMAKE_CURRENT_LIST_DIR}/sensor.grpc.pb.cc")
-set(sensor_grpc_hdrs "${CMAKE_CURRENT_LIST_DIR}/sensor.grpc.pb.h")
+set(sensor_proto_srcs "${CMAKE_BINARY_DIR}/protos/sensor.pb.cc")
+set(sensor_proto_hdrs "${CMAKE_BINARY_DIR}/protos/sensor.pb.h")
+set(sensor_grpc_srcs "${CMAKE_BINARY_DIR}/protos/sensor.grpc.pb.cc")
+set(sensor_grpc_hdrs "${CMAKE_BINARY_DIR}/protos/sensor.grpc.pb.h")
+
+file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/protos")
+
 add_custom_command(
       OUTPUT "${sensor_proto_srcs}" "${sensor_proto_hdrs}" "${sensor_grpc_srcs}" "${sensor_grpc_hdrs}"
       COMMAND ${_PROTOBUF_PROTOC}
-      ARGS --grpc_out "${CMAKE_CURRENT_LIST_DIR}"
-        --cpp_out "${CMAKE_CURRENT_LIST_DIR}"
+      ARGS --grpc_out "${CMAKE_BINARY_DIR}/protos"
+        --cpp_out "${CMAKE_BINARY_DIR}/protos"
         -I "${sensor_proto_path}"
         --plugin=protoc-gen-grpc="${_GRPC_CPP_PLUGIN_EXECUTABLE}"
         "${sensor_proto}"
       DEPENDS "${sensor_proto}")
 
 # Include generated *.pb.h files
-include_directories("${CMAKE_CURRENT_LIST_DIR}")
+include_directories("${CMAKE_BINARY_DIR}/protos")
 
 # sensor_grpc_proto
 add_library(stargazer_sensor_grpc_proto
