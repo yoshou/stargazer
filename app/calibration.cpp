@@ -927,11 +927,13 @@ public:
             std::cout << "Num Observations: " << ba_data.num_observations() << std::endl;
 
             ceres::Solver::Options options;
+            options.use_nonmonotonic_steps = true;
+            options.preconditioner_type = ceres::SCHUR_JACOBI;
             options.linear_solver_type = ceres::DENSE_SCHUR;
-            options.minimizer_progress_to_stdout = true;
+            options.use_inner_iterations = true;
             options.max_num_iterations = 100;
-            // options.gradient_tolerance = 1e-16;
-            // options.function_tolerance = 1e-16;
+            options.minimizer_progress_to_stdout = true;
+
             ceres::Solver::Summary summary;
             ceres::Solve(options, &problem, &summary);
             std::cout << summary.FullReport() << "\n";
