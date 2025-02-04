@@ -11,6 +11,7 @@
 #include "bundle_adjust_data.hpp"
 #include "camera_info.hpp"
 #include "task_queue.hpp"
+#include "node_info.hpp"
 
 class calibration_target
 {
@@ -83,7 +84,7 @@ public:
     const std::vector<observed_points_t> &get_observed_points(std::string name) const;
 
     void push_frame(const std::map<std::string, std::vector<stargazer::point_data>> &frame);
-    void run();
+    void run(const std::vector<node_info> &infos);
     void stop();
 
     void calibrate();
