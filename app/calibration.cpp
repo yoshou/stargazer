@@ -484,6 +484,8 @@ class calibration_node : public graph_node
     std::vector<std::string> camera_names;
     std::vector<std::string> camera_ids;
 
+    bool only_extrinsic;
+    bool robust;
     std::unordered_map<std::string, stargazer::camera_t> cameras;
     std::unordered_map<std::string, stargazer::camera_t> calibrated_cameras;
 
@@ -491,7 +493,7 @@ class calibration_node : public graph_node
 
 public:
     calibration_node()
-        : graph_node(), detector(), output(std::make_shared<graph_edge>(this))
+        : graph_node(), detector(), only_extrinsic(true), robust(false), output(std::make_shared<graph_edge>(this))
     {
         set_output(output);
     }
@@ -506,10 +508,20 @@ public:
         this->cameras = cameras;
     }
 
+    void set_only_extrinsic(bool only_extrinsic)
+    {
+        this->only_extrinsic = only_extrinsic;
+    }
+
+    void set_robust(bool robust)
+    {
+        this->robust = robust;
+    }
+
     template <typename Archive>
     void serialize(Archive &archive)
     {
-        archive(cameras);
+        archive(cameras, only_extrinsic, robust);
     }
 
     size_t get_num_frames(std::string name) const
@@ -745,9 +757,6 @@ public:
         }
 
         {
-            const auto only_extrinsic = true; // TODO: Change to configurable
-            const auto robust = false; // TODO: Change to configurable
-
             const double *observations = ba_data.observations();
             ceres::Problem problem;
 
@@ -1046,18 +1055,32 @@ public:
         graph.process(calib_node.get(), "calibrate", msg);
     }
 
-    void run()
+    void run(const std::vector<node_info> &infos)
     {
         std::shared_ptr<subgraph> g(new subgraph());
 
-        std::shared_ptr<calibration_node> n1(new calibration_node());
-        n1->set_cameras(cameras);
-        g->add_node(n1);
+        for (const auto& info : infos)
+        {
+            if (info.type == node_type::calibration)
+            {
+                std::shared_ptr<calibration_node> n1(new calibration_node());
+                n1->set_cameras(cameras);
+                n1->set_only_extrinsic(std::get<bool>(info.params.at("only_extrinsic")));
+                n1->set_robust(std::get<bool>(info.params.at("robust")));
+                g->add_node(n1);
 
-        calib_node = n1;
+                calib_node = n1;
+            }
+        }
+
+        if (calib_node == nullptr)
+        {
+            spdlog::error("Calibration node not found");
+            return;
+        }
 
         std::shared_ptr<callback_node> n2(new callback_node());
-        n2->set_input(n1->get_output());
+        n2->set_input(calib_node->get_output());
         g->add_node(n2);
 
         n2->set_name("cameras");
@@ -1140,9 +1163,9 @@ std::unordered_map<std::string, stargazer::camera_t> &calibration::get_cameras()
     return pimpl->cameras;
 }
 
-void calibration::run()
+void calibration::run(const std::vector<node_info> &infos)
 {
-    pimpl->run();
+    pimpl->run(infos);
 }
 
 void calibration::stop()

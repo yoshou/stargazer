@@ -31,7 +31,7 @@
 #include <memory>
 
 #include "viewer.hpp"
-#include "device_info.hpp"
+#include "node_info.hpp"
 
 #include <iostream>
 
@@ -86,7 +86,7 @@ static const ImVec4 button_color = from_rgba(62, 77, 89, 0xff);
 static const ImVec4 header_window_bg = from_rgba(36, 44, 54, 0xff);
 static const ImVec4 header_color = from_rgba(62, 77, 89, 255);
 static const ImVec4 title_color = from_rgba(27, 33, 38, 255);
-static const ImVec4 device_info_color = from_rgba(33, 40, 46, 255);
+static const ImVec4 node_info_color = from_rgba(33, 40, 46, 255);
 static const ImVec4 yellow = from_rgba(229, 195, 101, 255, true);
 static const ImVec4 yellowish = from_rgba(255, 253, 191, 255, true);
 static const ImVec4 green = from_rgba(0x20, 0xe0, 0x20, 0xff, true);
@@ -406,23 +406,23 @@ public:
 class capture_panel_view
 {
 public:
-    struct device_info
+    struct node_info
     {
         std::string name;
         std::string address;
-        std::unordered_map<std::string, float> params;
+        std::unordered_map<std::string, std::variant<float, bool>> params;
         bool is_streaming = false;
 
-        device_info(const std::string &name, const std::string &address, const std::unordered_map<std::string, float>& params)
+        node_info(const std::string &name, const std::string &address, const std::unordered_map<std::string, std::variant<float, bool>> &params)
             : name(name), address(address), params(params)
         {
         }
     };
-    std::vector<device_info> devices;
+    std::vector<node_info> devices;
 
     bool is_streaming = false;
-    std::vector<std::function<bool(const std::vector<device_info> &, bool)>> is_streaming_changed2;
-    std::vector<std::function<bool(const device_info &)>> is_streaming_changed;
+    std::vector<std::function<bool(const std::vector<node_info> &, bool)>> is_streaming_changed2;
+    std::vector<std::function<bool(const node_info &)>> is_streaming_changed;
 
 private:
     float draw_control_panel(view_context *context);
@@ -432,10 +432,10 @@ private:
     std::string ip_address;
     std::string gateway_address;
     std::string device_name;
-    int device_type_index;
+    int node_type_index;
 
 public:
-    std::vector<std::function<void(const std::string&, device_type, const std::string&, const std::string&)>> on_add_device;
+    std::vector<std::function<void(const std::string&, node_type, const std::string&, const std::string&)>> on_add_device;
     std::vector<std::function<void(const std::string&)>> on_remove_device;
 
     void render(view_context *context);
@@ -444,30 +444,30 @@ public:
 class calibration_panel_view
 {
 public:
-    struct device_info
+    struct node_info
     {
         std::string id;
         std::string name;
         std::string address;
-        std::unordered_map<std::string, float> params;
+        std::unordered_map<std::string, std::variant<float, bool>> params;
         bool is_streaming = true;
         size_t num_points = 0;
 
-        device_info(const std::string &id, const std::string &name, const std::string &address, const std::unordered_map<std::string, float> &params)
+        node_info(const std::string &id, const std::string &name, const std::string &address, const std::unordered_map<std::string, std::variant<float, bool>> &params)
             : id(id), name(name), address(address), params(params)
         {
         }
     };
-    std::vector<device_info> devices;
+    std::vector<node_info> devices;
     bool is_marker_collecting = false;
     bool is_streaming = false;
     bool is_masking = false;
 
-    std::vector<std::function<bool(const std::vector<device_info> &, bool)>> is_marker_collecting_changed;
-    std::vector<std::function<bool(const std::vector<device_info> &, bool)>> is_streaming_changed;
-    std::vector<std::function<bool(const std::vector<device_info> &, bool)>> is_masking_changed;
-    std::vector<std::function<bool(const std::vector<device_info> &, bool)>> on_calibrate;
-    std::vector<std::function<void(const device_info &)>> on_intrinsic_calibration_device_changed;
+    std::vector<std::function<bool(const std::vector<node_info> &, bool)>> is_marker_collecting_changed;
+    std::vector<std::function<bool(const std::vector<node_info> &, bool)>> is_streaming_changed;
+    std::vector<std::function<bool(const std::vector<node_info> &, bool)>> is_masking_changed;
+    std::vector<std::function<bool(const std::vector<node_info> &, bool)>> on_calibrate;
+    std::vector<std::function<void(const node_info &)>> on_intrinsic_calibration_device_changed;
 
     int intrinsic_calibration_device_index = 0;
     int calibration_target_index = 0;
@@ -912,25 +912,25 @@ public:
 class reconstruction_panel_view
 {
 public:
-    struct device_info
+    struct node_info
     {
         std::string name;
         std::string address;
         bool is_streaming = true;
 
-        device_info(const std::string &name, const std::string &address)
+        node_info(const std::string &name, const std::string &address)
             : name(name), address(address)
         {
         }
     };
-    std::vector<device_info> devices;
+    std::vector<node_info> devices;
     bool is_reconstructing = false;
     bool is_streaming = false;
     int source = 0;
 
-    std::vector<std::function<bool(const std::vector<device_info> &, bool)>> is_reconstructing_changed;
-    std::vector<std::function<bool(const std::vector<device_info> &, bool)>> is_streaming_changed;
-    std::vector<std::function<bool(const std::vector<device_info> &)>> set_axis_pressed;
+    std::vector<std::function<bool(const std::vector<node_info> &, bool)>> is_reconstructing_changed;
+    std::vector<std::function<bool(const std::vector<node_info> &, bool)>> is_streaming_changed;
+    std::vector<std::function<bool(const std::vector<node_info> &)>> set_axis_pressed;
 
 private:
     float draw_control_panel(view_context *context)

@@ -68,12 +68,12 @@ class viewer_app : public window_base
     std::string generate_new_id() const
     {
         uint64_t max_id = 0;
-        for (const auto &device_info : capture_config->get_device_infos())
+        for (const auto &node_info : capture_config->get_node_infos())
         {
             size_t idx = 0;
-            const auto id = std::stoull(device_info.id, &idx);
+            const auto id = std::stoull(node_info.id, &idx);
 
-            if (device_info.id.size() == idx)
+            if (node_info.id.size() == idx)
             {
                 max_id = std::max(max_id, static_cast<uint64_t>(id + 1));
             }
@@ -84,17 +84,17 @@ class viewer_app : public window_base
     void init_capture_panel()
     {
         capture_panel_view_ = std::make_unique<capture_panel_view>();
-        for (const auto &device_info : capture_config->get_device_infos())
+        for (const auto &node_info : capture_config->get_node_infos())
         {
-            capture_panel_view_->devices.push_back(capture_panel_view::device_info{device_info.name, device_info.address, device_info.params});
+            capture_panel_view_->devices.push_back(capture_panel_view::node_info{node_info.name, node_info.address, node_info.params});
         }
 
-        capture_panel_view_->is_streaming_changed.push_back([this](const capture_panel_view::device_info &device) {
+        capture_panel_view_->is_streaming_changed.push_back([this](const capture_panel_view::node_info &device) {
             if (device.is_streaming == true)
             {
-                const auto& device_infos = capture_config->get_device_infos();
-                auto found = std::find_if(device_infos.begin(), device_infos.end(), [device](const auto& x) { return x.name == device.name; });
-                if (found == device_infos.end()) {
+                const auto& node_infos = capture_config->get_node_infos();
+                auto found = std::find_if(node_infos.begin(), node_infos.end(), [device](const auto& x) { return x.name == device.name; });
+                if (found == node_infos.end()) {
                     return false;
                 }
 
@@ -110,8 +110,8 @@ class viewer_app : public window_base
                     return false;
                 }
                 captures.insert(std::make_pair(device.name, capture));
-                const int width = static_cast<int>(std::round(device.params.at("width")));
-                const int height = static_cast<int>(std::round(device.params.at("height")));
+                const int width = static_cast<int>(std::round(std::get<float>(device.params.at("width"))));
+                const int height = static_cast<int>(std::round(std::get<float>(device.params.at("height"))));
 
                 const auto stream = std::make_shared<image_tile_view::stream_info>(device.name, float2{(float)width, (float)height});
                 image_tile_view_->streams.push_back(stream);
@@ -137,7 +137,7 @@ class viewer_app : public window_base
             return true;
         });
 
-        capture_panel_view_->is_streaming_changed2.push_back([this](const std::vector<capture_panel_view::device_info> &devices, bool is_streaming)
+        capture_panel_view_->is_streaming_changed2.push_back([this](const std::vector<capture_panel_view::node_info> &devices, bool is_streaming)
                                                                    {
             namespace fs = std::filesystem;
             if (is_streaming)
@@ -147,7 +147,7 @@ class viewer_app : public window_base
                     return false;
                 }
 
-                const auto &devices = capture_config->get_device_infos();
+                const auto &devices = capture_config->get_node_infos();
 
                 if (calibration_panel_view_->is_masking)
                 {
@@ -184,7 +184,7 @@ class viewer_app : public window_base
                     multiview_capture->stop();
                     multiview_capture.reset();
 
-                    const auto &devices = capture_config->get_device_infos();
+                    const auto &devices = capture_config->get_node_infos();
 
                     for (const auto &device : devices)
                     {
@@ -200,65 +200,65 @@ class viewer_app : public window_base
             }
             return true; });
 
-        capture_panel_view_->on_add_device.push_back([this](const std::string& device_name, device_type device_type, const std::string& ip_address, const std::string& gateway_address) {
-            device_info new_device {};
+        capture_panel_view_->on_add_device.push_back([this](const std::string& device_name, node_type node_type, const std::string& ip_address, const std::string& gateway_address) {
+            node_info new_device {};
             new_device.id = generate_new_id();
             new_device.name = device_name;
             new_device.address = ip_address;
             new_device.endpoint = gateway_address;
-            new_device.type = device_type;
+            new_device.type = node_type;
 
-            switch (device_type)
+            switch (node_type)
             {
-            case device_type::depthai_color:
-                new_device.params["width"] = 960;
-                new_device.params["height"] = 540;
+            case node_type::depthai_color:
+                new_device.params["width"] = 960.0f;
+                new_device.params["height"] = 540.0f;
                 break;
-            case device_type::raspi:
-                new_device.params["width"] = 820;
-                new_device.params["height"] = 616;
+            case node_type::raspi:
+                new_device.params["width"] = 820.0f;
+                new_device.params["height"] = 616.0f;
                 break;
-            case device_type::raspi_color:
-                new_device.params["width"] = 820;
-                new_device.params["height"] = 616;
+            case node_type::raspi_color:
+                new_device.params["width"] = 820.0f;
+                new_device.params["height"] = 616.0f;
                 break;
-            case device_type::rs_d435:
-                new_device.params["width"] = 640;
-                new_device.params["height"] = 480;
+            case node_type::rs_d435:
+                new_device.params["width"] = 640.0f;
+                new_device.params["height"] = 480.0f;
                 break;
-            case device_type::rs_d435_color:
-                new_device.params["width"] = 960;
-                new_device.params["height"] = 540;
+            case node_type::rs_d435_color:
+                new_device.params["width"] = 960.0f;
+                new_device.params["height"] = 540.0f;
                 break;
             }
 
-            auto &device_infos = capture_config->get_device_infos();
-            if (const auto found = std::find_if(device_infos.begin(), device_infos.end(), [&](const auto &x) {
+            auto &node_infos = capture_config->get_node_infos();
+            if (const auto found = std::find_if(node_infos.begin(), node_infos.end(), [&](const auto &x) {
                 return x.name == device_name; });
-                found == device_infos.end())
+                found == node_infos.end())
             {
-                device_infos.push_back(new_device);
+                node_infos.push_back(new_device);
 
-                for (const auto &device_info : device_infos)
+                for (const auto &node_info : node_infos)
                 {
-                    capture_panel_view_->devices.push_back(capture_panel_view::device_info{device_info.name, device_info.address, device_info.params});
+                    capture_panel_view_->devices.push_back(capture_panel_view::node_info{node_info.name, node_info.address, node_info.params});
                 }
                 capture_config->update();
             }
         });
 
         capture_panel_view_->on_remove_device.push_back([this](const std::string& device_name) {
-            auto& device_infos = capture_config->get_device_infos();
-            if (const auto found = std::find_if(device_infos.begin(), device_infos.end(), [&](const auto &x) {
+            auto& node_infos = capture_config->get_node_infos();
+            if (const auto found = std::find_if(node_infos.begin(), node_infos.end(), [&](const auto &x) {
                 return x.name == device_name; });
-                found != device_infos.end())
+                found != node_infos.end())
             {
-                device_infos.erase(found);
+                node_infos.erase(found);
                 capture_panel_view_->devices.clear();
 
-                for (const auto &device_info : device_infos)
+                for (const auto &node_info : node_infos)
                 {
-                    capture_panel_view_->devices.push_back(capture_panel_view::device_info{device_info.name, device_info.address, device_info.params});
+                    capture_panel_view_->devices.push_back(capture_panel_view::node_info{node_info.name, node_info.address, node_info.params});
                 }
                 capture_config->update();
             }
@@ -268,12 +268,12 @@ class viewer_app : public window_base
     void init_calibration_panel()
     {
         calibration_panel_view_ = std::make_unique<calibration_panel_view>();
-        for (const auto &device_info : calibration_config->get_device_infos())
+        for (const auto &node_info : calibration_config->get_node_infos())
         {
-            calibration_panel_view_->devices.push_back(calibration_panel_view::device_info{device_info.id, device_info.name, device_info.address, device_info.params});
+            calibration_panel_view_->devices.push_back(calibration_panel_view::node_info{node_info.id, node_info.name, node_info.address, node_info.params});
         }
 
-        calibration_panel_view_->is_streaming_changed.push_back([this](const std::vector<calibration_panel_view::device_info> &devices, bool is_streaming)
+        calibration_panel_view_->is_streaming_changed.push_back([this](const std::vector<calibration_panel_view::node_info> &devices, bool is_streaming)
                                                                {
             if (is_streaming)
             {
@@ -284,7 +284,7 @@ class viewer_app : public window_base
 
                 if (calibration_panel_view_->calibration_target_index == 0)
                 {
-                    const auto& devices = calibration_config->get_device_infos();
+                    const auto& devices = calibration_config->get_node_infos();
 
                     if (calibration_panel_view_->is_masking)
                     {
@@ -324,10 +324,10 @@ class viewer_app : public window_base
                 {
                     const auto& device = devices[calibration_panel_view_->intrinsic_calibration_device_index];
 
-                    const auto &device_infos = calibration_config->get_device_infos();
-                    auto found = std::find_if(device_infos.begin(), device_infos.end(), [device](const auto &x)
+                    const auto &node_infos = calibration_config->get_node_infos();
+                    auto found = std::find_if(node_infos.begin(), node_infos.end(), [device](const auto &x)
                                               { return x.name == device.name; });
-                    if (found == device_infos.end())
+                    if (found == node_infos.end())
                     {
                         return false;
                     }
@@ -344,8 +344,8 @@ class viewer_app : public window_base
                         return false;
                     }
                     captures.insert(std::make_pair(device.name, capture));
-                    const int width = static_cast<int>(std::round(device.params.at("width")));
-                    const int height = static_cast<int>(std::round(device.params.at("height")));
+                    const int width = static_cast<int>(std::round(std::get<float>(device.params.at("width"))));
+                    const int height = static_cast<int>(std::round(std::get<float>(device.params.at("height"))));
 
                     const auto stream = std::make_shared<image_tile_view::stream_info>(device.name, float2{(float)width, (float)height});
                     image_tile_view_->streams.push_back(stream);
@@ -358,7 +358,7 @@ class viewer_app : public window_base
                     multiview_capture->stop();
                     multiview_capture.reset();
 
-                    const auto& devices = calibration_config->get_device_infos();
+                    const auto& devices = calibration_config->get_node_infos();
 
                     for (const auto &device : devices)
                     {
@@ -395,7 +395,7 @@ class viewer_app : public window_base
             }
             return true; });
 
-        calibration_panel_view_->is_masking_changed.push_back([this](const std::vector<calibration_panel_view::device_info> &devices, bool is_masking)
+        calibration_panel_view_->is_masking_changed.push_back([this](const std::vector<calibration_panel_view::node_info> &devices, bool is_masking)
                                                              {
             if (!multiview_capture)
             {
@@ -413,7 +413,7 @@ class viewer_app : public window_base
             }
             return true; });
 
-        calibration_panel_view_->is_marker_collecting_changed.push_back([this](const std::vector<calibration_panel_view::device_info> &devices, bool is_marker_collecting)
+        calibration_panel_view_->is_marker_collecting_changed.push_back([this](const std::vector<calibration_panel_view::node_info> &devices, bool is_marker_collecting)
                                                                        {
             if (!multiview_capture)
             {
@@ -435,7 +435,7 @@ class viewer_app : public window_base
             }
             return true; });
 
-        calibration_panel_view_->on_intrinsic_calibration_device_changed.push_back([this](const calibration_panel_view::device_info &device) {
+        calibration_panel_view_->on_intrinsic_calibration_device_changed.push_back([this](const calibration_panel_view::node_info &device) {
             const auto &params = camera_params[device.id].cameras["infra1"];
             calibration_panel_view_->fx = params.intrin.fx;
             calibration_panel_view_->fy = params.intrin.fy;
@@ -449,7 +449,7 @@ class viewer_app : public window_base
             calibration_panel_view_->rms = 0;
         });
 
-        calibration_panel_view_->on_calibrate.push_back([this](const std::vector<calibration_panel_view::device_info> &devices, bool on_calibrate)
+        calibration_panel_view_->on_calibrate.push_back([this](const std::vector<calibration_panel_view::node_info> &devices, bool on_calibrate)
                                                        {
                                             
             if (calibration_panel_view_->calibration_target_index == 0)
@@ -489,8 +489,8 @@ class viewer_app : public window_base
             {
                 const auto &device = devices.at(calibration_panel_view_->intrinsic_calibration_device_index);
 
-                intrinsic_calib.image_width = static_cast<int>(std::round(device.params.at("width")));
-                intrinsic_calib.image_height = static_cast<int>(std::round(device.params.at("height")));
+                intrinsic_calib.image_width = static_cast<int>(std::round(std::get<float>(device.params.at("width"))));
+                intrinsic_calib.image_height = static_cast<int>(std::round(std::get<float>(device.params.at("height"))));
 
                 intrinsic_calib.calibrate();
 
@@ -526,12 +526,12 @@ class viewer_app : public window_base
     void init_reconstruction_panel()
     {
         reconstruction_panel_view_ = std::make_unique<reconstruction_panel_view>();
-        for (const auto &device_info : reconstruction_config->get_device_infos())
+        for (const auto &node_info : reconstruction_config->get_node_infos())
         {
-            reconstruction_panel_view_->devices.push_back(reconstruction_panel_view::device_info{device_info.name, device_info.address});
+            reconstruction_panel_view_->devices.push_back(reconstruction_panel_view::node_info{node_info.name, node_info.address});
         }
 
-        reconstruction_panel_view_->is_streaming_changed.push_back([this](const std::vector<reconstruction_panel_view::device_info> &devices, bool is_streaming)
+        reconstruction_panel_view_->is_streaming_changed.push_back([this](const std::vector<reconstruction_panel_view::node_info> &devices, bool is_streaming)
                                                                   {
             namespace fs = std::filesystem;
             if (is_streaming)
@@ -543,7 +543,7 @@ class viewer_app : public window_base
                         return false;
                     }
 
-                    const auto &devices = reconstruction_config->get_device_infos();
+                    const auto &devices = reconstruction_config->get_node_infos();
 
                     if (calibration_panel_view_->is_masking)
                     {
@@ -594,7 +594,7 @@ class viewer_app : public window_base
                         return false;
                     }
 
-                    const auto &devices = reconstruction_config->get_device_infos();
+                    const auto &devices = reconstruction_config->get_node_infos();
 
                     if (calibration_panel_view_->is_masking)
                     {
@@ -650,7 +650,7 @@ class viewer_app : public window_base
                     multiview_capture->stop();
                     multiview_capture.reset();
 
-                    const auto& devices = reconstruction_config->get_device_infos();
+                    const auto& devices = reconstruction_config->get_node_infos();
 
                     for (const auto &device : devices)
                     {
@@ -666,7 +666,7 @@ class viewer_app : public window_base
             }
             return true; });
 
-        reconstruction_panel_view_->set_axis_pressed.push_back([this](const std::vector<reconstruction_panel_view::device_info> &devices)
+        reconstruction_panel_view_->set_axis_pressed.push_back([this](const std::vector<reconstruction_panel_view::node_info> &devices)
                                                                   {
             namespace fs = std::filesystem;
             {
@@ -879,7 +879,7 @@ public:
 
         epipolar_reconstruction_.set_axis(axis_reconstruction_.get_axis());
 
-        for (const auto& device : reconstruction_config->get_device_infos())
+        for (const auto& device : reconstruction_config->get_node_infos())
         {
             if (device.is_camera())
             {
@@ -889,7 +889,7 @@ public:
 
         multiview_image_reconstruction_->axis = axis_reconstruction_.get_axis();
 
-        for (const auto &device : reconstruction_config->get_device_infos())
+        for (const auto &device : reconstruction_config->get_node_infos())
         {
             if (device.is_camera())
             {
@@ -905,7 +905,7 @@ public:
             }
         });
 
-        for (const auto& device : calibration_config->get_device_infos())
+        for (const auto& device : calibration_config->get_node_infos())
         {
             if (device.is_camera())
             {
@@ -920,7 +920,7 @@ public:
             }
         }
 
-        calib.run();
+        calib.run(calibration_config->get_node_infos("static_pipeline"));
 
         for (auto &[camera_name, camera] : calib.get_cameras())
         {
@@ -1042,12 +1042,12 @@ public:
 
                                         cv::Mat camera_matrix;
                                         cv::Mat dist_coeffs;
-                                        const auto &device_infos = reconstruction_config->get_device_infos();
-                                        if (const auto device_info = std::find_if(device_infos.begin(), device_infos.end(), [&](const auto &x)
+                                        const auto &node_infos = reconstruction_config->get_node_infos();
+                                        if (const auto node_info = std::find_if(node_infos.begin(), node_infos.end(), [&](const auto &x)
                                                                                   { return x.name == device.name; });
-                                            device_info != device_infos.end())
+                                            node_info != node_infos.end())
                                         {
-                                            stargazer::get_cv_intrinsic(camera_params.at(device_info->id).cameras.at("infra1").intrin, camera_matrix, dist_coeffs);
+                                            stargazer::get_cv_intrinsic(camera_params.at(node_info->id).cameras.at("infra1").intrin, camera_matrix, dist_coeffs);
                                         }
 
                                         cv::Mat rvec, tvec;
@@ -1248,10 +1248,10 @@ public:
             {
                 for (auto &device : calibration_panel_view_->devices)
                 {
-                    const auto &device_infos = calibration_config->get_device_infos();
-                    if (const auto device_info = std::find_if(device_infos.begin(), device_infos.end(), [&](const auto &x)
+                    const auto &node_infos = calibration_config->get_node_infos();
+                    if (const auto node_info = std::find_if(node_infos.begin(), node_infos.end(), [&](const auto &x)
                                                               { return x.name == device.name; });
-                        device_info != device_infos.end())
+                        node_info != node_infos.end())
                     {
                         device.num_points = calib.get_num_frames(device.name);
                     }
@@ -1291,7 +1291,7 @@ public:
 
                 pose_view_->cameras.clear();
 
-                for (const auto &device : calibration_config->get_device_infos())
+                for (const auto &device : calibration_config->get_node_infos())
                 {
                     const auto &cameras = calib.get_calibrated_cameras();
 
@@ -1318,8 +1318,8 @@ public:
                 for (const auto &device : calibration_panel_view_->devices)
                 {
                     std::shared_ptr<image_tile_view::stream_info> stream;
-                    const int width = static_cast<int>(std::round(device.params.at("width")));
-                    const int height = static_cast<int>(std::round(device.params.at("height")));
+                    const int width = static_cast<int>(std::round(std::get<float>(device.params.at("width"))));
+                    const int height = static_cast<int>(std::round(std::get<float>(device.params.at("height"))));
 
                     const auto found = std::find_if(contrail_tile_view_->streams.begin(), contrail_tile_view_->streams.end(), [&](const auto &x)
                                                     { return x->name == device.name; });
@@ -1362,7 +1362,7 @@ public:
 
                 pose_view_->cameras.clear();
 
-                for (const auto &device : reconstruction_config->get_device_infos())
+                for (const auto &device : reconstruction_config->get_node_infos())
                 {
                     const auto& cameras = epipolar_reconstruction_.get_cameras();
 

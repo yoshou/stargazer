@@ -5,7 +5,7 @@
 #include <opencv2/opencv.hpp>
 #include <glm/glm.hpp>
 
-#include "device_info.hpp"
+#include "node_info.hpp"
 
 class capture_pipeline
 {
@@ -17,7 +17,7 @@ public:
     capture_pipeline();
     virtual ~capture_pipeline();
 
-    void run(const device_info& info);
+    void run(const node_info& info);
     void stop();
 
     void set_mask(cv::Mat mask);
@@ -49,7 +49,7 @@ public:
     multiview_capture_pipeline(const std::map<std::string, cv::Mat> &masks);
     virtual ~multiview_capture_pipeline();
 
-    void run(const std::vector<device_info> &infos);
+    void run(const std::vector<node_info> &infos);
     void stop();
 
     std::map<std::string, cv::Mat> get_frames() const;

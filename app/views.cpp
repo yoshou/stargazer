@@ -261,7 +261,7 @@ void capture_panel_view::draw_controls(view_context *context, float panel_height
         std::string add_source_button_text = to_string() << " " << textual_icons::plus_circle << "  Add Source\t\t\t\t\t\t\t\t\t\t\t";
         if (ImGui::Button(add_source_button_text.c_str(), {panel_width - 1, panel_y}))
         {
-            device_type_index = 0;
+            node_type_index = 0;
             ip_address = "192.168.0.1";
             gateway_address = "192.168.0.254";
             device_name = "camera";
@@ -516,14 +516,14 @@ void capture_panel_view::render(view_context *context)
             ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 5);
 
             {
-                std::vector<std::string> device_type_names = {
+                std::vector<std::string> node_type_names = {
                     "raspi",
                     "raspi_color",
                     "depthai_color",
                     "rs_d435",
                     "rs_d435_color",
                 };
-                std::vector<const char *> device_type_names_chars = get_string_pointers(device_type_names);
+                std::vector<const char *> node_type_names_chars = get_string_pointers(node_type_names);
 
                 ImGui::SetCursorPosX(10);
                 ImGui::Text("Device Type");
@@ -533,7 +533,7 @@ void capture_panel_view::render(view_context *context)
                 ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, light_blue);
 
                 ImGui::SetCursorPosY(ImGui::GetCursorPosY() - 3);
-                if (ImGui::Combo("##dev_type", &device_type_index, device_type_names_chars.data(), static_cast<int>(device_type_names_chars.size())))
+                if (ImGui::Combo("##dev_type", &node_type_index, node_type_names_chars.data(), static_cast<int>(node_type_names_chars.size())))
                 {
                 }
                 ImGui::PopStyleColor();
@@ -617,14 +617,14 @@ void capture_panel_view::render(view_context *context)
                 {
                     for (auto &f : on_add_device)
                     {
-                        f(device_name, static_cast<device_type>(device_type_index), ip_address, gateway_address);
+                        f(device_name, static_cast<node_type>(node_type_index), ip_address, gateway_address);
                     }
                 }
                 catch (std::runtime_error e)
                 {
                     spdlog::error(e.what());
                 }
-                device_type_index = 0;
+                node_type_index = 0;
                 device_name = "";
                 ip_address = "";
                 gateway_address = "";
@@ -634,7 +634,7 @@ void capture_panel_view::render(view_context *context)
             ImGui::SetCursorPosX(width / 2 + 5);
             if (ImGui::Button("Cancel", {100.f, 25.f}) || ImGui::IsKeyDown(ImGuiKey_Escape))
             {
-                device_type_index = 0;
+                node_type_index = 0;
                 device_name = "";
                 ip_address = "";
                 gateway_address = "";
