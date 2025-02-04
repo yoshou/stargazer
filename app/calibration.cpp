@@ -148,17 +148,9 @@ struct float3
 };
 
 using float2_list_message = frame_message<std::vector<float2>>;
-using float3_list_message = frame_message<std::vector<float3>>;
-using mat4_message = frame_message<glm::mat4>;
 
 CEREAL_REGISTER_TYPE(float2_list_message)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(coalsack::frame_message_base, float2_list_message)
-
-CEREAL_REGISTER_TYPE(float3_list_message)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(coalsack::frame_message_base, float3_list_message)
-
-CEREAL_REGISTER_TYPE(mat4_message)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(coalsack::frame_message_base, mat4_message)
 
 CEREAL_REGISTER_TYPE(frame_message<object_message>)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(coalsack::frame_message_base, frame_message<object_message>)
@@ -417,120 +409,10 @@ static glm::mat4 estimate_pose(const std::vector<std::tuple<glm::vec2, glm::vec2
 
 static constexpr auto num_parameters = 18;
 
-struct snavely_reprojection_error_extrinsics
+template <bool is_radial_distortion = false>
+struct reprojection_error_functor
 {
-    snavely_reprojection_error_extrinsics(double observed_x, double observed_y, const double *intrinsics)
-        : observed_x(observed_x), observed_y(observed_y), fx(intrinsics[0]), fy(intrinsics[1]), cx(intrinsics[2]), cy(intrinsics[3]), k1(intrinsics[4]), k2(intrinsics[5]), k3(intrinsics[6]), p1(intrinsics[7]), p2(intrinsics[8]) {}
-
-    template <typename T>
-    bool operator()(const T *const camera,
-                    const T *const point,
-                    T *residuals) const
-    {
-        // camera[0,1,2] are the angle-axis rotation.
-        T p[3];
-        ceres::AngleAxisRotatePoint(camera, point, p);
-        // camera[3,4,5] are the translation.
-        p[0] += camera[3];
-        p[1] += camera[4];
-        p[2] += camera[5];
-        // Compute the center of distortion. The sign change comes from
-        // the camera model that Noah Snavely's Bundler assumes, whereby
-        // the camera coordinate system has a negative z axis.
-        T xp = p[0] / p[2];
-        T yp = p[1] / p[2];
-        // Compute final projected point position.
-        T r2 = xp * xp + yp * yp;
-        T distortion = 1.0 + (k1 + (k2 + k3 * r2) * r2) * r2;
-        T predicted_x = fx * (distortion * xp + 2.0 * p1 * xp * yp + p2 * (r2 + 2.0 * xp * xp)) + cx;
-        T predicted_y = fy * (distortion * yp + 2.0 * p2 * xp * yp + p1 * (r2 + 2.0 * yp * yp)) + cy;
-        // The error is the difference between the predicted and observed position.
-        T err_x = predicted_x - observed_x;
-        T err_y = predicted_y - observed_y;
-        residuals[0] = err_x;
-        residuals[1] = err_y;
-
-        if (observed_x == -1)
-        {
-            return false;
-        }
-        return true;
-    }
-
-    static ceres::CostFunction *create(const double observed_x,
-                                       const double observed_y, const double *intrinsics)
-    {
-        return (new ceres::AutoDiffCostFunction<snavely_reprojection_error_extrinsics, 2, 6, 3>(
-            new snavely_reprojection_error_extrinsics(observed_x, observed_y, intrinsics)));
-    }
-    double observed_x;
-    double observed_y;
-    double fx;
-    double fy;
-    double cx;
-    double cy;
-    double k1;
-    double k2;
-    double k3;
-    double p1;
-    double p2;
-};
-
-struct snavely_reprojection_error_extrinsic_intrinsic
-{
-    snavely_reprojection_error_extrinsic_intrinsic(double observed_x, double observed_y, double point_x, double point_y, double point_z)
-        : observed_x(observed_x), observed_y(observed_y), point_x(point_x), point_y(point_y), point_z(point_z) {}
-
-    template <typename T>
-    bool operator()(const T *const camera,
-                    T *residuals) const
-    {
-        // camera[0,1,2] are the angle-axis rotation.
-        T point[3] = {T(point_x), T(point_y), T(point_z)};
-        T p[3];
-        ceres::AngleAxisRotatePoint(camera, point, p);
-        // camera[3,4,5] are the translation.
-        p[0] += camera[3];
-        p[1] += camera[4];
-        p[2] += camera[5];
-        // Compute the center of distortion. The sign change comes from
-        // the camera model that Noah Snavely's Bundler assumes, whereby
-        // the camera coordinate system has a negative z axis.
-        T xp = p[0] / p[2];
-        T yp = p[1] / p[2];
-        // Compute final projected point position.
-        T predicted_x = xp;
-        T predicted_y = yp;
-        // The error is the difference between the predicted and observed position.
-        T err_x = predicted_x - observed_x;
-        T err_y = predicted_y - observed_y;
-        residuals[0] = err_x;
-        residuals[1] = err_y;
-
-        if (observed_x == -1)
-        {
-            return false;
-        }
-        return true;
-    }
-
-    static ceres::CostFunction *create(const double observed_x,
-                                       const double observed_y, double point_x, double point_y, double point_z)
-    {
-        return (new ceres::AutoDiffCostFunction<snavely_reprojection_error_extrinsic_intrinsic, 2, num_parameters>(
-            new snavely_reprojection_error_extrinsic_intrinsic(observed_x, observed_y, point_x, point_y, point_z)));
-    }
-    double observed_x;
-    double observed_y;
-    double point_x;
-    double point_y;
-    double point_z;
-};
-
-template <bool is_full_intrinsics>
-struct snavely_reprojection_error_extrinsic_intrinsic_point
-{
-    snavely_reprojection_error_extrinsic_intrinsic_point(double observed_x, double observed_y)
+    reprojection_error_functor(double observed_x, double observed_y)
         : observed_x(observed_x), observed_y(observed_y) {}
 
     template <typename T>
@@ -538,81 +420,65 @@ struct snavely_reprojection_error_extrinsic_intrinsic_point
                     const T *const point,
                     T *residuals) const
     {
-        // camera[0,1,2] are the angle-axis rotation.
         T p[3];
         ceres::AngleAxisRotatePoint(camera, point, p);
-        // camera[3,4,5] are the translation.
+
         p[0] += camera[3];
         p[1] += camera[4];
         p[2] += camera[5];
-        // Compute the center of distortion. The sign change comes from
-        // the camera model that Noah Snavely's Bundler assumes, whereby
-        // the camera coordinate system has a negative z axis.
+
         T xp = p[0] / p[2];
         T yp = p[1] / p[2];
 
         T predicted_x;
         T predicted_y;
 
-        if constexpr (is_full_intrinsics)
-        {
-            const T &fx = camera[6];
-            const T &fy = camera[7];
-            const T &cx = camera[8];
-            const T &cy = camera[9];
-            const T r2 = xp * xp + yp * yp;
+        const T &fx = camera[6];
+        const T &fy = camera[7];
+        const T &cx = camera[8];
+        const T &cy = camera[9];
+        const T r2 = xp * xp + yp * yp;
 
-            const T &k1 = camera[10];
-            const T &k2 = camera[11];
-            const T &k3 = camera[12];
-            const T &p1 = camera[13];
-            const T &p2 = camera[14];
+        const T &k1 = camera[10];
+        const T &k2 = camera[11];
+        const T &k3 = camera[12];
+        const T &p1 = camera[13];
+        const T &p2 = camera[14];
+
+        if constexpr (is_radial_distortion)
+        {
             const T &k4 = camera[15];
             const T &k5 = camera[16];
             const T &k6 = camera[17];
-            const T distortion = (1.0 + (k1 + (k2 + k3 * r2) * r2) * r2);
-            // T distortion = (1.0 + (k1 + (k2 + k3 * r2) * r2) * r2) / (1.0 + (k4 + (k5 + k6 * r2) * r2) * r2);
 
-            // Compute final projected point position.
+            const T distortion = (1.0 + (k1 + (k2 + k3 * r2) * r2) * r2) / (1.0 + (k4 + (k5 + k6 * r2) * r2) * r2);
+
             predicted_x = fx * (distortion * xp + 2.0 * p1 * xp * yp + p2 * (r2 + 2.0 * xp * xp)) + cx;
             predicted_y = fy * (distortion * yp + 2.0 * p2 * xp * yp + p1 * (r2 + 2.0 * yp * yp)) + cy;
         }
         else
         {
-            // Apply second and fourth order radial distortion.
-            const T &l1 = camera[8];
-            const T &l2 = camera[9];
-            const T r2 = xp * xp + yp * yp;
-            const T distortion = 1.0 + r2 * (l1 + l2 * r2);
-            // Compute final projected point position.
-            const T &focal_x = camera[6];
-            const T &focal_y = camera[7];
+            const T distortion = (1.0 + (k1 + (k2 + k3 * r2) * r2) * r2);
 
-            predicted_x = focal_x * distortion * xp;
-            predicted_y = focal_y * distortion * yp;
+            predicted_x = fx * (distortion * xp + 2.0 * p1 * xp * yp + p2 * (r2 + 2.0 * xp * xp)) + cx;
+            predicted_y = fy * (distortion * yp + 2.0 * p2 * xp * yp + p1 * (r2 + 2.0 * yp * yp)) + cy;
         }
 
-        // The error is the difference between the predicted and observed position.
         const T err_x = predicted_x - observed_x;
         const T err_y = predicted_y - observed_y;
         residuals[0] = err_x;
         residuals[1] = err_y;
 
-        if (observed_x == -1)
-        {
-            return false;
-        }
         return true;
     }
 
-    // Factory to hide the construction of the CostFunction object from
-    // the client code.
     static ceres::CostFunction *create(const double observed_x,
                                        const double observed_y)
     {
-        return (new ceres::AutoDiffCostFunction<snavely_reprojection_error_extrinsic_intrinsic_point, 2, num_parameters, 3>(
-            new snavely_reprojection_error_extrinsic_intrinsic_point(observed_x, observed_y)));
+        return (new ceres::AutoDiffCostFunction<reprojection_error_functor, 2, num_parameters, 3>(
+            new reprojection_error_functor(observed_x, observed_y)));
     }
+
     double observed_x;
     double observed_y;
 };
@@ -897,28 +763,36 @@ public:
 
             const double *observations = ba_data.observations();
             ceres::Problem problem;
+
+            ceres::SubsetManifold *constant_params_manifold = nullptr;
+            if (only_extrinsic)
+            {
+                std::vector<int> constant_params;
+
+                for (int i = 6; i < num_parameters; i++)
+                {
+                    constant_params.push_back(i);
+                }
+
+                constant_params_manifold =
+                    new ceres::SubsetManifold(num_parameters, constant_params);
+            }
+
             for (int i = 0; i < ba_data.num_observations(); ++i)
             {
                 ceres::LossFunction *loss_function = robust ? new ceres::HuberLoss(1.0) : nullptr;
+                
+                ceres::CostFunction *cost_function =
+                    reprojection_error_functor<false>::create(observations[2 * i + 0],
+                                                                                        observations[2 * i + 1]);
+                problem.AddResidualBlock(cost_function,
+                                         loss_function,
+                                         ba_data.mutable_camera_for_observation(i),
+                                         ba_data.mutable_point_for_observation(i));
+
                 if (only_extrinsic)
                 {
-                    ceres::CostFunction *cost_function =
-                        snavely_reprojection_error_extrinsics::create(observations[2 * i + 0],
-                                                                      observations[2 * i + 1], ba_data.mutable_camera_for_observation(i) + 6);
-                    problem.AddResidualBlock(cost_function,
-                                             loss_function /* squared loss */,
-                                             ba_data.mutable_camera_for_observation(i),
-                                             ba_data.mutable_point_for_observation(i));
-                }
-                else
-                {
-                    ceres::CostFunction *cost_function =
-                        snavely_reprojection_error_extrinsic_intrinsic_point<true>::create(observations[2 * i + 0],
-                                                                                           observations[2 * i + 1]);
-                    problem.AddResidualBlock(cost_function,
-                                             NULL /* squared loss */,
-                                             ba_data.mutable_camera_for_observation(i),
-                                             ba_data.mutable_point_for_observation(i));
+                    problem.SetManifold(ba_data.mutable_camera_for_observation(i), constant_params_manifold);
                 }
             }
 
@@ -952,7 +826,7 @@ public:
             {
                 for (size_t i = 0; i < camera_names.size(); i++)
                 {
-                    double *intrin = &ba_data.mutable_camera(i)[6];
+                    const auto intrin = &ba_data.mutable_camera(i)[6];
                     calibrated_cameras[camera_names[i]].intrin.fx = intrin[0];
                     calibrated_cameras[camera_names[i]].intrin.fy = intrin[1];
                     calibrated_cameras[camera_names[i]].intrin.cx = intrin[2];
