@@ -134,19 +134,6 @@ struct float2
     }
 };
 
-struct float3
-{
-    float x;
-    float y;
-    float z;
-
-    template <typename Archive>
-    void serialize(Archive &archive)
-    {
-        archive(x, y, z);
-    }
-};
-
 using float2_list_message = frame_message<std::vector<float2>>;
 
 CEREAL_REGISTER_TYPE(float2_list_message)
