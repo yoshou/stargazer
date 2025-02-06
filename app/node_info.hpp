@@ -14,6 +14,8 @@ enum class node_type
     raspi_playback,
     record,
     calibration,
+    pattern_board_calibration_target_detector,
+    three_point_bar_calibration_target_detector,
 };
 
 struct node_info
