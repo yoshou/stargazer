@@ -85,7 +85,7 @@ public:
 
     virtual std::vector<glm::vec2> detect_points(const std::vector<stargazer::point_data> &markers) override
     {
-        if (markers.size() > 0)
+        if (markers.size() == object_points.size())
         {
             std::vector<cv::Point2f> image_points;
 
