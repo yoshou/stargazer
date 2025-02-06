@@ -61,8 +61,6 @@ public:
     void enable_marker_collecting(std::string name);
     void disable_marker_collecting(std::string name);
 
-    std::vector<std::map<std::string, marker_frame_data>> pop_marker_frames();
-
     void add_marker_received(std::function<void(const std::map<std::string, marker_frame_data> &)> f);
     void clear_marker_received();
     void add_image_received(std::function<void(const std::map<std::string, cv::Mat> &)> f);

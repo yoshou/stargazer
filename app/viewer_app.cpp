@@ -307,7 +307,7 @@ class viewer_app : public window_base
                             }
                             frame.insert(std::make_pair(name, points));
                         }
-                        epipolar_reconstruction_.push_frame(frame); });
+                        calib.push_frame(frame); });
 
                     multiview_capture->run(devices);
 
@@ -982,190 +982,168 @@ public:
         std::vector<std::map<std::string, marker_frame_data>> marker_frames;
         if (calibration_panel_view_->is_marker_collecting)
         {
-            if (multiview_capture)
+            for (const auto &device : capture_panel_view_->devices)
             {
-                const auto marker_frames = multiview_capture->pop_marker_frames();
-
-                for (const auto &marker_frame : marker_frames)
+                const auto capture_it = captures.find(device.name);
+                if (capture_it != captures.end())
                 {
-                    std::map<std::string, std::vector<stargazer::point_data>> frame;
-                    for (const auto &[name, markers] : marker_frame)
+                    const auto capture = capture_it->second;
+                    auto frame = capture->get_frame();
+
+                    if (!frame.empty())
                     {
-                        std::vector<stargazer::point_data> points;
-                        for (const auto &marker : markers.markers)
+                        std::vector<cv::Point2f> board;
+                        if (detect_calibration_board(frame, board))
                         {
-                            points.push_back(stargazer::point_data{glm::vec2(marker.x, marker.y), marker.r, markers.timestamp});
+                            std::vector<stargazer::point_data> points;
+                            for (const auto &point : board)
+                            {
+                                points.push_back(stargazer::point_data{glm::vec2(point.x, point.y), 0, 0});
+                            }
+                            intrinsic_calib.add_frame(points);
                         }
-                        frame.insert(std::make_pair(name, points));
-                    }
-                    calib.push_frame(frame);
-                }
-            }
-            else
-            {
-                for (const auto &device : capture_panel_view_->devices)
-                {
-                    const auto capture_it = captures.find(device.name);
-                    if (capture_it != captures.end())
-                    {
-                        const auto capture = capture_it->second;
-                        auto frame = capture->get_frame();
-
-                        if (!frame.empty())
+#if 0
                         {
                             std::vector<cv::Point2f> board;
-                            if (detect_calibration_board(frame, board))
+                            if (detect_calibration_board(frame, board, calibration_pattern::ASYMMETRIC_CIRCLES_GRID))
                             {
-                                std::vector<stargazer::point_data> points;
-                                for (const auto &point : board)
-                                {
-                                    points.push_back(stargazer::point_data{glm::vec2(point.x, point.y), 0, 0});
-                                }
-                                intrinsic_calib.add_frame(points);
-                            }
-#if 0
-                            {
-                                std::vector<cv::Point2f> board;
-                                if (detect_calibration_board(frame, board, calibration_pattern::ASYMMETRIC_CIRCLES_GRID))
-                                {
-                                    const auto board_size = cv::Size(4, 11);
-                                    cv::drawChessboardCorners(frame, board_size, cv::Mat(board), true);
+                                const auto board_size = cv::Size(4, 11);
+                                cv::drawChessboardCorners(frame, board_size, cv::Mat(board), true);
 
+                                {
+                                    const auto mm_to_m = 0.001f;                                                                                                    // TODO: Define as config
+                                    const auto square_size = cv::Size2f(117.0f / (board_size.width - 1) / 2 * mm_to_m, 196.0f / (board_size.height - 1) * mm_to_m); // TODO: Define as config
+                                    const auto image_size = cv::Size(960, 540);
+
+                                    std::vector<cv::Point3f> object_point;
+                                    std::vector<cv::Point2f> image_point = board;
+                                    calc_board_corner_positions(board_size, square_size, object_point, calibration_pattern::ASYMMETRIC_CIRCLES_GRID);
+
+                                    cv::Mat camera_matrix;
+                                    cv::Mat dist_coeffs;
+                                    const auto &node_infos = reconstruction_config->get_node_infos();
+                                    if (const auto node_info = std::find_if(node_infos.begin(), node_infos.end(), [&](const auto &x)
+                                                                                { return x.name == device.name; });
+                                        node_info != node_infos.end())
                                     {
-                                        const auto mm_to_m = 0.001f;                                                                                                    // TODO: Define as config
-                                        const auto square_size = cv::Size2f(117.0f / (board_size.width - 1) / 2 * mm_to_m, 196.0f / (board_size.height - 1) * mm_to_m); // TODO: Define as config
-                                        const auto image_size = cv::Size(960, 540);
-
-                                        std::vector<cv::Point3f> object_point;
-                                        std::vector<cv::Point2f> image_point = board;
-                                        calc_board_corner_positions(board_size, square_size, object_point, calibration_pattern::ASYMMETRIC_CIRCLES_GRID);
-
-                                        cv::Mat camera_matrix;
-                                        cv::Mat dist_coeffs;
-                                        const auto &node_infos = reconstruction_config->get_node_infos();
-                                        if (const auto node_info = std::find_if(node_infos.begin(), node_infos.end(), [&](const auto &x)
-                                                                                  { return x.name == device.name; });
-                                            node_info != node_infos.end())
-                                        {
-                                            stargazer::get_cv_intrinsic(camera_params.at(node_info->id).cameras.at("infra1").intrin, camera_matrix, dist_coeffs);
-                                        }
-
-                                        cv::Mat rvec, tvec;
-                                        cv::solvePnP(object_point, image_point, camera_matrix, dist_coeffs, rvec, tvec);
-
-                                        {
-                                            constexpr auto length = 0.2f;
-                                            std::vector<cv::Point3f> object_points = {
-                                                cv::Point3f(0, 0, 0),
-                                                cv::Point3f(length, 0, 0),
-                                                cv::Point3f(length, length, 0),
-                                                cv::Point3f(0, length, 0),
-                                                cv::Point3f(0, 0, -length),
-                                                cv::Point3f(length, 0, -length),
-                                                cv::Point3f(length, length, -length),
-                                                cv::Point3f(0, length, -length),
-                                            };
-                                            std::vector<cv::Point2f> image_points;
-                                            cv::projectPoints(object_points, rvec, tvec, camera_matrix, dist_coeffs, image_points);
-
-                                            cv::line(frame, image_points.at(1), image_points.at(0), cv::Scalar(0, 0, 255));
-                                            cv::line(frame, image_points.at(2), image_points.at(1), cv::Scalar(0, 0, 255));
-                                            cv::line(frame, image_points.at(3), image_points.at(2), cv::Scalar(0, 0, 255));
-                                            cv::line(frame, image_points.at(0), image_points.at(3), cv::Scalar(0, 0, 255));
-                                            cv::line(frame, image_points.at(5), image_points.at(4), cv::Scalar(255, 0, 0));
-                                            cv::line(frame, image_points.at(6), image_points.at(5), cv::Scalar(255, 0, 0));
-                                            cv::line(frame, image_points.at(7), image_points.at(6), cv::Scalar(255, 0, 0));
-                                            cv::line(frame, image_points.at(4), image_points.at(7), cv::Scalar(255, 0, 0));
-                                            cv::line(frame, image_points.at(4), image_points.at(0), cv::Scalar(0, 255, 0));
-                                            cv::line(frame, image_points.at(5), image_points.at(1), cv::Scalar(0, 255, 0));
-                                            cv::line(frame, image_points.at(6), image_points.at(2), cv::Scalar(0, 255, 0));
-                                            cv::line(frame, image_points.at(7), image_points.at(3), cv::Scalar(0, 255, 0));
-                                            // cv::line(frame, image_points.at(0), image_points.at(4), cv::Scalar(255, 0, 0));
-                                        }
+                                        stargazer::get_cv_intrinsic(camera_params.at(node_info->id).cameras.at("infra1").intrin, camera_matrix, dist_coeffs);
                                     }
 
-                                    images[device.name] = frame;
-                                }
-                            }
-#endif
-#if 0
-                            {
-                                cv::aruco::DetectorParameters detector_params = cv::aruco::DetectorParameters();
-                                detector_params.cornerRefinementMethod = cv::aruco::CORNER_REFINE_CONTOUR;
-                                // detector_params.minMarkerPerimeterRate = 0.001;
-                                // detector_params.adaptiveThreshWinSizeStep = 10;
-                                // detector_params.adaptiveThreshWinSizeMax = 23;
-                                // detector_params.adaptiveThreshWinSizeMax = 73;
-                                // detector_params.polygonalApproxAccuracyRate = 0.1;
-                                // detector_params.adaptiveThreshWinSizeMax = 43;
-                                // detector_params.adaptiveThreshConstant = 50;
-                                cv::aruco::CharucoParameters charucoParams = cv::aruco::CharucoParameters();
-                                const auto dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_4X4_250);
-                                const auto board = cv::aruco::CharucoBoard(cv::Size(3, 5), 0.0575, 0.0575 * 0.75f, dictionary);
-                                const auto detector = cv::aruco::CharucoDetector(board, charucoParams, detector_params);
-                                std::vector<int> markerIds;
-                                std::vector<std::vector<cv::Point2f>> markerCorners;
-                                std::vector<int> charucoIds;
-                                std::vector<cv::Point2f> charucoCorners;
+                                    cv::Mat rvec, tvec;
+                                    cv::solvePnP(object_point, image_point, camera_matrix, dist_coeffs, rvec, tvec);
 
-                                try
-                                {
-                                    detector.detectBoard(frame, charucoCorners, charucoIds, markerCorners, markerIds);
+                                    {
+                                        constexpr auto length = 0.2f;
+                                        std::vector<cv::Point3f> object_points = {
+                                            cv::Point3f(0, 0, 0),
+                                            cv::Point3f(length, 0, 0),
+                                            cv::Point3f(length, length, 0),
+                                            cv::Point3f(0, length, 0),
+                                            cv::Point3f(0, 0, -length),
+                                            cv::Point3f(length, 0, -length),
+                                            cv::Point3f(length, length, -length),
+                                            cv::Point3f(0, length, -length),
+                                        };
+                                        std::vector<cv::Point2f> image_points;
+                                        cv::projectPoints(object_points, rvec, tvec, camera_matrix, dist_coeffs, image_points);
+
+                                        cv::line(frame, image_points.at(1), image_points.at(0), cv::Scalar(0, 0, 255));
+                                        cv::line(frame, image_points.at(2), image_points.at(1), cv::Scalar(0, 0, 255));
+                                        cv::line(frame, image_points.at(3), image_points.at(2), cv::Scalar(0, 0, 255));
+                                        cv::line(frame, image_points.at(0), image_points.at(3), cv::Scalar(0, 0, 255));
+                                        cv::line(frame, image_points.at(5), image_points.at(4), cv::Scalar(255, 0, 0));
+                                        cv::line(frame, image_points.at(6), image_points.at(5), cv::Scalar(255, 0, 0));
+                                        cv::line(frame, image_points.at(7), image_points.at(6), cv::Scalar(255, 0, 0));
+                                        cv::line(frame, image_points.at(4), image_points.at(7), cv::Scalar(255, 0, 0));
+                                        cv::line(frame, image_points.at(4), image_points.at(0), cv::Scalar(0, 255, 0));
+                                        cv::line(frame, image_points.at(5), image_points.at(1), cv::Scalar(0, 255, 0));
+                                        cv::line(frame, image_points.at(6), image_points.at(2), cv::Scalar(0, 255, 0));
+                                        cv::line(frame, image_points.at(7), image_points.at(3), cv::Scalar(0, 255, 0));
+                                        // cv::line(frame, image_points.at(0), image_points.at(4), cv::Scalar(255, 0, 0));
+                                    }
                                 }
-                                catch(const cv::Exception& e)
-                                {
-                                    std::cerr << e.what() << '\n';
-                                }
-                                
-                                cv::aruco::drawDetectedCornersCharuco(frame, charucoCorners, charucoIds);
+
                                 images[device.name] = frame;
                             }
+                        }
+#endif
+#if 0
+                        {
+                            cv::aruco::DetectorParameters detector_params = cv::aruco::DetectorParameters();
+                            detector_params.cornerRefinementMethod = cv::aruco::CORNER_REFINE_CONTOUR;
+                            // detector_params.minMarkerPerimeterRate = 0.001;
+                            // detector_params.adaptiveThreshWinSizeStep = 10;
+                            // detector_params.adaptiveThreshWinSizeMax = 23;
+                            // detector_params.adaptiveThreshWinSizeMax = 73;
+                            // detector_params.polygonalApproxAccuracyRate = 0.1;
+                            // detector_params.adaptiveThreshWinSizeMax = 43;
+                            // detector_params.adaptiveThreshConstant = 50;
+                            cv::aruco::CharucoParameters charucoParams = cv::aruco::CharucoParameters();
+                            const auto dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_4X4_250);
+                            const auto board = cv::aruco::CharucoBoard(cv::Size(3, 5), 0.0575, 0.0575 * 0.75f, dictionary);
+                            const auto detector = cv::aruco::CharucoDetector(board, charucoParams, detector_params);
+                            std::vector<int> markerIds;
+                            std::vector<std::vector<cv::Point2f>> markerCorners;
+                            std::vector<int> charucoIds;
+                            std::vector<cv::Point2f> charucoCorners;
+
+                            try
+                            {
+                                detector.detectBoard(frame, charucoCorners, charucoIds, markerCorners, markerIds);
+                            }
+                            catch(const cv::Exception& e)
+                            {
+                                std::cerr << e.what() << '\n';
+                            }
+                            
+                            cv::aruco::drawDetectedCornersCharuco(frame, charucoCorners, charucoIds);
+                            images[device.name] = frame;
+                        }
 #endif
 #if 1
+                        {
+                            cv::aruco::DetectorParameters detector_params = cv::aruco::DetectorParameters();
+                            detector_params.cornerRefinementMethod = cv::aruco::CORNER_REFINE_CONTOUR;
+                            // detector_params.minMarkerPerimeterRate = 0.001;
+                            // detector_params.adaptiveThreshWinSizeStep = 10;
+                            // detector_params.adaptiveThreshWinSizeMax = 23;
+                            // detector_params.adaptiveThreshWinSizeMax = 73;
+                            // detector_params.polygonalApproxAccuracyRate = 0.1;
+                            // detector_params.adaptiveThreshWinSizeMax = 43;
+                            // detector_params.adaptiveThreshConstant = 50;
+                            const auto dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_4X4_250);
+                            const auto detector = cv::aruco::ArucoDetector(dictionary, detector_params);
+                            std::vector<int> markerIds;
+                            std::vector<std::vector<cv::Point2f>> markerCorners;
+
+                            try
                             {
-                                cv::aruco::DetectorParameters detector_params = cv::aruco::DetectorParameters();
-                                detector_params.cornerRefinementMethod = cv::aruco::CORNER_REFINE_CONTOUR;
-                                // detector_params.minMarkerPerimeterRate = 0.001;
-                                // detector_params.adaptiveThreshWinSizeStep = 10;
-                                // detector_params.adaptiveThreshWinSizeMax = 23;
-                                // detector_params.adaptiveThreshWinSizeMax = 73;
-                                // detector_params.polygonalApproxAccuracyRate = 0.1;
-                                // detector_params.adaptiveThreshWinSizeMax = 43;
-                                // detector_params.adaptiveThreshConstant = 50;
-                                const auto dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_4X4_250);
-                                const auto detector = cv::aruco::ArucoDetector(dictionary, detector_params);
-                                std::vector<int> markerIds;
-                                std::vector<std::vector<cv::Point2f>> markerCorners;
-
-                                try
-                                {
-                                    detector.detectMarkers(frame, markerCorners, markerIds);
-                                }
-                                catch (const cv::Exception &e)
-                                {
-                                    std::cerr << e.what() << '\n';
-                                }
-
-                                cv::aruco::drawDetectedMarkers(frame, markerCorners, markerIds);
-                                images[device.name] = frame;
+                                detector.detectMarkers(frame, markerCorners, markerIds);
                             }
+                            catch (const cv::Exception &e)
+                            {
+                                std::cerr << e.what() << '\n';
+                            }
+
+                            cv::aruco::drawDetectedMarkers(frame, markerCorners, markerIds);
+                            images[device.name] = frame;
+                        }
 #endif
 #if 0
+                        {
+                            const auto markers = capture->get_markers();
+
+                            std::vector<int> charucoIds;
+                            std::vector<cv::Point2f> charucoCorners;
+
+                            for (const auto& marker : markers)
                             {
-                                const auto markers = capture->get_markers();
-
-                                std::vector<int> charucoIds;
-                                std::vector<cv::Point2f> charucoCorners;
-
-                                for (const auto& marker : markers)
-                                {
-                                    charucoIds.push_back(marker.first);
-                                    charucoCorners.push_back(marker.second);
-                                }
-                                cv::aruco::drawDetectedCornersCharuco(frame, charucoCorners, charucoIds);
+                                charucoIds.push_back(marker.first);
+                                charucoCorners.push_back(marker.second);
                             }
-#endif
+                            cv::aruco::drawDetectedCornersCharuco(frame, charucoCorners, charucoIds);
                         }
+#endif
                     }
                 }
             }
