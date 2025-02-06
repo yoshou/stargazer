@@ -470,22 +470,155 @@ struct reprojection_error_functor
     double observed_y;
 };
 
+class pattern_board_calibration_target_detector_node : public graph_node
+{
+    stargazer::camera_t camera;
+    std::unique_ptr<pattern_board_calibration_target> detector;
+    graph_edge_ptr output;
+
+    std::vector<cv::Point3f> get_object_points()
+    {
+        std::vector<cv::Point3f> object_points;
+        calc_board_corner_positions(cv::Size(2, 9), cv::Size2f(1.0f, 1.0f), object_points, calibration_pattern::ASYMMETRIC_CIRCLES_GRID);
+        return object_points;
+    }
+
+public:
+    pattern_board_calibration_target_detector_node()
+        : graph_node(), detector(), output(std::make_shared<graph_edge>(this))
+    {
+        set_output(output);
+    }
+
+    virtual std::string get_proc_name() const override
+    {
+        return "pattern_board_calibration_target_detector_node";
+    }
+
+    template <typename Archive>
+    void serialize(Archive &archive)
+    {
+        archive(camera);
+    }
+
+    virtual void run() override
+    {
+        detector = std::make_unique<pattern_board_calibration_target>(get_object_points(), camera);
+    }
+
+    void set_camera(const stargazer::camera_t &camera)
+    {
+        this->camera = camera;
+    }
+
+    virtual void process(std::string input_name, graph_message_ptr message) override
+    {
+        if (const auto frame_msg = std::dynamic_pointer_cast<float2_list_message>(message))
+        {
+            if (detector)
+            {
+                std::vector<stargazer::point_data> markers;
+                for (const auto &pt : frame_msg->get_data())
+                {
+                    markers.push_back({{pt.x, pt.y}, 0.0, 0.0});
+                }
+
+                const auto points = detector->detect_points(markers);
+
+                std::vector<float2> float2_data;
+                for (const auto &pt : points)
+                {
+                    float2_data.push_back({pt.x, pt.y});
+                }
+
+                auto msg = std::make_shared<float2_list_message>();
+                msg->set_data(float2_data);
+                msg->set_frame_number(std::dynamic_pointer_cast<frame_message_base>(message)->get_frame_number());
+                msg->set_timestamp(std::dynamic_pointer_cast<frame_message_base>(message)->get_timestamp());
+
+                output->send(msg);
+            }
+        }
+    }
+};
+
+CEREAL_REGISTER_TYPE(pattern_board_calibration_target_detector_node)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, pattern_board_calibration_target_detector_node)
+
+class three_point_bar_calibration_target_detector_node : public graph_node
+{
+    std::unique_ptr<three_point_bar_calibration_target> detector;
+    graph_edge_ptr output;
+
+public:
+    three_point_bar_calibration_target_detector_node()
+        : graph_node(), detector(), output(std::make_shared<graph_edge>(this))
+    {
+        set_output(output);
+    }
+
+    virtual std::string get_proc_name() const override
+    {
+        return "three_point_bar_calibration_target_detector_node";
+    }
+
+    template <typename Archive>
+    void serialize(Archive &archive)
+    {
+    }
+
+    virtual void run() override
+    {
+        detector = std::make_unique<three_point_bar_calibration_target>();
+    }
+
+    virtual void process(std::string input_name, graph_message_ptr message) override
+    {
+        if (const auto frame_msg = std::dynamic_pointer_cast<float2_list_message>(message))
+        {
+            if (detector)
+            {
+                std::vector<stargazer::point_data> markers;
+                for (const auto &pt : frame_msg->get_data())
+                {
+                    markers.push_back({{pt.x, pt.y}, 0.0, 0.0});
+                }
+
+                const auto points = detector->detect_points(markers);
+
+                std::vector<float2> float2_data;
+                for (const auto &pt : points)
+                {
+                    float2_data.push_back({pt.x, pt.y});
+                }
+
+                auto msg = std::make_shared<float2_list_message>();
+                msg->set_data(float2_data);
+                msg->set_frame_number(std::dynamic_pointer_cast<frame_message_base>(message)->get_frame_number());
+                msg->set_timestamp(std::dynamic_pointer_cast<frame_message_base>(message)->get_timestamp());
+
+                output->send(msg);
+            }
+        }
+    }
+};
+
+CEREAL_REGISTER_TYPE(three_point_bar_calibration_target_detector_node)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, three_point_bar_calibration_target_detector_node)
+
 class calibration_node : public graph_node
 {
     mutable std::mutex cameras_mtx;
 
+    std::unordered_map<uint32_t, uint32_t> timestamp_to_index;
+    std::map<std::string, size_t> camera_name_to_index;
     std::map<std::string, std::vector<observed_points_t>> observed_frames;
     std::map<std::string, size_t> num_frames;
 
-    std::unordered_map<std::string, std::shared_ptr<calibration_target>> detector;
-
-    std::map<std::string, size_t> camera_name_to_index;
-
-    std::vector<std::string> camera_names;
-    std::vector<std::string> camera_ids;
-
     bool only_extrinsic;
     bool robust;
+
+    std::vector<std::string> camera_names;
     std::unordered_map<std::string, stargazer::camera_t> cameras;
     std::unordered_map<std::string, stargazer::camera_t> calibrated_cameras;
 
@@ -493,7 +626,7 @@ class calibration_node : public graph_node
 
 public:
     calibration_node()
-        : graph_node(), detector(), only_extrinsic(true), robust(false), output(std::make_shared<graph_edge>(this))
+        : graph_node(), only_extrinsic(true), robust(false), output(std::make_shared<graph_edge>(this))
     {
         set_output(output);
     }
@@ -541,17 +674,6 @@ public:
             return empty;
         }
         return observed_frames.at(name);
-    }
-
-    virtual void run() override
-    {
-        std::vector<cv::Point3f> object_points;
-        calc_board_corner_positions(cv::Size(2, 9), cv::Size2f(1.0f, 1.0f), object_points, calibration_pattern::ASYMMETRIC_CIRCLES_GRID);
-
-        for (const auto&[name, camera] : cameras)
-        {
-            detector[name] = std::make_shared<pattern_board_calibration_target>(object_points, camera); // TODO: Changeable calibration target
-        }
     }
 
     void calibrate()
@@ -837,55 +959,6 @@ public:
         }
     }
 
-    void push_frame(const std::map<std::string, std::vector<stargazer::point_data>> &frame)
-    {
-        for (const auto &p : frame)
-        {
-            const auto &name = p.first;
-            if (num_frames.find(name) == num_frames.end())
-            {
-                num_frames.insert(std::make_pair(name, 0));
-            }
-            if (camera_name_to_index.find(name) == camera_name_to_index.end())
-            {
-                camera_name_to_index.insert(std::make_pair(name, camera_name_to_index.size()));
-            }
-            if (observed_frames.find(name) == observed_frames.end())
-            {
-
-                if (observed_frames.empty())
-                {
-                    observed_frames.insert(std::make_pair(name, std::vector<observed_points_t>()));
-                }
-                else
-                {
-                    observed_points_t obs = {};
-                    obs.camera_idx = camera_name_to_index.at(name);
-                    observed_frames.insert(std::make_pair(name, std::vector<observed_points_t>(observed_frames.begin()->second.size(), obs)));
-                }
-            }
-        }
-        for (auto &[name, observed_points] : observed_frames)
-        {
-            observed_points_t obs = {};
-            obs.camera_idx = camera_name_to_index.at(name);
-            if (frame.find(name) != frame.end())
-            {
-                const auto points = detector.at(name)->detect_points(frame.at(name));
-                if (points.size() > 0)
-                {
-                    obs.points = std::move(points);
-                }
-            }
-            observed_points.push_back(obs);
-
-            if (obs.points.size() > 0)
-            {
-                num_frames.at(name) += 1;
-            }
-        }
-    }
-
     virtual void process(std::string input_name, graph_message_ptr message) override
     {
         if (input_name == "calibrate")
@@ -918,26 +991,58 @@ public:
             return;
         }
 
-        if (auto frame_msg = std::dynamic_pointer_cast<frame_message<object_message>>(message))
+        if (auto points_msg = std::dynamic_pointer_cast<float2_list_message>(message))
         {
-            const auto obj_msg = frame_msg->get_data();
-
-            std::map<std::string, std::vector<stargazer::point_data>> frame;
-
-            for (const auto &[name, field] : obj_msg.get_fields())
+            if (timestamp_to_index.find(points_msg->get_frame_number()) == timestamp_to_index.end())
             {
-                if (auto points_msg = std::dynamic_pointer_cast<float2_list_message>(field))
+                timestamp_to_index.insert(std::make_pair(points_msg->get_frame_number(), timestamp_to_index.size()));
+            }
+
+            const auto index = timestamp_to_index.at(points_msg->get_frame_number());
+            const auto &name = input_name;
+
+            if (num_frames.find(name) == num_frames.end())
+            {
+                num_frames.insert(std::make_pair(name, 0));
+            }
+
+            if (camera_name_to_index.find(name) == camera_name_to_index.end())
+            {
+                camera_name_to_index.insert(std::make_pair(name, camera_name_to_index.size()));
+            }
+
+            if (observed_frames.find(name) == observed_frames.end())
+            {
+                if (observed_frames.empty())
                 {
-                    std::vector<stargazer::point_data> points;
-                    for (const auto &pt : points_msg->get_data())
-                    {
-                        points.push_back(stargazer::point_data{glm::vec2(pt.x, pt.y), 0, 0});
-                    }
-                    frame.insert(std::make_pair(name, points));
+                    observed_frames.insert(std::make_pair(name, std::vector<observed_points_t>()));
+                }
+                else
+                {
+                    observed_points_t obs = {};
+                    obs.camera_idx = camera_name_to_index.at(name);
+                    observed_frames.insert(std::make_pair(name, std::vector<observed_points_t>(observed_frames.begin()->second.size(), obs)));
                 }
             }
 
-            push_frame(frame);
+            for (auto &[name, observed_points] : observed_frames)
+            {
+                observed_points.resize(timestamp_to_index.size());
+            }
+
+            observed_points_t obs = {};
+            obs.camera_idx = camera_name_to_index.at(name);
+            for (const auto &pt : points_msg->get_data())
+            {
+                obs.points.emplace_back(pt.x, pt.y);
+            }
+
+            observed_frames[name][index] = obs;
+
+            if (obs.points.size() > 0)
+            {
+                num_frames.at(name) += 1;
+            }
         }
     }
 };
@@ -1017,12 +1122,138 @@ public:
 CEREAL_REGISTER_TYPE(callback_node)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, callback_node)
 
+class frame_number_numbering_node : public graph_node
+{
+    uint64_t frame_number;
+    graph_edge_ptr output;
+
+public:
+    frame_number_numbering_node()
+        : graph_node(), frame_number(0), output(std::make_shared<graph_edge>(this))
+    {
+        set_output(output);
+    }
+
+    virtual std::string get_proc_name() const override
+    {
+        return "frame_number_numbering_node";
+    }
+
+    template <typename Archive>
+    void serialize(Archive &archive)
+    {
+        archive(frame_number);
+    }
+
+    virtual void process(std::string input_name, graph_message_ptr message) override
+    {
+        if (auto msg = std::dynamic_pointer_cast<frame_message_base>(message))
+        {
+            msg->set_frame_number(frame_number++);
+            output->send(msg);
+        }
+        if (auto msg = std::dynamic_pointer_cast<object_message>(message))
+        {
+            for (const auto &[name, field] : msg->get_fields())
+            {
+                if (auto frame_msg = std::dynamic_pointer_cast<frame_message_base>(field))
+                {
+                    frame_msg->set_frame_number(frame_number);
+                }
+            }
+            frame_number++;
+            output->send(msg);
+        }
+    }
+};
+
+CEREAL_REGISTER_TYPE(frame_number_numbering_node)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, frame_number_numbering_node)
+
+class object_map_node : public graph_node
+{
+public:
+    object_map_node()
+        : graph_node()
+    {
+    }
+
+    virtual std::string get_proc_name() const override
+    {
+        return "object_map_node";
+    }
+
+    template <typename Archive>
+    void save(Archive &archive) const
+    {
+        std::vector<std::string> output_names;
+        auto outputs = get_outputs();
+        for (auto output : outputs)
+        {
+            output_names.push_back(output.first);
+        }
+        archive(output_names);
+    }
+
+    template <typename Archive>
+    void load(Archive &archive)
+    {
+        std::vector<std::string> output_names;
+        archive(output_names);
+        for (auto output_name : output_names)
+        {
+            set_output(std::make_shared<graph_edge>(this), output_name);
+        }
+    }
+
+    graph_edge_ptr add_output(const std::string &name)
+    {
+        auto outputs = get_outputs();
+        auto it = outputs.find(name);
+        if (it == outputs.end())
+        {
+            auto output = std::make_shared<graph_edge>(this);
+            set_output(output, name);
+            return output;
+        }
+        return it->second;
+    }
+
+    virtual void process(std::string input_name, graph_message_ptr message) override
+    {
+        if (auto obj_msg = std::dynamic_pointer_cast<object_message>(message))
+        {
+            for (const auto& [name, field] : obj_msg->get_fields())
+            {
+                if (auto frame_msg = std::dynamic_pointer_cast<frame_message_base>(field))
+                {
+                    try
+                    {
+                        const auto output = get_output(name);
+                        output->send(field);
+                    }
+                    catch (const std::exception &e)
+                    {
+                        spdlog::error(e.what());
+                    }
+                }
+            }
+        }
+    }
+};
+
+CEREAL_REGISTER_TYPE(object_map_node)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, object_map_node)
+
 class calibration::impl
 {
 public:
     graph_proc graph;
 
+    std::atomic_bool running;
+
     std::shared_ptr<calibration_node> calib_node;
+    std::shared_ptr<graph_node> input_node;
 
     std::unordered_map<std::string, stargazer::camera_t> cameras;
     std::unordered_map<std::string, stargazer::camera_t> calibrated_cameras;
@@ -1041,7 +1272,28 @@ public:
 
     void push_frame(const std::map<std::string, std::vector<stargazer::point_data>> &frame)
     {
-        calib_node->push_frame(frame);
+        if (!running)
+        {
+            return;
+        }
+
+        auto msg = std::make_shared<object_message>();
+        for (const auto &[name, field] : frame)
+        {
+            auto float2_msg = std::make_shared<float2_list_message>();
+            std::vector<float2> float2_data;
+            for (const auto &pt : field)
+            {
+                float2_data.push_back({pt.point.x, pt.point.y});
+            }
+            float2_msg->set_data(float2_data);
+            msg->add_field(name, float2_msg);
+        }
+
+        if (input_node)
+        {
+            graph.process(input_node.get(), msg);
+        }
     }
 
     void calibrate(const std::unordered_map<std::string, stargazer::camera_t>& cameras)
@@ -1059,11 +1311,53 @@ public:
     {
         std::shared_ptr<subgraph> g(new subgraph());
 
+        std::shared_ptr<frame_number_numbering_node> n4(new frame_number_numbering_node());
+        g->add_node(n4);
+
+        input_node = n4;
+
+        std::shared_ptr<object_map_node> n5(new object_map_node());
+        n5->set_input(n4->get_output());
+        g->add_node(n5);
+
+        std::unordered_map<std::string, graph_node_ptr> detector_nodes;
+
+        for (const auto &info : infos)
+        {
+            if (info.type == node_type::pattern_board_calibration_target_detector)
+            {
+                for (const auto &[name, camera] : cameras)
+                {
+                    std::shared_ptr<pattern_board_calibration_target_detector_node> n1(new pattern_board_calibration_target_detector_node());
+                    n1->set_input(n5->add_output(name));
+                    n1->set_camera(camera);
+                    g->add_node(n1);
+
+                    detector_nodes[name] = n1;
+                }
+            }
+            if (info.type == node_type::three_point_bar_calibration_target_detector)
+            {
+                for (const auto &[name, camera] : cameras)
+                {
+                    std::shared_ptr<three_point_bar_calibration_target_detector_node> n1(new three_point_bar_calibration_target_detector_node());
+                    n1->set_input(n5->add_output(name));
+                    g->add_node(n1);
+
+                    detector_nodes[name] = n1;
+                }
+            }
+        }
+
         for (const auto& info : infos)
         {
             if (info.type == node_type::calibration)
             {
                 std::shared_ptr<calibration_node> n1(new calibration_node());
+                for (const auto &[name, node] : detector_nodes)
+                {
+                    n1->set_input(node->get_output(), name);
+                }
                 n1->set_cameras(cameras);
                 n1->set_only_extrinsic(std::get<bool>(info.params.at("only_extrinsic")));
                 n1->set_robust(std::get<bool>(info.params.at("robust")));
@@ -1110,10 +1404,13 @@ public:
         graph.deploy(g);
         graph.get_resources()->add(callbacks);
         graph.run();
+
+        running = true;
     }
 
     void stop()
     {
+        running.store(false);
         graph.stop();
     }
 
