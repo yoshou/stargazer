@@ -1751,12 +1751,10 @@ class multiview_capture_pipeline::impl
     std::map<std::string, std::shared_ptr<mask_node>> mask_nodes;
     std::map<std::string, cv::Mat> masks;
 
-    mutable std::mutex marker_frame_mtx;
-    std::deque<std::map<std::string, marker_frame_data>> marker_frames;
-
     mutable std::mutex marker_collecting_clusters_mtx;
     std::unordered_set<std::string> marker_collecting_clusters;
 
+    mutable std::mutex marker_frame_mtx;
     std::vector<std::function<void(const std::map<std::string, marker_frame_data>&)>> marker_received;
 
 public:
@@ -2077,8 +2075,11 @@ public:
                         }
                     }
 
-                    std::lock_guard lock(marker_frame_mtx);
-                    this->marker_frames.push_back(frames);
+                    std::vector<std::function<void(const std::map<std::string, marker_frame_data> &)>> marker_received;
+                    {
+                        std::lock_guard lock(marker_frame_mtx);
+                        marker_received = this->marker_received;
+                    }
 
                     for (const auto &f : marker_received)
                     {
@@ -2180,18 +2181,6 @@ public:
         return masks;
     }
 
-    std::vector<std::map<std::string, marker_frame_data>> pop_marker_frames()
-    {
-        std::vector<std::map<std::string, marker_frame_data>> result;
-        std::lock_guard lock(marker_frame_mtx);
-        while (!marker_frames.empty())
-        {
-            result.push_back(marker_frames.front());
-            marker_frames.pop_front();
-        }
-        return result;
-    }
-
     void enable_marker_collecting(std::string name)
     {
         std::lock_guard lock(marker_collecting_clusters_mtx);
@@ -2242,10 +2231,6 @@ void multiview_capture_pipeline::clear_mask()
 std::map<std::string, cv::Mat> multiview_capture_pipeline::get_masks() const
 {
     return pimpl->get_masks();
-}
-std::vector<std::map<std::string, marker_frame_data>> multiview_capture_pipeline::pop_marker_frames()
-{
-    return pimpl->pop_marker_frames();
 }
 
 void multiview_capture_pipeline::enable_marker_collecting(std::string name)
