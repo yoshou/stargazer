@@ -16,6 +16,10 @@
 #include "glm_serialize.hpp"
 #include "triangulation.hpp"
 
+static void calc_board_corner_positions(cv::Size board_size, cv::Size2f square_size, std::vector<cv::Point3f> &corners, const calibration_pattern pattern_type = calibration_pattern::CHESSBOARD);
+
+static bool detect_calibration_board(cv::Mat frame, std::vector<cv::Point2f> &points, const calibration_pattern pattern_type = calibration_pattern::CHESSBOARD);
+
 class three_point_bar_calibration_target : public calibration_target
 {
     template <typename T>
@@ -1515,7 +1519,7 @@ void calibration::calibrate()
     pimpl->calibrate(pimpl->cameras);
 }
 
-void calc_board_corner_positions(cv::Size board_size, cv::Size2f square_size, std::vector<cv::Point3f> &corners, const calibration_pattern pattern_type)
+static void calc_board_corner_positions(cv::Size board_size, cv::Size2f square_size, std::vector<cv::Point3f> &corners, const calibration_pattern pattern_type)
 {
     corners.clear();
     switch (pattern_type)
@@ -1544,7 +1548,7 @@ void calc_board_corner_positions(cv::Size board_size, cv::Size2f square_size, st
     }
 }
 
-bool detect_calibration_board(cv::Mat frame, std::vector<cv::Point2f> &points, const calibration_pattern pattern_type)
+static bool detect_calibration_board(cv::Mat frame, std::vector<cv::Point2f> &points, const calibration_pattern pattern_type)
 {
     if (frame.empty())
     {
@@ -1696,6 +1700,20 @@ static std::vector<size_t> create_random_indices(size_t size)
 void intrinsic_calibration::add_frame(const std::vector<stargazer::point_data> &frame)
 {
     frames.push_back(frame);
+}
+
+void intrinsic_calibration::add_frame(const cv::Mat &frame)
+{
+    std::vector<cv::Point2f> board;
+    if (detect_calibration_board(frame, board))
+    {
+        std::vector<stargazer::point_data> points;
+        for (const auto &point : board)
+        {
+            points.push_back(stargazer::point_data{glm::vec2(point.x, point.y), 0, 0});
+        }
+        add_frame(points);
+    }
 }
 
 void intrinsic_calibration::calibrate()

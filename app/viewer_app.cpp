@@ -2,8 +2,6 @@
 
 #include <opencv2/core.hpp>
 #include <opencv2/imgproc.hpp>
-#include <opencv2/imgcodecs.hpp>
-#include <opencv2/calib3d.hpp>
 
 #include <glad/glad.h>
 #define GLFW_INCLUDE_GLU
@@ -11,7 +9,6 @@
 
 #include <functional>
 #include <iostream>
-#include <sstream>
 #include <map>
 #include <cmath>
 #include <memory>
@@ -139,7 +136,6 @@ class viewer_app : public window_base
 
         capture_panel_view_->is_streaming_changed2.push_back([this](const std::vector<capture_panel_view::node_info> &devices, bool is_streaming)
                                                                    {
-            namespace fs = std::filesystem;
             if (is_streaming)
             {
                 if (multiview_capture)
@@ -338,16 +334,7 @@ class viewer_app : public window_base
                                                 {
                         if (!frame.empty() && calibration_panel_view_->is_marker_collecting)
                         {
-                            std::vector<cv::Point2f> board;
-                            if (detect_calibration_board(frame, board))
-                            {
-                                std::vector<stargazer::point_data> points;
-                                for (const auto &point : board)
-                                {
-                                    points.push_back(stargazer::point_data{glm::vec2(point.x, point.y), 0, 0});
-                                }
-                                intrinsic_calib.add_frame(points);
-                            }
+                            intrinsic_calib.add_frame(frame);
                         } });
 
                     try
@@ -549,7 +536,6 @@ class viewer_app : public window_base
 
         reconstruction_panel_view_->is_streaming_changed.push_back([this](const std::vector<reconstruction_panel_view::node_info> &devices, bool is_streaming)
                                                                   {
-            namespace fs = std::filesystem;
             if (is_streaming)
             {
                 if (reconstruction_panel_view_->source == 0)
