@@ -1118,7 +1118,6 @@ private:
         // draw selecting calibration target
         {
             std::vector<std::string> sources = {
-                "Playback Marker",
                 "Marker",
                 "Image",
             };
