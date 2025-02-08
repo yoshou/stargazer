@@ -113,11 +113,7 @@ public:
     }
 
     void add_frame(const std::vector<stargazer::point_data> &frame);
+    void add_frame(const cv::Mat &frame);
 
     void calibrate();
 };
-
-void calc_board_corner_positions(cv::Size board_size, cv::Size2f square_size, std::vector<cv::Point3f> &corners, const calibration_pattern pattern_type = calibration_pattern::CHESSBOARD);
-
-bool detect_calibration_board(cv::Mat frame, std::vector<cv::Point2f> &points, const calibration_pattern pattern_type = calibration_pattern::CHESSBOARD);
-
