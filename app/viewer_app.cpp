@@ -1156,15 +1156,13 @@ public:
             if (multiview_capture)
             {
                 const auto frames = multiview_capture->get_frames();
-                for (const auto &[name, frame] : frames)
+                for (const auto &stream : image_tile_view_->streams)
                 {
-                    const auto device_name = name;
-                    if (!frame.empty())
+                    const auto &frame_it = frames.find(stream->name);
+                    if (frame_it != frames.end())
                     {
-                        const auto stream_it = std::find_if(image_tile_view_->streams.begin(), image_tile_view_->streams.end(), [device_name](const auto &x)
-                                                            { return x->name == device_name; });
-
-                        if (stream_it != image_tile_view_->streams.end())
+                        const auto &frame = frame_it->second;
+                        if (!frame.empty())
                         {
                             cv::Mat image = frame;
                             cv::Mat color_image;
@@ -1176,15 +1174,15 @@ public:
                             {
                                 cv::cvtColor(image, color_image, cv::COLOR_BGR2RGB);
                             }
-                            (*stream_it)->texture.upload_image(color_image.cols, color_image.rows, color_image.data, GL_RGB);
+                            stream->texture.upload_image(color_image.cols, color_image.rows, color_image.data, GL_RGB);
                         }
                     }
                 }
             }
 
-            for (const auto &device : capture_panel_view_->devices)
+            for (const auto &stream : image_tile_view_->streams)
             {
-                const auto capture_it = captures.find(device.name);
+                const auto capture_it = captures.find(stream->name);
                 if (capture_it != captures.end())
                 {
                     const auto capture = capture_it->second;
@@ -1192,29 +1190,23 @@ public:
 
                     if (!frame.empty())
                     {
-                        const auto stream_it = std::find_if(image_tile_view_->streams.begin(), image_tile_view_->streams.end(), [&](const auto &x)
-                                                            { return x->name == device.name; });
-
-                        if (stream_it != image_tile_view_->streams.end())
-                        {
-                            cv::Mat image = frame;
+                        cv::Mat image = frame;
 #if 1
-                            if (images.find(device.name) != images.end())
-                            {
-                                image = images.at(device.name);
-                            }
-#endif
-                            cv::Mat color_image;
-                            if (image.channels() == 1)
-                            {
-                                cv::cvtColor(image, color_image, cv::COLOR_GRAY2RGB);
-                            }
-                            else if (image.channels() == 3)
-                            {
-                                cv::cvtColor(image, color_image, cv::COLOR_BGR2RGB);
-                            }
-                            (*stream_it)->texture.upload_image(color_image.cols, color_image.rows, color_image.data, GL_RGB);
+                        if (images.find(stream->name) != images.end())
+                        {
+                            image = images.at(stream->name);
                         }
+#endif
+                        cv::Mat color_image;
+                        if (image.channels() == 1)
+                        {
+                            cv::cvtColor(image, color_image, cv::COLOR_GRAY2RGB);
+                        }
+                        else if (image.channels() == 3)
+                        {
+                            cv::cvtColor(image, color_image, cv::COLOR_BGR2RGB);
+                        }
+                        stream->texture.upload_image(color_image.cols, color_image.rows, color_image.data, GL_RGB);
                     }
                 }
             }
