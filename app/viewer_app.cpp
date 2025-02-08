@@ -334,6 +334,9 @@ class viewer_app : public window_base
 
                     const auto capture = std::make_shared<capture_pipeline>();
 
+                    capture->add_image_received([this](const cv::Mat &image_frame)
+                                                {});
+
                     try
                     {
                         capture->run(*found);
