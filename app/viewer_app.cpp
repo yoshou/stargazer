@@ -589,7 +589,7 @@ class viewer_app : public window_base
                         }
                     }
                 }
-                else if (reconstruction_panel_view_->source == 1 || reconstruction_panel_view_->source == 2)
+                else if (reconstruction_panel_view_->source == 1)
                 {
                     if (multiview_capture)
                     {
@@ -606,20 +606,6 @@ class viewer_app : public window_base
                     {
                         multiview_capture.reset(new multiview_capture_pipeline());
                     }
-
-                    multiview_capture->add_marker_received([this](const std::map<std::string, marker_frame_data> &marker_frame)
-                                                           {
-                        std::map<std::string, std::vector<stargazer::point_data>> frame;
-                        for (const auto &[name, markers] : marker_frame)
-                        {
-                            std::vector<stargazer::point_data> points;
-                            for (const auto &marker : markers.markers)
-                            {
-                                points.push_back(stargazer::point_data{glm::vec2(marker.x, marker.y), marker.r, markers.timestamp});
-                            }
-                            frame.insert(std::make_pair(name, points));
-                        }
-                        epipolar_reconstruction_.push_frame(frame); });
 
                     multiview_capture->add_image_received([this](const std::map<std::string, cv::Mat> &image_frame)
                                                           {
