@@ -631,235 +631,6 @@ public:
 CEREAL_REGISTER_TYPE(callback_node)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, callback_node)
 
-class capture_pipeline::impl
-{
-    local_server server;
-    asio::io_service io_service;
-    graph_proc_client client;
-    std::unique_ptr<std::thread> io_thread;
-
-    mutable std::mutex frame_mtx;
-    std::shared_ptr<frame_message<image>> frame;
-    std::vector<keypoint> markers;
-
-public:
-    impl() : server(0)
-    {
-    }
-
-    void run(const node_info &info)
-    {
-        std::vector<node_info> node_infos = {info};
-
-        bool is_master = true;
-
-        std::vector<std::unique_ptr<remote_cluster>> clusters;
-        for (std::size_t i = 0; i < node_infos.size(); i++)
-        {
-            if (node_infos[i].type == node_type::raspi)
-            {
-                constexpr int fps = 90;
-                clusters.emplace_back(std::make_unique<remote_cluster_raspi>(fps, nullptr, is_master));
-                is_master = false;
-            }
-            else if (node_infos[i].type == node_type::raspi_color)
-            {
-                constexpr int fps = 30;
-                clusters.emplace_back(std::make_unique<remote_cluster_raspi_color>(fps, is_master));
-                is_master = false;
-            }
-            else if (node_infos[i].type == node_type::depthai_color)
-            {
-                constexpr int fps = 30;
-                clusters.emplace_back(std::make_unique<remote_cluster_depthai_color>(fps));
-            }
-            else if (node_infos[i].type == node_type::rs_d435)
-            {
-                constexpr int fps = 90;
-                constexpr int exposure = 5715;
-                constexpr int gain = 248;
-                constexpr int laser_power = 150;
-                constexpr bool with_image = true;
-                constexpr bool emitter_enabled = false;
-                clusters.emplace_back(std::make_unique<remote_cluster_rs_d435>(fps, exposure, gain, laser_power, with_image, emitter_enabled));
-            }
-            else if (node_infos[i].type == node_type::rs_d435_color)
-            {
-                constexpr int fps = 30;
-                clusters.emplace_back(std::make_unique<remote_cluster_rs_d435_color>(fps));
-            }
-        }
-
-        std::shared_ptr<subgraph> g(new subgraph());
-
-        std::vector<std::shared_ptr<graph_node>> rcv_nodes;
-        std::vector<std::shared_ptr<p2p_tcp_listener_node>> rcv_marker_nodes;
-        for (std::size_t i = 0; i < clusters.size(); i++)
-        {
-            auto &cluster = clusters[i];
-
-            if (cluster->infra1_output)
-            {
-                std::shared_ptr<p2p_tcp_listener_node> n1(new p2p_tcp_listener_node());
-                n1->set_input(cluster->infra1_output);
-                n1->set_endpoint(node_infos[i].endpoint, 0);
-                g->add_node(n1);
-
-                std::shared_ptr<fifo_node> n6(new fifo_node());
-                n6->set_input(n1->get_output());
-                g->add_node(n6);
-
-                std::shared_ptr<decode_image_node> n7(new decode_image_node());
-                n7->set_input(n6->get_output());
-                g->add_node(n7);
-
-                rcv_nodes.push_back(n7);
-
-                std::shared_ptr<callback_node> n8(new callback_node());
-                n8->set_input(n7->get_output());
-                g->add_node(n8);
-
-                n8->set_name("image#" + node_infos[i].name);
-            }
-
-            if (cluster->infra1_marker_output)
-            {
-                std::shared_ptr<p2p_tcp_listener_node> n2(new p2p_tcp_listener_node());
-                n2->set_input(cluster->infra1_marker_output);
-                n2->set_endpoint(node_infos[i].endpoint, 0);
-                g->add_node(n2);
-
-                rcv_marker_nodes.push_back(n2);
-
-                std::shared_ptr<callback_node> n8(new callback_node());
-                n8->set_input(n2->get_output());
-                g->add_node(n8);
-
-                n8->set_name("marker#" + node_infos[i].name);
-            }
-        }
-
-        const auto callbacks = std::make_shared<callback_list>();
-
-        callbacks->add([this](const callback_node *node, std::string input_name, graph_message_ptr message)
-                       {
-            if (node->get_name().find_first_of("image#") == 0)
-            {
-                const auto camera_name = node->get_name().substr(6);
-
-                if (auto frame_msg = std::dynamic_pointer_cast<frame_message<image>>(message))
-                {
-                    std::lock_guard lock(frame_mtx);
-                    frame = frame_msg;
-                }
-            }
-            if (node->get_name().find_first_of("marker#") == 0)
-            {
-                const auto camera_name = node->get_name().substr(6);
-
-                if (auto frame_msg = std::dynamic_pointer_cast<keypoint_frame_message>(message))
-                {
-                    std::lock_guard lock(frame_mtx);
-                    markers = frame_msg->get_data();
-                }
-            } });
-
-        server.add_resource(callbacks);
-        server.run();
-
-        for (std::size_t i = 0; i < clusters.size(); i++)
-        {
-            client.deploy(io_service, node_infos[i].address, 31400, clusters[i]->g);
-        }
-        client.deploy(io_service, "127.0.0.1", server.get_port(), g);
-
-        io_thread.reset(new std::thread([this]
-                                        { io_service.run(); }));
-
-        client.run();
-    }
-
-    void stop()
-    {
-        client.stop();
-        server.stop();
-        io_service.stop();
-        if (io_thread && io_thread->joinable())
-        {
-            io_thread->join();
-        }
-        io_thread.reset();
-    }
-
-    cv::Mat get_frame() const
-    {
-        std::shared_ptr<frame_message<image>> frame;
-        {
-            std::lock_guard lock(frame_mtx);
-            frame = this->frame;
-        }
-
-        if (!frame)
-        {
-            return cv::Mat();
-        }
-
-        const auto &image = frame->get_data();
-
-        int type = -1;
-        if (frame->get_profile())
-        {
-            auto format = frame->get_profile()->get_format();
-            type = stream_format_to_cv_type(format);
-        }
-
-        if (type < 0)
-        {
-            throw std::logic_error("Unknown image format");
-        }
-
-        return cv::Mat(image.get_height(), image.get_width(), type, (uchar *)image.get_data(), image.get_stride()).clone();
-    }
-
-    std::unordered_map<int, cv::Point2f> get_markers() const
-    {
-        std::unordered_map<int, cv::Point2f> result;
-        for (const auto& marker: markers)
-        {
-            result[marker.class_id] = cv::Point2f(marker.pt_x, marker.pt_y);
-        }
-        return result;
-    }
-};
-
-capture_pipeline::capture_pipeline()
-    : pimpl(new impl())
-{
-}
-capture_pipeline::~capture_pipeline() = default;
-
-void capture_pipeline::run(const node_info &info)
-{
-    pimpl->run(info);
-}
-
-void capture_pipeline::stop()
-{
-    pimpl->stop();
-}
-cv::Mat capture_pipeline::get_frame() const
-{
-    return pimpl->get_frame();
-}
-std::unordered_map<int, cv::Point2f> capture_pipeline::get_markers() const
-{
-    return pimpl->get_markers();
-}
-
-void capture_pipeline::set_mask(cv::Mat mask)
-{
-}
-
 class dump_blob_node : public graph_node
 {
     std::string db_path;
@@ -898,7 +669,7 @@ public:
         archive(db_path);
         archive(name);
     }
-    
+
     virtual void initialize() override
     {
         if (sqlite3_open(db_path.c_str(), &db) != SQLITE_OK)
@@ -915,7 +686,7 @@ public:
         {
             throw std::runtime_error("Failed to create table");
         }
-        
+
         if (sqlite3_exec(db, "CREATE INDEX IF NOT EXISTS timestamp_idx ON messages (timestamp ASC)", nullptr, nullptr, nullptr) != SQLITE_OK)
         {
             throw std::runtime_error("Failed to create index");
@@ -1258,7 +1029,7 @@ public:
 
         while (queue.size() > 0)
         {
-            const auto& [timestamp, str] = queue.front();
+            const auto &[timestamp, str] = queue.front();
 
             if (sqlite3_reset(stmt) != SQLITE_OK)
             {
@@ -1463,7 +1234,7 @@ public:
     virtual void run() override
     {
         th.reset(new std::thread([this]()
-        {
+                                 {
             sqlite3 *db;
             if (sqlite3_open_v2(db_path.c_str(), &db, SQLITE_OPEN_READONLY | SQLITE_OPEN_NOMUTEX, nullptr) != SQLITE_OK)
             {
@@ -1518,8 +1289,7 @@ public:
             sqlite3_finalize(stmt);
             stmt = nullptr;
 
-            spdlog::info("End playback: {}", name);
-        }));
+            spdlog::info("End playback: {}", name); }));
     }
 
     virtual void stop() override
@@ -1666,7 +1436,7 @@ public:
     virtual void run() override
     {
         th.reset(new std::thread([this]()
-        {
+                                 {
             sqlite3 *db;
             if (sqlite3_open(db_path.c_str(), &db) != SQLITE_OK)
             {
@@ -1722,8 +1492,7 @@ public:
             sqlite3_finalize(stmt);
             stmt = nullptr;
 
-            spdlog::info("End playback: {}", name);
-        }));
+            spdlog::info("End playback: {}", name); }));
     }
 
     virtual void stop() override
@@ -1739,7 +1508,7 @@ public:
 CEREAL_REGISTER_TYPE(load_marker_node)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, load_marker_node)
 
-class load_panoptic_node: public graph_node
+class load_panoptic_node : public graph_node
 {
     std::string db_path;
     std::string name;
@@ -1764,7 +1533,7 @@ public:
     {
         db_path = value;
     }
-    
+
     void set_name(std::string value)
     {
         name = value;
@@ -1872,6 +1641,328 @@ public:
 CEREAL_REGISTER_TYPE(load_panoptic_node)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, load_panoptic_node)
 
+static void genenerate_common_nodes(const std::vector<node_info> &node_infos,
+                                    std::shared_ptr<subgraph> g,
+                                    int &sync_fps,
+                                    std::vector<std::shared_ptr<remote_cluster>> &clusters,
+                                    std::map<std::string, cv::Mat> &masks,
+                                    std::map<std::string, std::shared_ptr<mask_node>> &mask_nodes,
+                                    std::unordered_map<std::string, std::shared_ptr<graph_node>> &rcv_nodes,
+                                    std::unordered_map<std::string, std::shared_ptr<graph_node>> &rcv_marker_nodes,
+                                    std::unordered_map<std::string, std::shared_ptr<graph_node>> &rcv_blob_nodes)
+{
+    bool is_master = true;
+
+    for (std::size_t i = 0; i < node_infos.size(); i++)
+    {
+        std::shared_ptr<remote_cluster> cluster;
+
+        if (node_infos[i].type == node_type::raspi)
+        {
+            constexpr int fps = 90;
+            sync_fps = std::min(sync_fps, fps);
+            std::shared_ptr<image> mask_img;
+            if (masks.find(node_infos[i].name) != masks.end())
+            {
+                const auto &mask = masks.at(node_infos[i].name);
+                mask_img.reset(new image(mask.cols, mask.rows, CV_8UC1, mask.step, (const uint8_t *)mask.data));
+            }
+            cluster = std::make_shared<remote_cluster_raspi>(fps, mask_img.get(), is_master);
+            is_master = false;
+            mask_nodes.insert(std::make_pair(node_infos[i].name, cluster->mask_node_));
+            clusters.emplace_back(cluster);
+        }
+        else if (node_infos[i].type == node_type::raspi_color)
+        {
+            constexpr int fps = 30;
+            sync_fps = std::min(sync_fps, fps);
+            cluster = std::make_shared<remote_cluster_raspi_color>(fps, is_master);
+            is_master = false;
+            clusters.emplace_back(cluster);
+        }
+        else if (node_infos[i].type == node_type::depthai_color)
+        {
+            constexpr int fps = 30;
+            sync_fps = std::min(sync_fps, fps);
+            cluster = std::make_unique<remote_cluster_depthai_color>(fps);
+            clusters.emplace_back(cluster);
+        }
+        else if (node_infos[i].type == node_type::rs_d435)
+        {
+            constexpr int fps = 90;
+            sync_fps = std::min(sync_fps, fps);
+            constexpr int exposure = 5715;
+            constexpr int gain = 248;
+            constexpr int laser_power = 150;
+            constexpr bool with_image = true;
+            constexpr bool emitter_enabled = false;
+            cluster = std::make_unique<remote_cluster_rs_d435>(fps, exposure, gain, laser_power, with_image, emitter_enabled);
+            clusters.emplace_back(cluster);
+        }
+        else if (node_infos[i].type == node_type::rs_d435_color)
+        {
+            constexpr int fps = 30;
+            sync_fps = std::min(sync_fps, fps);
+            cluster = std::make_unique<remote_cluster_rs_d435_color>(fps);
+            clusters.emplace_back(cluster);
+        }
+        else if (node_infos[i].type == node_type::raspi_playback)
+        {
+            constexpr int fps = 90;
+            sync_fps = std::min(sync_fps, fps);
+            clusters.push_back(nullptr);
+        }
+        else if (node_infos[i].type == node_type::panoptic)
+        {
+            constexpr int fps = 30;
+            sync_fps = std::min(sync_fps, fps);
+            clusters.push_back(nullptr);
+        }
+
+        if (cluster && cluster->infra1_output)
+        {
+            std::shared_ptr<p2p_tcp_listener_node> n1(new p2p_tcp_listener_node());
+            n1->set_input(cluster->infra1_output);
+            n1->set_endpoint(node_infos[i].endpoint, 0);
+            g->add_node(n1);
+
+            rcv_blob_nodes[node_infos[i].name] = n1;
+
+            std::shared_ptr<decode_image_node> n7(new decode_image_node());
+            n7->set_input(n1->get_output());
+            g->add_node(n7);
+
+            rcv_nodes[node_infos[i].name] = n7;
+        }
+        else if (node_infos[i].type == node_type::raspi_playback)
+        {
+            std::shared_ptr<load_blob_node> n1(new load_blob_node());
+            n1->set_name(std::regex_replace(node_infos[i].name, std::regex("camera"), "image_"));
+            n1->set_db_path(node_infos[i].db_path);
+            g->add_node(n1);
+
+            rcv_blob_nodes[node_infos[i].name] = n1;
+
+            std::shared_ptr<decode_image_node> n7(new decode_image_node());
+            n7->set_input(n1->get_output());
+            g->add_node(n7);
+
+            rcv_nodes[node_infos[i].name] = n7;
+        }
+        else if (node_infos[i].type == node_type::panoptic)
+        {
+            std::shared_ptr<load_panoptic_node> n1(new load_panoptic_node());
+            n1->set_name(node_infos[i].name);
+            n1->set_db_path(node_infos[i].db_path);
+            g->add_node(n1);
+
+            rcv_blob_nodes[node_infos[i].name] = n1;
+
+            std::shared_ptr<decode_image_node> n7(new decode_image_node());
+            n7->set_input(n1->get_output());
+            g->add_node(n7);
+
+            rcv_nodes[node_infos[i].name] = n7;
+        }
+
+        if (cluster && cluster->infra1_marker_output)
+        {
+            std::shared_ptr<p2p_tcp_listener_node> n2(new p2p_tcp_listener_node());
+            n2->set_input(cluster->infra1_marker_output);
+            n2->set_endpoint(node_infos[i].endpoint, 0);
+            g->add_node(n2);
+
+            rcv_marker_nodes[node_infos[i].name] = n2;
+        }
+        else if (node_infos[i].type == node_type::raspi_playback)
+        {
+            std::shared_ptr<load_marker_node> n1(new load_marker_node());
+            n1->set_name(std::regex_replace(node_infos[i].name, std::regex("camera"), "marker_"));
+            n1->set_db_path(node_infos[i].db_path);
+            g->add_node(n1);
+
+            rcv_marker_nodes[node_infos[i].name] = n1;
+        }
+    }
+}
+
+class capture_pipeline::impl
+{
+    local_server server;
+    asio::io_service io_service;
+    graph_proc_client client;
+    std::unique_ptr<std::thread> io_thread;
+
+    mutable std::mutex frame_mtx;
+    std::shared_ptr<frame_message<image>> frame;
+    std::vector<keypoint> markers;
+
+    std::map<std::string, std::shared_ptr<mask_node>> mask_nodes;
+    std::map<std::string, cv::Mat> masks;
+
+public:
+    impl() : server(0)
+    {
+    }
+
+    void run(const node_info &info)
+    {
+        std::vector<node_info> node_infos = {info};
+
+        bool is_master = true;
+
+        int sync_fps = 90;
+
+        std::shared_ptr<subgraph> g(new subgraph());
+
+        std::unordered_map<std::string, std::shared_ptr<graph_node>> rcv_nodes;
+        std::unordered_map<std::string, std::shared_ptr<graph_node>> rcv_marker_nodes;
+        std::unordered_map<std::string, std::shared_ptr<graph_node>> rcv_blob_nodes;
+        std::vector<std::shared_ptr<remote_cluster>> clusters;
+
+        genenerate_common_nodes(node_infos, g, sync_fps, clusters, masks, mask_nodes, rcv_nodes, rcv_marker_nodes, rcv_blob_nodes);
+
+        for (const auto &[name, recv_node] : rcv_nodes)
+        {
+            std::shared_ptr<callback_node> n8(new callback_node());
+            n8->set_input(recv_node->get_output());
+            g->add_node(n8);
+
+            n8->set_name("image#" + name);
+        }
+        for (const auto &[name, recv_node] : rcv_marker_nodes)
+        {
+            std::shared_ptr<callback_node> n8(new callback_node());
+            n8->set_input(recv_node->get_output());
+            g->add_node(n8);
+
+            n8->set_name("marker#" + name);
+        } 
+
+        const auto callbacks = std::make_shared<callback_list>();
+
+        callbacks->add([this](const callback_node *node, std::string input_name, graph_message_ptr message)
+                       {
+            if (node->get_name().find_first_of("image#") == 0)
+            {
+                const auto camera_name = node->get_name().substr(6);
+
+                if (auto frame_msg = std::dynamic_pointer_cast<frame_message<image>>(message))
+                {
+                    std::lock_guard lock(frame_mtx);
+                    frame = frame_msg;
+                }
+            }
+            if (node->get_name().find_first_of("marker#") == 0)
+            {
+                const auto camera_name = node->get_name().substr(6);
+
+                if (auto frame_msg = std::dynamic_pointer_cast<keypoint_frame_message>(message))
+                {
+                    std::lock_guard lock(frame_mtx);
+                    markers = frame_msg->get_data();
+                }
+            } });
+
+        server.add_resource(callbacks);
+        server.run();
+
+        for (std::size_t i = 0; i < clusters.size(); i++)
+        {
+            if (clusters[i])
+            {
+                client.deploy(io_service, node_infos[i].address, 31400, clusters[i]->g);
+            }
+        }
+        client.deploy(io_service, "127.0.0.1", server.get_port(), g);
+
+        io_thread.reset(new std::thread([this]
+                                        { io_service.run(); }));
+
+        client.run();
+    }
+
+    void stop()
+    {
+        client.stop();
+        server.stop();
+        io_service.stop();
+        if (io_thread && io_thread->joinable())
+        {
+            io_thread->join();
+        }
+        io_thread.reset();
+    }
+
+    cv::Mat get_frame() const
+    {
+        std::shared_ptr<frame_message<image>> frame;
+        {
+            std::lock_guard lock(frame_mtx);
+            frame = this->frame;
+        }
+
+        if (!frame)
+        {
+            return cv::Mat();
+        }
+
+        const auto &image = frame->get_data();
+
+        int type = -1;
+        if (frame->get_profile())
+        {
+            auto format = frame->get_profile()->get_format();
+            type = stream_format_to_cv_type(format);
+        }
+
+        if (type < 0)
+        {
+            throw std::logic_error("Unknown image format");
+        }
+
+        return cv::Mat(image.get_height(), image.get_width(), type, (uchar *)image.get_data(), image.get_stride()).clone();
+    }
+
+    std::unordered_map<int, cv::Point2f> get_markers() const
+    {
+        std::unordered_map<int, cv::Point2f> result;
+        for (const auto& marker: markers)
+        {
+            result[marker.class_id] = cv::Point2f(marker.pt_x, marker.pt_y);
+        }
+        return result;
+    }
+};
+
+capture_pipeline::capture_pipeline()
+    : pimpl(new impl())
+{
+}
+capture_pipeline::~capture_pipeline() = default;
+
+void capture_pipeline::run(const node_info &info)
+{
+    pimpl->run(info);
+}
+
+void capture_pipeline::stop()
+{
+    pimpl->stop();
+}
+cv::Mat capture_pipeline::get_frame() const
+{
+    return pimpl->get_frame();
+}
+std::unordered_map<int, cv::Point2f> capture_pipeline::get_markers() const
+{
+    return pimpl->get_markers();
+}
+
+void capture_pipeline::set_mask(cv::Mat mask)
+{
+}
+
 class multiview_capture_pipeline::impl
 {
     local_server server;
@@ -1928,144 +2019,12 @@ public:
 
         std::shared_ptr<subgraph> g(new subgraph());
 
-        bool is_master = true;
-
         std::unordered_map<std::string, std::shared_ptr<graph_node>> rcv_nodes;
         std::unordered_map<std::string, std::shared_ptr<graph_node>> rcv_marker_nodes;
         std::unordered_map<std::string, std::shared_ptr<graph_node>> rcv_blob_nodes;
         std::vector<std::shared_ptr<remote_cluster>> clusters;
 
-        for (std::size_t i = 0; i < node_infos.size(); i++)
-        {
-            std::shared_ptr<remote_cluster> cluster;
-
-            if (node_infos[i].type == node_type::raspi)
-            {
-                constexpr int fps = 90;
-                sync_fps = std::min(sync_fps, fps);
-                std::shared_ptr<image> mask_img;
-                if (masks.find(node_infos[i].name) != masks.end())
-                {
-                    const auto& mask = masks.at(node_infos[i].name);
-                    mask_img.reset(new image(mask.cols, mask.rows, CV_8UC1, mask.step, (const uint8_t *)mask.data));
-                }
-                cluster = std::make_shared<remote_cluster_raspi>(fps, mask_img.get(), is_master);
-                is_master = false;
-                mask_nodes.insert(std::make_pair(node_infos[i].name, cluster->mask_node_));
-                clusters.emplace_back(cluster);
-            }
-            else if(node_infos[i].type == node_type::raspi_color)
-            {
-                constexpr int fps = 30;
-                sync_fps = std::min(sync_fps, fps);
-                cluster = std::make_shared<remote_cluster_raspi_color>(fps, is_master);
-                is_master = false;
-                clusters.emplace_back(cluster);
-            }
-            else if (node_infos[i].type == node_type::depthai_color)
-            {
-                constexpr int fps = 30;
-                sync_fps = std::min(sync_fps, fps);
-                cluster = std::make_unique<remote_cluster_depthai_color>(fps);
-                clusters.emplace_back(cluster);
-            }
-            else if (node_infos[i].type == node_type::rs_d435)
-            {
-                constexpr int fps = 90;
-                sync_fps = std::min(sync_fps, fps);
-                constexpr int exposure = 5715;
-                constexpr int gain = 248;
-                constexpr int laser_power = 150;
-                constexpr bool with_image = true;
-                constexpr bool emitter_enabled = false;
-                cluster = std::make_unique<remote_cluster_rs_d435>(fps, exposure, gain, laser_power, with_image, emitter_enabled);
-                clusters.emplace_back(cluster);
-            }
-            else if (node_infos[i].type == node_type::rs_d435_color)
-            {
-                constexpr int fps = 30;
-                sync_fps = std::min(sync_fps, fps);
-                cluster = std::make_unique<remote_cluster_rs_d435_color>(fps);
-                clusters.emplace_back(cluster);
-            }
-            else if (node_infos[i].type == node_type::raspi_playback)
-            {
-                constexpr int fps = 90;
-                sync_fps = std::min(sync_fps, fps);
-                clusters.push_back(nullptr);
-            }
-            else if (node_infos[i].type == node_type::panoptic)
-            {
-                constexpr int fps = 30;
-                sync_fps = std::min(sync_fps, fps);
-                clusters.push_back(nullptr);
-            }
-
-            if (cluster && cluster->infra1_output)
-            {
-                std::shared_ptr<p2p_tcp_listener_node> n1(new p2p_tcp_listener_node());
-                n1->set_input(cluster->infra1_output);
-                n1->set_endpoint(node_infos[i].endpoint, 0);
-                g->add_node(n1);
-
-                rcv_blob_nodes[node_infos[i].name] = n1;
-
-                std::shared_ptr<decode_image_node> n7(new decode_image_node());
-                n7->set_input(n1->get_output());
-                g->add_node(n7);
-
-                rcv_nodes[node_infos[i].name] = n7;
-            }
-            else if (node_infos[i].type == node_type::raspi_playback)
-            {
-                std::shared_ptr<load_blob_node> n1(new load_blob_node());
-                n1->set_name(std::regex_replace(node_infos[i].name, std::regex("camera"), "image_"));
-                n1->set_db_path(node_infos[i].db_path);
-                g->add_node(n1);
-
-                rcv_blob_nodes[node_infos[i].name] = n1;
-
-                std::shared_ptr<decode_image_node> n7(new decode_image_node());
-                n7->set_input(n1->get_output());
-                g->add_node(n7);
-
-                rcv_nodes[node_infos[i].name] = n7;
-            }
-            else if (node_infos[i].type == node_type::panoptic)
-            {
-                std::shared_ptr<load_panoptic_node> n1(new load_panoptic_node());
-                n1->set_name(node_infos[i].name);
-                n1->set_db_path(node_infos[i].db_path);
-                g->add_node(n1);
-
-                rcv_blob_nodes[node_infos[i].name] = n1;
-
-                std::shared_ptr<decode_image_node> n7(new decode_image_node());
-                n7->set_input(n1->get_output());
-                g->add_node(n7);
-
-                rcv_nodes[node_infos[i].name] = n7;
-            }
-
-            if (cluster && cluster->infra1_marker_output)
-            {
-                std::shared_ptr<p2p_tcp_listener_node> n2(new p2p_tcp_listener_node());
-                n2->set_input(cluster->infra1_marker_output);
-                n2->set_endpoint(node_infos[i].endpoint, 0);
-                g->add_node(n2);
-
-                rcv_marker_nodes[node_infos[i].name] = n2;
-            }
-            else if (node_infos[i].type == node_type::raspi_playback)
-            {
-                std::shared_ptr<load_marker_node> n1(new load_marker_node());
-                n1->set_name(std::regex_replace(node_infos[i].name, std::regex("camera"), "marker_"));
-                n1->set_db_path(node_infos[i].db_path);
-                g->add_node(n1);
-
-                rcv_marker_nodes[node_infos[i].name] = n1;
-            }
-        }
+        genenerate_common_nodes(node_infos, g, sync_fps, clusters, masks, mask_nodes, rcv_nodes, rcv_marker_nodes, rcv_blob_nodes);
 
         for (std::size_t i = 0; i < node_infos.size(); i++)
         {
