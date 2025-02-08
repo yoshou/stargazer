@@ -991,170 +991,6 @@ public:
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-#if 1
-        std::unordered_map<std::string, cv::Mat> images;
-#endif
-
-        std::vector<std::map<std::string, marker_frame_data>> marker_frames;
-        if (calibration_panel_view_->is_marker_collecting)
-        {
-            for (const auto &device : capture_panel_view_->devices)
-            {
-                const auto capture_it = captures.find(device.name);
-                if (capture_it != captures.end())
-                {
-                    const auto capture = capture_it->second;
-                    auto frame = capture->get_frame();
-
-                    if (!frame.empty())
-                    {
-#if 0
-                        {
-                            std::vector<cv::Point2f> board;
-                            if (detect_calibration_board(frame, board, calibration_pattern::ASYMMETRIC_CIRCLES_GRID))
-                            {
-                                const auto board_size = cv::Size(4, 11);
-                                cv::drawChessboardCorners(frame, board_size, cv::Mat(board), true);
-
-                                {
-                                    const auto mm_to_m = 0.001f;                                                                                                    // TODO: Define as config
-                                    const auto square_size = cv::Size2f(117.0f / (board_size.width - 1) / 2 * mm_to_m, 196.0f / (board_size.height - 1) * mm_to_m); // TODO: Define as config
-                                    const auto image_size = cv::Size(960, 540);
-
-                                    std::vector<cv::Point3f> object_point;
-                                    std::vector<cv::Point2f> image_point = board;
-                                    calc_board_corner_positions(board_size, square_size, object_point, calibration_pattern::ASYMMETRIC_CIRCLES_GRID);
-
-                                    cv::Mat camera_matrix;
-                                    cv::Mat dist_coeffs;
-                                    const auto &node_infos = reconstruction_config->get_node_infos();
-                                    if (const auto node_info = std::find_if(node_infos.begin(), node_infos.end(), [&](const auto &x)
-                                                                                { return x.name == device.name; });
-                                        node_info != node_infos.end())
-                                    {
-                                        stargazer::get_cv_intrinsic(camera_params.at(node_info->id).cameras.at("infra1").intrin, camera_matrix, dist_coeffs);
-                                    }
-
-                                    cv::Mat rvec, tvec;
-                                    cv::solvePnP(object_point, image_point, camera_matrix, dist_coeffs, rvec, tvec);
-
-                                    {
-                                        constexpr auto length = 0.2f;
-                                        std::vector<cv::Point3f> object_points = {
-                                            cv::Point3f(0, 0, 0),
-                                            cv::Point3f(length, 0, 0),
-                                            cv::Point3f(length, length, 0),
-                                            cv::Point3f(0, length, 0),
-                                            cv::Point3f(0, 0, -length),
-                                            cv::Point3f(length, 0, -length),
-                                            cv::Point3f(length, length, -length),
-                                            cv::Point3f(0, length, -length),
-                                        };
-                                        std::vector<cv::Point2f> image_points;
-                                        cv::projectPoints(object_points, rvec, tvec, camera_matrix, dist_coeffs, image_points);
-
-                                        cv::line(frame, image_points.at(1), image_points.at(0), cv::Scalar(0, 0, 255));
-                                        cv::line(frame, image_points.at(2), image_points.at(1), cv::Scalar(0, 0, 255));
-                                        cv::line(frame, image_points.at(3), image_points.at(2), cv::Scalar(0, 0, 255));
-                                        cv::line(frame, image_points.at(0), image_points.at(3), cv::Scalar(0, 0, 255));
-                                        cv::line(frame, image_points.at(5), image_points.at(4), cv::Scalar(255, 0, 0));
-                                        cv::line(frame, image_points.at(6), image_points.at(5), cv::Scalar(255, 0, 0));
-                                        cv::line(frame, image_points.at(7), image_points.at(6), cv::Scalar(255, 0, 0));
-                                        cv::line(frame, image_points.at(4), image_points.at(7), cv::Scalar(255, 0, 0));
-                                        cv::line(frame, image_points.at(4), image_points.at(0), cv::Scalar(0, 255, 0));
-                                        cv::line(frame, image_points.at(5), image_points.at(1), cv::Scalar(0, 255, 0));
-                                        cv::line(frame, image_points.at(6), image_points.at(2), cv::Scalar(0, 255, 0));
-                                        cv::line(frame, image_points.at(7), image_points.at(3), cv::Scalar(0, 255, 0));
-                                        // cv::line(frame, image_points.at(0), image_points.at(4), cv::Scalar(255, 0, 0));
-                                    }
-                                }
-
-                                images[device.name] = frame;
-                            }
-                        }
-#endif
-#if 0
-                        {
-                            cv::aruco::DetectorParameters detector_params = cv::aruco::DetectorParameters();
-                            detector_params.cornerRefinementMethod = cv::aruco::CORNER_REFINE_CONTOUR;
-                            // detector_params.minMarkerPerimeterRate = 0.001;
-                            // detector_params.adaptiveThreshWinSizeStep = 10;
-                            // detector_params.adaptiveThreshWinSizeMax = 23;
-                            // detector_params.adaptiveThreshWinSizeMax = 73;
-                            // detector_params.polygonalApproxAccuracyRate = 0.1;
-                            // detector_params.adaptiveThreshWinSizeMax = 43;
-                            // detector_params.adaptiveThreshConstant = 50;
-                            cv::aruco::CharucoParameters charucoParams = cv::aruco::CharucoParameters();
-                            const auto dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_4X4_250);
-                            const auto board = cv::aruco::CharucoBoard(cv::Size(3, 5), 0.0575, 0.0575 * 0.75f, dictionary);
-                            const auto detector = cv::aruco::CharucoDetector(board, charucoParams, detector_params);
-                            std::vector<int> markerIds;
-                            std::vector<std::vector<cv::Point2f>> markerCorners;
-                            std::vector<int> charucoIds;
-                            std::vector<cv::Point2f> charucoCorners;
-
-                            try
-                            {
-                                detector.detectBoard(frame, charucoCorners, charucoIds, markerCorners, markerIds);
-                            }
-                            catch(const cv::Exception& e)
-                            {
-                                std::cerr << e.what() << '\n';
-                            }
-                            
-                            cv::aruco::drawDetectedCornersCharuco(frame, charucoCorners, charucoIds);
-                            images[device.name] = frame;
-                        }
-#endif
-#if 1
-                        {
-                            cv::aruco::DetectorParameters detector_params = cv::aruco::DetectorParameters();
-                            detector_params.cornerRefinementMethod = cv::aruco::CORNER_REFINE_CONTOUR;
-                            // detector_params.minMarkerPerimeterRate = 0.001;
-                            // detector_params.adaptiveThreshWinSizeStep = 10;
-                            // detector_params.adaptiveThreshWinSizeMax = 23;
-                            // detector_params.adaptiveThreshWinSizeMax = 73;
-                            // detector_params.polygonalApproxAccuracyRate = 0.1;
-                            // detector_params.adaptiveThreshWinSizeMax = 43;
-                            // detector_params.adaptiveThreshConstant = 50;
-                            const auto dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_4X4_250);
-                            const auto detector = cv::aruco::ArucoDetector(dictionary, detector_params);
-                            std::vector<int> markerIds;
-                            std::vector<std::vector<cv::Point2f>> markerCorners;
-
-                            try
-                            {
-                                detector.detectMarkers(frame, markerCorners, markerIds);
-                            }
-                            catch (const cv::Exception &e)
-                            {
-                                std::cerr << e.what() << '\n';
-                            }
-
-                            cv::aruco::drawDetectedMarkers(frame, markerCorners, markerIds);
-                            images[device.name] = frame;
-                        }
-#endif
-#if 0
-                        {
-                            const auto markers = capture->get_markers();
-
-                            std::vector<int> charucoIds;
-                            std::vector<cv::Point2f> charucoCorners;
-
-                            for (const auto& marker : markers)
-                            {
-                                charucoIds.push_back(marker.first);
-                                charucoCorners.push_back(marker.second);
-                            }
-                            cv::aruco::drawDetectedCornersCharuco(frame, charucoCorners, charucoIds);
-                        }
-#endif
-                    }
-                }
-            }
-        }
-
         top_bar_view_->render(context.get());
 
         if (top_bar_view_->view_type == top_bar_view::ViewType::Image)
@@ -1170,15 +1006,14 @@ public:
                         const auto &frame = frame_it->second;
                         if (!frame.empty())
                         {
-                            cv::Mat image = frame;
                             cv::Mat color_image;
-                            if (image.channels() == 1)
+                            if (frame.channels() == 1)
                             {
-                                cv::cvtColor(image, color_image, cv::COLOR_GRAY2RGB);
+                                cv::cvtColor(frame, color_image, cv::COLOR_GRAY2RGB);
                             }
-                            else if (image.channels() == 3)
+                            else if (frame.channels() == 3)
                             {
-                                cv::cvtColor(image, color_image, cv::COLOR_BGR2RGB);
+                                cv::cvtColor(frame, color_image, cv::COLOR_BGR2RGB);
                             }
                             stream->texture.upload_image(color_image.cols, color_image.rows, color_image.data, GL_RGB);
                         }
@@ -1196,21 +1031,14 @@ public:
 
                     if (!frame.empty())
                     {
-                        cv::Mat image = frame;
-#if 1
-                        if (images.find(stream->name) != images.end())
-                        {
-                            image = images.at(stream->name);
-                        }
-#endif
                         cv::Mat color_image;
-                        if (image.channels() == 1)
+                        if (frame.channels() == 1)
                         {
-                            cv::cvtColor(image, color_image, cv::COLOR_GRAY2RGB);
+                            cv::cvtColor(frame, color_image, cv::COLOR_GRAY2RGB);
                         }
-                        else if (image.channels() == 3)
+                        else if (frame.channels() == 3)
                         {
-                            cv::cvtColor(image, color_image, cv::COLOR_BGR2RGB);
+                            cv::cvtColor(frame, color_image, cv::COLOR_BGR2RGB);
                         }
                         stream->texture.upload_image(color_image.cols, color_image.rows, color_image.data, GL_RGB);
                     }
@@ -1388,15 +1216,14 @@ public:
 
                             if (stream_it != image_tile_view_->streams.end())
                             {
-                                cv::Mat image = frame;
                                 cv::Mat color_image;
-                                if (image.channels() == 1)
+                                if (frame.channels() == 1)
                                 {
-                                    cv::cvtColor(image, color_image, cv::COLOR_GRAY2RGB);
+                                    cv::cvtColor(frame, color_image, cv::COLOR_GRAY2RGB);
                                 }
-                                else if (image.channels() == 3)
+                                else if (frame.channels() == 3)
                                 {
-                                    cv::cvtColor(image, color_image, cv::COLOR_BGR2RGB);
+                                    cv::cvtColor(frame, color_image, cv::COLOR_BGR2RGB);
                                 }
                                 (*stream_it)->texture.upload_image(color_image.cols, color_image.rows, color_image.data, GL_RGB);
                             }
@@ -1419,15 +1246,14 @@ public:
 
                             if (stream_it != image_tile_view_->streams.end())
                             {
-                                cv::Mat image = frame;
                                 cv::Mat color_image;
-                                if (image.channels() == 1)
+                                if (frame.channels() == 1)
                                 {
-                                    cv::cvtColor(image, color_image, cv::COLOR_GRAY2RGB);
+                                    cv::cvtColor(frame, color_image, cv::COLOR_GRAY2RGB);
                                 }
-                                else if (image.channels() == 3)
+                                else if (frame.channels() == 3)
                                 {
-                                    cv::cvtColor(image, color_image, cv::COLOR_BGR2RGB);
+                                    cv::cvtColor(frame, color_image, cv::COLOR_BGR2RGB);
                                 }
                                 (*stream_it)->texture.upload_image(color_image.cols, color_image.rows, color_image.data, GL_RGB);
                             }
