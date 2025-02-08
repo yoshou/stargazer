@@ -1310,7 +1310,10 @@ public:
                     {
                         for (const auto &point : observed_point.points)
                         {
-                            cv::circle(cloud_image, cv::Point(point.x, point.y), 5, cv::Scalar(255, 0, 0));
+                            if (point.x >= 0 && point.x < width && point.y >= 0 && point.y < height)
+                            {
+                                cv::circle(cloud_image, cv::Point(point.x, point.y), 5, cv::Scalar(255, 0, 0));
+                            }
                         }
                     }
                     stream->texture.upload_image(cloud_image.cols, cloud_image.rows, cloud_image.data, GL_RGB);
