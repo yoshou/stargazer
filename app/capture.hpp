@@ -7,6 +7,18 @@
 
 #include "node_info.hpp"
 
+struct marker_data
+{
+    float x, y, r;
+};
+
+struct marker_frame_data
+{
+    std::vector<marker_data> markers;
+    double timestamp;
+    uint64_t frame_number;
+};
+
 class capture_pipeline
 {
     class impl;
@@ -24,18 +36,11 @@ public:
 
     cv::Mat get_frame() const;
     std::unordered_map<int, cv::Point2f> get_markers() const;
-};
 
-struct marker_data
-{  
-    float x, y, r;
-};
-
-struct marker_frame_data
-{
-    std::vector<marker_data> markers;
-    double timestamp;
-    uint64_t frame_number;
+    void add_marker_received(std::function<void(const marker_frame_data &)> f);
+    void clear_marker_received();
+    void add_image_received(std::function<void(const cv::Mat &)> f);
+    void clear_image_received();
 };
 
 class multiview_capture_pipeline

@@ -1799,17 +1799,45 @@ class capture_pipeline::impl
 
     std::map<std::string, std::shared_ptr<mask_node>> mask_nodes;
     std::map<std::string, cv::Mat> masks;
+    
+    mutable std::mutex image_received_mtx;
+    std::vector<std::function<void(const cv::Mat&)>> image_received;
+
+    mutable std::mutex frame_received_mtx;
+    std::vector<std::function<void(const marker_frame_data&)>> marker_received;
 
 public:
     impl() : server(0)
     {
     }
 
+    void add_marker_received(std::function<void(const marker_frame_data &)> f)
+    {
+        std::lock_guard lock(frame_received_mtx);
+        marker_received.push_back(f);
+    }
+
+    void clear_marker_received()
+    {
+        std::lock_guard lock(frame_received_mtx);
+        marker_received.clear();
+    }
+
+    void add_image_received(std::function<void(const cv::Mat &)> f)
+    {
+        std::lock_guard lock(image_received_mtx);
+        image_received.push_back(f);
+    }
+
+    void clear_image_received()
+    {
+        std::lock_guard lock(image_received_mtx);
+        image_received.clear();
+    }
+
     void run(const node_info &info)
     {
         std::vector<node_info> node_infos = {info};
-
-        bool is_master = true;
 
         int sync_fps = 90;
 
@@ -1849,8 +1877,37 @@ public:
 
                 if (auto frame_msg = std::dynamic_pointer_cast<frame_message<image>>(message))
                 {
-                    std::lock_guard lock(frame_mtx);
-                    frame = frame_msg;
+                    {
+                        std::lock_guard lock(frame_mtx);
+                        frame = frame_msg;
+                    }
+
+                    const auto &image = frame_msg->get_data();
+
+                    int type = -1;
+                    if (frame_msg->get_profile())
+                    {
+                        auto format = frame_msg->get_profile()->get_format();
+                        type = stream_format_to_cv_type(format);
+                    }
+
+                    if (type < 0)
+                    {
+                        throw std::logic_error("Unknown image format");
+                    }
+
+                    const auto frame = cv::Mat(image.get_height(), image.get_width(), type, (uchar *)image.get_data(), image.get_stride()).clone();
+
+                    std::vector<std::function<void(const cv::Mat &)>> image_received;
+                    {
+                        std::lock_guard lock(image_received_mtx);
+                        image_received = this->image_received;
+                    }
+
+                    for (const auto &f : image_received)
+                    {
+                        f(frame);
+                    }
                 }
             }
             if (node->get_name().find_first_of("marker#") == 0)
@@ -1859,8 +1916,36 @@ public:
 
                 if (auto frame_msg = std::dynamic_pointer_cast<keypoint_frame_message>(message))
                 {
-                    std::lock_guard lock(frame_mtx);
-                    markers = frame_msg->get_data();
+                    {
+                        std::lock_guard lock(frame_mtx);
+                        markers = frame_msg->get_data();
+                    }
+
+                    const auto &keypoints = frame_msg->get_data();
+
+                    marker_frame_data frame;
+                    for (const auto &keypoint : keypoints)
+                    {
+                        marker_data kp;
+                        kp.x = keypoint.pt_x;
+                        kp.y = keypoint.pt_y;
+                        kp.r = keypoint.size;
+                        frame.markers.push_back(kp);
+                    }
+
+                    frame.timestamp = frame_msg->get_timestamp();
+                    frame.frame_number = frame_msg->get_frame_number();
+
+                    std::vector<std::function<void(const marker_frame_data &)>> marker_received;
+                    {
+                        std::lock_guard lock(frame_received_mtx);
+                        marker_received = this->marker_received;
+                    }
+
+                    for (const auto &f : marker_received)
+                    {
+                        f(frame);
+                    }
                 }
             } });
 
@@ -1963,6 +2048,23 @@ void capture_pipeline::set_mask(cv::Mat mask)
 {
 }
 
+void capture_pipeline::add_marker_received(std::function<void(const marker_frame_data &)> f)
+{
+    pimpl->add_marker_received(f);
+}
+void capture_pipeline::clear_marker_received()
+{
+    pimpl->clear_marker_received();
+}
+void capture_pipeline::add_image_received(std::function<void(const cv::Mat &)> f)
+{
+    pimpl->add_image_received(f);
+}
+void capture_pipeline::clear_image_received()
+{
+    pimpl->clear_image_received();
+}
+
 class multiview_capture_pipeline::impl
 {
     local_server server;
@@ -1970,8 +2072,10 @@ class multiview_capture_pipeline::impl
     graph_proc_client client;
     std::unique_ptr<std::thread> io_thread;
 
-    mutable std::mutex image_frame_mtx;
+    mutable std::mutex frames_mtx;
     std::map<std::string, cv::Mat> frames;
+
+    mutable std::mutex image_received_mtx;
     std::vector<std::function<void(const std::map<std::string, cv::Mat>&)>> image_received;
 
     std::map<std::string, std::shared_ptr<mask_node>> mask_nodes;
@@ -1980,31 +2084,31 @@ class multiview_capture_pipeline::impl
     mutable std::mutex marker_collecting_clusters_mtx;
     std::unordered_set<std::string> marker_collecting_clusters;
 
-    mutable std::mutex marker_frame_mtx;
+    mutable std::mutex frame_received_mtx;
     std::vector<std::function<void(const std::map<std::string, marker_frame_data>&)>> marker_received;
 
 public:
     void add_marker_received(std::function<void(const std::map<std::string, marker_frame_data> &)> f)
     {
-        std::lock_guard lock(marker_frame_mtx);
+        std::lock_guard lock(frame_received_mtx);
         marker_received.push_back(f);
     }
 
     void clear_marker_received()
     {
-        std::lock_guard lock(marker_frame_mtx);
+        std::lock_guard lock(frame_received_mtx);
         marker_received.clear();
     }
 
     void add_image_received(std::function<void(const std::map<std::string, cv::Mat> &)> f)
     {
-        std::lock_guard lock(image_frame_mtx);
+        std::lock_guard lock(image_received_mtx);
         image_received.push_back(f);
     }
 
     void clear_image_received()
     {
-        std::lock_guard lock(image_frame_mtx);
+        std::lock_guard lock(image_received_mtx);
         image_received.clear();
     }
 
@@ -2139,8 +2243,16 @@ public:
                         }
                     }
 
-                    std::lock_guard lock(image_frame_mtx);
-                    this->frames = frames;
+                    {
+                        std::lock_guard lock(frames_mtx);
+                        this->frames = frames;
+                    }
+
+                    std::vector<std::function<void(const std::map<std::string, cv::Mat> &)>> image_received;
+                    {
+                        std::lock_guard lock(image_received_mtx);
+                        image_received = this->image_received;
+                    }
 
                     for (const auto &f : image_received)
                     {
@@ -2192,7 +2304,7 @@ public:
 
                     std::vector<std::function<void(const std::map<std::string, marker_frame_data> &)>> marker_received;
                     {
-                        std::lock_guard lock(marker_frame_mtx);
+                        std::lock_guard lock(frame_received_mtx);
                         marker_received = this->marker_received;
                     }
 
@@ -2239,7 +2351,7 @@ public:
         std::map<std::string, cv::Mat> result;
 
         {
-            std::lock_guard lock(image_frame_mtx);
+            std::lock_guard lock(frames_mtx);
             result = this->frames;
         }
 
