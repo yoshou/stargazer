@@ -910,16 +910,16 @@ void epipolar_reconstruction::set_axis(const glm::mat4 &axis)
 
 namespace fs = std::filesystem;
 
-// #define PANOPTIC
+#define PANOPTIC
 
 #ifdef PANOPTIC
 namespace stargazer_voxelpose
 {
-    static std::map<std::tuple<int32_t, int32_t>, camera_data> load_cameras()
+    static std::map<std::string, camera_data> load_cameras()
     {
         using namespace stargazer_voxelpose;
 
-        std::map<std::tuple<int32_t, int32_t>, camera_data> cameras;
+        std::map<std::string, camera_data> cameras;
 
         const auto camera_file = fs::path("/workspace/data/panoptic/calibration_171204_pose1.json");
 
@@ -974,7 +974,7 @@ namespace stargazer_voxelpose
             cam_data.p[0] = dist_coeffs[2];
             cam_data.p[1] = dist_coeffs[3];
 
-            cameras[std::make_pair(panel, node)] = cam_data;
+            cameras[cv::format("%02d_%02d", panel, node)] = cam_data;
         }
         return cameras;
     }
@@ -1070,30 +1070,8 @@ std::vector<glm::vec3> voxelpose_reconstruction::dnn_reconstruct(const std::map<
 
 #ifdef PANOPTIC
     const auto panoptic_cameras = load_cameras();
+#endif
 
-    std::vector<std::tuple<int32_t, int32_t>> camera_list = {
-        {0, 3},
-        {0, 6},
-        {0, 12},
-        {0, 13},
-        {0, 23},
-    };
-    for (const auto &[camera_panel, camera_node] : camera_list)
-    {
-        const auto camera_name = cv::format("camera_%02d_%02d", camera_panel, camera_node);
-
-        const auto prefix = cv::format("%02d_%02d", camera_panel, camera_node);
-        std::string postfix = "_00000000";
-        const auto image_file = (fs::path("/workspace/data/panoptic") / prefix / (prefix + postfix + ".jpg")).string();
-
-        auto data = cv::imread(image_file, cv::IMREAD_UNCHANGED | cv::IMREAD_IGNORE_ORIENTATION);
-        // cv::resize(data, data, cv::Size(960, 540));
-        images_list.push_back(data);
-        
-        cameras_list.push_back(panoptic_cameras.at(std::make_tuple(camera_panel, camera_node)));
-        names.push_back(camera_name);
-    }
-#else
     for (const auto &[camera_name, image] : frame)
     {
         names.push_back(camera_name);
@@ -1103,6 +1081,9 @@ std::vector<glm::vec3> voxelpose_reconstruction::dnn_reconstruct(const std::map<
     {
         const auto name = names[i];
 
+#ifdef PANOPTIC
+        const auto &camera = panoptic_cameras.at(name);
+#else
         camera_data camera;
 
         const auto &src_camera = cameras.at(name);
@@ -1133,11 +1114,11 @@ std::vector<glm::vec3> voxelpose_reconstruction::dnn_reconstruct(const std::map<
             }
             camera.translation[i] = camera_pose[3][i] * 1000.0;
         }
+#endif
 
         cameras_list.push_back(camera);
         images_list.push_back(frame.at(name));
     }
-#endif
 
 #ifdef PANOPTIC
     std::array<float, 3> grid_center = {0.0f, -500.0f, 800.0f};
@@ -1155,26 +1136,7 @@ std::vector<glm::vec3> voxelpose_reconstruction::dnn_reconstruct(const std::map<
 
     {
         std::lock_guard lock(features_mtx);
-
-#ifdef PANOPTIC
-        std::map<std::string, std::string> name_cvt = {
-            {"camera_00_03", "camera101"},
-            {"camera_00_06", "camera102"},
-            {"camera_00_12", "camera103"},
-            {"camera_00_13", "camera104"},
-            {"camera_00_23", "camera105"},
-        };
-
-        std::vector<std::string> new_names;
-        for (const auto& name : names)
-        {
-            new_names.push_back(name_cvt.at(name));
-        }
-
-        this->names = new_names;
-#else
         this->names = names;
-#endif
         this->features = std::move(heatmaps);
     }
 
