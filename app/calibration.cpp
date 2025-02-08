@@ -608,8 +608,7 @@ CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, three_point_bar_calibration_tar
 
 class calibration_node : public graph_node
 {
-    mutable std::mutex cameras_mtx;
-
+    mutable std::mutex frames_mtx;
     std::unordered_map<uint32_t, uint32_t> timestamp_to_index;
     std::map<std::string, size_t> camera_name_to_index;
     std::map<std::string, std::vector<observed_points_t>> observed_frames;
@@ -618,6 +617,7 @@ class calibration_node : public graph_node
     bool only_extrinsic;
     bool robust;
 
+    mutable std::mutex cameras_mtx;
     std::vector<std::string> camera_names;
     std::unordered_map<std::string, stargazer::camera_t> cameras;
     std::unordered_map<std::string, stargazer::camera_t> calibrated_cameras;
@@ -666,14 +666,19 @@ public:
         return num_frames.at(name);
     }
 
-    const std::vector<observed_points_t> &get_observed_points(std::string name) const
+    const std::vector<observed_points_t> get_observed_points(std::string name) const
     {
         static std::vector<observed_points_t> empty;
         if (observed_frames.find(name) == observed_frames.end())
         {
             return empty;
         }
-        return observed_frames.at(name);
+        std::vector<observed_points_t> observed_points;
+        {
+            std::lock_guard<std::mutex> lock(frames_mtx);
+            observed_points = observed_frames.at(name);
+        }
+        return observed_points;
     }
 
     void calibrate()
@@ -1015,12 +1020,14 @@ public:
             {
                 if (observed_frames.empty())
                 {
+                    std::lock_guard lock(frames_mtx);
                     observed_frames.insert(std::make_pair(name, std::vector<observed_points_t>()));
                 }
                 else
                 {
                     observed_points_t obs = {};
                     obs.camera_idx = camera_name_to_index.at(name);
+                    std::lock_guard lock(frames_mtx);
                     observed_frames.insert(std::make_pair(name, std::vector<observed_points_t>(observed_frames.begin()->second.size(), obs)));
                 }
             }
@@ -1037,7 +1044,10 @@ public:
                 obs.points.emplace_back(pt.x, pt.y);
             }
 
-            observed_frames[name][index] = obs;
+            {
+                std::lock_guard lock(frames_mtx);
+                observed_frames[name][index] = obs;
+            }
 
             if (obs.points.size() > 0)
             {
@@ -1423,7 +1433,7 @@ public:
         return calib_node->get_num_frames(name);
     }
 
-    const std::vector<observed_points_t> &get_observed_points(std::string name) const
+    const std::vector<observed_points_t> get_observed_points(std::string name) const
     {
         if (!calib_node)
         {
@@ -1485,7 +1495,7 @@ size_t calibration::get_num_frames(std::string name) const
     return pimpl->get_num_frames(name);
 }
 
-const std::vector<observed_points_t> &calibration::get_observed_points(std::string name) const
+const std::vector<observed_points_t> calibration::get_observed_points(std::string name) const
 {
     return pimpl->get_observed_points(name);
 }
