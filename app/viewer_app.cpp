@@ -334,8 +334,21 @@ class viewer_app : public window_base
 
                     const auto capture = std::make_shared<capture_pipeline>();
 
-                    capture->add_image_received([this](const cv::Mat &image_frame)
-                                                {});
+                    capture->add_image_received([this](const cv::Mat &frame)
+                                                {
+                        if (!frame.empty() && calibration_panel_view_->is_marker_collecting)
+                        {
+                            std::vector<cv::Point2f> board;
+                            if (detect_calibration_board(frame, board))
+                            {
+                                std::vector<stargazer::point_data> points;
+                                for (const auto &point : board)
+                                {
+                                    points.push_back(stargazer::point_data{glm::vec2(point.x, point.y), 0, 0});
+                                }
+                                intrinsic_calib.add_frame(points);
+                            }
+                        } });
 
                     try
                     {
@@ -995,16 +1008,6 @@ public:
 
                     if (!frame.empty())
                     {
-                        std::vector<cv::Point2f> board;
-                        if (detect_calibration_board(frame, board))
-                        {
-                            std::vector<stargazer::point_data> points;
-                            for (const auto &point : board)
-                            {
-                                points.push_back(stargazer::point_data{glm::vec2(point.x, point.y), 0, 0});
-                            }
-                            intrinsic_calib.add_frame(points);
-                        }
 #if 0
                         {
                             std::vector<cv::Point2f> board;
