@@ -54,6 +54,10 @@ namespace stargazer
                     {
                         node.type = node_type::raspi_playback;
                     }
+                    else if (type == "panoptic")
+                    {
+                        node.type = node_type::panoptic;
+                    }
                     else if (type == "record")
                     {
                         node.type = node_type::record;
@@ -77,6 +81,12 @@ namespace stargazer
 
                     node.name = j_node["name"].get<std::string>();
                     if (type == "raspi_playback")
+                    {
+                        node.id = j_node["id"].get<std::string>();
+                        node.db_path = j_node["db_path"].get<std::string>();
+                        node.name = j_node["name"].get<std::string>();
+                    }
+                    else if (type == "panoptic")
                     {
                         node.id = j_node["id"].get<std::string>();
                         node.db_path = j_node["db_path"].get<std::string>();
@@ -165,6 +175,9 @@ namespace stargazer
                 case node_type::raspi_playback:
                     node_type_name = "raspi_playback";
                     break;
+                case node_type::panoptic:
+                    node_type_name = "panoptic";
+                    break;
                 case node_type::record:
                     node_type_name = "record";
                     break;
@@ -197,6 +210,11 @@ namespace stargazer
                 }
                 j_node["params"] = j_params;
                 if (node.type == node_type::raspi_playback)
+                {
+                    j_node["id"] = node.id;
+                    j_node["db_path"] = node.db_path;
+                }
+                else if (node.type == node_type::panoptic)
                 {
                     j_node["id"] = node.id;
                     j_node["db_path"] = node.db_path;

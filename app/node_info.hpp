@@ -12,6 +12,7 @@ enum class node_type
     rs_d435,
     rs_d435_color,
     raspi_playback,
+    panoptic,
     record,
     calibration,
     pattern_board_calibration_target_detector,
@@ -36,6 +37,7 @@ struct node_info
                 type == node_type::depthai_color ||
                 type == node_type::rs_d435 ||
                 type == node_type::rs_d435_color ||
-                type == node_type::raspi_playback;
+                type == node_type::raspi_playback ||
+                type == node_type::panoptic;
     }
 };

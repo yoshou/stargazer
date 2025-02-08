@@ -9,6 +9,8 @@
 #include "ext/graph_proc_rs_d435.h"
 
 #include <regex>
+#include <filesystem>
+#include <fstream>
 #include <nlohmann/json.hpp>
 #include <sqlite3.h>
 
@@ -1737,6 +1739,139 @@ public:
 CEREAL_REGISTER_TYPE(load_marker_node)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, load_marker_node)
 
+class load_panoptic_node: public graph_node
+{
+    std::string db_path;
+    std::string name;
+    stream_type stream;
+    stream_format format;
+    int fps;
+
+    std::shared_ptr<std::thread> th;
+    std::atomic_bool playing;
+    graph_edge_ptr output;
+
+    uint64_t start_timestamp;
+
+public:
+    load_panoptic_node()
+        : graph_node(), stream(stream_type::COLOR), format(stream_format::BGR8), fps(30), output(std::make_shared<graph_edge>(this)), start_timestamp(0)
+    {
+        set_output(output);
+    }
+
+    void set_db_path(std::string value)
+    {
+        db_path = value;
+    }
+    
+    void set_name(std::string value)
+    {
+        name = value;
+    }
+
+    void set_stream(stream_type value)
+    {
+        stream = value;
+    }
+
+    void set_format(stream_format value)
+    {
+        format = value;
+    }
+
+    void set_fps(int value)
+    {
+        fps = value;
+    }
+
+    virtual std::string get_proc_name() const override
+    {
+        return "load_panoptic_node";
+    }
+
+    template <typename Archive>
+    void serialize(Archive &archive)
+    {
+        archive(db_path);
+        archive(name);
+        archive(stream);
+        archive(format);
+        archive(fps);
+    }
+
+    virtual void initialize() override
+    {
+        start_timestamp = 0;
+    }
+
+    virtual void run() override
+    {
+        th.reset(new std::thread([this]()
+                                 {
+            namespace fs = std::filesystem;
+
+            playing = true;
+            uint64_t position = 0;
+            const auto start_time = std::chrono::system_clock::now();
+
+            spdlog::info("Start playback: {}", name);
+
+            while (playing)
+            {
+                const auto timestamp = start_timestamp + position * 1000.0 / fps;
+                const auto elapsed_time = timestamp - start_timestamp;
+
+                const auto postfix = cv::format("_%08ld", position);
+                const auto image_file = (fs::path(db_path) / name / (name + postfix + ".jpg")).string();
+
+                std::ifstream f;
+                f.open(image_file, std::ios::in | std::ios::binary);
+
+                if (!f.is_open())
+                {
+                    playing = false;
+                }
+                else
+                {
+                    std::vector<uint8_t> data;
+                    std::copy(std::istreambuf_iterator<char>(f), std::istreambuf_iterator<char>(), std::back_inserter(data));
+
+                    auto msg = std::make_shared<blob_frame_message>();
+                    msg->set_data(std::move(data));
+                    msg->set_frame_number(position);
+                    msg->set_timestamp(timestamp);
+                    msg->set_profile(std::make_shared<stream_profile>(
+                        stream,
+                        0,
+                        format,
+                        fps,
+                        0));
+
+                    std::this_thread::sleep_until(start_time + std::chrono::duration<double>(static_cast<double>(elapsed_time) / 1000.0));
+
+                    output->send(msg);
+
+                    position++;
+                }
+            }
+
+            spdlog::info("End playback: {}", name); }));
+    }
+
+    virtual void stop() override
+    {
+        playing.store(false);
+        if (th && th->joinable())
+        {
+            th->join();
+        }
+    }
+};
+
+CEREAL_REGISTER_TYPE(load_panoptic_node)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, load_panoptic_node)
+
 class multiview_capture_pipeline::impl
 {
     local_server server;
@@ -1859,6 +1994,12 @@ public:
                 sync_fps = std::min(sync_fps, fps);
                 clusters.push_back(nullptr);
             }
+            else if (node_infos[i].type == node_type::panoptic)
+            {
+                constexpr int fps = 30;
+                sync_fps = std::min(sync_fps, fps);
+                clusters.push_back(nullptr);
+            }
 
             if (cluster && cluster->infra1_output)
             {
@@ -1879,6 +2020,21 @@ public:
             {
                 std::shared_ptr<load_blob_node> n1(new load_blob_node());
                 n1->set_name(std::regex_replace(node_infos[i].name, std::regex("camera"), "image_"));
+                n1->set_db_path(node_infos[i].db_path);
+                g->add_node(n1);
+
+                rcv_blob_nodes[node_infos[i].name] = n1;
+
+                std::shared_ptr<decode_image_node> n7(new decode_image_node());
+                n7->set_input(n1->get_output());
+                g->add_node(n7);
+
+                rcv_nodes[node_infos[i].name] = n7;
+            }
+            else if (node_infos[i].type == node_type::panoptic)
+            {
+                std::shared_ptr<load_panoptic_node> n1(new load_panoptic_node());
+                n1->set_name(node_infos[i].name);
                 n1->set_db_path(node_infos[i].db_path);
                 g->add_node(n1);
 
