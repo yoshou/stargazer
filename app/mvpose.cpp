@@ -723,10 +723,8 @@ namespace stargazer_mvpose
                 output_node_names.push_back(this->output_node_names[1].c_str());
             }
 
-#if 0
             io_binding.ClearBoundInputs();
             io_binding.ClearBoundOutputs();
-#endif
 
             std::vector<Ort::Value> input_tensors;
             {
@@ -740,31 +738,12 @@ namespace stargazer_mvpose
                 input_tensors.emplace_back(std::move(input_tensor));
             }
 
-#if 0
-            auto memory_info = Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU);
-            std::vector<Ort::Value> output_tensors;
             {
-                auto dims = output_node_dims.at(output_node_names[0]);
-                dims[1] = num_people;
-                const auto dets_size = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<int64_t>());
-
-                Ort::Value dets_tensor = Ort::Value::CreateTensor<float>(memory_info, dets_data, dets_size, dims.data(), dims.size());
-
-                io_binding.BindOutput(output_node_names[0], dets_tensor);
-
-                output_tensors.emplace_back(std::move(dets_tensor));
+                io_binding.BindOutput(output_node_names[0], info_cuda);
             }
 
             {
-                auto dims = output_node_dims.at(output_node_names[1]);
-                dims[1] = num_people;
-                const auto labels_size = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<int64_t>());
-
-                Ort::Value labels_tensor = Ort::Value::CreateTensor<int64_t>(memory_info, labels_data, labels_size, dims.data(), dims.size());
-
-                io_binding.BindOutput(output_node_names[1], labels_tensor);
-
-                output_tensors.emplace_back(std::move(labels_tensor));
+                io_binding.BindOutput(output_node_names[1], info_cuda);
             }
 
             io_binding.SynchronizeInputs();
@@ -772,24 +751,24 @@ namespace stargazer_mvpose
             session.Run(Ort::RunOptions{nullptr}, io_binding);
 
             io_binding.SynchronizeOutputs();
-#else
-            const auto output_tensors = session.Run(Ort::RunOptions{nullptr}, input_node_names.data(), input_tensors.data(), input_node_names.size(), output_node_names.data(), output_node_names.size());
 
-            std::copy_n(output_tensors[0].GetTensorData<float>(), 5 * num_people, dets_data);
-            std::copy_n(output_tensors[1].GetTensorData<int64_t>(), num_people, labels_data);
-#endif
+            const auto output_tensors = io_binding.GetOutputValues();
+
+            CUDA_SAFE_CALL(cudaMemset(dets_data, 0, 5 * num_people * sizeof(float)));
+            CUDA_SAFE_CALL(cudaMemset(labels_data, 0, num_people * sizeof(int64_t)));
+
+            CUDA_SAFE_CALL(cudaMemcpy(dets_data, output_tensors[0].GetTensorData<float>(), 5 * std::min(static_cast<int>(output_tensors[0].GetTensorTypeAndShapeInfo().GetShape()[1]), num_people) * sizeof(float), cudaMemcpyDeviceToDevice));
+            CUDA_SAFE_CALL(cudaMemcpy(labels_data, output_tensors[1].GetTensorData<int64_t>(), std::min(static_cast<int>(output_tensors[1].GetTensorTypeAndShapeInfo().GetShape()[1]), num_people) * sizeof(int64_t), cudaMemcpyDeviceToDevice));
         }
 
         void copy_labels_to_cpu(int64_t* labels) const
         {
-            // CUDA_SAFE_CALL(cudaMemcpy(labels, labels_data, num_people * sizeof(int32_t), cudaMemcpyDeviceToHost));
-            std::copy_n(labels_data, num_people, labels);
+            CUDA_SAFE_CALL(cudaMemcpy(labels, labels_data, num_people * sizeof(int64_t), cudaMemcpyDeviceToHost));
         }
 
         void copy_dets_to_cpu(float *dets) const
         {
-            // CUDA_SAFE_CALL(cudaMemcpy(dets, dets_data, 5 * num_people * sizeof(float), cudaMemcpyDeviceToHost));
-            std::copy_n(dets_data, 5 * num_people, dets);
+            CUDA_SAFE_CALL(cudaMemcpy(dets, dets_data, 5 * num_people * sizeof(float), cudaMemcpyDeviceToHost));
         }
 
         const int64_t *get_labels() const
