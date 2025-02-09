@@ -30,7 +30,6 @@
 
 #ifdef ENABLE_ONNXRUNTIME
 #include <onnxruntime_cxx_api.h>
-#include <tensorrt_provider_factory.h>
 #include <cpu_provider_factory.h>
 
 #include <Eigen/Core>
@@ -229,7 +228,6 @@ namespace stargazer_mvpose
         Ort::Session session;
         Ort::IoBinding io_binding;
         Ort::MemoryInfo info_cuda{"Cuda", OrtDeviceAllocator, 0, OrtMemTypeDefault};
-        Ort::Allocator cuda_allocator{nullptr};
 
         float *input_data = nullptr;
         float *simcc_x_data = nullptr;
@@ -311,7 +309,6 @@ namespace stargazer_mvpose
 
             session = Ort::Session(env, model_data.data(), model_data.size(), session_options);
             io_binding = Ort::IoBinding(session);
-            cuda_allocator = Ort::Allocator(session, info_cuda);
 
             Ort::AllocatorWithDefaultOptions allocator;
 
@@ -350,29 +347,23 @@ namespace stargazer_mvpose
             const auto &&image_size = cv::Size(image_width, image_height);
 
             const auto input_size = image_size.width * image_size.height * 3 * max_batch_size;
-
-            input_data = reinterpret_cast<float *>(cuda_allocator.GetAllocation(input_size * sizeof(float)).get());
+            CUDA_SAFE_CALL(cudaMalloc(&input_data, input_size * sizeof(float)));
 
             const auto simcc_x_size = image_size.width * 2 * num_joints * max_batch_size;
-
-            // simcc_y_data = reinterpret_cast<float *>(cuda_allocator.GetAllocation(simcc_x_size * sizeof(float)).get());
-            simcc_x_data = reinterpret_cast<float *>(std::malloc(simcc_x_size * sizeof(float)));
+            CUDA_SAFE_CALL(cudaMalloc(&simcc_x_data, simcc_x_size * sizeof(float)));
 
             const auto simcc_y_size = image_size.height * 2 * num_joints * max_batch_size;
-
-            // simcc_y_data = reinterpret_cast<float *>(cuda_allocator.GetAllocation(simcc_y_size * sizeof(float)).get());
-            simcc_y_data = reinterpret_cast<float *>(std::malloc(simcc_y_size * sizeof(float)));
+            CUDA_SAFE_CALL(cudaMalloc(&simcc_y_data, simcc_y_size * sizeof(float)));
 
             CUDA_SAFE_CALL(cudaMalloc(&input_image_data, max_input_image_width * max_input_image_height * 3 * max_batch_size));
         }
 
         ~dnn_inference_pose()
         {
-            cudaFree(input_image_data);
-            // cudaFree(simcc_x_data);
-            // cudaFree(simcc_y_data);
-            std::free(simcc_x_data);
-            std::free(simcc_y_data);
+            CUDA_SAFE_CALL(cudaFree(input_data));
+            CUDA_SAFE_CALL(cudaFree(input_image_data));
+            CUDA_SAFE_CALL(cudaFree(simcc_x_data));
+            CUDA_SAFE_CALL(cudaFree(simcc_y_data));
         }
 
         void process(const cv::Mat &image, const cv::Rect2f& rect, roi_data &roi)
@@ -462,7 +453,6 @@ namespace stargazer_mvpose
                 input_tensors.emplace_back(std::move(input_tensor));
             }
 
-            auto memory_info = Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU);
             std::vector<Ort::Value> output_tensors;
             {
                 auto dims = output_node_dims.at(output_node_names[0]);
@@ -470,7 +460,7 @@ namespace stargazer_mvpose
                 dims[1] = num_joints;
                 const auto simcc_x_size = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<int64_t>());
 
-                Ort::Value simcc_x_tensor = Ort::Value::CreateTensor<float>(memory_info, simcc_x_data, simcc_x_size, dims.data(), dims.size());
+                Ort::Value simcc_x_tensor = Ort::Value::CreateTensor<float>(info_cuda, simcc_x_data, simcc_x_size, dims.data(), dims.size());
 
                 io_binding.BindOutput(output_node_names[0], simcc_x_tensor);
 
@@ -483,7 +473,7 @@ namespace stargazer_mvpose
                 dims[1] = num_joints;
                 const auto simcc_y_size = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<int64_t>());
 
-                Ort::Value simcc_y_tensor = Ort::Value::CreateTensor<float>(memory_info, simcc_y_data, simcc_y_size, dims.data(), dims.size());
+                Ort::Value simcc_y_tensor = Ort::Value::CreateTensor<float>(info_cuda, simcc_y_data, simcc_y_size, dims.data(), dims.size());
 
                 io_binding.BindOutput(output_node_names[1], simcc_y_tensor);
 
@@ -499,14 +489,12 @@ namespace stargazer_mvpose
 
         void copy_simcc_x_to_cpu(float *simcc_x) const
         {
-            // CUDA_SAFE_CALL(cudaMemcpy(simcc_x, simcc_x_data, image_width * 2 * num_joints * sizeof(float), cudaMemcpyDeviceToHost));
-            std::copy_n(simcc_x_data, image_width * 2 * num_joints, simcc_x);
+            CUDA_SAFE_CALL(cudaMemcpy(simcc_x, simcc_x_data, image_width * 2 * num_joints * sizeof(float), cudaMemcpyDeviceToHost));
         }
 
         void copy_simcc_y_to_cpu(float *simcc_y) const
         {
-            // CUDA_SAFE_CALL(cudaMemcpy(simcc_y, simcc_y_data, image_height * 2 * num_joints * sizeof(float), cudaMemcpyDeviceToHost));
-            std::copy_n(simcc_y_data, image_height * 2 * num_joints, simcc_y);
+            CUDA_SAFE_CALL(cudaMemcpy(simcc_y, simcc_y_data, image_height * 2 * num_joints * sizeof(float), cudaMemcpyDeviceToHost));
         }
 
         const float *get_simcc_x() const
@@ -528,7 +516,6 @@ namespace stargazer_mvpose
         Ort::Session session;
         Ort::IoBinding io_binding;
         Ort::MemoryInfo info_cuda{"Cuda", OrtDeviceAllocator, 0, OrtMemTypeDefault};
-        Ort::Allocator cuda_allocator{nullptr};
 
         float *input_data = nullptr;
         float *dets_data = nullptr;
@@ -610,7 +597,6 @@ namespace stargazer_mvpose
 
             session = Ort::Session(env, model_data.data(), model_data.size(), session_options);
             io_binding = Ort::IoBinding(session);
-            cuda_allocator = Ort::Allocator(session, info_cuda);
 
             Ort::AllocatorWithDefaultOptions allocator;
 
@@ -649,27 +635,23 @@ namespace stargazer_mvpose
             const auto &&image_size = cv::Size(image_width, image_height);
 
             const auto input_size = image_size.width * image_size.height * 3;
-
-            input_data = reinterpret_cast<float *>(cuda_allocator.GetAllocation(input_size * sizeof(float)).get());
+            CUDA_SAFE_CALL(cudaMalloc(&input_data, input_size * sizeof(float)));
 
             const auto dets_size = num_people * 5;
-
-            // dets_data = reinterpret_cast<float *>(cuda_allocator.GetAllocation(dets_size * sizeof(float)).get());
-            dets_data = reinterpret_cast<float *>(std::malloc(dets_size * sizeof(float)));
+            CUDA_SAFE_CALL(cudaMalloc(&dets_data, dets_size * sizeof(float)));
 
             const auto labels_size = num_people;
-
-            // labels_data = reinterpret_cast<int64_t *>(cuda_allocator.GetAllocation(labels_size * sizeof(int64_t)).get());
-            labels_data = reinterpret_cast<int64_t *>(std::malloc(labels_size * sizeof(int64_t)));
+            CUDA_SAFE_CALL(cudaMalloc(&labels_data, labels_size * sizeof(int64_t)));
 
             CUDA_SAFE_CALL(cudaMalloc(&input_image_data, max_input_image_width * max_input_image_height * 3));
         }
 
         ~dnn_inference_det()
         {
-            cudaFree(input_image_data);
-            std::free(dets_data);
-            std::free(labels_data);
+            CUDA_SAFE_CALL(cudaFree(input_data));
+            CUDA_SAFE_CALL(cudaFree(input_image_data));
+            CUDA_SAFE_CALL(cudaFree(dets_data));
+            CUDA_SAFE_CALL(cudaFree(labels_data));
         }
 
         void process(const cv::Mat &image, roi_data &roi)

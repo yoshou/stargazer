@@ -34,7 +34,6 @@
 
 #ifdef ENABLE_ONNXRUNTIME
 #include <onnxruntime_cxx_api.h>
-#include <tensorrt_provider_factory.h>
 
 namespace stargazer_voxelpose
 {
@@ -46,7 +45,6 @@ namespace stargazer_voxelpose
         Ort::Session session;
         Ort::IoBinding io_binding;
         Ort::MemoryInfo info_cuda{"Cuda", OrtDeviceAllocator, 0, OrtMemTypeDefault};
-        Ort::Allocator cuda_allocator{nullptr};
 
         float *input_data = nullptr;
         float *output_data = nullptr;
@@ -113,7 +111,6 @@ namespace stargazer_voxelpose
 
             session = Ort::Session(env, model_data.data(), model_data.size(), session_options);
             io_binding = Ort::IoBinding(session);
-            cuda_allocator = Ort::Allocator(session, info_cuda);
 
             Ort::AllocatorWithDefaultOptions allocator;
 
@@ -152,14 +149,14 @@ namespace stargazer_voxelpose
                 const auto dims = input_node_dims.at(input_node_names[0]);
                 const auto input_size = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<int64_t>());
 
-                input_data = reinterpret_cast<float *>(cuda_allocator.GetAllocation(input_size * sizeof(float)).get());
+                CUDA_SAFE_CALL(cudaMalloc(&input_data, input_size * sizeof(float)));
             }
 
             {
                 const auto dims = output_node_dims.at(output_node_names[0]);
                 const auto output_size = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<int64_t>());
 
-                output_data = reinterpret_cast<float *>(cuda_allocator.GetAllocation(output_size * sizeof(float)).get());
+                CUDA_SAFE_CALL(cudaMalloc(&output_data, output_size * sizeof(float)));
             }
         }
 
@@ -231,7 +228,6 @@ namespace stargazer_voxelpose
         Ort::Session session;
         Ort::IoBinding io_binding;
         Ort::MemoryInfo info_cuda{"Cuda", OrtDeviceAllocator, 0, OrtMemTypeDefault};
-        Ort::Allocator cuda_allocator{nullptr};
 
         float *input_data = nullptr;
         float *output_data = nullptr;
@@ -307,7 +303,6 @@ namespace stargazer_voxelpose
 
             session = Ort::Session(env, model_data.data(), model_data.size(), session_options);
             io_binding = Ort::IoBinding(session);
-            cuda_allocator = Ort::Allocator(session, info_cuda);
 
             Ort::AllocatorWithDefaultOptions allocator;
 
@@ -343,19 +338,19 @@ namespace stargazer_voxelpose
             assert(output_node_names[0] == "output");
 
             const auto input_size = 960 * 512 * 3 * max_views;
-
-            input_data = reinterpret_cast<float *>(cuda_allocator.GetAllocation(input_size * sizeof(float)).get());
+            CUDA_SAFE_CALL(cudaMalloc(&input_data, input_size * sizeof(float)));
 
             const auto output_size = 240 * 128 * 15 * max_views;
+            CUDA_SAFE_CALL(cudaMalloc(&output_data, output_size * sizeof(float)));
 
-            output_data = reinterpret_cast<float *>(cuda_allocator.GetAllocation(output_size * sizeof(float)).get());
-
-            cudaMalloc(&input_image_data, input_image_width * input_image_height * 3 * max_views);
+            CUDA_SAFE_CALL(cudaMalloc(&input_image_data, input_image_width * input_image_height * 3 * max_views));
         }
 
         ~dnn_inference_heatmap()
         {
-            cudaFree(input_image_data);
+            CUDA_SAFE_CALL(cudaFree(input_data));
+            CUDA_SAFE_CALL(cudaFree(output_data));
+            CUDA_SAFE_CALL(cudaFree(input_image_data));
         }
 
         void process(const std::vector<cv::Mat> &images, std::vector<roi_data> &rois)
@@ -512,7 +507,7 @@ namespace stargazer_voxelpose
             input_data.resize(input_size);
 
             const auto output_size = std::accumulate(output_layer_shapes[0].begin(), output_layer_shapes[0].end(), 1, std::multiplies<int64_t>());
-            cudaMalloc(&output_data, output_size * sizeof(float));
+            CUDA_SAFE_CALL(cudaMalloc(&output_data, output_size * sizeof(float)));
         }
 
         void inference(const float *input)
@@ -524,13 +519,13 @@ namespace stargazer_voxelpose
             assert(input_layer_shapes.size() == 1);
             assert(output_layer_shapes.size() == 1);
 
-            cudaMemcpy(input_data.data(), input, input_data.size(), cudaMemcpyDeviceToHost);
+            CUDA_SAFE_CALL(cudaMemcpy(input_data.data(), input, input_data.size(), cudaMemcpyDeviceToHost));
 
             cv::Mat input_mat(input_layer_shapes[0], CV_32FC1, (void *)input_data.data());
             net.setInput(input_mat);
             const auto output_mat = net.forward();
 
-            cudaMemcpy(output_data, output_mat.data, output_mat.total() * sizeof(float), cudaMemcpyHostToDevice);
+            CUDA_SAFE_CALL(cudaMemcpy(output_data, output_mat.data, output_mat.total() * sizeof(float), cudaMemcpyHostToDevice));
         }
 
         const float *get_output_data() const
@@ -568,13 +563,13 @@ namespace stargazer_voxelpose
             net = cv::dnn::readNetFromONNX(model_data);
 
             const auto input_size = 960 * 512 * 3 * max_views;
-            cudaMalloc(&input_data, input_size * sizeof(float));
+            CUDA_SAFE_CALL(cudaMalloc(&input_data, input_size * sizeof(float)));
             input_data_cpu.resize(input_size);
 
             const auto output_size = 240 * 128 * 15 * max_views;
-            cudaMalloc(&output_data, output_size * sizeof(float));
+            CUDA_SAFE_CALL(cudaMalloc(&output_data, output_size * sizeof(float)));
 
-            cudaMalloc(&input_image_data, input_image_width * input_image_height * 3 * max_views);
+            CUDA_SAFE_CALL(cudaMalloc(&input_image_data, input_image_width * input_image_height * 3 * max_views));
         }
 
         ~dnn_inference_heatmap()
@@ -631,7 +626,7 @@ namespace stargazer_voxelpose
 
         void inference(size_t num_views)
         {
-            cudaMemcpy(input_data_cpu.data(), input_data, num_views * 960 * 512 * 3, cudaMemcpyDeviceToHost);
+            CUDA_SAFE_CALL(cudaMemcpy(input_data_cpu.data(), input_data, num_views * 960 * 512 * 3, cudaMemcpyDeviceToHost));
 
             const cv::dnn::MatShape input_shape = {static_cast<int>(num_views), 3, 512, 960};
 
@@ -639,7 +634,7 @@ namespace stargazer_voxelpose
             net.setInput(input_mat);
             const auto output_mat = net.forward();
 
-            cudaMemcpy(output_data, output_mat.data, output_mat.total() * sizeof(float), cudaMemcpyHostToDevice);
+            CUDA_SAFE_CALL(cudaMemcpy(output_data, output_mat.data, output_mat.total() * sizeof(float), cudaMemcpyHostToDevice));
         }
 
         const float *get_heatmaps() const
