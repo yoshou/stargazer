@@ -968,6 +968,37 @@ namespace stargazer_mvpose
             return glm::vec2(p.x / p.z, p.y / p.z);
         }
 
+        template <typename T, int m, int n>
+        static inline glm::mat<m, n, float, glm::precision::highp> eigen2glm(const Eigen::Matrix<T, m, n> &src)
+        {
+            glm::mat<m, n, float, glm::precision::highp> dst;
+            for (int i = 0; i < m; ++i)
+            {
+                for (int j = 0; j < n; ++j)
+                {
+                    dst[j][i] = src(i, j);
+                }
+            }
+            return dst;
+        }
+
+        static float projected_distance(const pose_joints_t &points1, const pose_joints_t &points2, const Eigen::Matrix<float, 3, 3> &F)
+        {
+            const auto num_points = 17;
+            auto result = 0.0f;
+            {
+                for (size_t i = 0; i < num_points; i++)
+                {
+                    const auto pt1 = glm::vec2(std::get<0>(points1[i]).x, std::get<0>(points1[i]).y);
+                    const auto pt2 = glm::vec2(std::get<0>(points2[i]).x, std::get<0>(points2[i]).y);
+                    const auto line = compute_correspond_epiline(eigen2glm(F), pt1);
+                    const auto dist = std::abs(glm::dot(line, glm::vec3(pt2, 1.f)));
+                    result += dist;
+                }
+            }
+            return result / num_points;
+        }
+
         static float projected_distance(const pose_joints_t &points1, const pose_joints_t &points2, const camera_data &camera1, const camera_data &camera2)
         {
             const auto num_points = 17;
@@ -995,6 +1026,59 @@ namespace stargazer_mvpose
                 }
             }
             return result / (num_points * 2);
+        }
+
+        static Eigen::MatrixXf compute_geometry_affinity(const std::vector<pose_joints_t> &points_set, const std::vector<size_t> &dim_group, const std::vector<std::vector<Eigen::Matrix<float, 3, 3>>> &cameras_list, float factor)
+        {
+            const auto M = points_set.size();
+            Eigen::MatrixXf dist = Eigen::MatrixXf::Ones(M, M) * (factor * factor);
+            dist.diagonal() = Eigen::VectorXf::Zero(M);
+
+            for (size_t i = 0; i < dim_group.size() - 1; i++)
+            {
+                if (dim_group[i] == dim_group[i + 1])
+                {
+                    continue;
+                }
+                for (size_t j = i + 1; j < dim_group.size() - 1; j++)
+                {
+                    if (dim_group[j] == dim_group[j + 1])
+                    {
+                        continue;
+                    }
+
+                    for (size_t m = dim_group[i]; m < dim_group[i + 1]; m++)
+                    {
+                        for (size_t n = dim_group[j]; n < dim_group[j + 1]; n++)
+                        {
+                            const auto d1 = projected_distance(points_set[m], points_set[n], cameras_list[i][j]);
+                            const auto d2 = projected_distance(points_set[n], points_set[m], cameras_list[j][i]);
+                            dist(n, m) = dist(m, n) = (d1 + d2) / 2;
+                        }
+                    }
+                }
+            }
+
+            const auto calc_std_dev = [](const auto &value)
+            {
+                return std::sqrt((value.array() - value.array().mean()).square().sum() / (value.array().size() - 1));
+            };
+
+            {
+                const auto std_dev = calc_std_dev(dist);
+                if (std_dev < factor)
+                {
+                    for (size_t i = 0; i < M; i++)
+                    {
+                        dist(i, i) = dist.array().mean();
+                    }
+                }
+            }
+
+            Eigen::MatrixXf affinity_matrix = -(dist.array() - dist.array().mean()) / (calc_std_dev(dist) + 1e-12);
+            affinity_matrix = 1 / (1 + (-factor * affinity_matrix.array()).exp());
+
+            return affinity_matrix;
         }
 
         static Eigen::MatrixXf compute_geometry_affinity(const std::vector<pose_joints_t> &points_set, const std::vector<size_t> &dim_group, const std::vector<camera_data> &cameras_list, float factor)
@@ -1163,7 +1247,7 @@ namespace stargazer_mvpose
 
         static Eigen::MatrixXi solve_svt(Eigen::MatrixXf affinity_matrix, const std::vector<size_t> &dim_group)
         {
-            const bool dual_stochastic = false;
+            const bool dual_stochastic = true;
             const int N = affinity_matrix.rows();
             const int max_iter = 500;
             const float alpha = 0.1f;
@@ -1173,6 +1257,7 @@ namespace stargazer_mvpose
             float mu = 64.0f;
 
             affinity_matrix.diagonal() = Eigen::VectorXf::Zero(N);
+            affinity_matrix = (affinity_matrix.array() + affinity_matrix.transpose().array()) / 2;
 
             Eigen::MatrixXf X = affinity_matrix;
             Eigen::MatrixXf Y = Eigen::MatrixXf::Zero(affinity_matrix.rows(), affinity_matrix.cols());
@@ -1181,13 +1266,18 @@ namespace stargazer_mvpose
             for (int iter = 0; iter < max_iter; iter++)
             {
                 Eigen::MatrixXf X0 = X;
+
+                // Update Q with SVT
                 Eigen::JacobiSVD<Eigen::MatrixXf> svd(1.0f / mu * Y.array() + X.array(), Eigen::ComputeFullU | Eigen::ComputeFullV);
 
                 Eigen::VectorXf diagS = svd.singularValues().array() - static_cast<float>(lambda) / mu;
                 diagS = diagS.array().max(0.0f);
-                const auto Q = svd.matrixU() * diagS.asDiagonal() * svd.matrixV().transpose();
+                const Eigen::MatrixXf Q = svd.matrixU() * diagS.asDiagonal() * svd.matrixV().transpose();
+
+                // Update X
                 X = Q.array() - (W.array() + Y.array()) / mu;
 
+                // Project X
                 for (size_t i = 0; i < dim_group.size() - 1; i++)
                 {
                     X.block(dim_group[i], dim_group[i], dim_group[i + 1] - dim_group[i], dim_group[i + 1] - dim_group[i]).array() = 0;
@@ -1220,9 +1310,13 @@ namespace stargazer_mvpose
                 }
 
                 X = (X.array() + X.transpose().array()) / 2;
+
+                // Update Y
                 Y = Y.array() + mu * (X.array() - Q.array());
-                const auto p_res = (X.array() - Q.array()).matrix().squaredNorm() / N;
-                const auto d_res = mu * (X.array() - X0.array()).matrix().squaredNorm() / N;
+
+                // Test if convergence
+                const auto p_res = (X.array() - Q.array()).matrix().norm() / N;
+                const auto d_res = mu * (X.array() - X0.array()).matrix().norm() / N;
 
                 if (p_res < tol && d_res < tol)
                 {
@@ -1231,7 +1325,7 @@ namespace stargazer_mvpose
 
                 if (p_res > 10 * d_res)
                 {
-                    mu * 2 * mu;
+                    mu = 2 * mu;
                 }
                 else if (d_res > 10 * p_res)
                 {
@@ -1465,7 +1559,7 @@ namespace stargazer_mvpose
         std::vector<glm::vec3> markers;
         for (const auto &matched : matched_list)
         {
-#if 1
+#if 0
             static int count = 0;
             for (std::size_t i = 0; i < matched.size(); i++)
             {
