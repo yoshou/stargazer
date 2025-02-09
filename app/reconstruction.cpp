@@ -981,11 +981,11 @@ namespace stargazer_voxelpose
 }
 namespace stargazer_mvpose
 {
-    static std::map<std::tuple<int32_t, int32_t>, camera_data> load_cameras()
+    static std::map<std::string, camera_data> load_cameras()
     {
         using namespace stargazer_voxelpose;
 
-        std::map<std::tuple<int32_t, int32_t>, camera_data> cameras;
+        std::map<std::string, camera_data> cameras;
 
         const auto camera_file = fs::path("/workspace/data/panoptic/calibration_171204_pose1.json");
 
@@ -1048,7 +1048,7 @@ namespace stargazer_mvpose
             cam_data.p[0] = dist_coeffs[2];
             cam_data.p[1] = dist_coeffs[3];
 
-            cameras[std::make_pair(panel, node)] = cam_data;
+            cameras[cv::format("%02d_%02d", panel, node)] = cam_data;
         }
         return cameras;
     }
@@ -1329,30 +1329,8 @@ std::tuple<std::vector<std::string>, coalsack::tensor<float, 4>, std::vector<glm
 
 #ifdef PANOPTIC
     const auto panoptic_cameras = load_cameras();
+#endif
 
-    std::vector<std::tuple<int32_t, int32_t>> camera_list = {
-        {0, 3},
-        {0, 6},
-        {0, 12},
-        {0, 13},
-        {0, 23},
-    };
-    for (const auto &[camera_panel, camera_node] : camera_list)
-    {
-        const auto camera_name = cv::format("camera_%02d_%02d", camera_panel, camera_node);
-
-        const auto prefix = cv::format("%02d_%02d", camera_panel, camera_node);
-        std::string postfix = "_00000000";
-        const auto image_file = (fs::path("/workspace/data/panoptic") / prefix / (prefix + postfix + ".jpg")).string();
-
-        auto data = cv::imread(image_file, cv::IMREAD_UNCHANGED | cv::IMREAD_IGNORE_ORIENTATION);
-        // cv::resize(data, data, cv::Size(960, 540));
-        images_list.push_back(data);
-
-        cameras_list.push_back(panoptic_cameras.at(std::make_tuple(camera_panel, camera_node)));
-        names.push_back(camera_name);
-    }
-#else
     for (const auto &[camera_name, image] : frame)
     {
         names.push_back(camera_name);
@@ -1362,6 +1340,9 @@ std::tuple<std::vector<std::string>, coalsack::tensor<float, 4>, std::vector<glm
     {
         const auto name = names[i];
 
+#ifdef PANOPTIC
+        const auto &camera = panoptic_cameras.at(name);
+#else
         camera_data camera;
 
         const auto &src_camera = cameras.at(name);
@@ -1386,11 +1367,11 @@ std::tuple<std::vector<std::string>, coalsack::tensor<float, 4>, std::vector<glm
             }
             camera.translation[i] = camera_pose[3][i];
         }
+#endif
 
         cameras_list.push_back(camera);
         images_list.push_back(frame.at(name));
     }
-#endif
 
     const auto points = pose_estimator.inference(images_list, cameras_list);
 
