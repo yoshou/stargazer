@@ -1624,7 +1624,7 @@ namespace stargazer_mvpose
     {
         std::vector<uint8_t> det_model_data;
         {
-            const auto model_path = "../data/mvpose/rtmdet_m_640-8xb32_coco-person_infer.onnx";
+            const auto model_path = "../data/mvpose/rtmdet_m_640-8xb32_coco-person.onnx";
             std::vector<uint8_t> data;
             load_model(model_path, data);
 
