@@ -6,14 +6,7 @@
 		"dockerfile": "Dockerfile"
 	},
 	"features": {
-		"ghcr.io/devcontainers-contrib/features/bash-command:1": {},
-		"ghcr.io/devcontainers/features/nvidia-cuda": {
-			"cudaVersion": "11.8",
-			"installCudnn": true,
-			"cudnnVersion": "8.6.0.163",
-			"installCudnnDev": true,
-			"installToolkit": true
-		}
+		"ghcr.io/devcontainers-contrib/features/bash-command:1": {}
 	},
 	"containerEnv": {
 		"DISPLAY": ":10.0"
@@ -48,7 +41,7 @@
 	// "forwardPorts": [],
 
 	// Use 'postCreateCommand' to run commands after the container is created.
-	"postCreateCommand": "./.devcontainer/postCreateCommand.sh",
+	// "postCreateCommand": "uname -a",
 
 	// Configure tool-specific properties.
 	"customizations": {
