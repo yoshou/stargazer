@@ -111,47 +111,6 @@ public:
     static std::shared_ptr<window_manager> get_instance();
 };
 
-struct rendering_thread
-{
-    std::unique_ptr<std::thread> th;
-    std::atomic_bool running;
-
-public:
-    rendering_thread() : running(false)
-    {
-    }
-
-    void start(window_base *window)
-    {
-        running = true;
-        th = std::make_unique<std::thread>([window, this]()
-                                           {
-            window->create();
-            auto graphics_ctx = window->create_graphics_context();
-            graphics_ctx.attach();
-            window->initialize();
-            window->show();
-            while (running)
-            {
-                graphics_ctx.clear();
-                window->update();
-                graphics_ctx.swap_buffer();
-            }
-            window->finalize();
-            graphics_ctx.detach();
-            window->destroy(); });
-    }
-
-    void stop()
-    {
-        running = false;
-        if (th && th->joinable())
-        {
-            th->join();
-        }
-    }
-};
-
 struct mouse_state
 {
     double x, y;
