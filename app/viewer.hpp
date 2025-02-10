@@ -5,6 +5,7 @@
 #include <mutex>
 #include <atomic>
 #include <queue>
+#include <iostream>
 
 struct window_base;
 
@@ -32,8 +33,6 @@ public:
     std::size_t width;
     std::size_t height;
 
-    std::mutex mtx;
-
     window_base(std::string name, std::size_t width, std::size_t height);
 
     void *get_handle() const;
@@ -49,7 +48,9 @@ public:
     virtual void on_enter(int entered);
     virtual void on_resize(int width, int height);
     virtual void show();
+    virtual void create();
     virtual void initialize();
+    virtual void finalize();
     virtual void destroy();
     virtual void update();
     virtual ~window_base() = default;
@@ -57,7 +58,7 @@ public:
     graphics_context create_graphics_context();
 };
 
-struct window_manager
+class window_manager
 {
     std::thread::id thread_id;
     std::atomic_bool should_close_flag;
@@ -86,21 +87,26 @@ struct window_manager
         virtual ~action_func() = default;
     };
 
+    std::mutex mtx;
     std::deque<std::unique_ptr<action_func_base>> queue;
 
+public:
     window_manager();
 
     bool should_close();
-    virtual void handle_event();
+    void handle_event();
     void *create_window_handle(std::string name, int width, int height, window_base *window);
-    void destroy_window_handle(void *handle);
-    void show_window(void *handle);
-    void hide_window(void *handle);
-    virtual void initialize();
-    virtual void exit();
-    virtual void terminate();
+    void destroy_window_handle(window_base *window);
+    void show_window(window_base *window);
+    void hide_window(window_base *window);
+    void initialize();
+    void exit();
+    void terminate();
 
-    virtual ~window_manager() = default;
+    void get_window_size(window_base *window, int *width, int *height);
+    void get_window_frame_size(window_base *window, int* left, int* top, int* right, int* bottom);
+
+    ~window_manager() = default;
 
     static std::shared_ptr<window_manager> get_instance();
 };
@@ -120,9 +126,10 @@ public:
         running = true;
         th = std::make_unique<std::thread>([window, this]()
                                            {
-            window->initialize();
+            window->create();
             auto graphics_ctx = window->create_graphics_context();
             graphics_ctx.attach();
+            window->initialize();
             window->show();
             while (running)
             {
@@ -130,9 +137,9 @@ public:
                 window->update();
                 graphics_ctx.swap_buffer();
             }
+            window->finalize();
             graphics_ctx.detach();
-            window->destroy();
-        });
+            window->destroy(); });
     }
 
     void stop()

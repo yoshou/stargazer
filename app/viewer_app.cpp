@@ -26,10 +26,6 @@ const int SCREEN_HEIGHT = 1050;
 
 class viewer_app : public window_base
 {
-    std::mutex mtx;
-
-    std::shared_ptr<rendering_thread> rendering_th;
-
     ImFont *large_font;
     ImFont *default_font;
 
@@ -809,30 +805,24 @@ class viewer_app : public window_base
         }
     }
 
+    void term_gui()
+    {
+        if (ImGui::GetIO().BackendRendererUserData)
+        {
+            ImGui_ImplOpenGL3_Shutdown();
+        }
+        ImGui_ImplGlfw_Shutdown();
+        ImGui::DestroyContext();
+    }
+
 public:
 
     viewer_app()
-        : window_base("Stargazer", SCREEN_WIDTH, SCREEN_HEIGHT), calib(), multiview_image_reconstruction_(std::make_unique<voxelpose_reconstruction>())
+        : window_base("Stargazer", SCREEN_WIDTH, SCREEN_HEIGHT), calib()
     {
-    }
-
-    void start()
-    {
-        rendering_th = std::make_shared<rendering_thread>();
-        rendering_th->start(this);
-    }
-
-    void stop()
-    {
-        rendering_th->stop();
     }
 
     virtual void initialize() override
-    {
-        window_base::initialize();
-    }
-
-    virtual void show() override
     {
         gladLoadGL();
 
@@ -847,7 +837,7 @@ public:
         init_gui();
 
         context = std::make_unique<view_context>();
-        context->window = (GLFWwindow *)get_handle();
+        context->window = this;
         context->default_font = default_font;
         context->large_font = large_font;
 
@@ -862,12 +852,13 @@ public:
         view_controller = std::make_shared<azimuth_elevation>(glm::u32vec2(0, 0), glm::u32vec2(width, height));
         pose_view_ = std::make_unique<pose_view>();
 
+        multiview_image_reconstruction_ = std::make_unique<voxelpose_reconstruction>();
         epipolar_reconstruction_.run();
         multiview_image_reconstruction_->run();
 
         epipolar_reconstruction_.set_axis(axis_reconstruction_.get_axis());
 
-        for (const auto& device : reconstruction_config->get_node_infos())
+        for (const auto &device : reconstruction_config->get_node_infos())
         {
             if (device.is_camera())
             {
@@ -886,14 +877,14 @@ public:
         }
 
         calib.add_calibrated([&](const std::unordered_map<std::string, stargazer::camera_t> &cameras)
-        {
+                             {
             for (const auto &[name, camera] : cameras)
             {
                 epipolar_reconstruction_.set_camera(name, camera);
             }
         });
 
-        for (const auto& device : calibration_config->get_node_infos())
+        for (const auto &device : calibration_config->get_node_infos())
         {
             if (device.is_camera())
             {
@@ -916,32 +907,29 @@ public:
             camera.extrin.translation = glm::vec3(1.0);
         }
 
-        window_base::show();
+        window_base::initialize();
     }
 
-    virtual void on_close() override
+    virtual void finalize() override
     {
-        stop();
-        window_manager::get_instance()->exit();
-        window_base::on_close();
-    }
-
-    virtual void destroy() override
-    {
-        std::lock_guard<std::mutex> lock(mtx);
-
-        if (ImGui::GetIO().BackendRendererUserData)
-        {
-            ImGui_ImplOpenGL3_Shutdown();
-        }
-        ImGui_ImplGlfw_Shutdown();
-        ImGui::DestroyContext();
+        term_gui();
 
         epipolar_reconstruction_.stop();
         calib.stop();
         multiview_image_reconstruction_->stop();
 
-        window_base::destroy();
+        window_base::finalize();
+    }
+
+    virtual void show() override
+    {
+        window_base::show();
+    }
+
+    virtual void on_close() override
+    {
+        window_base::on_close();
+        window_manager::get_instance()->exit();
     }
 
     virtual void on_scroll(double x, double y) override
@@ -954,7 +942,6 @@ public:
 
     virtual void update() override
     {
-        std::lock_guard<std::mutex> lock(mtx);
         if (handle == nullptr)
         {
             return;
@@ -1262,11 +1249,10 @@ public:
     }
 };
 
-static std::shared_ptr<viewer_app> viewer;
+static std::shared_ptr<viewer_app> window;
 
 static void sigint_handler(int)
 {
-    viewer->stop();
     window_manager::get_instance()->exit();
 }
 
@@ -1277,18 +1263,29 @@ int viewer_app_main()
     const auto win_mgr = window_manager::get_instance();
     win_mgr->initialize();
 
-    viewer = std::make_shared<viewer_app>();
+    window = std::make_shared<viewer_app>();
 
-    viewer->start();
+    window->create();
+    auto graphics_ctx = window->create_graphics_context();
+    graphics_ctx.attach();
+    window->initialize();
+    window->show();
 
     while (!win_mgr->should_close())
     {
         win_mgr->handle_event();
+        graphics_ctx.clear();
+        window->update();
+        graphics_ctx.swap_buffer();
     }
 
-    win_mgr->terminate();
+    window->finalize();
+    graphics_ctx.detach();
+    window->destroy();
 
-    viewer.reset();
+    window.reset();
+
+    win_mgr->terminate();
 
     return 0;
 }

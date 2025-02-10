@@ -368,15 +368,10 @@ struct view_context
 public:
     ImFont *default_font;
     ImFont *large_font;
-    GLFWwindow *window;
+    window_base *window;
     glm::mat4 view;
 
-    ImVec2 get_window_size() const
-    {
-        int width, height;
-        glfwGetWindowSize(window, &width, &height);
-        return ImVec2{static_cast<float>(width), static_cast<float>(height)};
-    }
+    ImVec2 get_window_size() const;
 };
 
 class top_bar_view

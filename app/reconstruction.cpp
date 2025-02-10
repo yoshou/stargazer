@@ -665,7 +665,10 @@ public:
     {
         if (running.load())
         {
-            running.store(false);
+            {
+                std::lock_guard<std::mutex> lock(mtx);
+                running.store(false);
+            }
             cv.notify_one();
             if (th && th->joinable())
             {
@@ -1213,7 +1216,10 @@ void voxelpose_reconstruction::stop()
 {
     if (running.load())
     {
-        running.store(false);
+        {
+            std::lock_guard<std::mutex> lock(reconstruction_task_wait_queue_mtx);
+            running.store(false);
+        }
         server->Shutdown();
         if (server_th && server_th->joinable())
         {
@@ -1262,7 +1268,7 @@ std::vector<glm::vec3> voxelpose_reconstruction::get_markers() const
 }
 
 output_server::output_server(const std::string &server_address)
-    : server_address(server_address), service(new SensorServiceImpl())
+    : server_address(server_address), running(false), server_th(), server(), service(std::make_unique<SensorServiceImpl>())
 {
 }
 
@@ -1273,13 +1279,13 @@ output_server::~output_server()
 void output_server::run()
 {
     running = true;
+    grpc::ServerBuilder builder;
+    builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
+    builder.RegisterService(service.get());
+    server = builder.BuildAndStart();
+    spdlog::info("Server listening on " + server_address);
     server_th.reset(new std::thread([this]()
                                     {
-        grpc::ServerBuilder builder;
-        builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
-        builder.RegisterService(service.get());
-        server = builder.BuildAndStart();
-        spdlog::info("Server listening on " + server_address);
         server->Wait(); }));
 }
 
@@ -1288,6 +1294,9 @@ void output_server::stop()
     if (running.load())
     {
         running.store(false);
+    }
+    if (server)
+    {
         server->Shutdown();
         if (server_th && server_th->joinable())
         {
