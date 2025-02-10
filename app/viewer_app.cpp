@@ -1249,21 +1249,19 @@ public:
     }
 };
 
-static std::shared_ptr<viewer_app> window;
-
 static void sigint_handler(int)
 {
     window_manager::get_instance()->exit();
 }
 
-int viewer_app_main()
+int main()
 {
     signal(SIGINT, sigint_handler);
 
     const auto win_mgr = window_manager::get_instance();
     win_mgr->initialize();
 
-    window = std::make_shared<viewer_app>();
+    auto window = std::make_shared<viewer_app>();
 
     window->create();
     auto graphics_ctx = window->create_graphics_context();
@@ -1288,9 +1286,4 @@ int viewer_app_main()
     win_mgr->terminate();
 
     return 0;
-}
-
-int main()
-{
-    return viewer_app_main();
 }
