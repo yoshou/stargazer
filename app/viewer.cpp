@@ -30,12 +30,23 @@ void window_manager::handle_event()
     {
         throw std::runtime_error("Invalid call");
     }
-    while (queue.size() > 0)
+
+    glfwPollEvents();
+
+    std::vector<std::unique_ptr<action_func_base>> events;
     {
-        queue.front()->invoke();
-        queue.pop_front();
+        std::lock_guard<std::mutex> lock(mtx);
+        while (queue.size() > 0)
+        {
+            events.emplace_back(std::move(queue.front()));
+            queue.pop_front();
+        }
     }
-    glfwWaitEvents();
+
+    for (const auto &event : events)
+    {
+        event->invoke();
+    }
 }
 
 static void mouse_scroll_callback(GLFWwindow *handle, double x, double y)
@@ -129,14 +140,18 @@ void *window_manager::create_window_handle(std::string name, int width, int heig
     }
     else
     {
-        queue.emplace_back(std::make_unique<action_func<decltype(func)>>(std::move(func)));
+        {
+            std::lock_guard<std::mutex> lock(mtx);
+            queue.emplace_back(std::make_unique<action_func<decltype(func)>>(std::move(func)));
+        }
         glfwPostEmptyEvent();
     }
     return f.get();
 }
 
-void window_manager::destroy_window_handle(void *handle)
+void window_manager::destroy_window_handle(window_base *window)
 {
+    const auto handle = (GLFWwindow *)window->get_handle();
     auto func = [handle]() mutable
     {
         glfwDestroyWindow((GLFWwindow *)handle);
@@ -147,13 +162,17 @@ void window_manager::destroy_window_handle(void *handle)
     }
     else
     {
-        queue.emplace_back(std::make_unique<action_func<decltype(func)>>(std::move(func)));
+        {
+            std::lock_guard<std::mutex> lock(mtx);
+            queue.emplace_back(std::make_unique<action_func<decltype(func)>>(std::move(func)));
+        }
         glfwPostEmptyEvent();
     }
 }
 
-void window_manager::show_window(void *handle)
+void window_manager::show_window(window_base *window)
 {
+    const auto handle = (GLFWwindow *)window->get_handle();
     auto func = [handle]() mutable
     {
         glfwShowWindow((GLFWwindow *)handle);
@@ -164,13 +183,17 @@ void window_manager::show_window(void *handle)
     }
     else
     {
-        queue.emplace_back(std::make_unique<action_func<decltype(func)>>(std::move(func)));
+        {
+            std::lock_guard<std::mutex> lock(mtx);
+            queue.emplace_back(std::make_unique<action_func<decltype(func)>>(std::move(func)));
+        }
         glfwPostEmptyEvent();
     }
 }
 
-void window_manager::hide_window(void *handle)
+void window_manager::hide_window(window_base *window)
 {
+    const auto handle = (GLFWwindow *)window->get_handle();
     auto func = [handle]() mutable
     {
         glfwHideWindow((GLFWwindow *)handle);
@@ -181,7 +204,10 @@ void window_manager::hide_window(void *handle)
     }
     else
     {
-        queue.emplace_back(std::make_unique<action_func<decltype(func)>>(std::move(func)));
+        {
+            std::lock_guard<std::mutex> lock(mtx);
+            queue.emplace_back(std::make_unique<action_func<decltype(func)>>(std::move(func)));
+        }
         glfwPostEmptyEvent();
     }
 }
@@ -200,11 +226,70 @@ void window_manager::initialize()
 void window_manager::exit()
 {
     should_close_flag.store(true);
+    glfwPostEmptyEvent();
 }
 
 void window_manager::terminate()
 {
     glfwTerminate();
+}
+
+void window_manager::get_window_size(window_base *window, int *width, int *height)
+{
+    std::promise<std::tuple<int, int>> p;
+    auto f = p.get_future();
+    const auto handle = (GLFWwindow*)window->get_handle();
+    auto func = [_p = std::move(p), handle]() mutable
+    {
+        int w, h;
+        glfwGetWindowSize(handle, &w, &h);
+        _p.set_value(std::make_tuple(w, h));
+    };
+    if (std::this_thread::get_id() == thread_id)
+    {
+        func();
+    }
+    else
+    {
+        {
+            std::lock_guard<std::mutex> lock(mtx);
+            queue.emplace_back(std::make_unique<action_func<decltype(func)>>(std::move(func)));
+        }
+        glfwPostEmptyEvent();
+    }
+    const auto [w, h] = f.get();
+    *width = w;
+    *height = h;
+}
+
+void window_manager::get_window_frame_size(window_base *window, int* left, int* top, int* right, int* bottom)
+{
+    std::promise<std::tuple<int, int, int , int>> p;
+    auto f = p.get_future();
+    const auto handle = (GLFWwindow *)window->get_handle();
+    auto func = [_p = std::move(p), handle]() mutable
+    {
+        int l, t, r, b;
+        glfwGetWindowFrameSize(handle, &l, &t, &r, &b);
+        _p.set_value(std::make_tuple(l, t, r, b));
+    };
+    if (std::this_thread::get_id() == thread_id)
+    {
+        func();
+    }
+    else
+    {
+        {
+            std::lock_guard<std::mutex> lock(mtx);
+            queue.emplace_back(std::make_unique<action_func<decltype(func)>>(std::move(func)));
+        }
+        glfwPostEmptyEvent();
+    }
+    const auto [l, t, r, b] = f.get();
+    *left = l;
+    *top = t;
+    *right = r;
+    *bottom = b;
 }
 
 std::shared_ptr<window_manager> window_manager::get_instance()
@@ -260,9 +345,9 @@ void window_base::on_resize(int width, int height)
 }
 void window_base::show()
 {
-    window_manager::get_instance()->show_window(handle);
+    window_manager::get_instance()->show_window(this);
 }
-void window_base::initialize()
+void window_base::create()
 {
     handle = (GLFWwindow *)window_manager::get_instance()->create_window_handle(name, DEFAULT_SCREEN_WIDTH, DEFAULT_SCREEN_HEIGHT, this);
     if (handle == nullptr)
@@ -271,11 +356,17 @@ void window_base::initialize()
         return;
     }
 }
+void window_base::initialize()
+{
+}
+void window_base::finalize()
+{
+}
 void window_base::destroy()
 {
     if (this->handle)
     {
-        window_manager::get_instance()->destroy_window_handle(handle);
+        window_manager::get_instance()->destroy_window_handle(this);
     }
     this->handle = nullptr;
 }
@@ -307,7 +398,6 @@ void graphics_context::detach()
 
 void graphics_context::clear()
 {
-    std::lock_guard<std::mutex> lock(window->mtx);
     if (window == nullptr || window->get_handle() == nullptr)
     {
         return;
@@ -319,7 +409,6 @@ void graphics_context::clear()
 
 void graphics_context::swap_buffer()
 {
-    std::lock_guard<std::mutex> lock(window->mtx);
     if (window == nullptr || window->get_handle() == nullptr)
     {
         return;

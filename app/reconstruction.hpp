@@ -216,12 +216,11 @@ public:
         results_cv.notify_one();
     }
 
-    template<typename F>
-    bool pop(T &result, F pred)
+    bool pop(T &result)
     {
         std::unique_lock<std::mutex> lock(results_mtx);
-        results_cv.wait(lock, [this, &pred]
-                        { return pred() || results.size() > 0; });
+        results_cv.wait(lock, [this]
+                        { return !running || results.size() > 0; });
 
         if (results.size() == 0)
         {
@@ -244,7 +243,7 @@ public:
             while (running)
             {
                 T result;
-                if (pop(result, [this]() { return running.load(); }))
+                if (pop(result))
                 {
                     callback(result);
                 }
@@ -253,7 +252,16 @@ public:
 
     void stop()
     {
-        running.store(false);
+        if (!running)
+        {
+            return;
+        }
+
+        {
+            std::lock_guard lock(results_mtx);
+            running.store(false);
+        }
+        results_cv.notify_one();
         if (th && th->joinable())
         {
             th->join();

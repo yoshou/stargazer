@@ -99,6 +99,13 @@ void azimuth_elevation::update(mouse_state mouse)
     previous_state = mouse;
 }
 
+ImVec2 view_context::get_window_size() const
+{
+    int width, height;
+    window_manager::get_instance()->get_window_size(window, &width, &height);
+    return ImVec2{static_cast<float>(width), static_cast<float>(height)};
+}
+
 void top_bar_view::render(view_context *context)
 {
     auto flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
@@ -918,7 +925,7 @@ static void draw_sphere(double r, int lats, int longs)
 void pose_view::render(view_context *context)
 {
     int left, top, right, bottom;
-    glfwGetWindowFrameSize(context->window, &left, &top, &right, &bottom);
+    window_manager::get_instance()->get_window_frame_size(context->window, &left, &top, &right, &bottom);
 
     const auto window_width = context->get_window_size().x;
     const auto window_height = context->get_window_size().y;
