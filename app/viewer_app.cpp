@@ -39,7 +39,7 @@ class viewer_app : public window_base
     std::unique_ptr<pose_view> pose_view_;
     std::shared_ptr<azimuth_elevation> view_controller;
 
-    std::map<std::string, stargazer::camera_t> camera_params;
+    std::map<std::string, stargazer::camera_t> parameters;
     std::map<std::string, cv::Mat> masks;
 
     std::map<std::string, std::shared_ptr<capture_pipeline>> captures;
@@ -435,7 +435,7 @@ class viewer_app : public window_base
             return true; });
 
         calibration_panel_view_->on_intrinsic_calibration_device_changed.push_back([this](const calibration_panel_view::node_info &device) {
-            const auto &params = camera_params[device.id];
+            const auto &params = parameters[device.id];
             calibration_panel_view_->fx = params.intrin.fx;
             calibration_panel_view_->fy = params.intrin.fy;
             calibration_panel_view_->cx = params.intrin.cx;
@@ -471,11 +471,11 @@ class viewer_app : public window_base
                         {
                             const auto &camera_id = device_name_to_id.at(camera_name);
 
-                            camera_params[camera_id].extrin = camera.extrin;
-                            camera_params[camera_id].intrin = camera.intrin;
+                            parameters[camera_id].extrin = camera.extrin;
+                            parameters[camera_id].intrin = camera.intrin;
                         }
 
-                        stargazer::save_camera_params("../data/config/camera_params.json", camera_params);
+                        stargazer::save_parameters("../data/config/parameters.json", parameters);
 
                         spdlog::info("End calibration");
 
@@ -504,7 +504,7 @@ class viewer_app : public window_base
                 calibration_panel_view_->p1 = intrinsic_calib.calibrated_camera.intrin.coeffs[3];
                 calibration_panel_view_->rms = intrinsic_calib.rms;
 
-                auto &params = camera_params[device.id];
+                auto &params = parameters[device.id];
                 params.intrin.fx = intrinsic_calib.calibrated_camera.intrin.fx;
                 params.intrin.fy = intrinsic_calib.calibrated_camera.intrin.fy;
                 params.intrin.cx = intrinsic_calib.calibrated_camera.intrin.cx;
@@ -516,7 +516,7 @@ class viewer_app : public window_base
                 params.intrin.coeffs[4] = intrinsic_calib.calibrated_camera.intrin.coeffs[4];
                 params.width = intrinsic_calib.calibrated_camera.width;
                 params.height = intrinsic_calib.calibrated_camera.height;
-                stargazer::save_camera_params("../data/config/camera_params.json", camera_params);
+                stargazer::save_parameters("../data/config/parameters.json", parameters);
                 return true;
             }
         });
@@ -830,7 +830,7 @@ public:
         reconstruction_config.reset(new stargazer::configuration_file("../data/config/reconstruction.json"));
         calibration_config.reset(new stargazer::configuration_file("../data/config/calibration.json"));
 
-        camera_params = stargazer::load_camera_params("../data/config/camera_params.json");
+        parameters = stargazer::load_parameters("../data/config/parameters.json");
 
         axis_reconstruction_.load_axis();
 
@@ -862,7 +862,7 @@ public:
         {
             if (device.is_camera())
             {
-                epipolar_reconstruction_.set_camera(device.name, camera_params.at(device.id));
+                epipolar_reconstruction_.set_camera(device.name, parameters.at(device.id));
             }
         }
 
@@ -872,7 +872,7 @@ public:
         {
             if (device.is_camera())
             {
-                multiview_image_reconstruction_->cameras.insert(std::make_pair(device.name, camera_params.at(device.id)));
+                multiview_image_reconstruction_->cameras.insert(std::make_pair(device.name, parameters.at(device.id)));
             }
         }
 
@@ -888,9 +888,9 @@ public:
         {
             if (device.is_camera())
             {
-                if (camera_params.find(device.id) != camera_params.end())
+                if (parameters.find(device.id) != parameters.end())
                 {
-                    calib.set_camera(device.name, camera_params.at(device.id));
+                    calib.set_camera(device.name, parameters.at(device.id));
                 }
                 else
                 {
