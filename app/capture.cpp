@@ -23,8 +23,8 @@ class remote_cluster
 {
 public:
     std::shared_ptr<subgraph> g;
-    graph_edge_ptr infra1_output;
-    graph_edge_ptr infra1_marker_output;
+    graph_edge_ptr encoded_image_output;
+    graph_edge_ptr marker_output;
     std::shared_ptr<mask_node> mask_node_;
 };
 
@@ -117,10 +117,10 @@ public:
         n8->set_sigma_y(1.5);
         g->add_node(n8);
 
-        coalsack::graph_edge_ptr infra1 = n8->get_output();
+        coalsack::graph_edge_ptr preprocessed_image = n8->get_output();
         {
             mask_node_.reset(new coalsack::mask_node());
-            mask_node_->set_input(infra1);
+            mask_node_->set_input(preprocessed_image);
             if (mask)
             {
                 mask_node_->set_mask(*mask);
@@ -133,13 +133,13 @@ public:
             }
             g->add_node(mask_node_);
 
-            infra1 = mask_node_->get_output();
+            preprocessed_image = mask_node_->get_output();
         }
 
         if (with_image)
         {
             std::shared_ptr<fifo_node> n4(new fifo_node());
-            n4->set_input(infra1);
+            n4->set_input(preprocessed_image);
             g->add_node(n4);
 
             std::shared_ptr<encode_image_node> n2(new encode_image_node());
@@ -150,13 +150,13 @@ public:
             n3->set_input(n2->get_output());
             g->add_node(n3);
 
-            infra1_output = n3->get_output();
+            encoded_image_output = n3->get_output();
         }
 
         if (with_marker)
         {
             std::shared_ptr<fifo_node> n9(new fifo_node());
-            n9->set_input(infra1);
+            n9->set_input(preprocessed_image);
             g->add_node(n9);
 
             std::shared_ptr<fast_blob_detector_node> n4(new fast_blob_detector_node());
@@ -182,7 +182,7 @@ public:
             n5->set_input(n4->get_output());
             g->add_node(n5);
 
-            infra1_marker_output = n5->get_output();
+            marker_output = n5->get_output();
         }
     }
 };
@@ -262,7 +262,7 @@ public:
         n10->set_height(540);
         g->add_node(n10);
 
-        auto infra1 = n10->get_output();
+        auto preprocessed_image = n10->get_output();
 
         if (with_image)
         {
@@ -278,13 +278,13 @@ public:
             n3->set_input(n2->get_output());
             g->add_node(n3);
 
-            infra1_output = n3->get_output();
+            encoded_image_output = n3->get_output();
         }
 
         if (with_marker)
         {
             std::shared_ptr<fifo_node> n9(new fifo_node());
-            n9->set_input(infra1);
+            n9->set_input(preprocessed_image);
             g->add_node(n9);
 
             std::shared_ptr<detect_circle_grid_node> n10(new detect_circle_grid_node());
@@ -309,7 +309,7 @@ public:
             n5->set_input(n10->get_output());
             g->add_node(n5);
 
-            infra1_marker_output = n5->get_output();
+            marker_output = n5->get_output();
         }
     }
 };
@@ -355,7 +355,7 @@ public:
             n3->set_input(n2->get_output());
             g->add_node(n3);
 
-            infra1_output = n3->get_output();
+            encoded_image_output = n3->get_output();
         }
     }
 };
@@ -393,23 +393,23 @@ public:
         n8->set_input(n1->add_output(INFRA1, width, height, rs2_format_type::Y8, fps));
         g->add_node(n8);
 
-        auto infra1 = n8->get_output();
+        auto preprocessed_image = n8->get_output();
 #else
 
-        auto infra1 = n1->add_output(INFRA1, 640, 480, rs2_format_type::Y8, fps);
+        auto preprocessed_image = n1->add_output(INFRA1, 640, 480, rs2_format_type::Y8, fps);
 #endif
 
         if (with_image)
         {
             std::shared_ptr<encode_image_node> n2(new encode_image_node());
-            n2->set_input(infra1);
+            n2->set_input(preprocessed_image);
             g->add_node(n2);
 
             std::shared_ptr<p2p_tcp_talker_node> n3(new p2p_tcp_talker_node());
             n3->set_input(n2->get_output());
             g->add_node(n3);
 
-            infra1_output = n3->get_output();
+            encoded_image_output = n3->get_output();
         }
 
         if (with_marker)
@@ -428,7 +428,7 @@ public:
             }
 
             std::shared_ptr<fifo_node> n9(new fifo_node());
-            n9->set_input(infra1);
+            n9->set_input(preprocessed_image);
             g->add_node(n9);
 
             std::shared_ptr<fast_blob_detector_node> n4(new fast_blob_detector_node());
@@ -440,7 +440,7 @@ public:
             n5->set_input(n4->get_output());
             g->add_node(n5);
 
-            infra1_marker_output = n5->get_output();
+            marker_output = n5->get_output();
         }
     }
 };
@@ -471,7 +471,7 @@ public:
         n10->set_height(540);
         g->add_node(n10);
 
-        auto infra1 = n10->get_output();
+        auto preprocessed_image = n10->get_output();
 
         if (with_image)
         {
@@ -487,13 +487,13 @@ public:
             n3->set_input(n2->get_output());
             g->add_node(n3);
 
-            infra1_output = n3->get_output();
+            encoded_image_output = n3->get_output();
         }
 
         if (with_marker)
         {
             std::shared_ptr<fifo_node> n9(new fifo_node());
-            n9->set_input(infra1);
+            n9->set_input(preprocessed_image);
             g->add_node(n9);
 
             std::shared_ptr<charuco_detector_node> n4(new charuco_detector_node());
@@ -504,7 +504,7 @@ public:
             n5->set_input(n4->get_output());
             g->add_node(n5);
 
-            infra1_marker_output = n5->get_output();
+            marker_output = n5->get_output();
         }
     }
 };
@@ -1719,10 +1719,10 @@ static void genenerate_common_nodes(const std::vector<node_info> &node_infos,
             clusters.push_back(nullptr);
         }
 
-        if (cluster && cluster->infra1_output)
+        if (cluster && cluster->encoded_image_output)
         {
             std::shared_ptr<p2p_tcp_listener_node> n1(new p2p_tcp_listener_node());
-            n1->set_input(cluster->infra1_output);
+            n1->set_input(cluster->encoded_image_output);
             n1->set_endpoint(node_infos[i].endpoint, 0);
             g->add_node(n1);
 
@@ -1765,10 +1765,10 @@ static void genenerate_common_nodes(const std::vector<node_info> &node_infos,
             rcv_nodes[node_infos[i].name] = n7;
         }
 
-        if (cluster && cluster->infra1_marker_output)
+        if (cluster && cluster->marker_output)
         {
             std::shared_ptr<p2p_tcp_listener_node> n2(new p2p_tcp_listener_node());
-            n2->set_input(cluster->infra1_marker_output);
+            n2->set_input(cluster->marker_output);
             n2->set_endpoint(node_infos[i].endpoint, 0);
             g->add_node(n2);
 
