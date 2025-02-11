@@ -188,20 +188,133 @@ public:
     }
 };
 
-class remote_cluster_raspi_color : public remote_cluster
+class remote_cluster_raspi_color_v2 : public remote_cluster
 {
 public:
-    explicit remote_cluster_raspi_color(int fps, bool is_master = false)
+    explicit remote_cluster_raspi_color_v2(int fps, bool is_master = false)
+    {
+        constexpr bool with_image = true;
+        constexpr bool with_marker = false;
+
+        g.reset(new subgraph());
+
+        const int width = 820;
+        const int height = 616;
+
+        std::shared_ptr<video_time_sync_control_node> n13(new video_time_sync_control_node());
+
+        std::shared_ptr<libcamera_capture_node> n1(new libcamera_capture_node());
+        n1->set_stream(stream_type::COLOR);
+        n1->set_emitter_enabled(false);
+        n1->set_option(libcamera_capture_node::option::exposure, 7000);
+        n1->set_option(libcamera_capture_node::option::gain, 10);
+
+        n1->set_fps(fps);
+        n1->set_width(width);
+        n1->set_height(height);
+        n1->set_format(image_format::R8G8B8_UINT);
+
+        if (!is_master)
+        {
+            n1->set_input(n13->get_output(), "interval");
+        }
+
+        g->add_node(n1);
+
+        std::shared_ptr<fifo_node> n7(new fifo_node());
+        n7->set_input(n1->get_output());
+        g->add_node(n7);
+
+        if (is_master)
+        {
+            std::shared_ptr<timestamp_node> n11(new timestamp_node());
+            n11->set_input(n7->get_output());
+            g->add_node(n11);
+
+            std::shared_ptr<broadcast_talker_node> n12(new broadcast_talker_node());
+            n12->set_input(n11->get_output());
+            n12->set_endpoint("192.168.0.255", 40000);
+            g->add_node(n12);
+        }
+        else
+        {
+            std::shared_ptr<timestamp_node> n11(new timestamp_node());
+            n11->set_input(n7->get_output());
+            g->add_node(n11);
+
+            std::shared_ptr<broadcast_listener_node> n12(new broadcast_listener_node());
+            n12->set_endpoint("192.168.0.1", 40000);
+            g->add_node(n12);
+
+            n13->set_input(n11->get_output());
+            n13->set_input(n12->get_output(), "ref");
+            n13->set_gain(0.1);
+            n13->set_interval(1000.0 / fps);
+            g->add_node(n13);
+        }
+
+        auto preprocessed_image = n7->get_output();
+
+        if (with_image)
+        {
+            std::shared_ptr<fifo_node> n4(new fifo_node());
+            n4->set_input(preprocessed_image);
+            g->add_node(n4);
+
+            std::shared_ptr<encode_image_node> n2(new encode_image_node());
+            n2->set_input(n4->get_output());
+            g->add_node(n2);
+
+            std::shared_ptr<p2p_tcp_talker_node> n3(new p2p_tcp_talker_node());
+            n3->set_input(n2->get_output());
+            g->add_node(n3);
+
+            encoded_image_output = n3->get_output();
+        }
+
+        if (with_marker)
+        {
+            std::shared_ptr<fifo_node> n9(new fifo_node());
+            n9->set_input(preprocessed_image);
+            g->add_node(n9);
+
+            std::shared_ptr<detect_circle_grid_node> n10(new detect_circle_grid_node());
+            n10->set_input(n9->get_output());
+            n10->get_parameters().min_threshold = 150;
+            n10->get_parameters().max_threshold = 250;
+            n10->get_parameters().threshold_step = 10;
+            n10->get_parameters().min_dist_between_blobs = 3;
+            n10->get_parameters().min_area = 5;
+            n10->get_parameters().max_area = 100;
+            n10->get_parameters().filter_by_area = true;
+            n10->get_parameters().min_circularity = 0.5;
+            n10->get_parameters().max_circularity = 1.0;
+            n10->get_parameters().filter_by_circularity = true;
+            n10->get_parameters().filter_by_inertia = false;
+            n10->get_parameters().filter_by_convexity = false;
+            n10->get_parameters().blob_color = 0;
+            n10->get_parameters().filter_by_color = true;
+            g->add_node(n10);
+
+            std::shared_ptr<p2p_tcp_talker_node> n5(new p2p_tcp_talker_node());
+            n5->set_input(n10->get_output());
+            g->add_node(n5);
+
+            marker_output = n5->get_output();
+        }
+    }
+};
+
+class remote_cluster_raspi_color_v3 : public remote_cluster
+{
+public:
+    explicit remote_cluster_raspi_color_v3(int fps, bool is_master = false)
     {
         constexpr bool with_image = true;
         constexpr bool with_marker = true;
 
         g.reset(new subgraph());
 
-        // Camera Module v2
-        // const int width = 820;
-        // const int height = 616;
-        // Camera Module 3 Wide
         const int width = 2304;
         const int height = 1296;
 
@@ -1687,7 +1800,7 @@ static void genenerate_common_nodes(const std::vector<node_info> &node_infos,
         {
             constexpr int fps = 30;
             sync_fps = std::min(sync_fps, fps);
-            cluster = std::make_shared<remote_cluster_raspi_color>(fps, is_master);
+            cluster = std::make_shared<remote_cluster_raspi_color_v3>(fps, is_master);
             is_master = false;
             clusters.emplace_back(cluster);
         }
