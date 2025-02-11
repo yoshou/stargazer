@@ -1,0 +1,454 @@
+{
+  "pipelines": {
+    "playback_ir": {
+      "nodes": [
+        {
+          "name": "camera1",
+          "db_path": "../data/data_20221004_1/calibrate.db",
+          "id": "000000000001",
+          "params": {
+            "height": 616.0,
+            "width": 820.0
+          },
+          "type": "raspi_playback"
+        },
+        {
+          "name": "camera2",
+          "db_path": "../data/data_20221004_1/calibrate.db",
+          "id": "000000000002",
+          "params": {
+            "height": 616.0,
+            "width": 820.0
+          },
+          "type": "raspi_playback"
+        },
+        {
+          "name": "camera3",
+          "db_path": "../data/data_20221004_1/calibrate.db",
+          "id": "000000000003",
+          "params": {
+            "height": 616.0,
+            "width": 820.0
+          },
+          "type": "raspi_playback"
+        },
+        {
+          "name": "camera4",
+          "db_path": "../data/data_20221004_1/calibrate.db",
+          "id": "000000000004",
+          "params": {
+            "height": 616.0,
+            "width": 820.0
+          },
+          "type": "raspi_playback"
+        },
+        {
+          "name": "camera5",
+          "db_path": "../data/data_20221004_1/calibrate.db",
+          "id": "000000000005",
+          "params": {
+            "height": 616.0,
+            "width": 820.0
+          },
+          "type": "raspi_playback"
+        },
+        {
+          "name": "camera6",
+          "db_path": "../data/data_20221004_1/calibrate.db",
+          "id": "000000000006",
+          "params": {
+            "height": 616.0,
+            "width": 820.0
+          },
+          "type": "raspi_playback"
+        },
+        {
+          "name": "camera7",
+          "db_path": "../data/data_20221004_1/calibrate.db",
+          "id": "000000000007",
+          "params": {
+            "height": 616.0,
+            "width": 820.0
+          },
+          "type": "raspi_playback"
+        },
+        {
+          "name": "camera8",
+          "db_path": "../data/data_20221004_1/calibrate.db",
+          "id": "000000000008",
+          "params": {
+            "height": 616.0,
+            "width": 820.0
+          },
+          "type": "raspi_playback"
+        },
+        {
+          "name": "camera9",
+          "db_path": "../data/data_20221004_1/calibrate.db",
+          "id": "000000000009",
+          "params": {
+            "height": 616.0,
+            "width": 820.0
+          },
+          "type": "raspi_playback"
+        },
+        {
+          "name": "camera10",
+          "db_path": "../data/data_20221004_1/calibrate.db",
+          "id": "000000000010",
+          "params": {
+            "height": 616.0,
+            "width": 820.0
+          },
+          "type": "raspi_playback"
+        },
+        {
+          "name": "camera11",
+          "db_path": "../data/data_20221004_1/calibrate.db",
+          "id": "000000000011",
+          "params": {
+            "height": 616.0,
+            "width": 820.0
+          },
+          "type": "raspi_playback"
+        },
+        {
+          "name": "camera12",
+          "db_path": "../data/data_20221004_1/calibrate.db",
+          "id": "000000000012",
+          "params": {
+            "height": 616.0,
+            "width": 820.0
+          },
+          "type": "raspi_playback"
+        },
+        {
+          "name": "camera13",
+          "db_path": "../data/data_20221004_1/calibrate.db",
+          "id": "000000000013",
+          "params": {
+            "height": 616.0,
+            "width": 820.0
+          },
+          "type": "raspi_playback"
+        },
+        {
+          "name": "camera14",
+          "db_path": "../data/data_20221004_1/calibrate.db",
+          "id": "000000000014",
+          "params": {
+            "height": 616.0,
+            "width": 820.0
+          },
+          "type": "raspi_playback"
+        },
+        {
+          "name": "camera15",
+          "db_path": "../data/data_20221004_1/calibrate.db",
+          "id": "000000000015",
+          "params": {
+            "height": 616.0,
+            "width": 820.0
+          },
+          "type": "raspi_playback"
+        },
+        {
+          "name": "camera16",
+          "db_path": "../data/data_20221004_1/calibrate.db",
+          "id": "000000000016",
+          "params": {
+            "height": 616.0,
+            "width": 820.0
+          },
+          "type": "raspi_playback"
+        },
+        {
+          "name": "camera17",
+          "db_path": "../data/data_20221004_1/calibrate.db",
+          "id": "000000000017",
+          "params": {
+            "height": 616.0,
+            "width": 820.0
+          },
+          "type": "raspi_playback"
+        },
+        {
+          "name": "camera18",
+          "db_path": "../data/data_20221004_1/calibrate.db",
+          "id": "000000000018",
+          "params": {
+            "height": 616.0,
+            "width": 820.0
+          },
+          "type": "raspi_playback"
+        },
+        {
+          "name": "camera19",
+          "db_path": "../data/data_20221004_1/calibrate.db",
+          "id": "000000000019",
+          "params": {
+            "height": 616.0,
+            "width": 820.0
+          },
+          "type": "raspi_playback"
+        },
+        {
+          "name": "camera20",
+          "db_path": "../data/data_20221004_1/calibrate.db",
+          "id": "000000000020",
+          "params": {
+            "height": 616.0,
+            "width": 820.0
+          },
+          "type": "raspi_playback"
+        }
+      ]
+    },
+    "playback_color": {
+      "nodes": [
+        {
+          "name": "camera101",
+          "db_path": "../data/data_20250115_1/capture.db",
+          "id": "000000000026",
+          "params": {
+            "height": 540.0,
+            "width": 960.0
+          },
+          "type": "raspi_playback"
+        },
+        {
+          "name": "camera102",
+          "db_path": "../data/data_20250115_1/capture.db",
+          "id": "000000000027",
+          "params": {
+            "height": 540.0,
+            "width": 960.0
+          },
+          "type": "raspi_playback"
+        },
+        {
+          "name": "camera103",
+          "db_path": "../data/data_20250115_1/capture.db",
+          "id": "000000000028",
+          "params": {
+            "height": 540.0,
+            "width": 960.0
+          },
+          "type": "raspi_playback"
+        },
+        {
+          "name": "camera104",
+          "db_path": "../data/data_20250115_1/capture.db",
+          "id": "000000000029",
+          "params": {
+            "height": 540.0,
+            "width": 960.0
+          },
+          "type": "raspi_playback"
+        },
+        {
+          "name": "camera105",
+          "db_path": "../data/data_20250115_1/capture.db",
+          "id": "000000000030",
+          "params": {
+            "height": 540.0,
+            "width": 960.0
+          },
+          "type": "raspi_playback"
+        }
+      ]
+    },
+    "capture_color": {
+      "nodes": [
+        {
+          "name": "camera101",
+          "address": "192.168.0.26",
+          "gateway": "192.168.0.254",
+          "id": "000000000026",
+          "params": {
+            "height": 540.0,
+            "width": 960.0
+          },
+          "type": "raspi_color"
+        },
+        {
+          "name": "camera102",
+          "address": "192.168.0.27",
+          "gateway": "192.168.0.254",
+          "id": "000000000027",
+          "params": {
+            "height": 540.0,
+            "width": 960.0
+          },
+          "type": "raspi_color"
+        },
+        {
+          "name": "camera103",
+          "address": "192.168.0.28",
+          "gateway": "192.168.0.254",
+          "id": "000000000028",
+          "params": {
+            "height": 540.0,
+            "width": 960.0
+          },
+          "type": "raspi_color"
+        },
+        {
+          "name": "camera104",
+          "address": "192.168.0.29",
+          "gateway": "192.168.0.254",
+          "id": "000000000029",
+          "params": {
+            "height": 540.0,
+            "width": 960.0
+          },
+          "type": "raspi_color"
+        },
+        {
+          "name": "camera105",
+          "address": "192.168.0.30",
+          "gateway": "192.168.0.254",
+          "id": "000000000030",
+          "params": {
+            "height": 540.0,
+            "width": 960.0
+          },
+          "type": "raspi_color"
+        }
+      ]
+    },
+    "capture_and_record_color": {
+      "nodes": [
+        {
+          "name": "camera101",
+          "address": "192.168.0.26",
+          "gateway": "192.168.0.254",
+          "id": "000000000026",
+          "params": {
+            "height": 540.0,
+            "width": 960.0
+          },
+          "type": "raspi_color"
+        },
+        {
+          "name": "camera102",
+          "address": "192.168.0.27",
+          "gateway": "192.168.0.254",
+          "id": "000000000027",
+          "params": {
+            "height": 540.0,
+            "width": 960.0
+          },
+          "type": "raspi_color"
+        },
+        {
+          "name": "camera103",
+          "address": "192.168.0.28",
+          "gateway": "192.168.0.254",
+          "id": "000000000028",
+          "params": {
+            "height": 540.0,
+            "width": 960.0
+          },
+          "type": "raspi_color"
+        },
+        {
+          "name": "camera104",
+          "address": "192.168.0.29",
+          "gateway": "192.168.0.254",
+          "id": "000000000029",
+          "params": {
+            "height": 540.0,
+            "width": 960.0
+          },
+          "type": "raspi_color"
+        },
+        {
+          "name": "camera105",
+          "address": "192.168.0.30",
+          "gateway": "192.168.0.254",
+          "id": "000000000030",
+          "params": {
+            "height": 540.0,
+            "width": 960.0
+          },
+          "type": "raspi_color"
+        },
+        {
+          "name": "record101",
+          "inputs": {
+            "default": "camera101"
+          },
+          "db_path": "../data/data_20250115_1/capture.db",
+          "type": "record"
+        },
+        {
+          "name": "record102",
+          "inputs": {
+            "default": "camera102"
+          },
+          "db_path": "../data/data_20250115_1/capture.db",
+          "type": "record"
+        },
+        {
+          "name": "record103",
+          "inputs": {
+            "default": "camera103"
+          },
+          "db_path": "../data/data_20250115_1/capture.db",
+          "type": "record"
+        },
+        {
+          "name": "record104",
+          "inputs": {
+            "default": "camera104"
+          },
+          "db_path": "../data/data_20250115_1/capture.db",
+          "type": "record"
+        },
+        {
+          "name": "record105",
+          "inputs": {
+            "default": "camera105"
+          },
+          "db_path": "../data/data_20250115_1/capture.db",
+          "type": "record"
+        }
+      ]
+    },
+    "calibration_ir": {
+      "nodes": [
+        {
+          "name": "calibration",
+          "params": {
+            "only_extrinsic": false,
+            "robust": true
+          },
+          "type": "calibration"
+        },
+        {
+          "name": "detector",
+          "type": "three_point_bar_calibration_target_detector"
+        }
+      ]
+    },
+    "calibration_color": {
+      "nodes": [
+        {
+          "name": "calibration",
+          "params": {
+            "only_extrinsic": true,
+            "robust": false
+          },
+          "type": "calibration"
+        },
+        {
+          "name": "detector",
+          "type": "pattern_board_calibration_target_detector"
+        }
+      ]
+    }
+  },
+  "pipeline": "playback_ir",
+  "static_pipeline": "calibration_ir"
+}
