@@ -476,7 +476,7 @@ class viewer_app : public window_base
                             params.intrin = camera.intrin;
                         }
 
-                        stargazer::save_parameters("../data/config/parameters.json", parameters);
+                        stargazer::save_parameters("../config/parameters.json", parameters);
 
                         spdlog::info("End calibration");
 
@@ -517,7 +517,7 @@ class viewer_app : public window_base
                 params.intrin.coeffs[4] = intrinsic_calib.calibrated_camera.intrin.coeffs[4];
                 params.width = intrinsic_calib.calibrated_camera.width;
                 params.height = intrinsic_calib.calibrated_camera.height;
-                stargazer::save_parameters("../data/config/parameters.json", parameters);
+                stargazer::save_parameters("../config/parameters.json", parameters);
                 return true;
             }
         });
@@ -828,11 +828,11 @@ public:
     {
         gladLoadGL();
 
-        capture_config.reset(new stargazer::configuration_file("../data/config/capture.json"));
-        reconstruction_config.reset(new stargazer::configuration_file("../data/config/reconstruction.json"));
-        calibration_config.reset(new stargazer::configuration_file("../data/config/calibration.json"));
+        capture_config.reset(new stargazer::configuration_file("../config/capture.json"));
+        reconstruction_config.reset(new stargazer::configuration_file("../config/reconstruction.json"));
+        calibration_config.reset(new stargazer::configuration_file("../config/calibration.json"));
 
-        parameters = stargazer::load_parameters("../data/config/parameters.json");
+        parameters = stargazer::load_parameters("../config/parameters.json");
 
         {
             const auto &scene = std::get<stargazer::scene_t>(parameters["scene"]);
