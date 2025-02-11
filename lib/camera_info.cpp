@@ -80,20 +80,20 @@ namespace stargazer
     }
 }
 
-std::map<std::string, stargazer::camera_t> stargazer::load_camera_params(std::string path)
+std::map<std::string, stargazer::camera_t> stargazer::load_parameters(std::string path)
 {
     std::ifstream ifs;
     ifs.open(path, std::ios::binary | std::ios::in);
 
     const auto j = nlohmann::json::parse(ifs);
-    return j["devices"].get<std::map<std::string, stargazer::camera_t>>();
+    return j.get<std::map<std::string, stargazer::camera_t>>();
 }
 
-void stargazer::save_camera_params(std::string path, const std::map<std::string, camera_t> &params)
+void stargazer::save_parameters(std::string path, const std::map<std::string, camera_t> &params)
 {
     std::ofstream ofs;
     ofs.open(path, std::ios::out);
 
-    const auto j = nlohmann::json{{"devices", params}};
+    const auto j = nlohmann::json{params};
     ofs << j.dump(2);
 }

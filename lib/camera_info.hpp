@@ -56,9 +56,9 @@ namespace stargazer
         }
     };
 
-    std::map<std::string, camera_t> load_camera_params(std::string path);
+    std::map<std::string, camera_t> load_parameters(std::string path);
 
-    void save_camera_params(std::string path, const std::map<std::string, camera_t>& params);
+    void save_parameters(std::string path, const std::map<std::string, camera_t>& params);
 
     void get_cv_intrinsic(const camera_intrin_t &intrin, cv::Mat &camera_matrix, cv::Mat &dist_coeffs);
 }
