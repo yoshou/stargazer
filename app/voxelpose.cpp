@@ -238,11 +238,11 @@ namespace stargazer_voxelpose
         std::unordered_map<std::string, std::vector<int64_t>> input_node_dims;
         std::unordered_map<std::string, std::vector<int64_t>> output_node_dims;
 
-        int input_image_width = 960;
-        int input_image_height = 540;
+        static const int max_input_image_width = 1920;
+        static const int max_input_image_height = 1080;
 
-        // int input_image_width = 1920;
-        // int input_image_height = 1080;
+        int image_width = 960;
+        int image_height = 512;
 
         uint8_t *input_image_data = nullptr;
 
@@ -343,7 +343,7 @@ namespace stargazer_voxelpose
             const auto output_size = 240 * 128 * 15 * max_views;
             CUDA_SAFE_CALL(cudaMalloc(&output_data, output_size * sizeof(float)));
 
-            CUDA_SAFE_CALL(cudaMalloc(&input_image_data, input_image_width * input_image_height * 3 * max_views));
+            CUDA_SAFE_CALL(cudaMalloc(&input_image_data, max_input_image_width * max_input_image_height * 3 * max_views));
         }
 
         ~dnn_inference_heatmap()
@@ -355,7 +355,7 @@ namespace stargazer_voxelpose
 
         void process(const std::vector<cv::Mat> &images, std::vector<roi_data> &rois)
         {
-            const auto &&image_size = cv::Size(960, 512);
+            const auto &&image_size = cv::Size(image_width, image_height);
 
             for (size_t i = 0; i < images.size(); i++)
             {
@@ -378,8 +378,11 @@ namespace stargazer_voxelpose
                     return cv::Size2f(w_pad / 200.0, h_pad / 200.0);
                 };
 
-                assert(data.size().width == input_image_width);
-                assert(data.size().height == input_image_height);
+                const auto input_image_width = data.size().width;
+                const auto input_image_height = data.size().height;
+
+                assert(input_image_width <= max_input_image_width);
+                assert(input_image_height <= max_input_image_height);
 
                 const auto scale = get_scale(data.size(), image_size);
                 const auto center = cv::Point2f(data.size().width / 2.0, data.size().height / 2.0);
