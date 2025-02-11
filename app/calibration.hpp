@@ -9,7 +9,7 @@
 
 #include "multiview_point_data.hpp"
 #include "bundle_adjust_data.hpp"
-#include "camera_info.hpp"
+#include "parameters.hpp"
 #include "task_queue.hpp"
 #include "node_info.hpp"
 

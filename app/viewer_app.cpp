@@ -14,7 +14,7 @@
 #include <memory>
 #include <filesystem>
 
-#include "camera_info.hpp"
+#include "parameters.hpp"
 #include "capture.hpp"
 #include "views.hpp"
 #include "calibration.hpp"
@@ -39,7 +39,7 @@ class viewer_app : public window_base
     std::unique_ptr<pose_view> pose_view_;
     std::shared_ptr<azimuth_elevation> view_controller;
 
-    std::map<std::string, stargazer::camera_t> parameters;
+    std::map<std::string, std::variant<stargazer::camera_t, stargazer::scene_t>> parameters;
     std::map<std::string, cv::Mat> masks;
 
     std::map<std::string, std::shared_ptr<capture_pipeline>> captures;
@@ -435,7 +435,7 @@ class viewer_app : public window_base
             return true; });
 
         calibration_panel_view_->on_intrinsic_calibration_device_changed.push_back([this](const calibration_panel_view::node_info &device) {
-            const auto &params = parameters[device.id];
+            const auto &params = std::get<stargazer::camera_t>(parameters[device.id]);
             calibration_panel_view_->fx = params.intrin.fx;
             calibration_panel_view_->fy = params.intrin.fy;
             calibration_panel_view_->cx = params.intrin.cx;
@@ -471,8 +471,9 @@ class viewer_app : public window_base
                         {
                             const auto &camera_id = device_name_to_id.at(camera_name);
 
-                            parameters[camera_id].extrin = camera.extrin;
-                            parameters[camera_id].intrin = camera.intrin;
+                            auto& params = std::get<stargazer::camera_t>(parameters[camera_id]);
+                            params.extrin = camera.extrin;
+                            params.intrin = camera.intrin;
                         }
 
                         stargazer::save_parameters("../data/config/parameters.json", parameters);
@@ -504,7 +505,7 @@ class viewer_app : public window_base
                 calibration_panel_view_->p1 = intrinsic_calib.calibrated_camera.intrin.coeffs[3];
                 calibration_panel_view_->rms = intrinsic_calib.rms;
 
-                auto &params = parameters[device.id];
+                auto &params = std::get<stargazer::camera_t>(parameters[device.id]);
                 params.intrin.fx = intrinsic_calib.calibrated_camera.intrin.fx;
                 params.intrin.fy = intrinsic_calib.calibrated_camera.intrin.fy;
                 params.intrin.cx = intrinsic_calib.calibrated_camera.intrin.cx;
@@ -709,7 +710,8 @@ class viewer_app : public window_base
                     }
                 }
 
-                axis_reconstruction_.save_axis();
+                auto& scene = std::get<stargazer::scene_t>(parameters["scene"]);
+                scene.axis = axis_reconstruction_.get_axis();
 
                 this->epipolar_reconstruction_.set_axis(axis_reconstruction_.get_axis());
                 this->multiview_image_reconstruction_->axis = axis_reconstruction_.get_axis();
@@ -832,7 +834,10 @@ public:
 
         parameters = stargazer::load_parameters("../data/config/parameters.json");
 
-        axis_reconstruction_.load_axis();
+        {
+            const auto &scene = std::get<stargazer::scene_t>(parameters["scene"]);
+            axis_reconstruction_.set_axis(scene.axis);
+        }
 
         init_gui();
 
@@ -862,7 +867,8 @@ public:
         {
             if (device.is_camera())
             {
-                epipolar_reconstruction_.set_camera(device.name, parameters.at(device.id));
+                const auto& params = std::get<stargazer::camera_t>(parameters[device.id]);
+                epipolar_reconstruction_.set_camera(device.name, params);
             }
         }
 
@@ -872,7 +878,8 @@ public:
         {
             if (device.is_camera())
             {
-                multiview_image_reconstruction_->cameras.insert(std::make_pair(device.name, parameters.at(device.id)));
+                const auto &params = std::get<stargazer::camera_t>(parameters[device.id]);
+                multiview_image_reconstruction_->cameras.insert(std::make_pair(device.name, params));
             }
         }
 
@@ -890,7 +897,8 @@ public:
             {
                 if (parameters.find(device.id) != parameters.end())
                 {
-                    calib.set_camera(device.name, parameters.at(device.id));
+                    const auto &params = std::get<stargazer::camera_t>(parameters[device.id]);
+                    calib.set_camera(device.name, params);
                 }
                 else
                 {

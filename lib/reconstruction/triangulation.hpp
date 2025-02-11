@@ -2,7 +2,7 @@
 
 #include <vector>
 #include <glm/glm.hpp>
-#include "camera_info.hpp"
+#include "parameters.hpp"
 
 namespace stargazer::reconstruction
 {

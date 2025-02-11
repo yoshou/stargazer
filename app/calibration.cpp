@@ -8,7 +8,7 @@
 #include <unordered_set>
 #include <random>
 
-#include "camera_info.hpp"
+#include "parameters.hpp"
 #include "utils.hpp"
 #include "graph_proc.h"
 #include "graph_proc_cv.h"
