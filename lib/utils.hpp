@@ -4,7 +4,7 @@
 #include <glm/glm.hpp>
 #include <glm/ext.hpp>
 #include <opencv2/opencv.hpp>
-#include "camera_info.hpp"
+#include "parameters.hpp"
 
 namespace stargazer
 {

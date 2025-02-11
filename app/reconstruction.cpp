@@ -9,7 +9,7 @@
 
 #include <spdlog/spdlog.h>
 
-#include "camera_info.hpp"
+#include "parameters.hpp"
 #include "utils.hpp"
 #include "correspondance.hpp"
 #include "triangulation.hpp"
@@ -1463,35 +1463,6 @@ std::vector<glm::vec3> mvpose_reconstruction::get_markers() const
 void axis_reconstruction::set_camera(const std::string &name, const stargazer::camera_t &camera)
 {
     cameras[name] = camera;
-}
-
-void axis_reconstruction::load_axis()
-{
-    const auto path = "../data/config/scene.json";
-
-    std::ifstream ifs;
-    ifs.open(path, std::ios::binary | std::ios::in);
-
-    if (!ifs)
-    {
-        axis = glm::mat4(1.0f);
-        return;
-    }
-
-    const auto j = nlohmann::json::parse(ifs);
-    axis = j["scene"]["axis"].get<glm::mat4>();
-}
-
-void axis_reconstruction::save_axis()
-{
-    const auto path = "../data/config/scene.json";
-
-    std::ofstream ofs;
-    ofs.open(path, std::ios::out);
-
-    auto j = nlohmann::json{};
-    j["scene"]["axis"] = axis;
-    ofs << j.dump(2);
 }
 
 bool axis_reconstruction::compute_axis(glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::mat4 &axis)

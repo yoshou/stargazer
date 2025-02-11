@@ -4,6 +4,7 @@
 #include <array>
 #include <string>
 #include <fstream>
+#include <variant>
 #include <opencv2/core.hpp>
 #include <nlohmann/json.hpp>
 #include <cereal/types/array.hpp>
@@ -56,9 +57,20 @@ namespace stargazer
         }
     };
 
-    std::map<std::string, camera_t> load_parameters(std::string path);
+    struct scene_t
+    {
+        glm::mat4 axis;
 
-    void save_parameters(std::string path, const std::map<std::string, camera_t>& params);
+        template <typename Archive>
+        void serialize(Archive &archive)
+        {
+            archive(axis);
+        }
+    };
+
+    std::map<std::string, std::variant<camera_t, scene_t>> load_parameters(std::string path);
+
+    void save_parameters(std::string path, const std::map<std::string, std::variant<camera_t, scene_t>> &params);
 
     void get_cv_intrinsic(const camera_intrin_t &intrin, cv::Mat &camera_matrix, cv::Mat &dist_coeffs);
 }

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "camera_info.hpp"
+#include "parameters.hpp"
 #include "capture.hpp"
 #include <atomic>
 #include <deque>
@@ -336,10 +336,11 @@ public:
     {
         return axis;
     }
-
-    void load_axis();
-
-    void save_axis();
+    
+    void set_axis(const glm::mat4 &axis)
+    {
+        this->axis = axis;
+    }
 
     static bool compute_axis(glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::mat4 &axis);
 

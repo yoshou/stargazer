@@ -6,7 +6,7 @@
 #include <nanoflann.hpp>
 
 #include "correspondance.hpp"
-#include "camera_info.hpp"
+#include "parameters.hpp"
 #include "triangulation.hpp"
 #include "utils.hpp"
 #include "tuple_hash.hpp"
