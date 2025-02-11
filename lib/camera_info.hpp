@@ -56,14 +56,9 @@ namespace stargazer
         }
     };
 
-    struct camera_module_t
-    {
-        std::map<std::string, camera_t> cameras;
-    };
+    std::map<std::string, camera_t> load_camera_params(std::string path);
 
-    std::map<std::string, camera_module_t> load_camera_params(std::string path);
-
-    void save_camera_params(std::string path, const std::map<std::string, camera_module_t>& params);
+    void save_camera_params(std::string path, const std::map<std::string, camera_t>& params);
 
     void get_cv_intrinsic(const camera_intrin_t &intrin, cv::Mat &camera_matrix, cv::Mat &dist_coeffs);
 }

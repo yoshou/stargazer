@@ -39,7 +39,7 @@ class viewer_app : public window_base
     std::unique_ptr<pose_view> pose_view_;
     std::shared_ptr<azimuth_elevation> view_controller;
 
-    std::map<std::string, stargazer::camera_module_t> camera_params;
+    std::map<std::string, stargazer::camera_t> camera_params;
     std::map<std::string, cv::Mat> masks;
 
     std::map<std::string, std::shared_ptr<capture_pipeline>> captures;
@@ -435,7 +435,7 @@ class viewer_app : public window_base
             return true; });
 
         calibration_panel_view_->on_intrinsic_calibration_device_changed.push_back([this](const calibration_panel_view::node_info &device) {
-            const auto &params = camera_params[device.id].cameras["infra1"];
+            const auto &params = camera_params[device.id];
             calibration_panel_view_->fx = params.intrin.fx;
             calibration_panel_view_->fy = params.intrin.fy;
             calibration_panel_view_->cx = params.intrin.cx;
@@ -471,8 +471,8 @@ class viewer_app : public window_base
                         {
                             const auto &camera_id = device_name_to_id.at(camera_name);
 
-                            camera_params[camera_id].cameras["infra1"].extrin = camera.extrin;
-                            camera_params[camera_id].cameras["infra1"].intrin = camera.intrin;
+                            camera_params[camera_id].extrin = camera.extrin;
+                            camera_params[camera_id].intrin = camera.intrin;
                         }
 
                         stargazer::save_camera_params("../data/config/camera_params.json", camera_params);
@@ -504,7 +504,7 @@ class viewer_app : public window_base
                 calibration_panel_view_->p1 = intrinsic_calib.calibrated_camera.intrin.coeffs[3];
                 calibration_panel_view_->rms = intrinsic_calib.rms;
 
-                auto &params = camera_params[device.id].cameras["infra1"];
+                auto &params = camera_params[device.id];
                 params.intrin.fx = intrinsic_calib.calibrated_camera.intrin.fx;
                 params.intrin.fy = intrinsic_calib.calibrated_camera.intrin.fy;
                 params.intrin.cx = intrinsic_calib.calibrated_camera.intrin.cx;
@@ -862,7 +862,7 @@ public:
         {
             if (device.is_camera())
             {
-                epipolar_reconstruction_.set_camera(device.name, camera_params.at(device.id).cameras.at("infra1"));
+                epipolar_reconstruction_.set_camera(device.name, camera_params.at(device.id));
             }
         }
 
@@ -872,7 +872,7 @@ public:
         {
             if (device.is_camera())
             {
-                multiview_image_reconstruction_->cameras.insert(std::make_pair(device.name, camera_params.at(device.id).cameras.at("infra1")));
+                multiview_image_reconstruction_->cameras.insert(std::make_pair(device.name, camera_params.at(device.id)));
             }
         }
 
@@ -890,7 +890,7 @@ public:
             {
                 if (camera_params.find(device.id) != camera_params.end())
                 {
-                    calib.set_camera(device.name, camera_params.at(device.id).cameras.at("infra1"));
+                    calib.set_camera(device.name, camera_params.at(device.id));
                 }
                 else
                 {
