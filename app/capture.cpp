@@ -75,6 +75,7 @@ public:
             n11->set_input(n7->get_output());
             g->add_node(n11);
 
+            // Noise in camera image on some units.
             std::shared_ptr<broadcast_talker_node> n12(new broadcast_talker_node());
             n12->set_input(n11->get_output());
             n12->set_endpoint("192.168.0.255", 40000);
@@ -1651,7 +1652,17 @@ static void genenerate_common_nodes(const std::vector<node_info> &node_infos,
                                     std::unordered_map<std::string, std::shared_ptr<graph_node>> &rcv_marker_nodes,
                                     std::unordered_map<std::string, std::shared_ptr<graph_node>> &rcv_blob_nodes)
 {
-    bool is_master = true;
+    size_t num_raspi = 0;
+
+    for (std::size_t i = 0; i < node_infos.size(); i++)
+    {
+        if ((node_infos[i].type == node_type::raspi) || (node_infos[i].type == node_type::raspi_color))
+        {
+            num_raspi++;
+        }
+    }
+
+    bool is_master = num_raspi >= 2;
 
     for (std::size_t i = 0; i < node_infos.size(); i++)
     {
