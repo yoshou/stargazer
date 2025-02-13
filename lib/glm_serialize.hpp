@@ -37,6 +37,24 @@ void load(Archive& ar, glm::tvec4<T, P>& vec) {
 }
 
 template <class Archive, typename T, glm::precision P>
+void save(Archive& ar, const glm::tmat3x3<T, P>& mat) {
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            ar(cereal::make_nvp("m" + std::to_string(i) + std::to_string(j), mat[i][j]));
+        }
+    }
+}
+
+template <class Archive, typename T, glm::precision P>
+void load(Archive& ar, glm::tmat3x3<T, P>& mat) {
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            ar(cereal::make_nvp("m" + std::to_string(i) + std::to_string(j), mat[i][j]));
+        }
+    }
+}
+
+template <class Archive, typename T, glm::precision P>
 void save(Archive& ar, const glm::tmat4x4<T, P>& mat) {
     for (int i = 0; i < 4; ++i) {
         for (int j = 0; j < 4; ++j) {

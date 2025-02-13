@@ -911,7 +911,7 @@ public:
 
         for (auto &[camera_name, camera] : calib.get_cameras())
         {
-            camera.extrin.rotation = glm::mat4(1.0);
+            camera.extrin.rotation = glm::mat3(1.0);
             camera.extrin.translation = glm::vec3(1.0);
         }
 
@@ -1077,7 +1077,7 @@ public:
                             camera.intrin.fx,
                             camera.intrin.fy,
                             camera.intrin.coeffs,
-                            glm::inverse(camera.extrin.rotation),
+                            glm::inverse(camera.extrin.transform_matrix()),
                         };
                     }
                 }
@@ -1151,7 +1151,7 @@ public:
                             camera.intrin.fx,
                             camera.intrin.fy,
                             camera.intrin.coeffs,
-                            glm::inverse(camera.extrin.rotation),
+                            glm::inverse(camera.extrin.transform_matrix()),
                         };
                     }
                 }

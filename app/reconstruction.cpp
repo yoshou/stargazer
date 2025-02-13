@@ -1107,7 +1107,7 @@ std::vector<glm::vec3> voxelpose_reconstruction::dnn_reconstruct(const std::map<
         basis[2] = glm::vec4(0.f, 1.f, 0.f, 0.f);
 
         const auto axis = glm::inverse(basis) * this->axis;
-        const auto camera_pose = axis * glm::inverse(src_camera.extrin.rotation);
+        const auto camera_pose = axis * glm::inverse(src_camera.extrin.transform_matrix());
 
         for (size_t i = 0; i < 3; i++)
         {
@@ -1366,7 +1366,7 @@ std::tuple<std::vector<std::string>, coalsack::tensor<float, 4>, std::vector<glm
         camera.p[0] = src_camera.intrin.coeffs[1];
         camera.p[1] = src_camera.intrin.coeffs[2];
 
-        const auto camera_pose = glm::inverse(axis * glm::inverse(src_camera.extrin.rotation));
+        const auto camera_pose = glm::inverse(axis * glm::inverse(src_camera.extrin.transform_matrix()));
 
         for (size_t i = 0; i < 3; i++)
         {

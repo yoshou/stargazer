@@ -35,6 +35,16 @@ namespace glm
         v.z = j[2].get<float>();
         v.w = j[3].get<float>();
     }
+    static void to_json(nlohmann::json &j, const glm::mat3 &m)
+    {
+        j = {m[0], m[1], m[2]};
+    }
+    static void from_json(const nlohmann::json &j, glm::mat3 &m)
+    {
+        m[0] = j[0].get<glm::vec3>();
+        m[1] = j[1].get<glm::vec3>();
+        m[2] = j[2].get<glm::vec3>();
+    }
     static void to_json(nlohmann::json &j, const glm::mat4 &m)
     {
         j = {m[0], m[1], m[2], m[3]};

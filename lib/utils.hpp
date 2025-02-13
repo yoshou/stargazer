@@ -109,9 +109,8 @@ namespace stargazer
 
     static glm::vec2 project(const camera_t &camera, const glm::vec3 &pt)
     {
-        const auto &extrin = camera.extrin;
-
-        const glm::mat3 proj_mat = camera.intrin.get_matrix();
+        const auto transform_mat = camera.extrin.transform_matrix();
+        const auto proj_mat = camera.intrin.get_matrix();
 
         const auto k1 = camera.intrin.coeffs[0];
         const auto k2 = camera.intrin.coeffs[1];
@@ -119,7 +118,7 @@ namespace stargazer
         const auto p2 = camera.intrin.coeffs[3];
         const auto k3 = camera.intrin.coeffs[4];
 
-        const auto view_pt = extrin.rotation * glm::vec4(pt, 1);
+        const auto view_pt = transform_mat * glm::vec4(pt, 1);
         const auto x = view_pt.x / view_pt.z;
         const auto y = view_pt.y / view_pt.z;
 
@@ -141,11 +140,10 @@ namespace stargazer
 
     static glm::vec2 project_undist(const camera_t &camera, const glm::vec3 &pt)
     {
-        const auto &extrin = camera.extrin;
+        const auto transform_mat = camera.extrin.transform_matrix();
+        const auto proj_mat = camera.intrin.get_matrix();
 
-        const glm::mat3 proj_mat = camera.intrin.get_matrix();
-
-        const auto view_pt = extrin.rotation * glm::vec4(pt, 1);
+        const auto view_pt = transform_mat * glm::vec4(pt, 1);
         const auto x = view_pt.x / view_pt.z;
         const auto y = view_pt.y / view_pt.z;
 
