@@ -345,8 +345,8 @@ static glm::mat4 estimate_pose(const std::vector<std::tuple<glm::vec2, glm::vec2
     cv::undistortPoints(points3, norm_points3, camera_matrix3, coeffs3);
 
     cv::Mat point4d;
-    cv::triangulatePoints(stargazer::glm_to_cv_mat3x4(base_camera1.extrin.rotation),
-                          stargazer::glm_to_cv_mat3x4(base_camera2.extrin.rotation), norm_points1, norm_points2, point4d);
+    cv::triangulatePoints(stargazer::glm_to_cv_mat3x4(base_camera1.extrin.transform_matrix()),
+                          stargazer::glm_to_cv_mat3x4(base_camera2.extrin.transform_matrix()), norm_points1, norm_points2, point4d);
 
     std::vector<cv::Point3d> point3d;
     for (size_t i = 0; i < static_cast<size_t>(point4d.cols); i++)
@@ -359,9 +359,9 @@ static glm::mat4 estimate_pose(const std::vector<std::tuple<glm::vec2, glm::vec2
 
     // Check reprojection error
     {
-        const auto Rt1 = stargazer::glm_to_cv_mat3x4(base_camera1.extrin.rotation);
-        const auto Rt2 = stargazer::glm_to_cv_mat3x4(base_camera2.extrin.rotation);
-        
+        const auto Rt1 = stargazer::glm_to_cv_mat3x4(base_camera1.extrin.transform_matrix());
+        const auto Rt2 = stargazer::glm_to_cv_mat3x4(base_camera2.extrin.transform_matrix());
+
         cv::Mat R1 = cv::Mat::eye(3, 3, CV_64F);
         cv::Mat tvec1 = cv::Mat::zeros(3, 1, CV_64F);
         cv::Mat rvec1;
@@ -736,8 +736,8 @@ public:
         {
             std::string base_camera_name1;
             std::string base_camera_name2;
-            glm::mat4 base_camera_pose1;
-            glm::mat4 base_camera_pose2;
+            glm::mat4 base_camera_pose1(1.0f);
+            glm::mat4 base_camera_pose2(1.0f);
 
             bool found_base_pair = false;
             const float min_base_angle = 15.0f;
@@ -779,9 +779,15 @@ public:
                 }
             }
 
-            cameras[base_camera_name1].extrin.rotation = base_camera_pose1;
+            if (!found_base_pair)
+            {
+                spdlog::error("Failed to find base camera pair");
+                return;
+            }
+
+            cameras[base_camera_name1].extrin.rotation = glm::mat3(base_camera_pose1);
             cameras[base_camera_name1].extrin.translation = glm::vec3(base_camera_pose1[3]);
-            cameras[base_camera_name2].extrin.rotation = base_camera_pose2;
+            cameras[base_camera_name2].extrin.rotation = glm::mat3(base_camera_pose2);
             cameras[base_camera_name2].extrin.translation = glm::vec3(base_camera_pose2[3]);
 
             std::vector<std::string> processed_cameras = {base_camera_name1, base_camera_name2};
@@ -805,13 +811,17 @@ public:
                 }
 
                 const auto pose = estimate_pose(corresponding_points, cameras.at(base_camera_name1), cameras.at(base_camera_name2), cameras.at(camera_name));
-                cameras[camera_name].extrin.rotation = pose;
+                cameras[camera_name].extrin.rotation = glm::mat3(pose);
                 cameras[camera_name].extrin.translation = glm::vec3(pose[3]);
 
                 processed_cameras.push_back(camera_name);
             }
 
-            assert(processed_cameras.size() == camera_names.size());
+            if (processed_cameras.size() != camera_names.size())
+            {
+                spdlog::error("Failed to calibrate all cameras");
+                return;
+            }
         }
 
         stargazer::calibration::bundle_adjust_data ba_data;
@@ -820,7 +830,7 @@ public:
         {
             const auto &camera = cameras[camera_name];
             cv::Mat rot_vec;
-            cv::Rodrigues(stargazer::glm_to_cv_mat3(camera.extrin.rotation), rot_vec);
+            cv::Rodrigues(stargazer::glm_to_cv_mat3(camera.extrin.transform_matrix()), rot_vec);
             const auto trans_vec = camera.extrin.translation;
 
             std::vector<double> camera_params;
@@ -990,8 +1000,8 @@ public:
             {
                 for (size_t i = 0; i < camera_names.size(); i++)
                 {
-                    calibrated_cameras[camera_names[i]].extrin.rotation = ba_data.get_camera_extrinsic(i);
-                    calibrated_cameras[camera_names[i]].extrin.translation = ba_data.get_camera_extrinsic(i)[3];
+                    calibrated_cameras[camera_names[i]].extrin.rotation = glm::mat3(ba_data.get_camera_extrinsic(i));
+                    calibrated_cameras[camera_names[i]].extrin.translation = glm::vec3(ba_data.get_camera_extrinsic(i)[3]);
                 }
             }
 

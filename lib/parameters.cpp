@@ -57,7 +57,7 @@ namespace stargazer
 
     static void from_json(const nlohmann::json &j, camera_extrin_t &extrin)
     {
-        extrin.rotation = j["rotation"].get<glm::mat4>();
+        extrin.rotation = j["rotation"].get<glm::mat3>();
         extrin.translation = j["translation"].get<glm::vec3>();
     }
 

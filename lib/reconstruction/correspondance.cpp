@@ -44,7 +44,7 @@ namespace stargazer::reconstruction
         const auto camera_mat1 = camera1.intrin.get_matrix();
         const auto camera_mat2 = camera2.intrin.get_matrix();
 
-        return calculate_fundametal_matrix(camera_mat1, camera_mat2, camera1.extrin.rotation, camera2.extrin.rotation);
+        return calculate_fundametal_matrix(camera_mat1, camera_mat2, camera1.extrin.transform_matrix(), camera2.extrin.transform_matrix());
     }
 
     static glm::vec3 normalize_line(const glm::vec3 &v)
@@ -175,8 +175,8 @@ namespace stargazer::reconstruction
 
     static float compute_diff_camera_angle(const camera_t &camera1, const camera_t &camera2)
     {
-        const auto r1 = glm::mat3(camera1.extrin.rotation);
-        const auto r2 = glm::mat3(camera2.extrin.rotation);
+        const auto r1 = glm::mat3(camera1.extrin.transform_matrix());
+        const auto r2 = glm::mat3(camera2.extrin.transform_matrix());
 
         const auto r = glm::transpose(r1) * r2;
         const auto r_quat = glm::quat_cast(r);

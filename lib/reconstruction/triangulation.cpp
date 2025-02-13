@@ -24,8 +24,8 @@ namespace stargazer::reconstruction
         cv::undistortPoints(pts1, undistort_pts1, camera_mat1, dist_coeffs1);
         cv::undistortPoints(pts2, undistort_pts2, camera_mat2, dist_coeffs2);
 
-        cv::Mat proj1 = glm_to_cv_mat3x4(cm1.extrin.rotation);
-        cv::Mat proj2 = glm_to_cv_mat3x4(cm2.extrin.rotation);
+        cv::Mat proj1 = glm_to_cv_mat3x4(cm1.extrin.transform_matrix());
+        cv::Mat proj2 = glm_to_cv_mat3x4(cm2.extrin.transform_matrix());
 
         cv::Mat output;
         cv::triangulatePoints(proj1, proj2, undistort_pts1, undistort_pts2, output);
@@ -47,8 +47,8 @@ namespace stargazer::reconstruction
         pts1.push_back(cv::Point2d(pt1.x, pt1.y));
         pts2.push_back(cv::Point2d(pt2.x, pt2.y));
 
-        cv::Mat proj1 = glm_to_cv_mat3x4(cm1.extrin.rotation);
-        cv::Mat proj2 = glm_to_cv_mat3x4(cm2.extrin.rotation);
+        cv::Mat proj1 = glm_to_cv_mat3x4(cm1.extrin.transform_matrix());
+        cv::Mat proj2 = glm_to_cv_mat3x4(cm2.extrin.transform_matrix());
 
         cv::Mat output;
         cv::triangulatePoints(proj1, proj2, pts1, pts2, output);
@@ -75,7 +75,7 @@ namespace stargazer::reconstruction
             std::vector<cv::Point2d> undistort_pt;
             cv::undistortPoints(pt, undistort_pt, camera_mat, dist_coeffs);
 
-            const auto& proj = cameras[i].extrin.rotation;
+            const auto& proj = cameras[i].extrin.transform_matrix();
 
             for (size_t m = 0; m < 3; ++m)
             {

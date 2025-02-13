@@ -1,6 +1,7 @@
 #pragma once
 
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 #include <array>
 #include <string>
 #include <fstream>
@@ -35,7 +36,12 @@ namespace stargazer
     struct camera_extrin_t
     {
         glm::vec3 translation;
-        glm::mat4 rotation;
+        glm::mat3 rotation;
+
+        glm::mat4 transform_matrix() const
+        {
+            return glm::translate(glm::mat4(1.0f), translation) * glm::mat4(rotation);
+        }
 
         template <typename Archive>
         void serialize(Archive &archive)
