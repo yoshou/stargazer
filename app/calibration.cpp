@@ -16,6 +16,52 @@
 #include "glm_serialize.hpp"
 #include "triangulation.hpp"
 
+class calibration_target
+{
+public:
+    virtual std::vector<glm::vec2> detect_points(const std::vector<stargazer::point_data> &markers) = 0;
+    virtual ~calibration_target() = default;
+};
+
+template <class T, class F>
+void combination(const std::vector<T> &seed, int target_size, F callback)
+{
+    std::vector<int> indices(target_size);
+    const int seed_size = seed.size();
+    int start_index = 0;
+    int size = 0;
+
+    while (size >= 0)
+    {
+        for (int i = start_index; i < seed_size; ++i)
+        {
+            indices[size++] = i;
+            if (size == target_size)
+            {
+                std::vector<T> comb(target_size);
+                for (int x = 0; x < target_size; ++x)
+                {
+                    comb[x] = seed[indices[x]];
+                }
+                if (callback(comb))
+                    return;
+                break;
+            }
+        }
+        --size;
+        if (size < 0)
+            break;
+        start_index = indices[size] + 1;
+    }
+}
+
+enum class calibration_pattern
+{
+    CHESSBOARD,
+    CIRCLES_GRID,
+    ASYMMETRIC_CIRCLES_GRID,
+};
+
 static void calc_board_corner_positions(cv::Size board_size, cv::Size2f square_size, std::vector<cv::Point3f> &corners, const calibration_pattern pattern_type = calibration_pattern::CHESSBOARD);
 
 static bool detect_calibration_board(cv::Mat frame, std::vector<cv::Point2f> &points, const calibration_pattern pattern_type = calibration_pattern::CHESSBOARD);
@@ -1613,74 +1659,6 @@ static bool detect_calibration_board(cv::Mat frame, std::vector<cv::Point2f> &po
     return found;
 }
 
-#include <opencv2/aruco/charuco.hpp>
-
-static inline cv::aruco::CharucoBoard create_charuco_board()
-{
-    const auto dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_4X4_250);
-    const auto board = cv::aruco::CharucoBoard(cv::Size(3, 5), 0.0575, 0.0575 * 0.75f, dictionary);
-    return board;
-}
-
-static bool detect_charuco_board(cv::Mat image, std::vector<cv::Point2f> &points, std::vector<int> &ids)
-{
-    cv::aruco::DetectorParameters detector_params = cv::aruco::DetectorParameters();
-    cv::aruco::CharucoParameters charuco_params = cv::aruco::CharucoParameters();
-    const auto board = create_charuco_board();
-    const auto detector = cv::aruco::CharucoDetector(board, charuco_params, detector_params);
-    std::vector<int> marker_ids;
-    std::vector<std::vector<cv::Point2f>> marker_corners;
-    std::vector<int> charuco_ids;
-    std::vector<cv::Point2f> charuco_corners;
-    detector.detectBoard(image, charuco_corners, charuco_ids, marker_corners, marker_ids);
-
-    if (charuco_ids.size() == 0)
-    {
-        return false;
-    }
-
-    points = charuco_corners;
-    ids = charuco_ids;
-
-    return true;
-}
-
-static void detect_aruco_marker(cv::Mat image, std::vector<std::vector<cv::Point2f>> &points, std::vector<int> &ids)
-{
-    cv::aruco::DetectorParameters detector_params = cv::aruco::DetectorParameters();
-    cv::aruco::RefineParameters refine_params = cv::aruco::RefineParameters();
-    const auto dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_4X4_250);
-    const auto detector = cv::aruco::ArucoDetector(dictionary, detector_params, refine_params);
-
-    points.clear();
-    ids.clear();
-    detector.detectMarkers(image, points, ids);
-}
-
-static bool detect_aruco_marker(cv::Mat image, std::vector<cv::Point2f> &points, std::vector<int> &ids)
-{
-    std::vector<int> marker_ids;
-    std::vector<std::vector<cv::Point2f>> marker_corners;
-    detect_aruco_marker(image, marker_corners, marker_ids);
-
-    for (size_t i = 0; i < marker_ids.size(); i++)
-    {
-        const auto marker_id = marker_ids[i];
-        const auto &marker_corner = marker_corners[i];
-        if (marker_id == 0)
-        {
-            for (size_t i = 0; i < 4; i++)
-            {
-                points.push_back(marker_corner[i]);
-                ids.push_back(marker_id * 4 + i);
-            }
-            return true;
-        }
-    }
-
-    return false;
-}
-
 static std::vector<size_t> create_random_indices(size_t size)
 {
     std::vector<size_t> data(size);
@@ -1764,59 +1742,4 @@ void intrinsic_calibration::calibrate()
     calibrated_camera.intrin.coeffs[4] = dist_coeffs.at<double>(4);
     calibrated_camera.width = image_width;
     calibrated_camera.height = image_height;
-}
-
-static std::vector<glm::vec2> convert_cv_to_glm_point2f(const std::vector<cv::Point2f>& points)
-{
-    std::vector<glm::vec2> glm_points;
-    for (const auto& point : points)
-    {
-        glm_points.emplace_back(point.x, point.y);
-    }
-    return glm_points;
-}
-
-
-static std::vector<glm::vec3> get_target_object_points(int board_size_x, int board_size_y, float square_size_x, float square_size_y, calibration_pattern target)
-{
-    std::vector<cv::Point3f> corners;
-    calc_board_corner_positions(cv::Size(board_size_x, board_size_y), cv::Size2f(square_size_x, square_size_y), corners, target);
-
-    std::vector<glm::vec3> points;
-    for (const auto& corner : corners)
-    {
-        points.emplace_back(corner.x, corner.y, corner.z);
-    }
-    return points;
-}
-
-static glm::mat4 compute_axis(const observed_points_t& points, const std::vector<glm::vec3>& target_points, cv::Mat camera_matrix, cv::Mat dist_coeffs)
-{
-    std::vector<cv::Point3f> object_points;
-    std::vector<cv::Point2f> image_points;
-
-    std::transform(points.points.begin(), points.points.end(), std::back_inserter(image_points), [](const auto &pt)
-                   { return cv::Point2f(pt.x, pt.y); });
-
-    std::transform(target_points.begin(), target_points.end(), std::back_inserter(object_points), [](const auto &pt)
-                   { return cv::Point3f(pt.x, pt.y, pt.z); });
-
-    cv::Mat rvec, tvec;
-
-    const auto rms = cv::solvePnP(object_points, image_points, camera_matrix, dist_coeffs, rvec, tvec);
-
-    glm::mat4 axis(1.0f);
-    cv::Mat rmat;
-    cv::Rodrigues(rvec, rmat);
-    for (size_t i = 0; i < 3; i++)
-    {
-        for (size_t j = 0; j < 3; j++)
-        {
-            axis[i][j] = rmat.at<double>(j, i);
-        }
-    }
-    glm::vec3 origin(tvec.at<double>(0), tvec.at<double>(1), tvec.at<double>(2));
-    axis[3] = glm::vec4(origin, 1.0f);
-
-    return glm::inverse(axis);
 }
