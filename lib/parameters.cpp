@@ -91,15 +91,14 @@ namespace stargazer
         scene.axis = j["axis"].get<glm::mat4>();
     }
 
-    std::map<std::string, std::variant<camera_t, scene_t>> load_parameters(std::string path)
+    void parameters_t::load()
     {
         std::ifstream ifs;
         ifs.open(path, std::ios::binary | std::ios::in);
 
         const auto j = nlohmann::json::parse(ifs);
 
-        std::map<std::string, std::variant<camera_t, scene_t>> parameters;
-        for (const auto& [name, item] : j.items())
+        for (const auto &[name, item] : j.items())
         {
             if (item["type"] == "camera")
             {
@@ -112,17 +111,16 @@ namespace stargazer
                 parameters[name] = scene;
             }
         }
-        return parameters;
     }
 
-    void save_parameters(std::string path, const std::map<std::string, std::variant<camera_t, scene_t>> &params)
+    void parameters_t::save() const
     {
         std::ofstream ofs;
         ofs.open(path, std::ios::out);
 
         nlohmann::json j;
 
-        for (const auto& [name, param] : params)
+        for (const auto &[name, param] : parameters)
         {
             nlohmann::json j_param;
 

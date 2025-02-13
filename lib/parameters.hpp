@@ -4,8 +4,8 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <array>
 #include <string>
-#include <fstream>
 #include <variant>
+#include <unordered_map>
 #include <opencv2/core.hpp>
 #include <nlohmann/json.hpp>
 #include <cereal/types/array.hpp>
@@ -74,9 +74,42 @@ namespace stargazer
         }
     };
 
-    std::map<std::string, std::variant<camera_t, scene_t>> load_parameters(std::string path);
+    class parameters_t
+    {
+        std::unordered_map<std::string, std::variant<camera_t, scene_t>> parameters;
+        std::string path;
 
-    void save_parameters(std::string path, const std::map<std::string, std::variant<camera_t, scene_t>> &params);
+    public:
+
+        parameters_t(const std::string &path) : path(path) {}
+
+        void load();
+
+        void save() const;
+
+        std::variant<camera_t, scene_t> operator[](const std::string &key) const
+        {
+            return parameters.at(key);
+        }
+        std::variant<camera_t, scene_t>& operator[](const std::string &key)
+        {
+            return parameters[key];
+        }
+
+        std::variant<camera_t, scene_t> at(const std::string &key) const
+        {
+            return parameters.at(key);
+        }
+        std::variant<camera_t, scene_t>& at(const std::string &key)
+        {
+            return parameters.at(key);
+        }
+
+        bool contains(const std::string &key) const
+        {
+            return parameters.find(key) != parameters.end();
+        }
+    };
 
     void get_cv_intrinsic(const camera_intrin_t &intrin, cv::Mat &camera_matrix, cv::Mat &dist_coeffs);
 }
