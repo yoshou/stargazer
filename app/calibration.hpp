@@ -13,45 +13,6 @@
 #include "task_queue.hpp"
 #include "node_info.hpp"
 
-class calibration_target
-{
-public:
-    virtual std::vector<glm::vec2> detect_points(const std::vector<stargazer::point_data> &markers) = 0;
-    virtual ~calibration_target() = default;
-};
-
-template <class T, class F>
-void combination(const std::vector<T> &seed, int target_size, F callback)
-{
-    std::vector<int> indices(target_size);
-    const int seed_size = seed.size();
-    int start_index = 0;
-    int size = 0;
-
-    while (size >= 0)
-    {
-        for (int i = start_index; i < seed_size; ++i)
-        {
-            indices[size++] = i;
-            if (size == target_size)
-            {
-                std::vector<T> comb(target_size);
-                for (int x = 0; x < target_size; ++x)
-                {
-                    comb[x] = seed[indices[x]];
-                }
-                if (callback(comb))
-                    return;
-                break;
-            }
-        }
-        --size;
-        if (size < 0)
-            break;
-        start_index = indices[size] + 1;
-    }
-}
-
 struct observed_points_t
 {
     size_t camera_idx;
@@ -88,13 +49,6 @@ public:
     void stop();
 
     void calibrate();
-};
-
-enum class calibration_pattern
-{
-    CHESSBOARD,
-    CIRCLES_GRID,
-    ASYMMETRIC_CIRCLES_GRID,
 };
 
 class intrinsic_calibration
