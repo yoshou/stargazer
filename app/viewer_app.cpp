@@ -49,8 +49,7 @@ class viewer_app : public window_base
     
     calibration calib;
     intrinsic_calibration intrinsic_calib;
-
-    axis_reconstruction axis_reconstruction_;
+    std::unique_ptr<axis_calibration> axis_calib;
 
     std::unique_ptr<multiview_image_reconstruction> multiview_image_reconstruction_;
     
@@ -274,7 +273,7 @@ class viewer_app : public window_base
                     return false;
                 }
 
-                if (calibration_panel_view_->calibration_target_index == 0)
+                if (calibration_panel_view_->calibration_target_index == 0) // Extrinsic calibration
                 {
                     const auto& devices = calibration_config->get_node_infos();
 
@@ -312,7 +311,7 @@ class viewer_app : public window_base
                         }
                     }
                 }
-                else if (calibration_panel_view_->calibration_target_index == 1)
+                else if (calibration_panel_view_->calibration_target_index == 1) // Intrinsic calibration
                 {
                     const auto& device = devices[calibration_panel_view_->intrinsic_calibration_device_index];
 
@@ -348,6 +347,44 @@ class viewer_app : public window_base
 
                     const auto stream = std::make_shared<image_tile_view::stream_info>(device.name, float2{(float)width, (float)height});
                     image_tile_view_->streams.push_back(stream);
+                }
+                else if (calibration_panel_view_->calibration_target_index == 2) // Axis calibration
+                {
+                    const auto &devices = calibration_config->get_node_infos();
+
+                    if (calibration_panel_view_->is_masking)
+                    {
+                        multiview_capture.reset(new multiview_capture_pipeline(masks));
+                    }
+                    else
+                    {
+                        multiview_capture.reset(new multiview_capture_pipeline());
+                    }
+
+                    multiview_capture->add_marker_received([this](const std::map<std::string, marker_frame_data> &marker_frame)
+                                                           {
+                        std::map<std::string, std::vector<stargazer::point_data>> frame;
+                        for (const auto &[name, markers] : marker_frame)
+                        {
+                            std::vector<stargazer::point_data> points;
+                            for (const auto &marker : markers.markers)
+                            {
+                                points.push_back(stargazer::point_data{glm::vec2(marker.x, marker.y), marker.r, markers.timestamp});
+                            }
+                            frame.insert(std::make_pair(name, points));
+                        }
+                        axis_calib->push_frame(frame); });
+
+                    multiview_capture->run(devices);
+
+                    for (const auto &device : devices)
+                    {
+                        if (device.is_camera())
+                        {
+                            const auto stream = std::make_shared<image_tile_view::stream_info>(device.name, float2{(float)width, (float)height});
+                            image_tile_view_->streams.push_back(stream);
+                        }
+                    }
                 }
             }
             else
@@ -387,6 +424,24 @@ class viewer_app : public window_base
                     if (stream_it != image_tile_view_->streams.end())
                     {
                         image_tile_view_->streams.erase(stream_it);
+                    }
+                }
+                else if (calibration_panel_view_->calibration_target_index == 2)
+                {
+                    multiview_capture->stop();
+                    multiview_capture.reset();
+
+                    const auto &devices = calibration_config->get_node_infos();
+
+                    for (const auto &device : devices)
+                    {
+                        const auto stream_it = std::find_if(image_tile_view_->streams.begin(), image_tile_view_->streams.end(), [&](const auto &x)
+                                                            { return x->name == device.name; });
+
+                        if (stream_it != image_tile_view_->streams.end())
+                        {
+                            image_tile_view_->streams.erase(stream_it);
+                        }
                     }
                 }
 
@@ -520,6 +575,15 @@ class viewer_app : public window_base
                 parameters->save();
                 return true;
             }
+            else if (calibration_panel_view_->calibration_target_index == 2)
+            {
+                spdlog::info("Start calibration");
+
+                axis_calib->calibrate();
+
+                spdlog::info("End calibration");
+                return true;
+            }
         });
     }
 
@@ -650,76 +714,6 @@ class viewer_app : public window_base
                 }
             }
             return true; });
-
-        reconstruction_panel_view_->set_axis_pressed.push_back([this](const std::vector<reconstruction_panel_view::node_info> &devices)
-                                                                  {
-            namespace fs = std::filesystem;
-            {
-                spdlog::info("Start axis reconstruction");
-
-                glm::mat4 axis(1.0);
-
-                if (calib.get_calibrated_cameras().size() > 0)
-                {
-                    std::vector<std::string> names;
-                    for (const auto &device : devices)
-                    {
-                        names.push_back(device.name);
-                    }
-
-                    const auto data_dir = "../data";
-
-                    std::ifstream ifs;
-                    ifs.open((fs::path(data_dir) / "config.json").string(), std::ios::in);
-                    nlohmann::json j_config = nlohmann::json::parse(ifs);
-                    const std::string prefix = "axis";
-
-                    const auto markers_directory = fs::path(data_dir) / j_config["directory"].get<std::string>() / (prefix + "_5715_248_150_90");
-
-                    const auto directory = markers_directory;
-                    std::vector<std::uint64_t> frame_numbers;
-                    stargazer::list_frame_numbers(directory.string(), frame_numbers);
-
-                    std::size_t max_frames = frame_numbers.size();
-
-                    for (size_t frame_no = 0; frame_no < frame_numbers.size(); frame_no++)
-                    {
-                        std::string filename = (fs::path(directory) / ("marker_" + std::to_string(frame_numbers[frame_no]) + ".json")).string();
-                        if (!fs::exists(filename))
-                        {
-                            continue;
-                        }
-
-                        std::vector<std::vector<stargazer::point_data>> frame_data(names.size());
-                        read_frame(filename, names, frame_data);
-
-                        std::map<std::string, std::vector<stargazer::point_data>> points;
-                        for (size_t i = 0; i < names.size(); i++)
-                        {
-                            points.insert(std::make_pair(names[i], frame_data[i]));
-                        }
-
-                        const auto& calibrated_cameras = calib.get_calibrated_cameras();
-
-                        for (const auto &[camera_name, camera] : calibrated_cameras)
-                        {
-                            axis_reconstruction_.set_camera(camera_name, camera);
-                        }
-
-                        axis_reconstruction_.push_frame(points);
-                    }
-                }
-
-                auto& scene = std::get<stargazer::scene_t>(parameters->at("scene"));
-                scene.axis = axis_reconstruction_.get_axis();
-
-                this->epipolar_reconstruction_.set_axis(axis_reconstruction_.get_axis());
-                this->multiview_image_reconstruction_->axis = axis_reconstruction_.get_axis();
-                this->pose_view_->axis = axis_reconstruction_.get_axis();
-
-                spdlog::info("End axis reconstruction");
-            }
-            return true; });
     }
 
     void init_gui()
@@ -835,11 +829,6 @@ public:
         parameters = std::make_shared<stargazer::parameters_t>("../config/parameters.json");
         parameters->load();
 
-        {
-            const auto &scene = std::get<stargazer::scene_t>(parameters->at("scene"));
-            axis_reconstruction_.set_axis(scene.axis);
-        }
-
         init_gui();
 
         context = std::make_unique<view_context>();
@@ -862,7 +851,10 @@ public:
         epipolar_reconstruction_.run();
         multiview_image_reconstruction_->run();
 
-        epipolar_reconstruction_.set_axis(axis_reconstruction_.get_axis());
+        {
+            const auto &scene = std::get<stargazer::scene_t>(parameters->at("scene"));
+            epipolar_reconstruction_.set_axis(scene.axis);
+        }
 
         for (const auto &device : reconstruction_config->get_node_infos())
         {
@@ -873,7 +865,10 @@ public:
             }
         }
 
-        multiview_image_reconstruction_->axis = axis_reconstruction_.get_axis();
+        {
+            const auto &scene = std::get<stargazer::scene_t>(parameters->at("scene"));
+            multiview_image_reconstruction_->axis = scene.axis;
+        }
 
         for (const auto &device : reconstruction_config->get_node_infos())
         {
@@ -916,6 +911,26 @@ public:
             camera.extrin.translation = glm::vec3(1.0);
         }
 
+        axis_calib.reset(new axis_calibration(parameters));
+
+        for (const auto &device : calibration_config->get_node_infos())
+        {
+            if (device.is_camera())
+            {
+                if (parameters->contains(device.id))
+                {
+                    const auto &params = std::get<stargazer::camera_t>(parameters->at(device.id));
+                    axis_calib->set_camera(device.name, params);
+                }
+                else
+                {
+                    spdlog::error("No camera params found for device: {}", device.name);
+                }
+            }
+        }
+
+        axis_calib->run(calibration_config->get_node_infos("static_pipeline"));
+
         window_base::initialize();
     }
 
@@ -925,6 +940,7 @@ public:
 
         epipolar_reconstruction_.stop();
         calib.stop();
+        axis_calib->stop();
         multiview_image_reconstruction_->stop();
 
         window_base::finalize();
@@ -1032,6 +1048,19 @@ public:
             else if (calibration_panel_view_->calibration_target_index == 1)
             {
                 calibration_panel_view_->devices[calibration_panel_view_->intrinsic_calibration_device_index].num_points = intrinsic_calib.get_num_frames();
+            }
+            else if (calibration_panel_view_->calibration_target_index == 2)
+            {
+                for (auto &device : calibration_panel_view_->devices)
+                {
+                    const auto &node_infos = calibration_config->get_node_infos();
+                    if (const auto node_info = std::find_if(node_infos.begin(), node_infos.end(), [&](const auto &x)
+                                                            { return x.name == device.name; });
+                        node_info != node_infos.end())
+                    {
+                        device.num_points = axis_calib->get_num_frames(device.name);
+                    }
+                }
             }
         }
 
@@ -1156,8 +1185,8 @@ public:
                         };
                     }
                 }
-        
-                pose_view_->axis = axis_reconstruction_.get_axis();
+
+                pose_view_->axis = epipolar_reconstruction_.get_axis();
 
                 pose_view_->points.clear();
                 for (const auto& point : epipolar_reconstruction_.get_markers())
