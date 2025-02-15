@@ -849,6 +849,7 @@ private:
             std::vector<std::string> calibration_targets = {
                 "Extrinsic parameters",
                 "Intrinsic parameters",
+                "Scene parameters",
             };
             std::string id = "##calibration_target";
             std::vector<const char *> calibration_targets_chars = get_string_pointers(calibration_targets);
@@ -872,6 +873,9 @@ private:
             break;
         case 1:
             draw_intrinsic_calibration_control_panel(context);
+            break;
+        case 2:
+            draw_extrinsic_calibration_control_panel(context);
             break;
         default:
             break;
@@ -919,13 +923,10 @@ public:
         }
     };
     std::vector<node_info> devices;
-    bool is_reconstructing = false;
     bool is_streaming = false;
     int source = 0;
 
-    std::vector<std::function<bool(const std::vector<node_info> &, bool)>> is_reconstructing_changed;
     std::vector<std::function<bool(const std::vector<node_info> &, bool)>> is_streaming_changed;
-    std::vector<std::function<bool(const std::vector<node_info> &)>> set_axis_pressed;
 
 private:
     float draw_control_panel(view_context *context)
@@ -981,59 +982,6 @@ private:
             }
             ImGui::PopStyleColor(2);
         }
-        ImGui::SameLine();
-        std::string reconstructing_button_name = to_string() << textual_icons::edit << "##" << id;
-        auto reconstructing_button_color = is_reconstructing ? light_blue : light_grey;
-        {
-            ImGui::PushStyleColor(ImGuiCol_Text, reconstructing_button_color);
-            ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, reconstructing_button_color);
-            if (ImGui::Button(reconstructing_button_name.c_str(), device_panel_icons_size))
-            {
-                if (is_reconstructing)
-                {
-                    is_reconstructing = false;
-                    for (const auto &f : is_reconstructing_changed)
-                    {
-                        if (!f(devices, is_reconstructing))
-                        {
-                            is_reconstructing = true;
-                            break;
-                        }
-                    }
-                }
-                else
-                {
-                    is_reconstructing = true;
-                    for (const auto &f : is_reconstructing_changed)
-                    {
-                        if (!f(devices, is_reconstructing))
-                        {
-                            is_reconstructing = false;
-                            break;
-                        }
-                    }
-                }
-            }
-            ImGui::PopStyleColor(2);
-        }
-        ImGui::SameLine();
-        std::string set_axis_button_name = to_string() << textual_icons::cube << "##" << id;
-        auto set_axis_button_color = light_grey;
-        {
-            ImGui::PushStyleColor(ImGuiCol_Text, set_axis_button_color);
-            ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, set_axis_button_color);
-            if (ImGui::Button(set_axis_button_name.c_str(), device_panel_icons_size))
-            {
-                for (const auto &f : set_axis_pressed)
-                {
-                    if (!f(devices))
-                    {
-                        break;
-                    }
-                }
-            }
-            ImGui::PopStyleColor(2);
-        }
 
         {
             ImGui::SetCursorPos({panel_pos.x, ImGui::GetCursorPosY()});
@@ -1048,20 +996,6 @@ private:
             ImGui::Button(is_streaming ? "Stop" : "Start", device_panel_icons_size);
             ImGui::PopStyleColor(2);
             ImGui::PopStyleColor(3);
-        }
-        ImGui::SameLine();
-        {
-            ImGui::PushStyleColor(ImGuiCol_Text, reconstructing_button_color);
-            ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, reconstructing_button_color);
-            ImGui::Button("reconstructing", device_panel_icons_size);
-            ImGui::PopStyleColor(2);
-        }
-        ImGui::SameLine();
-        {
-            ImGui::PushStyleColor(ImGuiCol_Text, set_axis_button_color);
-            ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, set_axis_button_color);
-            ImGui::Button("set axis", device_panel_icons_size);
-            ImGui::PopStyleColor(2);
         }
 
         ImGui::PopStyleVar();

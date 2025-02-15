@@ -71,3 +71,32 @@ public:
 
     void calibrate();
 };
+
+class axis_calibration
+{
+    class impl;
+    std::unique_ptr<impl> pimpl;
+
+public:
+
+    axis_calibration(std::shared_ptr<stargazer::parameters_t> parameters);
+    virtual ~axis_calibration();
+
+    void set_camera(const std::string &name, const stargazer::camera_t &camera);
+
+    size_t get_camera_size() const;
+
+    const std::unordered_map<std::string, stargazer::camera_t> &get_cameras() const;
+
+    std::unordered_map<std::string, stargazer::camera_t> &get_cameras();
+
+    size_t get_num_frames(std::string name) const;
+    const std::vector<observed_points_t> get_observed_points(std::string name) const;
+
+    void push_frame(const std::map<std::string, std::vector<stargazer::point_data>> &frame);
+
+    void run(const std::vector<node_info> &infos);
+    void stop();
+
+    void calibrate();
+};
