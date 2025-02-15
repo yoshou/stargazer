@@ -1182,7 +1182,7 @@ public:
             {
                 points.emplace_back(pt.x, pt.y);
             }
-            observed_frames.add_frame_points(points_msg->get_timestamp(), input_name, points);
+            observed_frames.add_frame_points(points_msg->get_frame_number(), input_name, points);
         }
     }
 };
