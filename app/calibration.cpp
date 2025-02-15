@@ -720,6 +720,20 @@ public:
         return observed_points;
     }
 
+    const observed_points_t get_observed_point(std::string name, size_t frame) const
+    {
+        observed_points_t observed_point;
+        if (observed_frames.find(name) == observed_frames.end())
+        {
+            return observed_point;
+        }
+        {
+            std::lock_guard<std::mutex> lock(frames_mtx);
+            observed_point = observed_frames.at(name).at(frame);
+        }
+        return observed_point;
+    }
+
     size_t get_num_frames() const
     {
         return timestamp_to_index.size();
@@ -993,7 +1007,7 @@ public:
                 std::vector<size_t> camera_idxs;
                 for (const auto &camera_name : camera_names)
                 {
-                    const auto &point = observed_frames.get_observed_points(camera_name).at(f);
+                    const auto point = observed_frames.get_observed_point(camera_name, f);
                     if (point.points.size() == 0)
                     {
                         continue;
@@ -2168,14 +2182,10 @@ public:
                 for (const auto &camera_name : camera_names)
                 {
                     std::vector<stargazer::point_data> point_data;
-                    const auto points = observed_frames.get_observed_points(camera_name);
-                    if (f < points.size())
-                    {
-                        const auto &point = points.at(f);
+                    const auto point = observed_frames.get_observed_point(camera_name, f);
                         for (const auto &pt : point.points)
                         {
                             point_data.push_back(stargazer::point_data{pt, 0, 0});
-                        }
                     }
                     frame[camera_name] = point_data;
                 }
