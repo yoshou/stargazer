@@ -1,6 +1,6 @@
 {
   "pipelines": {
-    "playback_ir": {
+    "playback_ir_calibrate": {
       "nodes": [
         {
           "name": "camera1",
@@ -195,6 +195,210 @@
         {
           "name": "camera20",
           "db_path": "../data/data_20221004_1/calibrate.db",
+          "id": "000000000020",
+          "params": {
+            "height": 616.0,
+            "width": 820.0
+          },
+          "type": "raspi_playback"
+        }
+      ]
+    },
+    "playback_ir_axis": {
+      "nodes": [
+        {
+          "name": "camera1",
+          "db_path": "../data/data_20221004_1/axis.db",
+          "id": "000000000001",
+          "params": {
+            "height": 616.0,
+            "width": 820.0
+          },
+          "type": "raspi_playback"
+        },
+        {
+          "name": "camera2",
+          "db_path": "../data/data_20221004_1/axis.db",
+          "id": "000000000002",
+          "params": {
+            "height": 616.0,
+            "width": 820.0
+          },
+          "type": "raspi_playback"
+        },
+        {
+          "name": "camera3",
+          "db_path": "../data/data_20221004_1/axis.db",
+          "id": "000000000003",
+          "params": {
+            "height": 616.0,
+            "width": 820.0
+          },
+          "type": "raspi_playback"
+        },
+        {
+          "name": "camera4",
+          "db_path": "../data/data_20221004_1/axis.db",
+          "id": "000000000004",
+          "params": {
+            "height": 616.0,
+            "width": 820.0
+          },
+          "type": "raspi_playback"
+        },
+        {
+          "name": "camera5",
+          "db_path": "../data/data_20221004_1/axis.db",
+          "id": "000000000005",
+          "params": {
+            "height": 616.0,
+            "width": 820.0
+          },
+          "type": "raspi_playback"
+        },
+        {
+          "name": "camera6",
+          "db_path": "../data/data_20221004_1/axis.db",
+          "id": "000000000006",
+          "params": {
+            "height": 616.0,
+            "width": 820.0
+          },
+          "type": "raspi_playback"
+        },
+        {
+          "name": "camera7",
+          "db_path": "../data/data_20221004_1/axis.db",
+          "id": "000000000007",
+          "params": {
+            "height": 616.0,
+            "width": 820.0
+          },
+          "type": "raspi_playback"
+        },
+        {
+          "name": "camera8",
+          "db_path": "../data/data_20221004_1/axis.db",
+          "id": "000000000008",
+          "params": {
+            "height": 616.0,
+            "width": 820.0
+          },
+          "type": "raspi_playback"
+        },
+        {
+          "name": "camera9",
+          "db_path": "../data/data_20221004_1/axis.db",
+          "id": "000000000009",
+          "params": {
+            "height": 616.0,
+            "width": 820.0
+          },
+          "type": "raspi_playback"
+        },
+        {
+          "name": "camera10",
+          "db_path": "../data/data_20221004_1/axis.db",
+          "id": "000000000010",
+          "params": {
+            "height": 616.0,
+            "width": 820.0
+          },
+          "type": "raspi_playback"
+        },
+        {
+          "name": "camera11",
+          "db_path": "../data/data_20221004_1/axis.db",
+          "id": "000000000011",
+          "params": {
+            "height": 616.0,
+            "width": 820.0
+          },
+          "type": "raspi_playback"
+        },
+        {
+          "name": "camera12",
+          "db_path": "../data/data_20221004_1/axis.db",
+          "id": "000000000012",
+          "params": {
+            "height": 616.0,
+            "width": 820.0
+          },
+          "type": "raspi_playback"
+        },
+        {
+          "name": "camera13",
+          "db_path": "../data/data_20221004_1/axis.db",
+          "id": "000000000013",
+          "params": {
+            "height": 616.0,
+            "width": 820.0
+          },
+          "type": "raspi_playback"
+        },
+        {
+          "name": "camera14",
+          "db_path": "../data/data_20221004_1/axis.db",
+          "id": "000000000014",
+          "params": {
+            "height": 616.0,
+            "width": 820.0
+          },
+          "type": "raspi_playback"
+        },
+        {
+          "name": "camera15",
+          "db_path": "../data/data_20221004_1/axis.db",
+          "id": "000000000015",
+          "params": {
+            "height": 616.0,
+            "width": 820.0
+          },
+          "type": "raspi_playback"
+        },
+        {
+          "name": "camera16",
+          "db_path": "../data/data_20221004_1/axis.db",
+          "id": "000000000016",
+          "params": {
+            "height": 616.0,
+            "width": 820.0
+          },
+          "type": "raspi_playback"
+        },
+        {
+          "name": "camera17",
+          "db_path": "../data/data_20221004_1/axis.db",
+          "id": "000000000017",
+          "params": {
+            "height": 616.0,
+            "width": 820.0
+          },
+          "type": "raspi_playback"
+        },
+        {
+          "name": "camera18",
+          "db_path": "../data/data_20221004_1/axis.db",
+          "id": "000000000018",
+          "params": {
+            "height": 616.0,
+            "width": 820.0
+          },
+          "type": "raspi_playback"
+        },
+        {
+          "name": "camera19",
+          "db_path": "../data/data_20221004_1/axis.db",
+          "id": "000000000019",
+          "params": {
+            "height": 616.0,
+            "width": 820.0
+          },
+          "type": "raspi_playback"
+        },
+        {
+          "name": "camera20",
+          "db_path": "../data/data_20221004_1/axis.db",
           "id": "000000000020",
           "params": {
             "height": 616.0,
@@ -449,6 +653,6 @@
       ]
     }
   },
-  "pipeline": "playback_ir",
+  "pipeline": "playback_ir_calibrate",
   "static_pipeline": "calibration_ir"
 }
