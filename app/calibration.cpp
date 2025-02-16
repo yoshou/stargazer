@@ -452,7 +452,12 @@ static glm::mat4 estimate_pose(const std::vector<std::tuple<glm::vec2, glm::vec2
     }
 
     cv::Mat r, t;
-    cv::solvePnP(point3d, norm_points3, cv::Mat::eye(3, 3, CV_64F), cv::Mat::zeros(1, 5, CV_64F), r, t);
+    constexpr auto use_extrinsic_guess = false;
+    constexpr auto iterations_count = 100;
+    constexpr auto reprojection_error = 4.0;
+    constexpr auto confidence = 0.99;
+    std::vector<int> inliers;
+    cv::solvePnPRansac(point3d, points3, camera_matrix3, coeffs3, r, t, use_extrinsic_guess, iterations_count, reprojection_error, confidence, inliers);
 
     cv::Mat R;
     cv::Rodrigues(r, R);
@@ -463,13 +468,15 @@ static glm::mat4 estimate_pose(const std::vector<std::tuple<glm::vec2, glm::vec2
         cv::projectPoints(point3d, r, t, camera_matrix3, coeffs3, proj_points3);
 
         double error3 = 0.0;
-        for (size_t i = 0; i < point3d.size(); i++)
+        for (int i : inliers)
         {
             error3 += cv::norm(points3[i] - proj_points3[i]);
         }
 
-        error3 /= point3d.size();
+        error3 /= inliers.size();
 
+        spdlog::info("num matches: {}", point3d.size());
+        spdlog::info("num inliers: {}", inliers.size());
         spdlog::info("reprojection error3: {}", error3);
     }
 
@@ -943,6 +950,8 @@ public:
                     continue;
                 }
 
+                spdlog::info("Estimate camera pose: {}", camera_name);
+
                 const auto pose = estimate_pose(corresponding_points, cameras.at(base_camera_name1), cameras.at(base_camera_name2), cameras.at(camera_name));
                 cameras[camera_name].extrin.rotation = glm::mat3(pose);
                 cameras[camera_name].extrin.translation = glm::vec3(pose[3]);
@@ -993,6 +1002,8 @@ public:
         }
 
         {
+            constexpr auto reproj_error_threshold = 2.0;
+
             std::vector<stargazer::camera_t> camera_list;
             std::map<std::string, size_t> camera_name_to_index;
             for (size_t i = 0; i < camera_names.size(); i++)
@@ -1063,6 +1074,13 @@ public:
                     for (size_t j = 0; j < pts[i].size(); j++)
                     {
                         const auto &pt = pts[i][j];
+                        const auto proj_pt = project(camera_list[camera_idxs[i]], point3ds[j]);
+
+                        if (glm::distance(pt, proj_pt) > reproj_error_threshold)
+                        {
+                            continue;
+                        }
+
                         std::array<double, 2> observation;
                         for (size_t k = 0; k < 2; k++)
                         {
@@ -2183,9 +2201,9 @@ public:
                 {
                     std::vector<stargazer::point_data> point_data;
                     const auto point = observed_frames.get_observed_point(camera_name, f);
-                        for (const auto &pt : point.points)
-                        {
-                            point_data.push_back(stargazer::point_data{pt, 0, 0});
+                    for (const auto &pt : point.points)
+                    {
+                        point_data.push_back(stargazer::point_data{pt, 0, 0});
                     }
                     frame[camera_name] = point_data;
                 }
