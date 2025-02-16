@@ -1116,17 +1116,22 @@ public:
             }
             else if (top_bar_view_->view_type == top_bar_view::ViewType::Contrail)
             {
-                for (const auto &device : calibration_panel_view_->devices)
+                for (const auto& node : calibration_config->get_node_infos())
                 {
+                    if (!node.is_camera())
+                    {
+                        continue;
+                    }
+
                     std::shared_ptr<image_tile_view::stream_info> stream;
-                    const int width = static_cast<int>(std::round(std::get<float>(device.params.at("width"))));
-                    const int height = static_cast<int>(std::round(std::get<float>(device.params.at("height"))));
+                    const int width = static_cast<int>(std::round(std::get<float>(node.params.at("width"))));
+                    const int height = static_cast<int>(std::round(std::get<float>(node.params.at("height"))));
 
                     const auto found = std::find_if(contrail_tile_view_->streams.begin(), contrail_tile_view_->streams.end(), [&](const auto &x)
-                                                    { return x->name == device.name; });
+                                                    { return x->name == node.name; });
                     if (found == contrail_tile_view_->streams.end())
                     {
-                        stream = std::make_shared<image_tile_view::stream_info>(device.name, float2{(float)width, (float)height});
+                        stream = std::make_shared<image_tile_view::stream_info>(node.name, float2{(float)width, (float)height});
                         contrail_tile_view_->streams.push_back(stream);
                     }
                     else
@@ -1134,7 +1139,7 @@ public:
                         stream = *found;
                     }
 
-                    const auto observed_points = calib.get_observed_points(device.name);
+                    const auto observed_points = calib.get_observed_points(node.name);
                     cv::Mat cloud_image(height, width, CV_8UC3, cv::Scalar::all(0));
 
                     for (const auto &observed_point : observed_points)
