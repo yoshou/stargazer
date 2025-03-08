@@ -15,6 +15,25 @@
 #include <opencv2/imgcodecs/imgcodecs.hpp>
 #include <opencv2/calib3d/calib3d.hpp>
 
+#include <NvInfer.h>
+#include <dlfcn.h>
+
+class Logger : public nvinfer1::ILogger
+{
+public:
+    void log(ILogger::Severity severity, const char *msg) noexcept override
+    {
+        if (severity == nvinfer1::ILogger::Severity::kINFO)
+        {
+            spdlog::info(msg);
+        }
+        else if (severity == nvinfer1::ILogger::Severity::kERROR)
+        {
+            spdlog::error(msg);
+        }
+    }
+};
+
 #define CUDA_SAFE_CALL(func)                                                                                                  \
     do                                                                                                                        \
     {                                                                                                                         \
@@ -250,7 +269,7 @@ namespace stargazer_mvpose
 
         static const auto num_joints = 133;
 
-        dnn_inference_pose(const std::vector<uint8_t> &model_data, size_t max_batch_size, std::string cache_dir)
+        dnn_inference_pose(const std::vector<uint8_t> &model_data, size_t max_batch_size)
             : session(nullptr), io_binding(nullptr)
         {
             namespace fs = std::filesystem;
@@ -261,32 +280,6 @@ namespace stargazer_mvpose
             Ort::SessionOptions session_options;
             session_options.SetIntraOpNumThreads(4);
             session_options.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_EXTENDED);
-
-#if 0
-            try
-            {
-                fs::create_directory(fs::path(cache_dir));
-
-                OrtTensorRTProviderOptions trt_options{};
-
-                trt_options.device_id = 0;
-                trt_options.trt_max_workspace_size = 2147483648;
-                trt_options.trt_max_partition_iterations = 1000;
-                trt_options.trt_min_subgraph_size = 1;
-                trt_options.trt_fp16_enable = 1;
-                trt_options.trt_int8_enable = 0;
-                trt_options.trt_int8_use_native_calibration_table = 0;
-                trt_options.trt_engine_cache_enable = 1;
-                trt_options.trt_engine_cache_path = cache_dir.c_str();
-                trt_options.trt_dump_subgraphs = 1;
-
-                session_options.AppendExecutionProvider_TensorRT(trt_options);
-            }
-            catch (const Ort::Exception &e)
-            {
-                spdlog::info(e.what());
-            }
-#endif
 
             try
             {
@@ -508,6 +501,234 @@ namespace stargazer_mvpose
         }
     };
 
+    class dnn_inference_pose_trt
+    {
+        std::vector<uint8_t> model_data;
+
+        void *plugin_handler;
+        Logger logger;
+        nvinfer1::IRuntime *infer;
+        nvinfer1::ICudaEngine *engine;
+        nvinfer1::IExecutionContext *context;
+
+        cudaStream_t stream;
+
+        float *input_data = nullptr;
+        float *simcc_x_data = nullptr;
+        float *simcc_y_data = nullptr;
+
+        uint8_t *input_image_data = nullptr;
+
+    public:
+        static const int max_input_image_width = 1920;
+        static const int max_input_image_height = 1080;
+
+        static const int image_width = 288;
+        static const int image_height = 384;
+
+        static const auto num_joints = 133;
+
+        size_t max_batch_size = 4;
+        size_t max_num_people;
+
+        dnn_inference_pose_trt(const std::vector<uint8_t> &model_data, size_t max_num_people)
+            : max_num_people(max_num_people)
+        {
+            plugin_handler = dlopen("libmmdeploy_tensorrt_ops.so", RTLD_NOW);
+            if (!plugin_handler)
+            {
+                throw std::runtime_error(dlerror());
+            }
+
+            infer = nvinfer1::createInferRuntime(logger);
+            engine = infer->deserializeCudaEngine(model_data.data(), model_data.size());
+            context = engine->createExecutionContext();
+
+            const auto &&image_size = cv::Size(image_width, image_height);
+
+            const auto input_size = image_size.width * image_size.height * 3 * max_num_people;
+            CUDA_SAFE_CALL(cudaMalloc(&input_data, input_size * sizeof(float)));
+
+            const auto simcc_x_size = image_size.width * 2 * num_joints * max_num_people;
+            CUDA_SAFE_CALL(cudaMalloc(&simcc_x_data, simcc_x_size * sizeof(float)));
+
+            const auto simcc_y_size = image_size.height * 2 * num_joints * max_num_people;
+            CUDA_SAFE_CALL(cudaMalloc(&simcc_y_data, simcc_y_size * sizeof(float)));
+
+            CUDA_SAFE_CALL(cudaMalloc(&input_image_data, max_input_image_width * max_input_image_height * 3 * max_num_people));
+
+            CUDA_SAFE_CALL(cudaStreamCreate(&stream));
+        }
+
+        ~dnn_inference_pose_trt()
+        {
+            delete context;
+            delete engine;
+            delete infer;
+
+            dlclose(plugin_handler);
+
+            CUDA_SAFE_CALL(cudaStreamDestroy(stream));
+
+            CUDA_SAFE_CALL(cudaFree(input_data));
+            CUDA_SAFE_CALL(cudaFree(input_image_data));
+            CUDA_SAFE_CALL(cudaFree(simcc_x_data));
+            CUDA_SAFE_CALL(cudaFree(simcc_y_data));
+        }
+
+        void process(const std::vector<cv::Mat> &images, const std::vector<std::vector<cv::Rect2f>> &rects, std::vector<std::vector<roi_data>> &rois)
+        {
+            const auto &&image_size = cv::Size(image_width, image_height);
+
+            rois.resize(images.size());
+
+            size_t k = 0;
+
+            for (size_t i = 0; i < images.size(); i++)
+            {
+                if (k >= max_num_people)
+                {
+                    spdlog::error("Batch size is too large");
+                    break;
+                }
+
+                const auto &data = images.at(i);
+
+                rois.at(i).resize(rects.at(i).size());
+
+                const auto input_image_width = data.size().width;
+                const auto input_image_height = data.size().height;
+
+                assert(input_image_width <= max_input_image_width);
+                assert(input_image_height <= max_input_image_height);
+
+                CUDA_SAFE_CALL(cudaMemcpy2D(input_image_data + i * input_image_width * 3 * input_image_height, input_image_width * 3, data.data, data.step, data.cols * 3, data.rows, cudaMemcpyHostToDevice));
+
+                for (size_t j = 0; j < rects.at(i).size(); j++, k++)
+                {
+                    if (k >= max_num_people)
+                    {
+                        spdlog::error("Batch size is too large");
+                        break;
+                    }
+                    const auto &rect = rects.at(i).at(j);
+
+                    const auto get_scale = [](const cv::Size2f &image_size, const cv::Size2f &resized_size)
+                    {
+                        float w_pad, h_pad;
+                        if (image_size.width / resized_size.width < image_size.height / resized_size.height)
+                        {
+                            w_pad = image_size.height / resized_size.height * resized_size.width;
+                            h_pad = image_size.height;
+                        }
+                        else
+                        {
+                            w_pad = image_size.width;
+                            h_pad = image_size.width / resized_size.width * resized_size.height;
+                        }
+
+                        return cv::Size2f(w_pad * 1.2 / 200.0, h_pad * 1.2 / 200.0);
+                    };
+
+                    const auto scale = get_scale(rect.size(), image_size);
+                    const auto center = cv::Point2f(rect.x + rect.size().width / 2.0, rect.y + rect.size().height / 2.0);
+                    const auto rotation = 0.0;
+
+                    const roi_data roi = {{scale.width, scale.height}, rotation, {center.x, center.y}};
+                    rois.at(i).at(j) = roi;
+
+                    const auto trans = get_transform(center, scale, image_size);
+
+                    const std::array<float, 3> mean = {0.485, 0.456, 0.406};
+                    const std::array<float, 3> std = {0.229, 0.224, 0.225};
+
+                    preprocess_cuda(input_image_data + i * input_image_width * 3 * input_image_height, input_image_width, input_image_height, input_image_width * 3, input_data + k * image_width * image_height * 3, image_size.width, image_size.height, image_size.width, trans, mean, std);
+                }
+            }
+
+            CUDA_SAFE_CALL(cudaDeviceSynchronize());
+
+            inference(k);
+        }
+
+        void inference(size_t num_batch)
+        {
+            for (size_t k = 0; k < num_batch; k += max_batch_size)
+            {
+                const auto num_input_outputs = engine->getNbIOTensors();
+                for (int i = 0; i < num_input_outputs; i++)
+                {
+                    const auto name = engine->getIOTensorName(i);
+                    const auto tensor = engine->getTensorShape(name);
+
+                    if (engine->getTensorIOMode(name) == nvinfer1::TensorIOMode::kINPUT)
+                    {
+                        nvinfer1::Dims4 input_dims = {tensor.d[0], tensor.d[1], tensor.d[2], tensor.d[3]};
+
+                        if (std::string(name) == "input")
+                        {
+                            input_dims.d[0] = std::min(num_batch - k, max_batch_size);
+                            input_dims.d[2] = image_height;
+                            input_dims.d[3] = image_width;
+                        }
+
+                        context->setInputShape(name, input_dims);
+                    }
+                }
+
+                if (context->inferShapes(0, nullptr) != 0)
+                {
+                    spdlog::error("Failed to infer shapes");
+                }
+
+                if (!context->allInputDimensionsSpecified())
+                {
+                    spdlog::error("Failed to specify all input dimensions");
+                }
+
+                std::unordered_map<std::string, void *> buffers;
+                buffers["input"] = input_data + k * image_width * image_height * 3;
+                buffers["simcc_x"] = simcc_x_data + k * image_width * 2 * num_joints;
+                buffers["simcc_y"] = simcc_y_data + k * image_height * 2 * num_joints;
+
+                for (const auto &[name, buffer] : buffers)
+                {
+                    if (!context->setTensorAddress(name.c_str(), buffer))
+                    {
+                        spdlog::error("Failed to set tensor address");
+                    }
+                }
+
+                if (!context->enqueueV3(stream))
+                {
+                    spdlog::error("Failed to enqueue");
+                }
+            }
+
+            CUDA_SAFE_CALL(cudaStreamSynchronize(stream));
+        }
+
+        void copy_simcc_x_to_cpu(float *simcc_x, size_t i) const
+        {
+            if (i >= max_num_people)
+            {
+                spdlog::error("Batch size is too large");
+                return;
+            }
+            CUDA_SAFE_CALL(cudaMemcpy(simcc_x, simcc_x_data + i * image_width * 2 * num_joints, image_width * 2 * num_joints * sizeof(float), cudaMemcpyDeviceToHost));
+        }
+
+        void copy_simcc_y_to_cpu(float *simcc_y, size_t i) const
+        {
+            if (i >= max_num_people)
+            {
+                spdlog::error("Batch size is too large");
+                return;
+            }
+            CUDA_SAFE_CALL(cudaMemcpy(simcc_y, simcc_y_data + i * image_height * 2 * num_joints, image_height * 2 * num_joints * sizeof(float), cudaMemcpyDeviceToHost));
+        }
+    };
+
     class dnn_inference_det
     {
         std::vector<uint8_t> model_data;
@@ -536,9 +757,9 @@ namespace stargazer_mvpose
         static const int image_width = 640;
         static const int image_height = 640;
 
-        static constexpr auto num_people = 14;
+        static constexpr auto num_people = 100;
 
-        dnn_inference_det(const std::vector<uint8_t> &model_data, std::string cache_dir)
+        dnn_inference_det(const std::vector<uint8_t> &model_data)
             : session(nullptr), io_binding(nullptr)
         {
             namespace fs = std::filesystem;
@@ -549,32 +770,6 @@ namespace stargazer_mvpose
             Ort::SessionOptions session_options;
             session_options.SetIntraOpNumThreads(4);
             session_options.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_EXTENDED);
-
-#if 0
-            try
-            {
-                fs::create_directory(fs::path(cache_dir));
-
-                OrtTensorRTProviderOptions trt_options{};
-
-                trt_options.device_id = 0;
-                trt_options.trt_max_workspace_size = 2147483648;
-                trt_options.trt_max_partition_iterations = 1000;
-                trt_options.trt_min_subgraph_size = 1;
-                trt_options.trt_fp16_enable = 1;
-                trt_options.trt_int8_enable = 0;
-                trt_options.trt_int8_use_native_calibration_table = 0;
-                trt_options.trt_engine_cache_enable = 1;
-                trt_options.trt_engine_cache_path = cache_dir.c_str();
-                trt_options.trt_dump_subgraphs = 1;
-
-                session_options.AppendExecutionProvider_TensorRT(trt_options);
-            }
-            catch (const Ort::Exception &e)
-            {
-                spdlog::info(e.what());
-            }
-#endif
 
             try
             {
@@ -779,6 +974,193 @@ namespace stargazer_mvpose
         const float *get_dets() const
         {
             return dets_data;
+        }
+    };
+
+    class dnn_inference_det_trt
+    {
+        std::vector<uint8_t> model_data;
+
+        void* plugin_handler;
+        Logger logger;
+        nvinfer1::IRuntime *infer;
+        nvinfer1::ICudaEngine* engine;
+        nvinfer1::IExecutionContext *context;
+
+        cudaStream_t stream;
+
+        float *input_data = nullptr;
+        float *dets_data = nullptr;
+        int64_t *labels_data = nullptr;
+
+        uint8_t *input_image_data = nullptr;
+
+    public:
+        static const int max_input_image_width = 1920;
+        static const int max_input_image_height = 1080;
+
+        static const int image_width = 640;
+        static const int image_height = 640;
+
+        static constexpr auto num_people = 100;
+
+        dnn_inference_det_trt(const std::vector<uint8_t> &model_data, size_t max_views)
+        {
+            plugin_handler = dlopen("libmmdeploy_tensorrt_ops.so", RTLD_NOW);
+            if (!plugin_handler)
+            {
+                throw std::runtime_error(dlerror());
+            }
+
+            infer = nvinfer1::createInferRuntime(logger);
+            engine = infer->deserializeCudaEngine(model_data.data(), model_data.size());
+            context = engine->createExecutionContext();
+
+            const auto &&image_size = cv::Size(image_width, image_height);
+
+            const auto input_size = image_size.width * image_size.height * 3 * max_views;
+            CUDA_SAFE_CALL(cudaMalloc(&input_data, input_size * sizeof(float)));
+
+            const auto dets_size = num_people * 5 * max_views;
+            CUDA_SAFE_CALL(cudaMalloc(&dets_data, dets_size * sizeof(float)));
+
+            const auto labels_size = num_people * max_views;
+            CUDA_SAFE_CALL(cudaMalloc(&labels_data, labels_size * sizeof(int64_t)));
+
+            CUDA_SAFE_CALL(cudaMalloc(&input_image_data, max_input_image_width * max_input_image_height * 3 * max_views));
+
+            std::unordered_map<std::string, void*> buffers;
+            buffers["input"] = input_data;
+            buffers["dets"] = dets_data;
+            buffers["labels"] = labels_data;
+            
+            for (const auto& [name, buffer] : buffers)
+            {
+                if (!context->setTensorAddress(name.c_str(), buffer))
+                {
+                    spdlog::error("Failed to set tensor address");
+                }
+            }
+
+            CUDA_SAFE_CALL(cudaStreamCreate(&stream));
+        }
+
+        ~dnn_inference_det_trt()
+        {
+            delete context;
+            delete engine;
+            delete infer;
+
+            dlclose(plugin_handler);
+
+            CUDA_SAFE_CALL(cudaStreamDestroy(stream));
+
+            CUDA_SAFE_CALL(cudaFree(input_data));
+            CUDA_SAFE_CALL(cudaFree(input_image_data));
+            CUDA_SAFE_CALL(cudaFree(dets_data));
+            CUDA_SAFE_CALL(cudaFree(labels_data));
+        }
+
+        void process(const std::vector<cv::Mat> &images, std::vector<roi_data> &rois)
+        {
+            const auto &&image_size = cv::Size(image_width, image_height);
+
+            for (size_t i = 0; i < images.size(); i++)
+            {
+                const auto &data = images.at(i);
+
+                const auto get_scale = [](const cv::Size2f &image_size, const cv::Size2f &resized_size)
+                {
+                    float w_pad, h_pad;
+                    if (image_size.width / resized_size.width < image_size.height / resized_size.height)
+                    {
+                        w_pad = image_size.height / resized_size.height * resized_size.width;
+                        h_pad = image_size.height;
+                    }
+                    else
+                    {
+                        w_pad = image_size.width;
+                        h_pad = image_size.width / resized_size.width * resized_size.height;
+                    }
+
+                    return cv::Size2f(w_pad / 200.0, h_pad / 200.0);
+                };
+
+                const auto input_image_width = data.size().width;
+                const auto input_image_height = data.size().height;
+
+                assert(input_image_width <= max_input_image_width);
+                assert(input_image_height <= max_input_image_height);
+
+                const auto scale = get_scale(data.size(), image_size);
+                const auto center = cv::Point2f(data.size().width / 2.0, data.size().height / 2.0);
+                const auto rotation = 0.0;
+
+                const roi_data roi = {{scale.width, scale.height}, rotation, {center.x, center.y}};
+                rois.push_back(roi);
+
+                const std::array<float, 3> mean = {0.485, 0.456, 0.406};
+                const std::array<float, 3> std = {0.229, 0.224, 0.225};
+
+                CUDA_SAFE_CALL(cudaMemcpy2D(input_image_data + i * input_image_width * 3 * input_image_height, input_image_width * 3, data.data, data.step, data.cols * 3, data.rows, cudaMemcpyHostToDevice));
+
+                preprocess_cuda(input_image_data + i * input_image_width * 3 * input_image_height, input_image_width, input_image_height, input_image_width * 3, input_data + i * image_width * image_height * 3, image_width, image_height, image_width, mean, std);
+            }
+
+            CUDA_SAFE_CALL(cudaDeviceSynchronize());
+
+            inference(images.size());
+        }
+
+        void inference(size_t num_views)
+        {
+            const auto num_input_outputs = engine->getNbIOTensors();
+            for (int i = 0; i < num_input_outputs; i++)
+            {
+                const auto name = engine->getIOTensorName(i);
+                const auto tensor = engine->getTensorShape(name);
+
+                if (engine->getTensorIOMode(name) == nvinfer1::TensorIOMode::kINPUT)
+                {
+                    nvinfer1::Dims4 input_dims = {tensor.d[0], tensor.d[1], tensor.d[2], tensor.d[3]};
+
+                    if (std::string(name) == "input")
+                    {
+                        input_dims.d[0] = num_views;
+                        input_dims.d[2] = image_height;
+                        input_dims.d[3] = image_width;
+                    }
+
+                    context->setInputShape(name, input_dims);
+                }
+            }
+
+            if (context->inferShapes(0, nullptr) != 0)
+            {
+                spdlog::error("Failed to infer shapes");
+            }
+
+            if (!context->allInputDimensionsSpecified())
+            {
+                spdlog::error("Failed to specify all input dimensions");
+            }
+
+            if (!context->enqueueV3(stream))
+            {
+                spdlog::error("Failed to enqueue");
+            }
+
+            CUDA_SAFE_CALL(cudaStreamSynchronize(stream));
+        }
+
+        void copy_labels_to_cpu(int64_t *labels, size_t i) const
+        {
+            CUDA_SAFE_CALL(cudaMemcpy(labels, labels_data + num_people * i, num_people * sizeof(int64_t), cudaMemcpyDeviceToHost));
+        }
+
+        void copy_dets_to_cpu(float *dets, size_t i) const
+        {
+            CUDA_SAFE_CALL(cudaMemcpy(dets, dets_data + 5 * num_people * i, 5 * num_people * sizeof(float), cudaMemcpyDeviceToHost));
         }
     };
 }
@@ -1411,67 +1793,75 @@ namespace stargazer_mvpose
     std::vector<glm::vec3> mvpose::inference(const std::vector<cv::Mat> &images_list, const std::vector<camera_data> &cameras_list)
     {
         std::vector<std::vector<cv::Rect2f>> rects(images_list.size());
-        for (size_t i = 0; i < images_list.size(); i++)
-        {  
-            roi_data roi;
-            inference_det->process(images_list.at(i), roi);
 
-            const auto num_people = dnn_inference_det::num_people;
+        {
+            std::vector<roi_data> rois;
+            inference_det->process(images_list, rois);
 
-            std::vector<float> dets(5 * num_people);
-            std::vector<int64_t> labels(num_people);
+            for (size_t i = 0; i < images_list.size(); i++)
+            {  
+                const auto roi = rois.at(i);
+                const auto num_people = dnn_inference_det::num_people;
 
-            inference_det->copy_dets_to_cpu(dets.data());
-            inference_det->copy_labels_to_cpu(labels.data());
+                std::vector<float> dets(5 * num_people);
+                std::vector<int64_t> labels(num_people);
 
-            const auto &&resized_size = cv::Size(640, 640);
-            const auto trans = get_transform(cv::Point2f(roi.center[0], roi.center[1]), cv::Size2f(roi.scale[0], roi.scale[1]), resized_size);
+                inference_det->copy_dets_to_cpu(dets.data(), i);
+                inference_det->copy_labels_to_cpu(labels.data(), i);
 
-            cv::Mat inv_trans;
-            cv::invertAffineTransform(trans, inv_trans);
+                const auto &&resized_size = cv::Size(640, 640);
+                const auto trans = get_transform(cv::Point2f(roi.center[0], roi.center[1]), cv::Size2f(roi.scale[0], roi.scale[1]), resized_size);
 
-            for (size_t j = 0; j < num_people; j++)
-            {
-                if (labels[j] == 0)
+                cv::Mat inv_trans;
+                cv::invertAffineTransform(trans, inv_trans);
+
+                for (size_t j = 0; j < num_people; j++)
                 {
-                    const auto score = dets[j * 5 + 4];
-                    if (score > 0.3f)
+                    if (labels[j] == 0)
                     {
-                        const auto bbox_left = dets[j * 5];
-                        const auto bbox_top = dets[j * 5 + 1];
-                        const auto bbox_right = dets[j * 5 + 2];
-                        const auto bbox_bottom = dets[j * 5 + 3];
+                        const auto score = dets[j * 5 + 4];
+                        if (score > 0.3f)
+                        {
+                            const auto bbox_left = dets[j * 5];
+                            const auto bbox_top = dets[j * 5 + 1];
+                            const auto bbox_right = dets[j * 5 + 2];
+                            const auto bbox_bottom = dets[j * 5 + 3];
 
-                        const auto bbox_left_top = inv_trans * cv::Point2f(bbox_left, bbox_top);
-                        const auto bbox_right_bottom = inv_trans * cv::Point2f(bbox_right, bbox_bottom);
+                            const auto bbox_left_top = inv_trans * cv::Point2f(bbox_left, bbox_top);
+                            const auto bbox_right_bottom = inv_trans * cv::Point2f(bbox_right, bbox_bottom);
 
 #if 0
-                        cv::Mat trans = cv::Mat::zeros(2, 3, CV_64FC1);
-                        trans.at<double>(0, 0) = 1;
-                        trans.at<double>(1, 1) = 1;
-                        trans.at<double>(0, 2) = -bbox_left_top.x;
-                        trans.at<double>(1, 2) = -bbox_left_top.y;
+                            cv::Mat trans = cv::Mat::zeros(2, 3, CV_64FC1);
+                            trans.at<double>(0, 0) = 1;
+                            trans.at<double>(1, 1) = 1;
+                            trans.at<double>(0, 2) = -bbox_left_top.x;
+                            trans.at<double>(1, 2) = -bbox_left_top.y;
 
-                        cv::Mat image_part;
-                        cv::warpAffine(images_list.at(i), image_part, trans, cv::Rect(bbox_left_top, bbox_right_bottom).size(), cv::INTER_LINEAR);
+                            cv::Mat image_part;
+                            cv::warpAffine(images_list.at(i), image_part, trans, cv::Rect(bbox_left_top, bbox_right_bottom).size(), cv::INTER_LINEAR);
 
-                        static int count = 0;
-                        cv::imwrite("image_" + std::to_string(count++) + ".jpg", image_part);
+                            static int count = 0;
+                            cv::imwrite("image_" + std::to_string(count++) + ".jpg", image_part);
 #endif
 
-                        rects[i].push_back(cv::Rect2f(bbox_left_top, bbox_right_bottom));
+                            rects[i].push_back(cv::Rect2f(bbox_left_top, bbox_right_bottom));
+                        }
                     }
                 }
             }
         }
 
+        std::vector<std::vector<roi_data>> rois;
+        inference_pose->process(images_list, rects, rois);
+
+        size_t k = 0;
+
         std::vector<std::vector<pose_joints_t>> pose_joints_list(images_list.size());
         for (size_t i = 0; i < images_list.size(); i++)
         {
-            for (size_t j = 0; j < rects[i].size(); j++)
+            for (size_t j = 0; j < rects[i].size(); j++, k++)
             {
-                roi_data roi;
-                inference_pose->process(images_list.at(i), rects[i][j], roi);
+                const auto roi = rois.at(i).at(j);
 
                 const auto &&resized_size = cv::Size(288, 384);
                 const auto num_joints = dnn_inference_pose::num_joints;
@@ -1481,8 +1871,8 @@ namespace stargazer_mvpose
                 std::vector<float> simcc_x(extend_width * num_joints);
                 std::vector<float> simcc_y(extend_height * num_joints);
 
-                inference_pose->copy_simcc_x_to_cpu(simcc_x.data());
-                inference_pose->copy_simcc_y_to_cpu(simcc_y.data());
+                inference_pose->copy_simcc_x_to_cpu(simcc_x.data(), k);
+                inference_pose->copy_simcc_y_to_cpu(simcc_y.data(), k);
 
                 const auto trans = get_transform(cv::Point2f(roi.center[0], roi.center[1]), cv::Size2f(roi.scale[0], roi.scale[1]), resized_size);
 
@@ -1603,25 +1993,25 @@ namespace stargazer_mvpose
     {
         std::vector<uint8_t> det_model_data;
         {
-            const auto model_path = "../data/mvpose/rtmdet_m_640-8xb32_coco-person.onnx";
+            const auto model_path = "../data/mvpose/rtmdet_m_640-8xb32_coco-person-fp16.engine";
             std::vector<uint8_t> data;
             load_model(model_path, data);
 
             det_model_data = std::move(data);
         }
 
-        inference_det.reset(new dnn_inference_det(det_model_data, "./rtmdet_model_cache"));
+        inference_det.reset(new dnn_inference_det_trt(det_model_data, 5));
 
         std::vector<uint8_t> pose_model_data;
         {
-            const auto model_path = "../data/mvpose/rtmpose-l_8xb32-270e_coco-wholebody-384x288.onnx";
+            const auto model_path = "../data/mvpose/rtmpose-l_8xb32-270e_coco-wholebody-384x288-fp16.engine";
             std::vector<uint8_t> data;
             load_model(model_path, data);
 
             pose_model_data = std::move(data);
         }
 
-        inference_pose.reset(new dnn_inference_pose(pose_model_data, 1, "./rtmpose_model_cache"));
+        inference_pose.reset(new dnn_inference_pose_trt(pose_model_data, 100));
 
         matcher.reset(new mvpose_matcher());
     }

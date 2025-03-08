@@ -9,7 +9,9 @@
 namespace stargazer_mvpose
 {
     class dnn_inference_det;
+    class dnn_inference_det_trt;
     class dnn_inference_pose;
+    class dnn_inference_pose_trt;
 
     struct camera_data
     {
@@ -106,8 +108,8 @@ namespace stargazer_mvpose
 
     class mvpose
     {
-        std::unique_ptr<dnn_inference_det> inference_det;
-        std::unique_ptr<dnn_inference_pose> inference_pose;
+        std::unique_ptr<dnn_inference_det_trt> inference_det;
+        std::unique_ptr<dnn_inference_pose_trt> inference_pose;
         std::unique_ptr<mvpose_matcher> matcher;
 
     public:

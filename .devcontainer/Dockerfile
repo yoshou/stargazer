@@ -75,7 +75,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Install TensorRT
-ENV TENSORRT_VERSION 10.5
+ENV TENSORRT_VERSION 8.6
 
 RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
     && TENSORRT_MAJOR_VERSION=`echo ${TENSORRT_VERSION} | cut -d '.' -f 1` \
@@ -88,11 +88,14 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
                        libnvonnxparsers${TENSORRT_MAJOR_VERSION}=${TENSORRT_VERSION}.* \
                        libnvonnxparsers-dev=${TENSORRT_VERSION}.*
 
+# Install ONNX Runtime
+ENV ONNXRUNTIME_VERSION 1.17.3
+
 WORKDIR /onnxruntime/
 
 RUN curl -L \
-    https://github.com/microsoft/onnxruntime/releases/download/v1.20.0/onnxruntime-linux-x64-gpu-1.20.0.tgz \
-    -o /tmp/onnxruntime-linux-x64-gpu-1.20.0.tgz \
-    && tar -zxvf /tmp/onnxruntime-linux-x64-gpu-1.20.0.tgz --strip-components 1 -C /onnxruntime
+    https://github.com/microsoft/onnxruntime/releases/download/v${ONNXRUNTIME_VERSION}/onnxruntime-linux-x64-gpu-cuda12-${ONNXRUNTIME_VERSION}.tgz \
+    -o /tmp/onnxruntime.tgz \
+    && tar -zxvf /tmp/onnxruntime.tgz --strip-components 1 -C /onnxruntime
 
 ENV ONNXRUNTIME_ROOT /onnxruntime
