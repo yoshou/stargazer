@@ -59,6 +59,7 @@ set_target_properties(stargazer_mvpose PROPERTIES
     CUDA_SEPARABLE_COMPILATION ON)
 
 target_link_libraries(stargazer_mvpose
+    nvinfer
     opencv_imgproc
     opencv_highgui
     opencv_features2d
