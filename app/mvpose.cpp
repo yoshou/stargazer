@@ -1,4 +1,5 @@
 #include "mvpose.hpp"
+#include "preprocess.hpp"
 
 #include <filesystem>
 #include <numeric>
@@ -10,13 +11,13 @@
 
 #include <cuda_runtime.h>
 
-#include "mvpose_cuda.hpp"
-
 #include <opencv2/imgcodecs/imgcodecs.hpp>
 #include <opencv2/calib3d/calib3d.hpp>
 
 #include <NvInfer.h>
 #include <dlfcn.h>
+
+using namespace stargazer;
 
 class Logger : public nvinfer1::ILogger
 {

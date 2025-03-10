@@ -1,5 +1,6 @@
 #include "voxelpose.hpp"
 #include "voxelpose_cuda.hpp"
+#include "preprocess.hpp"
 
 #include <fstream>
 #include <vector>
@@ -18,6 +19,8 @@
 #include <spdlog/spdlog.h>
 
 #include <cuda_runtime.h>
+
+using namespace stargazer;
 
 #define CUDA_SAFE_CALL(func)                                                                                                  \
     do                                                                                                                        \
