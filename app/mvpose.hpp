@@ -6,52 +6,14 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
+#include "parameters.hpp"
+
 namespace stargazer_mvpose
 {
     class dnn_inference_det;
     class dnn_inference_det_trt;
     class dnn_inference_pose;
     class dnn_inference_pose_trt;
-
-    struct camera_data
-    {
-        double fx;
-        double fy;
-        double cx;
-        double cy;
-        std::array<double, 3> k;
-        std::array<double, 2> p;
-        std::array<std::array<double, 3>, 3> rotation;
-        std::array<double, 3> translation;
-    };
-
-    static bool operator==(const camera_data &camera1, const camera_data &camera2)
-    {
-        if (camera1.fx != camera2.fx || camera1.fy != camera2.fy || camera1.cx != camera2.cx || camera1.cy != camera2.cy)
-        {
-            return false;
-        }
-        if (!std::equal(camera1.k.begin(), camera1.k.end(), camera2.k.begin()))
-        {
-            return false;
-        }
-        if (!std::equal(camera1.p.begin(), camera1.p.end(), camera2.p.begin()))
-        {
-            return false;
-        }
-        for (size_t i = 0; i < camera1.rotation.size(); i++)
-        {
-            if (!std::equal(camera1.rotation[i].begin(), camera1.rotation[i].end(), camera2.rotation[i].begin()))
-            {
-                return false;
-            }
-        }
-        if (!std::equal(camera1.translation.begin(), camera1.translation.end(), camera2.translation.begin()))
-        {
-            return false;
-        }
-        return true;
-    }
 
     struct roi_data
     {
@@ -115,6 +77,6 @@ namespace stargazer_mvpose
     public:
         mvpose();
         ~mvpose();
-        std::vector<glm::vec3> inference(const std::vector<cv::Mat> &images_list, const std::vector<camera_data> &cameras_list);
+        std::vector<glm::vec3> inference(const std::vector<cv::Mat> &images_list, const std::vector<stargazer::camera_t> &cameras_list);
     };
 }
