@@ -983,11 +983,11 @@ namespace stargazer_voxelpose
 }
 namespace stargazer_mvpose
 {
-    static std::map<std::string, camera_data> load_cameras()
+    static std::map<std::string, stargazer::camera_t> load_cameras()
     {
         using namespace stargazer_voxelpose;
 
-        std::map<std::string, camera_data> cameras;
+        std::map<std::string, stargazer::camera_t> cameras;
 
         const auto camera_file = fs::path("/workspace/data/panoptic/calibration_171204_pose1.json");
 
@@ -1028,27 +1028,26 @@ namespace stargazer_mvpose
 
             camera_pose = camera_pose * cv_to_gl;
 
-            camera_data cam_data = {};
-            cam_data.fx = k[0][0];
-            cam_data.fy = k[1][1];
-            cam_data.cx = k[0][2];
-            cam_data.cy = k[1][2];
+            stargazer::camera_t cam_data = {};
+            cam_data.intrin.fx = k[0][0];
+            cam_data.intrin.fy = k[1][1];
+            cam_data.intrin.cx = k[0][2];
+            cam_data.intrin.cy = k[1][2];
             for (size_t i = 0; i < 3; i++)
             {
                 for (size_t j = 0; j < 3; j++)
                 {
-                    cam_data.rotation[i][j] = camera_pose[i][j];
+                    cam_data.extrin.rotation[i][j] = camera_pose[i][j];
                 }
             }
             for (size_t i = 0; i < 3; i++)
             {
-                cam_data.translation[i] = camera_pose[3][i];
+                cam_data.extrin.translation[i] = camera_pose[3][i];
             }
-            cam_data.k[0] = dist_coeffs[0];
-            cam_data.k[1] = dist_coeffs[1];
-            cam_data.k[2] = dist_coeffs[4];
-            cam_data.p[0] = dist_coeffs[2];
-            cam_data.p[1] = dist_coeffs[3];
+            for (size_t i = 0; i < 5; i++)
+            {
+                cam_data.intrin.coeffs[i] = dist_coeffs[i];
+            }
 
             cameras[cv::format("%02d_%02d", panel, node)] = cam_data;
         }
@@ -1327,7 +1326,7 @@ std::tuple<std::vector<std::string>, coalsack::tensor<float, 4>, std::vector<glm
     std::vector<std::string> names;
     coalsack::tensor<float, 4> heatmaps;
     std::vector<cv::Mat> images_list;
-    std::vector<camera_data> cameras_list;
+    std::vector<stargazer::camera_t> cameras_list;
 
     if (frame.size() <= 1)
     {
@@ -1351,19 +1350,19 @@ std::tuple<std::vector<std::string>, coalsack::tensor<float, 4>, std::vector<glm
 #ifdef PANOPTIC
         const auto &camera = panoptic_cameras.at(name);
 #else
-        camera_data camera;
+        stargazer::camera_t camera;
 
         const auto &src_camera = cameras.at(name);
 
-        camera.fx = src_camera.intrin.fx;
-        camera.fy = src_camera.intrin.fy;
-        camera.cx = src_camera.intrin.cx;
-        camera.cy = src_camera.intrin.cy;
-        camera.k[0] = src_camera.intrin.coeffs[0];
-        camera.k[1] = src_camera.intrin.coeffs[3];
-        camera.k[2] = src_camera.intrin.coeffs[4];
-        camera.p[0] = src_camera.intrin.coeffs[1];
-        camera.p[1] = src_camera.intrin.coeffs[2];
+        camera.intrin.fx = src_camera.intrin.fx;
+        camera.intrin.fy = src_camera.intrin.fy;
+        camera.intrin.cx = src_camera.intrin.cx;
+        camera.intrin.cy = src_camera.intrin.cy;
+        camera.intrin.coeffs[0] = src_camera.intrin.coeffs[0];
+        camera.intrin.coeffs[1] = src_camera.intrin.coeffs[1];
+        camera.intrin.coeffs[2] = src_camera.intrin.coeffs[2];
+        camera.intrin.coeffs[3] = src_camera.intrin.coeffs[3];
+        camera.intrin.coeffs[4] = src_camera.intrin.coeffs[4];
 
         const auto camera_pose = glm::inverse(axis * glm::inverse(src_camera.extrin.transform_matrix()));
 
@@ -1371,9 +1370,9 @@ std::tuple<std::vector<std::string>, coalsack::tensor<float, 4>, std::vector<glm
         {
             for (size_t j = 0; j < 3; j++)
             {
-                camera.rotation[i][j] = camera_pose[i][j];
+                camera.extrin.rotation[i][j] = camera_pose[i][j];
             }
-            camera.translation[i] = camera_pose[3][i];
+            camera.extrin.translation[i] = camera_pose[3][i];
         }
 #endif
 
