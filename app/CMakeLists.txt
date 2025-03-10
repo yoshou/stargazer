@@ -43,22 +43,21 @@ target_link_libraries(stargazer_voxelpose
     cereal::cereal
 )
 
-add_library(stargazer_mvpose SHARED
-    ${CMAKE_CURRENT_LIST_DIR}/mvpose.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/mvpose_cuda.cu
+add_library(stargazer_preprocess SHARED
+    ${CMAKE_CURRENT_LIST_DIR}/preprocess.cu
 )
 
-target_include_directories(stargazer_mvpose
+target_include_directories(stargazer_preprocess
     PRIVATE
     $<$<BOOL:${ENABLE_ONNXRUNTIME_EXT}>:${ONNXRUNTIME_INCLUDE_DIRS}>
 )
 
-set_target_properties(stargazer_mvpose PROPERTIES
+set_target_properties(stargazer_preprocess PROPERTIES
     LINKER_LANGUAGE CUDA C CXX
     CUDA_RESOLVE_DEVICE_SYMBOLS ON
     CUDA_SEPARABLE_COMPILATION ON)
 
-target_link_libraries(stargazer_mvpose
+target_link_libraries(stargazer_preprocess
     nvinfer
     opencv_imgproc
     opencv_highgui
@@ -81,13 +80,19 @@ add_executable(stargazer_viewer
     ${CMAKE_CURRENT_LIST_DIR}/reconstruction.cpp
     ${CMAKE_CURRENT_LIST_DIR}/config_file.cpp
     ${CMAKE_CURRENT_LIST_DIR}/viewer_app.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/mvpose.cpp
 )
 
 add_dependencies(stargazer_viewer
     stargazer
     stargazer_sensor_grpc_proto
     stargazer_voxelpose
-    stargazer_mvpose
+    stargazer_preprocess
+)
+
+target_include_directories(stargazer_viewer
+    PRIVATE
+    $<$<BOOL:${ENABLE_ONNXRUNTIME_EXT}>:${ONNXRUNTIME_INCLUDE_DIRS}>
 )
 
 target_compile_definitions(stargazer_viewer
@@ -101,7 +106,7 @@ target_link_libraries(stargazer_viewer
     stargazer
     stargazer_sensor_grpc_proto
     stargazer_voxelpose
-    stargazer_mvpose
+    stargazer_preprocess
     opencv_imgproc
     opencv_highgui
     opencv_videoio

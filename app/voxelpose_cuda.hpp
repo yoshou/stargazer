@@ -42,8 +42,6 @@ namespace stargazer_voxelpose
         const float* get_cubes() const;
     };
 
-    void preprocess_cuda(const uint8_t *src_data, int src_width, int src_height, int src_step, float *dst_data, int dst_width, int dst_height, int dst_step, const std::array<float, 3> &mean, const std::array<float, 3> &std);
-
     class joint_extractor
     {
         struct cuda_data;
