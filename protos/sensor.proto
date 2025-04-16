@@ -1,51 +1,42 @@
 syntax = "proto3";
 
+import "google/protobuf/empty.proto";
+
 package stargazer;
 
-enum PortType {
-  PORT_TYPE_ANY = 0;
-  PORT_TYPE_POINT_2D = 1;
-  PORT_TYPE_POINT_3D = 2;
-}
-
-message SensorPort {
-  PortType type = 1;
-  string name = 2;
-}
-
-message EnumerateRequest {
-}
-
-message SensorPortResponse {
-  repeated SensorPort ports = 1;
-}
-
 service Sensor {
-  rpc SubscribeCircle(SubscribeRequest) returns (stream CircleResponse) {}
-  rpc SubscribeObservedSphere(SubscribeRequest) returns (stream ObservedSphereResponse) {}
-  rpc SubscribeSphere(SubscribeRequest) returns (stream SphereResponse) {}
-  rpc SubscribeQuat(SubscribeRequest) returns (stream QuatResponse) {}
-  rpc EnumerateSensorPort(EnumerateRequest) returns (SensorPortResponse) {}
+  rpc SubscribeQuat(SubscribeRequest) returns (stream QuatMessage) {}
+  rpc SubscribeCircle(SubscribeRequest) returns (stream CircleMessage) {}
+  rpc SubscribeSphere(SubscribeRequest) returns (stream SphereMessage) {}
+  rpc PublishSE3(stream SE3Message) returns (google.protobuf.Empty) {}
 }
 
 message SubscribeRequest {
   string name = 1;
 }
 
-message CircleResponse {
-  CircleList circles = 1;
+message CircleMessage {
+  string name = 1;
+  int64 timestamp = 2;
+  repeated Circle values = 3;
 }
 
-message ObservedSphereResponse {
-  repeated ObservedSphereList sphere_lists = 1;
+message SphereMessage {
+  string name = 1;
+  int64 timestamp = 2;
+  repeated Sphere values = 3;
 }
 
-message SphereResponse {
-  SphereList spheres = 1;
+message QuatMessage {
+  string name = 1;
+  int64 timestamp = 2;
+  repeated Quat values = 3;
 }
 
-message QuatResponse {
-  QuatList quats = 1;
+message SE3Message {
+  string name = 1;
+  int64 timestamp = 2;
+  repeated SE3 values = 3;
 }
 
 message Point2D {
@@ -58,12 +49,10 @@ message Circle {
   double radius = 2;
 }
 
-message CircleList {
-  repeated Circle values = 1;
-}
-
-message QuatList {
-  repeated Quat values = 1;
+message Vector3D {
+  double x = 1;
+  double y = 2;
+  double z = 3;
 }
 
 message Point3D {
@@ -75,10 +64,6 @@ message Point3D {
 message Sphere {
   Point3D point = 1;
   double radius = 2;
-}
-
-message SphereList {
-  repeated Sphere values = 1;
 }
 
 message Matrix {
@@ -94,7 +79,11 @@ message Quat {
   double w = 4;
 }
 
-message ObservedSphereList {
-  repeated Sphere values = 1;
-  Matrix view = 2;
+message SO3 {
+  Quat q = 1;
+}
+
+message SE3 {
+  Vector3D t = 1;
+  Quat q = 2;
 }
