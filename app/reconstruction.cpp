@@ -26,23 +26,31 @@
 
 using namespace coalsack;
 
+static std::string read_text_file(const std::string& filename)
+{
+    std::ifstream ifs(filename.c_str());
+    return std::string(
+        std::istreambuf_iterator<char>(ifs),
+        std::istreambuf_iterator<char>());
+}
+
 class SensorServiceImpl final : public stargazer::Sensor::Service
 {
     std::mutex mtx;
-    std::unordered_map<std::string, grpc::ServerWriter<stargazer::SphereResponse> *> writers;
+    std::unordered_map<std::string, grpc::ServerWriter<stargazer::SphereMessage> *> writers;
 
 public:
     void notify_sphere(const std::vector<glm::vec3> &spheres)
     {
-        stargazer::SphereResponse response;
-        const auto mutable_spheres = response.mutable_spheres();
+        stargazer::SphereMessage response;
+        const auto mutable_values = response.mutable_values();
         for (const auto &sphere : spheres)
         {
-            const auto mutable_sphere = mutable_spheres->mutable_values()->Add();
-            mutable_sphere->mutable_point()->set_x(sphere.x);
-            mutable_sphere->mutable_point()->set_y(sphere.y);
-            mutable_sphere->mutable_point()->set_z(sphere.z);
-            mutable_sphere->set_radius(0.02);
+            const auto mutable_value = mutable_values->Add();
+            mutable_value->mutable_point()->set_x(sphere.x);
+            mutable_value->mutable_point()->set_y(sphere.y);
+            mutable_value->mutable_point()->set_z(sphere.z);
+            mutable_value->set_radius(0.02);
         }
         {
             std::lock_guard<std::mutex> lock(mtx);
@@ -55,7 +63,7 @@ public:
 
     grpc::Status SubscribeSphere(grpc::ServerContext *context,
                                  const stargazer::SubscribeRequest *request,
-                                 grpc::ServerWriter<stargazer::SphereResponse> *writer) override
+                                 grpc::ServerWriter<stargazer::SphereMessage> *writer) override
     {
         {
             std::lock_guard<std::mutex> lock(mtx);
@@ -433,7 +441,20 @@ public:
         std::string server_address("0.0.0.0:50051");
 
         grpc::ServerBuilder builder;
+#ifdef USE_SECURE_CREDENTIALS
+        std::string ca_crt_content = read_text_file("../data/ca.crt");
+        std::string server_crt_content = read_text_file("../data/server.crt");
+        std::string server_key_content = read_text_file("../data/server.key");
+
+        grpc::SslServerCredentialsOptions ssl_options;
+        grpc::SslServerCredentialsOptions::PemKeyCertPair key_cert = { server_key_content, server_crt_content };
+        ssl_options.pem_root_certs = ca_crt_content;
+        ssl_options.pem_key_cert_pairs.push_back(key_cert);
+
+        builder.AddListeningPort(server_address, grpc::SslServerCredentials(ssl_options));
+#else
         builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
+#endif
         builder.RegisterService(service.get());
         server = builder.BuildAndStart();
         spdlog::info("Server listening on " + server_address);
@@ -1278,7 +1299,20 @@ void output_server::run()
 {
     running = true;
     grpc::ServerBuilder builder;
+
+#ifdef USE_SECURE_CREDENTIALS
+    std::string ca_crt_content = read_text_file("../data/ca.crt");
+    std::string server_crt_content = read_text_file("../data/server.crt");
+    std::string server_key_content = read_text_file("../data/server.key");
+
+    grpc::SslServerCredentialsOptions ssl_options;
+    grpc::SslServerCredentialsOptions::PemKeyCertPair key_cert = { server_key_content, server_crt_content };
+    ssl_options.pem_root_certs = ca_crt_content;
+    ssl_options.pem_key_cert_pairs.push_back(key_cert);
+    builder.AddListeningPort(server_address, grpc::SslServerCredentials(ssl_options));
+#else
     builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
+#endif
     builder.RegisterService(service.get());
     server = builder.BuildAndStart();
     spdlog::info("Server listening on " + server_address);
