@@ -17,7 +17,7 @@
 #include <grpcpp/server_context.h>
 
 #include "sensor.grpc.pb.h"
-#include "multiview_point_data.hpp"
+#include "point_data.hpp"
 #include "task_queue.hpp"
 
 #include "graph_proc.h"
@@ -135,7 +135,7 @@ class voxelpose_reconstruction : public multiview_image_reconstruction
     coalsack::tensor<float, 4> features;
     mutable std::mutex features_mtx;
 
-    stargazer_voxelpose::voxelpose pose_estimator;
+    stargazer::voxelpose::voxelpose pose_estimator;
 
 public:
 

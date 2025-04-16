@@ -87,10 +87,6 @@ namespace stargazer_mvpose
         dnn_inference_pose(const std::vector<uint8_t> &model_data, size_t max_batch_size)
             : session(nullptr), io_binding(nullptr)
         {
-            namespace fs = std::filesystem;
-
-            const auto &api = Ort::GetApi();
-
             // Create session
             Ort::SessionOptions session_options;
             session_options.SetIntraOpNumThreads(4);
@@ -577,10 +573,6 @@ namespace stargazer_mvpose
         dnn_inference_det(const std::vector<uint8_t> &model_data)
             : session(nullptr), io_binding(nullptr)
         {
-            namespace fs = std::filesystem;
-
-            const auto &api = Ort::GetApi();
-
             // Create session
             Ort::SessionOptions session_options;
             session_options.SetIntraOpNumThreads(4);
@@ -1274,11 +1266,11 @@ namespace stargazer_mvpose
             // Convert binary relation matrix to permutation matrix.
             Eigen::MatrixXi temp = Eigen::MatrixXi::Zero(X_binary.rows(), X_binary.cols());
             const int N = X_binary.rows();
-            for (size_t k = 0; k < N; k++)
+            for (int k = 0; k < N; k++)
             {
-                for (size_t i = 0; i < N; i++)
+                for (int i = 0; i < N; i++)
                 {
-                    for (size_t j = 0; j < N; j++)
+                    for (int j = 0; j < N; j++)
                     {
                         temp(i, j) = X_binary(i, j) | (X_binary(i, k) & X_binary(k, j));
                     }
@@ -1286,13 +1278,13 @@ namespace stargazer_mvpose
             }
             Eigen::VectorXi vis = Eigen::VectorXi::Zero(N);
             Eigen::MatrixXi match = Eigen::MatrixXi::Zero(X_binary.rows(), X_binary.cols());
-            for (size_t i = 0; i < N; i++)
+            for (int i = 0; i < N; i++)
             {
                 if (vis(i))
                 {
                     continue;
                 }
-                for (size_t j = 0; j < N; j++)
+                for (int j = 0; j < N; j++)
                 {
                     if (temp(i, j))
                     {
@@ -1326,7 +1318,7 @@ namespace stargazer_mvpose
                 std::partial_sum(u.begin(), u.end(), sv.begin());
 
                 int rho = -1;
-                for (size_t i = 0; i < y.size(); i++)
+                for (int i = 0; i < y.size(); i++)
                 {
                     if (u(i) > (sv(i) - 1) / (i + 1))
                     {
@@ -1342,7 +1334,7 @@ namespace stargazer_mvpose
 
         static Eigen::MatrixXf project_row(Eigen::MatrixXf X)
         {
-            for (size_t i = 0; i < X.rows(); i++)
+            for (int i = 0; i < X.rows(); i++)
             {
                 X.row(i) = proj2pav(X.row(i));
             }
@@ -1350,7 +1342,7 @@ namespace stargazer_mvpose
         }
         static Eigen::MatrixXf project_col(Eigen::MatrixXf X)
         {
-            for (size_t j = 0; j < X.cols(); j++)
+            for (int j = 0; j < X.cols(); j++)
             {
                 X.col(j) = proj2pav(X.col(j));
             }
@@ -1493,10 +1485,10 @@ namespace stargazer_mvpose
             const auto affinity_matrix = compute_geometry_affinity(points_set, dim_group, cameras_list, factor);
             const auto match_matrix = solve_svt(affinity_matrix, dim_group);
 
-            const size_t num_camera_min = 2;
+            const int num_camera_min = 2;
 
             std::vector<std::vector<pose_id_t>> matched_list;
-            for (size_t j = 0; j < match_matrix.cols(); j++)
+            for (int j = 0; j < match_matrix.cols(); j++)
             {
                 if (match_matrix.col(j).array().sum() >= num_camera_min)
                 {
@@ -1518,19 +1510,6 @@ namespace stargazer_mvpose
             return matched_list;
         }
     };
-
-    static cv::Mat glm_to_cv_mat3x4(const glm::mat4 &m)
-    {
-        cv::Mat ret(3, 4, CV_64F);
-        for (size_t i = 0; i < 3; i++)
-        {
-            for (size_t j = 0; j < 4; j++)
-            {
-                ret.at<double>(i, j) = m[j][i];
-            }
-        }
-        return ret;
-    }
 
     static glm::vec3 triangulate(const std::vector<glm::vec2> &points, const std::vector<stargazer::camera_t> &cameras)
     {

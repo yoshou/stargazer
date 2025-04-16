@@ -5,7 +5,7 @@
 
 #include "voxelpose.hpp"
 
-namespace stargazer_voxelpose
+namespace stargazer::voxelpose
 {
     class voxel_projector
     {

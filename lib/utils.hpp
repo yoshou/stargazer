@@ -8,14 +8,14 @@
 
 namespace stargazer
 {
-    static cv::Mat glm_to_cv_mat4(const glm::mat4 &m)
+    inline cv::Mat glm_to_cv_mat4(const glm::mat4 &m)
     {
         cv::Mat ret(4, 4, CV_32F);
         memcpy(ret.data, glm::value_ptr(m), 16 * sizeof(float));
         return ret;
     }
 
-    static cv::Mat glm_to_cv_mat3(const glm::mat4 &m)
+    inline cv::Mat glm_to_cv_mat3(const glm::mat4 &m)
     {
         cv::Mat ret(3, 3, CV_32F);
         for (std::size_t i = 0; i < 3; i++)
@@ -28,7 +28,7 @@ namespace stargazer
         return ret;
     }
 
-    static cv::Mat glm_to_cv_mat3x4(const glm::mat4 &m)
+    inline cv::Mat glm_to_cv_mat3x4(const glm::mat4 &m)
     {
         cv::Mat ret(3, 4, CV_64F);
         for (size_t i = 0; i < 3; i++)
@@ -41,7 +41,7 @@ namespace stargazer
         return ret;
     }
 
-    static cv::Mat glm_to_cv_mat3x3(const glm::mat3 &m)
+    inline cv::Mat glm_to_cv_mat3x3(const glm::mat3 &m)
     {
         cv::Mat ret(3, 3, CV_64F);
         for (size_t i = 0; i < 3; i++)
@@ -54,7 +54,7 @@ namespace stargazer
         return ret;
     }
 
-    static glm::mat3 cv_to_glm_mat3x3(const cv::Mat &m)
+    inline glm::mat3 cv_to_glm_mat3x3(const cv::Mat &m)
     {
         glm::mat3 ret;
         for (size_t i = 0; i < 3; i++)
@@ -67,7 +67,7 @@ namespace stargazer
         return ret;
     }
 
-    static glm::mat4 cv_to_glm_mat4x4(const cv::Mat &m)
+    inline glm::mat4 cv_to_glm_mat4x4(const cv::Mat &m)
     {
         glm::mat4 ret;
         for (size_t i = 0; i < 4; i++)
@@ -80,7 +80,7 @@ namespace stargazer
         return ret;
     }
 
-    static glm::vec3 cv_to_glm_vec3(const cv::Mat &m)
+    inline glm::vec3 cv_to_glm_vec3(const cv::Mat &m)
     {
         glm::vec3 ret;
         for (size_t i = 0; i < 3; i++)
@@ -90,7 +90,7 @@ namespace stargazer
         return ret;
     }
 
-    static float distance_sq_line_point(const glm::vec3 &line, const glm::vec2 &point)
+    inline float distance_sq_line_point(const glm::vec3 &line, const glm::vec2 &point)
     {
         const auto a = line.x;
         const auto b = line.y;
@@ -102,12 +102,12 @@ namespace stargazer
         return distsq;
     }
 
-    static float distance_line_point(glm::vec3 line, glm::vec2 point)
+    inline float distance_line_point(glm::vec3 line, glm::vec2 point)
     {
         return std::sqrt(distance_sq_line_point(line, point));
     }
 
-    static glm::vec2 project(const camera_t &camera, const glm::vec3 &pt)
+    inline glm::vec2 project(const camera_t &camera, const glm::vec3 &pt)
     {
         const auto transform_mat = camera.extrin.transform_matrix();
         const auto proj_mat = camera.intrin.get_matrix();
@@ -138,7 +138,7 @@ namespace stargazer
         return observed_pt;
     }
 
-    static glm::vec2 project_undist(const camera_t &camera, const glm::vec3 &pt)
+    inline glm::vec2 project_undist(const camera_t &camera, const glm::vec3 &pt)
     {
         const auto transform_mat = camera.extrin.transform_matrix();
         const auto proj_mat = camera.intrin.get_matrix();
@@ -158,7 +158,7 @@ namespace stargazer
         return observed_pt;
     }
 
-    static glm::vec2 undistort_normalize(const glm::vec2 &pt, const stargazer::camera_t &camera)
+    inline glm::vec2 undistort_normalize(const glm::vec2 &pt, const stargazer::camera_t &camera)
     {
         auto pts = std::vector<cv::Point2f>{cv::Point2f(pt.x, pt.y)};
         cv::Mat m = stargazer::glm_to_cv_mat3(camera.intrin.get_matrix());
@@ -173,7 +173,7 @@ namespace stargazer
         return glm::vec2(norm_pts[0].x, norm_pts[0].y);
     }
 
-    static std::vector<std::string> split(std::string &input, char delimiter)
+    inline std::vector<std::string> split(std::string &input, char delimiter)
     {
         std::istringstream stream(input);
         std::string field;
@@ -185,7 +185,7 @@ namespace stargazer
         return result;
     }
 
-    static void read_csv(std::string filename, std::vector<std::vector<std::string>> &result)
+    inline void read_csv(std::string filename, std::vector<std::vector<std::string>> &result)
     {
         std::ifstream ifs;
         ifs.open(filename, std::ios::in);

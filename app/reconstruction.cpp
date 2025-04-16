@@ -13,7 +13,7 @@
 #include "utils.hpp"
 #include "correspondance.hpp"
 #include "triangulation.hpp"
-#include "multiview_point_data.hpp"
+#include "point_data.hpp"
 #include "glm_serialize.hpp"
 #include "glm_json.hpp"
 
@@ -936,11 +936,11 @@ namespace fs = std::filesystem;
 #define PANOPTIC
 
 #ifdef PANOPTIC
-namespace stargazer_voxelpose
+namespace stargazer::voxelpose
 {
     static std::map<std::string, camera_data> load_cameras()
     {
-        using namespace stargazer_voxelpose;
+        using namespace stargazer::voxelpose;
 
         std::map<std::string, camera_data> cameras;
 
@@ -1006,7 +1006,7 @@ namespace stargazer_mvpose
 {
     static std::map<std::string, stargazer::camera_t> load_cameras()
     {
-        using namespace stargazer_voxelpose;
+        using namespace stargazer::voxelpose;
 
         std::map<std::string, stargazer::camera_t> cameras;
 
@@ -1079,7 +1079,7 @@ namespace stargazer_mvpose
 
 std::vector<glm::vec3> voxelpose_reconstruction::dnn_reconstruct(const std::map<std::string, stargazer::camera_t> &cameras, const std::map<std::string, cv::Mat> &frame, glm::mat4 axis)
 {
-    using namespace stargazer_voxelpose;
+    using namespace stargazer::voxelpose;
 
     std::vector<std::string> names;
     std::vector<cv::Mat> images_list;

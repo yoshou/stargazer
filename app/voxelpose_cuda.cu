@@ -1,4 +1,5 @@
 #include "voxelpose_cuda.hpp"
+#include "preprocess.hpp"
 
 #include <iostream>
 #include <algorithm>
@@ -41,7 +42,7 @@
         }                                                                                                                        \
     } while (0)
 
-namespace stargazer_voxelpose
+namespace stargazer::voxelpose
 {
     enum
     {
@@ -289,7 +290,7 @@ namespace stargazer_voxelpose
             const auto width = center.x * 2;
             const auto height = center.y * 2;
 
-            const auto trans = get_transform(center, scale, image_size);
+            const auto trans = stargazer::get_transform(center, scale, image_size);
             cv::Mat transf;
             trans.convertTo(transf, cv::DataType<float>::type);
 

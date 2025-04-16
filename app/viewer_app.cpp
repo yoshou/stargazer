@@ -584,6 +584,7 @@ class viewer_app : public window_base
                 spdlog::info("End calibration");
                 return true;
             }
+            return false;
         });
     }
 
