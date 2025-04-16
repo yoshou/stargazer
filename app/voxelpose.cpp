@@ -38,7 +38,7 @@ using namespace stargazer;
 #ifdef ENABLE_ONNXRUNTIME
 #include <onnxruntime_cxx_api.h>
 
-namespace stargazer_voxelpose
+namespace stargazer::voxelpose
 {
     class dnn_inference
     {
@@ -481,7 +481,7 @@ namespace stargazer_voxelpose
 #else
 #include <opencv2/dnn/dnn.hpp>
 
-namespace stargazer_voxelpose
+namespace stargazer::voxelpose
 {
     class dnn_inference
     {
@@ -661,7 +661,7 @@ namespace stargazer_voxelpose
 }
 #endif
 
-namespace stargazer_voxelpose
+namespace stargazer::voxelpose
 {
     class get_proposal
     {

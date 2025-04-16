@@ -7,7 +7,7 @@
 
 #include <glm/glm.hpp>
 
-#include "multiview_point_data.hpp"
+#include "point_data.hpp"
 #include "bundle_adjust_data.hpp"
 #include "parameters.hpp"
 #include "task_queue.hpp"

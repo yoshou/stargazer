@@ -22,7 +22,7 @@ namespace stargazer_mvpose
         std::array<double, 2> center;
     };
 
-    static cv::Mat get_transform(const cv::Point2f &center, const cv::Size2f &scale, const cv::Size2f &output_size)
+    inline cv::Mat get_transform(const cv::Point2f &center, const cv::Size2f &scale, const cv::Size2f &output_size)
     {
         const auto get_tri_3rd_point = [](const cv::Point2f &a, const cv::Point2f &b)
         {
