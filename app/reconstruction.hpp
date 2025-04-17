@@ -284,7 +284,7 @@ public:
     void run();
     void stop();
 
-    void notify_sphere(const std::vector<glm::vec3> &spheres);
+    void notify_sphere(const std::string& name, int64_t timestamp, const std::vector<glm::vec3> &spheres);
 };
 
 class mvpose_reconstruction : public multiview_image_reconstruction
