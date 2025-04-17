@@ -1165,7 +1165,6 @@ std::vector<glm::vec3> voxelpose_reconstruction::dnn_reconstruct(const std::map<
 
     const auto points = pose_estimator.inference(images_list, cameras_list);
 
-    const auto start5 = std::chrono::system_clock::now();
     coalsack::tensor<float, 4> heatmaps({pose_estimator.get_heatmap_width(), pose_estimator.get_heatmap_height(), pose_estimator.get_num_joints(), (uint32_t)images_list.size()});
     pose_estimator.copy_heatmap_to(images_list.size(), heatmaps.get_data());
 
@@ -1204,11 +1203,7 @@ void voxelpose_reconstruction::push_frame(const frame_type &frame)
 
     reconstruction_workers->push_task([frame, this, task_id]()
                                       {
-        const auto start = std::chrono::system_clock::now();
         const auto markers = dnn_reconstruct(cameras, frame, axis);
-        const auto end = std::chrono::system_clock::now();
-        double elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-        // std::cout << "dnn_reconstruct: " << elapsed << std::endl;
 
         {
             std::unique_lock<std::mutex> lock(reconstruction_task_wait_queue_mtx);
