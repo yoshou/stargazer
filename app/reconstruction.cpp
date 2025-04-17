@@ -38,6 +38,7 @@ class SensorServiceImpl final : public stargazer::Sensor::Service
 {
     std::mutex mtx;
     std::unordered_map<std::string, grpc::ServerWriter<stargazer::SphereMessage> *> writers;
+    std::vector<std::function<void(const std::string&, int64_t, const std::vector<se3>&)>> se3_received;
 
 public:
     void notify_sphere(const std::string& name, int64_t timestamp, const std::vector<glm::vec3> &spheres)
@@ -63,6 +64,11 @@ public:
         }
     }
 
+    void receive_se3(std::function<void(const std::string&, int64_t, const std::vector<se3>&)> f)
+    {
+        se3_received.push_back(f);
+    }
+
     grpc::Status SubscribeSphere(grpc::ServerContext *context,
                                  const stargazer::SubscribeRequest *request,
                                  grpc::ServerWriter<stargazer::SphereMessage> *writer) override
@@ -80,6 +86,29 @@ public:
             if (const auto iter = writers.find(request->name()); iter != writers.end())
             {
                 writers.erase(iter);
+            }
+        }
+        return grpc::Status::OK;
+    }
+
+    grpc::Status PublishSE3(grpc::ServerContext* context, grpc::ServerReader<stargazer::SE3Message>* reader, google::protobuf::Empty* response) override
+    {
+        stargazer::SE3Message data;
+        while (reader->Read(&data))
+        {
+            const auto name = data.name();
+            const auto timestamp = data.timestamp();
+            const auto& values = data.values();
+            std::vector<se3> se3;
+            for (const auto &value : values)
+            {
+                se3.push_back({
+                    {static_cast<float>(value.t().x()), static_cast<float>(value.t().y()), static_cast<float>(value.t().z())},
+                    {static_cast<float>(value.q().x()), static_cast<float>(value.q().y()), static_cast<float>(value.q().z()), static_cast<float>(value.q().w())}});
+            }
+            for (const auto &f : se3_received)
+            {
+                f(name, timestamp, se3);
             }
         }
         return grpc::Status::OK;
@@ -195,6 +224,7 @@ struct float3
 using float2_list_message = frame_message<std::vector<float2>>;
 using float3_list_message = frame_message<std::vector<float3>>;
 using mat4_message = frame_message<glm::mat4>;
+using se3_list_message = frame_message<std::vector<se3>>;
 
 CEREAL_REGISTER_TYPE(float2_list_message)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(coalsack::frame_message_base, float2_list_message)
@@ -204,6 +234,9 @@ CEREAL_REGISTER_POLYMORPHIC_RELATION(coalsack::frame_message_base, float3_list_m
 
 CEREAL_REGISTER_TYPE(mat4_message)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(coalsack::frame_message_base, mat4_message)
+
+CEREAL_REGISTER_TYPE(se3_list_message)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(coalsack::frame_message_base, se3_list_message)
 
 CEREAL_REGISTER_TYPE(frame_message<object_message>)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(coalsack::frame_message_base, frame_message<object_message>)
@@ -419,11 +452,25 @@ CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, epipolar_reconstruct_node)
 class grpc_server_node : public graph_node
 {
     grpc_server server;
+    graph_edge_ptr output;
 
 public:
     grpc_server_node()
-        : graph_node(), server("0.0.0.0:50051")
+        : graph_node(), server("0.0.0.0:50051"), output(std::make_shared<graph_edge>(this))
     {
+        set_output(output);
+        
+        server.receive_se3([this](const std::string &name, int64_t timestamp, const std::vector<se3> &se3)
+                           {
+            auto msg = std::make_shared<frame_message<object_message>>();
+            auto obj_msg = object_message();
+            auto se3_msg = std::make_shared<se3_list_message>();
+            se3_msg->set_data(se3);
+            obj_msg.set_field(name, se3_msg);
+            msg->set_data(obj_msg);
+            msg->set_frame_number(static_cast<uint64_t>(timestamp));
+            output->send(msg);
+        });
     }
 
     virtual std::string get_proc_name() const override
@@ -1309,6 +1356,11 @@ void grpc_server::notify_sphere(const std::string& name, int64_t timestamp, cons
     {
         service->notify_sphere(name, timestamp, spheres);
     }
+}
+
+void grpc_server::receive_se3(std::function<void(const std::string&, int64_t, const std::vector<se3>&)> f)
+{
+    service->receive_se3(f);
 }
 
 mvpose_reconstruction::mvpose_reconstruction()

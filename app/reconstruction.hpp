@@ -10,6 +10,8 @@
 #include <condition_variable>
 #include <random>
 
+#include <glm/gtc/quaternion.hpp>
+
 #include <grpc/grpc.h>
 #include <grpcpp/security/server_credentials.h>
 #include <grpcpp/server.h>
@@ -31,6 +33,18 @@
 class ServiceImpl;
 
 class SensorServiceImpl;
+
+struct se3
+{
+    glm::vec3 position;
+    glm::quat rotation;
+
+    template <typename Archive>
+    void serialize(Archive &archive)
+    {
+        archive(position, rotation);
+    }
+};
 
 std::vector<glm::vec3> reconstruct(const std::map<std::string, stargazer::camera_t> &cameras, const std::map<std::string, std::vector<stargazer::point_data>> &frame, glm::mat4 axis = glm::mat4(1.0f));
 
@@ -285,6 +299,7 @@ public:
     void stop();
 
     void notify_sphere(const std::string& name, int64_t timestamp, const std::vector<glm::vec3> &spheres);
+    void receive_se3(std::function<void(const std::string&, int64_t, const std::vector<se3>&)> f);
 };
 
 class mvpose_reconstruction : public multiview_image_reconstruction
