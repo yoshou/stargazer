@@ -40,9 +40,11 @@ class SensorServiceImpl final : public stargazer::Sensor::Service
     std::unordered_map<std::string, grpc::ServerWriter<stargazer::SphereMessage> *> writers;
 
 public:
-    void notify_sphere(const std::vector<glm::vec3> &spheres)
+    void notify_sphere(const std::string& name, int64_t timestamp, const std::vector<glm::vec3> &spheres)
     {
         stargazer::SphereMessage response;
+        response.set_name(name);
+        response.set_timestamp(timestamp);
         const auto mutable_values = response.mutable_values();
         for (const auto &sphere : spheres)
         {
