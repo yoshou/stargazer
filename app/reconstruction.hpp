@@ -133,10 +133,10 @@ class voxelpose_reconstruction : public multiview_image_reconstruction
     std::vector<glm::vec3> dnn_reconstruct(const std::map<std::string, stargazer::camera_t> &cameras, const std::map<std::string, cv::Mat> &frame, glm::mat4 axis);
 
     std::atomic_bool running;
+    std::unique_ptr<SensorServiceImpl> service;
     std::shared_ptr<task_queue<std::function<void()>>> reconstruction_workers;
     std::shared_ptr<std::thread> server_th;
     std::unique_ptr<grpc::Server> server;
-    std::unique_ptr<SensorServiceImpl> service;
     std::deque<uint32_t> reconstruction_task_wait_queue;
     mutable std::mutex reconstruction_task_wait_queue_mtx;
     std::condition_variable reconstruction_task_wait_queue_cv;
@@ -322,8 +322,8 @@ class mvpose_reconstruction : public multiview_image_reconstruction
         std::vector<glm::vec3> markers;
     };
 
-    task_queue_processor<task_result> processor;
     grpc_server output;
+    task_queue_processor<task_result> processor;
 
 public:
     mvpose_reconstruction();
