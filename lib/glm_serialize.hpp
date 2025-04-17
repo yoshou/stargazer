@@ -72,6 +72,16 @@ void load(Archive& ar, glm::tmat4x4<T, P>& mat) {
     }
 }
 
+template <class Archive, typename T, glm::precision P>
+void save(Archive& ar, const glm::tquat<T, P>& quat) {
+    ar(cereal::make_nvp("x", quat.x), cereal::make_nvp("y", quat.y), cereal::make_nvp("z", quat.z), cereal::make_nvp("w", quat.w));
+}
+
+template <class Archive, typename T, glm::precision P>
+void load(Archive& ar, glm::tquat<T, P>& quat) {
+    ar(cereal::make_nvp("x", quat.x), cereal::make_nvp("y", quat.y), cereal::make_nvp("z", quat.z), cereal::make_nvp("w", quat.w));
+}
+
 } // namespace glm
 
 #endif // GLM_SERIALIZE_HPP
