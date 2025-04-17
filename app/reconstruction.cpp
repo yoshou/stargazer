@@ -416,11 +416,11 @@ CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, epipolar_reconstruct_node)
 
 class grpc_server_node : public graph_node
 {
-    grpc_server output;
+    grpc_server server;
 
 public:
     grpc_server_node()
-        : graph_node(), output("0.0.0.0:50051")
+        : graph_node(), server("0.0.0.0:50051")
     {
     }
 
@@ -436,12 +436,10 @@ public:
 
     virtual void run() override
     {
-        output.run();
+        server.run();
     }
 
     virtual void process(std::string input_name, graph_message_ptr message) override
-    {
-        if (input_name == "sphere")
         {
             if (const auto msg = std::dynamic_pointer_cast<float3_list_message>(message))
             {
@@ -451,14 +449,13 @@ public:
                     spheres.push_back(glm::vec3(data.x, data.y, data.z));
                 }
                 
-                output.notify_sphere(spheres);
-            }
+            server.notify_sphere(input_name, static_cast<int64_t>(msg->get_timestamp()), spheres);
         }
     }
 
     virtual void stop() override
     {
-        output.stop();
+        server.stop();
     }
 };
 
@@ -1177,7 +1174,7 @@ void voxelpose_reconstruction::push_frame(const frame_type &frame)
                 this->markers = markers;
             }
 
-            service->notify_sphere(markers);
+            service->notify_sphere("sphere", 0, markers);
         }
 
         reconstruction_task_wait_queue_cv.notify_all(); });
@@ -1304,11 +1301,11 @@ void grpc_server::stop()
     }
 }
 
-void grpc_server::notify_sphere(const std::vector<glm::vec3> &spheres)
+void grpc_server::notify_sphere(const std::string& name, int64_t timestamp, const std::vector<glm::vec3> &spheres)
 {
     if (running && service)
     {
-        service->notify_sphere(spheres);
+        service->notify_sphere(name, timestamp, spheres);
     }
 }
 
@@ -1411,7 +1408,7 @@ void mvpose_reconstruction::run()
             this->names = result.camera_names;
             this->features = result.features;
         }
-        output.notify_sphere(result.markers);
+        output.notify_sphere("sphere", 0, result.markers);
     });
 }
 void mvpose_reconstruction::stop()
