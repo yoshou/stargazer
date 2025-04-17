@@ -269,7 +269,7 @@ public:
     }
 };
 
-class output_server
+class grpc_server
 {
     std::string server_address;
     std::atomic_bool running;
@@ -278,8 +278,8 @@ class output_server
     std::unique_ptr<SensorServiceImpl> service;
 
 public:
-    output_server(const std::string& server_address);
-    ~output_server();
+    grpc_server(const std::string& server_address);
+    ~grpc_server();
 
     void run();
     void stop();
@@ -308,7 +308,7 @@ class mvpose_reconstruction : public multiview_image_reconstruction
     };
 
     task_queue_processor<task_result> processor;
-    output_server output;
+    grpc_server output;
 
 public:
     mvpose_reconstruction();

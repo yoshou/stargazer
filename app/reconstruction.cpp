@@ -416,13 +416,11 @@ CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, epipolar_reconstruct_node)
 
 class grpc_server_node : public graph_node
 {
-    std::shared_ptr<std::thread> server_th;
-    std::unique_ptr<grpc::Server> server;
-    std::unique_ptr<SensorServiceImpl> service;
+    grpc_server output;
 
 public:
     grpc_server_node()
-        : graph_node(), server_th(), server(), service(std::make_unique<SensorServiceImpl>())
+        : graph_node(), output("0.0.0.0:50051")
     {
     }
 
@@ -438,31 +436,7 @@ public:
 
     virtual void run() override
     {
-        std::string server_address("0.0.0.0:50051");
-
-        grpc::ServerBuilder builder;
-#ifdef USE_SECURE_CREDENTIALS
-        std::string ca_crt_content = read_text_file("../data/ca.crt");
-        std::string server_crt_content = read_text_file("../data/server.crt");
-        std::string server_key_content = read_text_file("../data/server.key");
-
-        grpc::SslServerCredentialsOptions ssl_options;
-        grpc::SslServerCredentialsOptions::PemKeyCertPair key_cert = { server_key_content, server_crt_content };
-        ssl_options.pem_root_certs = ca_crt_content;
-        ssl_options.pem_key_cert_pairs.push_back(key_cert);
-
-        builder.AddListeningPort(server_address, grpc::SslServerCredentials(ssl_options));
-#else
-        builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
-#endif
-        builder.RegisterService(service.get());
-        server = builder.BuildAndStart();
-        spdlog::info("Server listening on " + server_address);
-
-        server_th.reset(new std::thread([this]()
-        {
-            server->Wait();
-        }));
+        output.run();
     }
 
     virtual void process(std::string input_name, graph_message_ptr message) override
@@ -476,22 +450,15 @@ public:
                 {
                     spheres.push_back(glm::vec3(data.x, data.y, data.z));
                 }
-
-                service->notify_sphere(spheres);
+                
+                output.notify_sphere(spheres);
             }
         }
     }
 
     virtual void stop() override
     {
-        if (server)
-        {
-            server->Shutdown();
-            if (server_th && server_th->joinable())
-            {
-                server_th->join();
-            }
-        }
+        output.stop();
     }
 };
 
@@ -1286,16 +1253,16 @@ std::vector<glm::vec3> voxelpose_reconstruction::get_markers() const
     return result;
 }
 
-output_server::output_server(const std::string &server_address)
+grpc_server::grpc_server(const std::string &server_address)
     : server_address(server_address), running(false), server_th(), server(), service(std::make_unique<SensorServiceImpl>())
 {
 }
 
-output_server::~output_server()
+grpc_server::~grpc_server()
 {
 }
 
-void output_server::run()
+void grpc_server::run()
 {
     running = true;
     grpc::ServerBuilder builder;
@@ -1321,7 +1288,7 @@ void output_server::run()
         server->Wait(); }));
 }
 
-void output_server::stop()
+void grpc_server::stop()
 {
     if (running.load())
     {
@@ -1337,7 +1304,7 @@ void output_server::stop()
     }
 }
 
-void output_server::notify_sphere(const std::vector<glm::vec3> &spheres)
+void grpc_server::notify_sphere(const std::vector<glm::vec3> &spheres)
 {
     if (running && service)
     {
