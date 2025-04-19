@@ -10,7 +10,6 @@
 #include "point_data.hpp"
 #include "bundle_adjust_data.hpp"
 #include "parameters.hpp"
-#include "task_queue.hpp"
 #include "node_info.hpp"
 
 struct observed_points_t
