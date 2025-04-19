@@ -111,11 +111,10 @@ public:
 
 class multiview_image_reconstruction
 {
-public:
-    using frame_type = std::map<std::string, cv::Mat>;
-
     std::map<std::string, stargazer::camera_t> cameras;
     glm::mat4 axis;
+public:
+    using frame_type = std::map<std::string, cv::Mat>;
 
     multiview_image_reconstruction() = default;
     virtual ~multiview_image_reconstruction() = default;
@@ -126,6 +125,31 @@ public:
 
     virtual std::vector<glm::vec3> get_markers() const = 0;
     virtual std::map<std::string, cv::Mat> get_features() const = 0;
+    
+    virtual std::map<std::string, stargazer::camera_t> get_cameras() const
+    {
+        return cameras;
+    }
+    virtual void set_camera(const std::string &name, const stargazer::camera_t &camera)
+    {
+        cameras[name] = camera;
+    }
+    virtual const stargazer::camera_t& get_camera(const std::string &name) const
+    {
+        return cameras.at(name);
+    }
+    virtual stargazer::camera_t& get_camera(const std::string &name)
+    {
+        return cameras.at(name);
+    }
+    virtual void set_axis(const glm::mat4 &axis)
+    {
+        this->axis = axis;
+    }
+    virtual glm::mat4 get_axis() const
+    {
+        return axis;
+    }
 };
 
 class voxelpose_reconstruction : public multiview_image_reconstruction

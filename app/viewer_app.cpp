@@ -870,7 +870,7 @@ public:
 
         {
             const auto &scene = std::get<stargazer::scene_t>(parameters->at("scene"));
-            multiview_image_reconstruction_->axis = scene.axis;
+            multiview_image_reconstruction_->set_axis(scene.axis);
         }
 
         for (const auto &device : reconstruction_config->get_node_infos())
@@ -878,7 +878,7 @@ public:
             if (device.is_camera())
             {
                 const auto &params = std::get<stargazer::camera_t>(parameters->at(device.id));
-                multiview_image_reconstruction_->cameras.insert(std::make_pair(device.name, params));
+                multiview_image_reconstruction_->set_camera(device.name, params);
             }
         }
 

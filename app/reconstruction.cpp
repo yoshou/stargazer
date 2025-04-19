@@ -1203,7 +1203,7 @@ void voxelpose_reconstruction::push_frame(const frame_type &frame)
 
     reconstruction_workers->push_task([frame, this, task_id]()
                                       {
-        const auto markers = dnn_reconstruct(cameras, frame, axis);
+        const auto markers = dnn_reconstruct(get_cameras(), frame, get_axis());
 
         {
             std::unique_lock<std::mutex> lock(reconstruction_task_wait_queue_mtx);
@@ -1435,7 +1435,7 @@ std::tuple<std::vector<std::string>, coalsack::tensor<float, 4>, std::vector<glm
 void mvpose_reconstruction::push_frame(const frame_type &frame)
 {
     processor.push([this, frame = frame]() {
-        auto [names, features, markers] = mvpose_reconstruct(cameras, frame, axis);
+        auto [names, features, markers] = mvpose_reconstruct(get_cameras(), frame, get_axis());
 
         task_result result;
         result.markers = markers;
