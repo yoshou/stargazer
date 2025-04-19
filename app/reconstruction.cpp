@@ -451,16 +451,39 @@ CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, epipolar_reconstruct_node)
 
 class grpc_server_node : public graph_node
 {
-    grpc_server server;
+    std::unique_ptr<grpc_server> server;
     graph_edge_ptr output;
+
+    std::string address;
 
 public:
     grpc_server_node()
-        : graph_node(), server("0.0.0.0:50051"), output(std::make_shared<graph_edge>(this))
+        : graph_node(), server(), output(std::make_shared<graph_edge>(this)), address("0.0.0.0:50051")
     {
         set_output(output);
+    }
+
+    virtual std::string get_proc_name() const override
+    {
+        return "grpc_server_node";
+    }
+
+    void set_address(const std::string &value)
+    {
+        address = value;
+    }
+
+    template <typename Archive>
+    void serialize(Archive &archive)
+    {
+        archive(address);
+    }
+
+    virtual void run() override
+    {
+        server.reset(new grpc_server(address));
         
-        server.receive_se3([this](const std::string &name, int64_t timestamp, const std::vector<se3> &se3)
+        server->receive_se3([this](const std::string &name, int64_t timestamp, const std::vector<se3> &se3)
                            {
             auto msg = std::make_shared<frame_message<object_message>>();
             auto obj_msg = object_message();
@@ -471,40 +494,28 @@ public:
             msg->set_frame_number(static_cast<uint64_t>(timestamp));
             output->send(msg);
         });
-    }
 
-    virtual std::string get_proc_name() const override
-    {
-        return "grpc_server_node";
-    }
-
-    template <typename Archive>
-    void serialize(Archive &archive)
-    {
-    }
-
-    virtual void run() override
-    {
-        server.run();
+        server->run();
     }
 
     virtual void process(std::string input_name, graph_message_ptr message) override
+    {
+        if (const auto msg = std::dynamic_pointer_cast<float3_list_message>(message))
         {
-            if (const auto msg = std::dynamic_pointer_cast<float3_list_message>(message))
+            std::vector<glm::vec3> spheres;
+            for (const auto &data : msg->get_data())
             {
-                std::vector<glm::vec3> spheres;
-                for (const auto &data : msg->get_data())
-                {
-                    spheres.push_back(glm::vec3(data.x, data.y, data.z));
-                }
-                
-            server.notify_sphere(input_name, static_cast<int64_t>(msg->get_timestamp()), spheres);
+                spheres.push_back(glm::vec3(data.x, data.y, data.z));
+            }
+            
+            server->notify_sphere(input_name, static_cast<int64_t>(msg->get_timestamp()), spheres);
         }
     }
 
     virtual void stop() override
     {
-        server.stop();
+        server->stop();
+        server.reset();
     }
 };
 
@@ -549,12 +560,14 @@ CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, frame_number_numbering_node)
 
 class parallel_queue_node : public graph_node
 {
-    std::shared_ptr<task_queue<std::function<void()>>> workers;
+    std::unique_ptr<task_queue<std::function<void()>>> workers;
     graph_edge_ptr output;
+
+    uint32_t num_threads;
 
 public:
     parallel_queue_node()
-        : graph_node(), workers(std::make_shared<task_queue<std::function<void()>>>()), output(std::make_shared<graph_edge>(this))
+        : graph_node(), workers(), output(std::make_shared<graph_edge>(this)), num_threads(std::thread::hardware_concurrency())
     {
         set_output(output);
     }
@@ -564,17 +577,29 @@ public:
         return "parallel_queue_node";
     }
 
+    void set_num_threads(uint32_t value)
+    {
+        num_threads = value;
+    }
+    uint32_t get_num_threads() const
+    {
+        return num_threads;
+    }
+
     template <typename Archive>
     void serialize(Archive &archive)
     {
+        archive(num_threads);
     }
 
     virtual void run() override
     {
+        workers.reset(new task_queue<std::function<void()>>(num_threads));
     }
 
     virtual void stop() override
     {
+        workers.reset();
     }
 
     virtual void process(std::string input_name, graph_message_ptr message) override
@@ -1090,236 +1115,461 @@ namespace stargazer_mvpose
 }
 #endif
 
-class voxelpose_reconstruction::impl
+class voxelpose_reconstruct_node : public graph_node
 {
-public:
-
-    std::atomic_bool running;
-    std::unique_ptr<SensorServiceImpl> service;
-    std::shared_ptr<task_queue<std::function<void()>>> reconstruction_workers;
-    std::shared_ptr<std::thread> server_th;
-    std::unique_ptr<grpc::Server> server;
-    std::deque<uint32_t> reconstruction_task_wait_queue;
-    mutable std::mutex reconstruction_task_wait_queue_mtx;
-    std::condition_variable reconstruction_task_wait_queue_cv;
-    std::mt19937 task_id_gen;
-
-    std::vector<glm::vec3> markers;
-    mutable std::mutex markers_mtx;
+    mutable std::mutex cameras_mtx;
+    std::map<std::string, stargazer::camera_t> cameras;
+    glm::mat4 axis;
+    graph_edge_ptr output;
 
     std::vector<std::string> names;
     coalsack::tensor<float, 4> features;
     mutable std::mutex features_mtx;
 
     stargazer::voxelpose::voxelpose pose_estimator;
-    
-    std::map<std::string, stargazer::camera_t> cameras;
-    glm::mat4 axis;
 
-    std::vector<glm::vec3> dnn_reconstruct(const std::map<std::string, cv::Mat> &frame)
-{
-    using namespace stargazer::voxelpose;
-
-    std::vector<std::string> names;
-    std::vector<cv::Mat> images_list;
-    std::vector<camera_data> cameras_list;
-
-    if (frame.size() <= 1)
+public:
+    voxelpose_reconstruct_node()
+        : graph_node(), cameras(), axis(), output(std::make_shared<graph_edge>(this))
     {
-        return std::vector<glm::vec3>();
+        set_output(output);
     }
 
+    virtual std::string get_proc_name() const override
+    {
+        return "voxelpose_reconstruct_node";
+    }
+
+    template <typename Archive>
+    void serialize(Archive &archive)
+    {
+        archive(cameras, axis);
+    }
+
+    std::vector<glm::vec3> reconstruct(const std::map<std::string, stargazer::camera_t>& cameras, const std::map<std::string, cv::Mat> &frame, const glm::mat4& axis)
+    {
+        using namespace stargazer::voxelpose;
+
+        std::vector<std::string> names;
+        std::vector<cv::Mat> images_list;
+        std::vector<camera_data> cameras_list;
+
+        if (frame.size() <= 1)
+        {
+            return std::vector<glm::vec3>();
+        }
+
 #ifdef PANOPTIC
-    const auto panoptic_cameras = load_cameras();
+        const auto panoptic_cameras = load_cameras();
 #endif
 
-    for (const auto &[camera_name, image] : frame)
-    {
-        names.push_back(camera_name);
-    }
+        for (const auto &[camera_name, image] : frame)
+        {
+            names.push_back(camera_name);
+        }
 
-    for (size_t i = 0; i < frame.size(); i++)
-    {
-        const auto name = names[i];
+        for (size_t i = 0; i < frame.size(); i++)
+        {
+            const auto name = names[i];
 
 #ifdef PANOPTIC
-        const auto &camera = panoptic_cameras.at(name);
+            const auto &camera = panoptic_cameras.at(name);
 #else
-        camera_data camera;
+            camera_data camera;
 
-        const auto &src_camera = cameras.at(name);
+            const auto &src_camera = cameras.at(name);
 
-        camera.fx = src_camera.intrin.fx;
-        camera.fy = src_camera.intrin.fy;
-        camera.cx = src_camera.intrin.cx;
-        camera.cy = src_camera.intrin.cy;
-        camera.k[0] = src_camera.intrin.coeffs[0];
-        camera.k[1] = src_camera.intrin.coeffs[3];
-        camera.k[2] = src_camera.intrin.coeffs[4];
-        camera.p[0] = src_camera.intrin.coeffs[1];
-        camera.p[1] = src_camera.intrin.coeffs[2];
+            camera.fx = src_camera.intrin.fx;
+            camera.fy = src_camera.intrin.fy;
+            camera.cx = src_camera.intrin.cx;
+            camera.cy = src_camera.intrin.cy;
+            camera.k[0] = src_camera.intrin.coeffs[0];
+            camera.k[1] = src_camera.intrin.coeffs[3];
+            camera.k[2] = src_camera.intrin.coeffs[4];
+            camera.p[0] = src_camera.intrin.coeffs[1];
+            camera.p[1] = src_camera.intrin.coeffs[2];
 
-        glm::mat4 basis(1.f);
-        basis[0] = glm::vec4(-1.f, 0.f, 0.f, 0.f);
-        basis[1] = glm::vec4(0.f, 0.f, 1.f, 0.f);
-        basis[2] = glm::vec4(0.f, 1.f, 0.f, 0.f);
+            glm::mat4 basis(1.f);
+            basis[0] = glm::vec4(-1.f, 0.f, 0.f, 0.f);
+            basis[1] = glm::vec4(0.f, 0.f, 1.f, 0.f);
+            basis[2] = glm::vec4(0.f, 1.f, 0.f, 0.f);
 
-        const auto axis = glm::inverse(basis) * this->axis;
-        const auto camera_pose = axis * glm::inverse(src_camera.extrin.transform_matrix());
+            const auto axis = glm::inverse(basis) * this->axis;
+            const auto camera_pose = axis * glm::inverse(src_camera.extrin.transform_matrix());
 
-        for (size_t i = 0; i < 3; i++)
-        {
-            for (size_t j = 0; j < 3; j++)
+            for (size_t i = 0; i < 3; i++)
             {
-                camera.rotation[i][j] = camera_pose[i][j];
+                for (size_t j = 0; j < 3; j++)
+                {
+                    camera.rotation[i][j] = camera_pose[i][j];
+                }
+                camera.translation[i] = camera_pose[3][i] * 1000.0;
             }
-            camera.translation[i] = camera_pose[3][i] * 1000.0;
-        }
 #endif
 
-        cameras_list.push_back(camera);
-        images_list.push_back(frame.at(name));
-    }
+            cameras_list.push_back(camera);
+            images_list.push_back(frame.at(name));
+        }
 
 #ifdef PANOPTIC
-    std::array<float, 3> grid_center = {0.0f, -500.0f, 800.0f};
+        std::array<float, 3> grid_center = {0.0f, -500.0f, 800.0f};
 #else
-    std::array<float, 3> grid_center = {0.0f, 0.0f, 0.0f};
+        std::array<float, 3> grid_center = {0.0f, 0.0f, 0.0f};
 #endif
 
-    pose_estimator.set_grid_center(grid_center);
+        pose_estimator.set_grid_center(grid_center);
 
-    const auto points = pose_estimator.inference(images_list, cameras_list);
+        const auto points = pose_estimator.inference(images_list, cameras_list);
 
-    coalsack::tensor<float, 4> heatmaps({pose_estimator.get_heatmap_width(), pose_estimator.get_heatmap_height(), pose_estimator.get_num_joints(), (uint32_t)images_list.size()});
-    pose_estimator.copy_heatmap_to(images_list.size(), heatmaps.get_data());
-
-    {
-        std::lock_guard lock(features_mtx);
-        this->names = names;
-        this->features = std::move(heatmaps);
-    }
-
-    return points;
-}
-
-    void push_frame(const frame_type &frame)
-{
-    if (!running)
-    {
-        return;
-    }
-
-    if (reconstruction_workers->size() > 10)
-    {
-        return;
-    }
-
-    const auto task_id = task_id_gen();
-    {
-        std::lock_guard lock(reconstruction_task_wait_queue_mtx);
-        reconstruction_task_wait_queue.push_back(task_id);
-    }
-
-    reconstruction_task_wait_queue_cv.notify_one();
-
-    reconstruction_workers->push_task([frame, this, task_id]()
-                                      {
-            const auto markers = dnn_reconstruct(frame);
+        coalsack::tensor<float, 4> heatmaps({pose_estimator.get_heatmap_width(), pose_estimator.get_heatmap_height(), pose_estimator.get_num_joints(), (uint32_t)images_list.size()});
+        pose_estimator.copy_heatmap_to(images_list.size(), heatmaps.get_data());
 
         {
-            std::unique_lock<std::mutex> lock(reconstruction_task_wait_queue_mtx);
-            reconstruction_task_wait_queue_cv.wait(lock, [&]
-                                                   { return reconstruction_task_wait_queue.front() == task_id; });
+            std::lock_guard lock(features_mtx);
+            this->names = names;
+            this->features = std::move(heatmaps);
+        }
 
-            assert(reconstruction_task_wait_queue.front() == task_id);
-            reconstruction_task_wait_queue.pop_front();
+        return points;
+    }
 
+    static int convert_to_cv_type(image_format format)
+    {
+        switch (format)
+        {
+        case image_format::Y8_UINT:
+            return CV_8UC1;
+        case image_format::R8G8B8_UINT:
+        case image_format::B8G8R8_UINT:
+            return CV_8UC3;
+        case image_format::R8G8B8A8_UINT:
+        case image_format::B8G8R8A8_UINT:
+            return CV_8UC4;
+        default:
+            throw std::runtime_error("Invalid image format");
+        }
+    }
+
+    virtual void process(std::string input_name, graph_message_ptr message) override
+    {
+        if (input_name == "cameras")
+        {
+            if (auto camera_msg = std::dynamic_pointer_cast<object_message>(message))
             {
-                std::lock_guard lock(markers_mtx);
-                this->markers = markers;
+                for (const auto &[name, field] : camera_msg->get_fields())
+                {
+                    if (auto camera_msg = std::dynamic_pointer_cast<camera_message>(field))
+                    {
+                        std::lock_guard lock(cameras_mtx);
+                        cameras[name] = camera_msg->get_camera();
+                    }
+                }
             }
 
-            service->notify_sphere("sphere", 0, markers);
+            return;
+        }
+        if (input_name == "axis")
+        {
+            if (auto mat4_msg = std::dynamic_pointer_cast<mat4_message>(message))
+            {
+                axis = mat4_msg->get_data();
+            }
+
+            return;
         }
 
-        reconstruction_task_wait_queue_cv.notify_all(); });
-}
-
-    void run()
-{
-    running = true;
-    server_th.reset(new std::thread([this]()
-                                    {
-        std::string server_address("0.0.0.0:50052");
-
-        grpc::ServerBuilder builder;
-        builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
-        builder.RegisterService(service.get());
-        server = builder.BuildAndStart();
-        spdlog::info("Server listening on " + server_address);
-        server->Wait(); }));
-}
-
-    void stop()
-{
-    if (running.load())
-    {
+        if (auto frame_msg = std::dynamic_pointer_cast<frame_message<object_message>>(message))
         {
-            std::lock_guard<std::mutex> lock(reconstruction_task_wait_queue_mtx);
-            running.store(false);
-        }
-        server->Shutdown();
-        if (server_th && server_th->joinable())
-        {
-            server_th->join();
+            const auto obj_msg = frame_msg->get_data();
+
+            std::map<std::string, stargazer::camera_t> cameras;
+            {
+                std::lock_guard lock(cameras_mtx);
+                cameras = this->cameras;
+            }
+            
+            std::map<std::string, cv::Mat> images;
+
+            for (const auto &[name, field] : obj_msg.get_fields())
+            {
+                if (auto img_msg = std::dynamic_pointer_cast<image_message>(field))
+                {
+                    if (cameras.find(name) == cameras.end())
+                    {
+                        continue;
+                    }
+                    const auto &image = img_msg->get_image();
+                    cv::Mat img(image.get_height(), image.get_width(), convert_to_cv_type(image.get_format()), (void *)image.get_data(), image.get_stride());
+                    images[name] = img;
+                }
+            }
+
+            const auto markers = reconstruct(cameras, images, axis);
+
+            auto marker_msg = std::make_shared<float3_list_message>();
+            std::vector<float3> marker_data;
+            for (const auto &marker : markers)
+            {
+                marker_data.push_back({marker.x, marker.y, marker.z});
+            }
+            marker_msg->set_data(marker_data);
+            marker_msg->set_frame_number(frame_msg->get_frame_number());
+
+            output->send(marker_msg);
         }
     }
-}
 
     std::map<std::string, cv::Mat> get_features() const
-{
-    coalsack::tensor<float, 4> features;
-    std::vector<std::string> names;
     {
-        std::lock_guard lock(features_mtx);
-        features = this->features;
-        names = this->names;
-    }
-    std::map<std::string, cv::Mat> result;
-    if (features.get_size() == 0)
-    {
+        coalsack::tensor<float, 4> features;
+        std::vector<std::string> names;
+        {
+            std::lock_guard lock(features_mtx);
+            features = this->features;
+            names = this->names;
+        }
+        std::map<std::string, cv::Mat> result;
+        if (features.get_size() == 0)
+        {
+            return result;
+        }
+        for (size_t i = 0; i < names.size(); i++)
+        {
+            const auto name = names[i];
+            const auto heatmap = features.view<3>({features.shape[0], features.shape[1], features.shape[2], 0}, {0, 0, 0, static_cast<uint32_t>(i)}).contiguous().sum<1>({2});
+
+            cv::Mat heatmap_mat;
+            cv::Mat(heatmap.shape[1], heatmap.shape[0], CV_32FC1, (float *)heatmap.get_data()).clone().convertTo(heatmap_mat, CV_8U, 255);
+            cv::resize(heatmap_mat, heatmap_mat, cv::Size(960, 540));
+            cv::cvtColor(heatmap_mat, heatmap_mat, cv::COLOR_GRAY2BGR);
+
+            result[name] = heatmap_mat;
+        }
         return result;
     }
-    for (size_t i = 0; i < names.size(); i++)
-    {
-        const auto name = names[i];
-        const auto heatmap = features.view<3>({features.shape[0], features.shape[1], features.shape[2], 0}, {0, 0, 0, static_cast<uint32_t>(i)}).contiguous().sum<1>({2});
+};
 
-        cv::Mat heatmap_mat;
-        cv::Mat(heatmap.shape[1], heatmap.shape[0], CV_32FC1, (float *)heatmap.get_data()).clone().convertTo(heatmap_mat, CV_8U, 255);
-        cv::resize(heatmap_mat, heatmap_mat, cv::Size(960, 540));
-        cv::cvtColor(heatmap_mat, heatmap_mat, cv::COLOR_GRAY2BGR);
+CEREAL_REGISTER_TYPE(voxelpose_reconstruct_node)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, voxelpose_reconstruct_node)
 
-        result[name] = heatmap_mat;
-    }
-    return result;
-}
-
-    std::vector<glm::vec3> get_markers() const
+class voxelpose_reconstruction_pipeline
 {
-    std::vector<glm::vec3> result;
+    graph_proc graph;
+
+    std::atomic_bool running;
+
+    mutable std::mutex markers_mtx;
+    std::vector<glm::vec3> markers;
+    std::vector<std::function<void(const std::vector<glm::vec3> &)>> markers_received;
+
+    std::shared_ptr<voxelpose_reconstruct_node> reconstruct_node;
+    std::shared_ptr<graph_node> input_node;
+
+public:
+    void add_markers_received(std::function<void(const std::vector<glm::vec3> &)> f)
     {
         std::lock_guard lock(markers_mtx);
-        result = markers;
+        markers_received.push_back(f);
     }
-    return result;
+
+    void clear_markers_received()
+    {
+        std::lock_guard lock(markers_mtx);
+        markers_received.clear();
+    }
+
+    voxelpose_reconstruction_pipeline()
+        : graph(), running(false), markers(), markers_received(), reconstruct_node(), input_node()
+    {
+    }
+
+    void set_camera(const std::string &name, const stargazer::camera_t &camera)
+    {
+        auto camera_msg = std::make_shared<camera_message>(camera);
+        camera_msg->set_camera(camera);
+
+        auto obj_msg = std::make_shared<object_message>();
+        obj_msg->add_field(name, camera_msg);
+
+        if (reconstruct_node)
+        {
+            graph.process(reconstruct_node.get(), "cameras", obj_msg);
+        }
+    }
+
+    void set_axis(const glm::mat4 &axis)
+    {
+        auto mat4_msg = std::make_shared<mat4_message>();
+        mat4_msg->set_data(axis);
+
+        if (reconstruct_node)
+        {
+            graph.process(reconstruct_node.get(), "axis", mat4_msg);
+        }
     }
     
+    using frame_type = std::map<std::string, cv::Mat>;
+
+    static image_format convert_to_image_format(int type)
+    {
+        switch (type)
+        {
+        case CV_8UC1:
+            return image_format::Y8_UINT;
+        case CV_8UC3:
+            return image_format::B8G8R8_UINT;
+        case CV_8UC4:
+            return image_format::B8G8R8A8_UINT;
+        default:
+            throw std::runtime_error("Invalid image format");
+        }
+    }
+
+    void push_frame(const frame_type &frame)
+    {
+        if (!running)
+        {
+            return;
+        }
+
+        auto msg = std::make_shared<object_message>();
+        for (const auto &[name, field] : frame)
+        {
+            auto img_msg = std::make_shared<image_message>();
+            
+            image img(static_cast<std::uint32_t>(field.size().width),
+                      static_cast<std::uint32_t>(field.size().height),
+                      static_cast<std::uint32_t>(field.elemSize()),
+                      static_cast<std::uint32_t>(field.step), (const uint8_t *)field.data);
+            img.set_format(convert_to_image_format(field.type()));
+            
+            img_msg->set_image(std::move(img));
+            msg->add_field(name, img_msg);
+        }
+
+        auto frame_msg = std::make_shared<frame_message<object_message>>();
+        frame_msg->set_data(*msg);
+
+        if (input_node)
+        {
+            graph.process(input_node.get(), frame_msg);
+        }
+    }
+
+    void run()
+    {
+        std::shared_ptr<subgraph> g(new subgraph());
+
+        std::shared_ptr<frame_number_numbering_node> n4(new frame_number_numbering_node());
+        g->add_node(n4);
+
+        input_node = n4;
+
+        std::shared_ptr<parallel_queue_node> n6(new parallel_queue_node());
+        n6->set_input(n4->get_output());
+        n6->set_num_threads(1);
+        g->add_node(n6);
+
+        std::shared_ptr<voxelpose_reconstruct_node> n1(new voxelpose_reconstruct_node());
+        n1->set_input(n6->get_output());
+        g->add_node(n1);
+
+        reconstruct_node = n1;
+
+        std::shared_ptr<frame_number_ordering_node> n5(new frame_number_ordering_node());
+        n5->set_input(n1->get_output());
+        g->add_node(n5);
+
+        std::shared_ptr<callback_node> n2(new callback_node());
+        n2->set_input(n5->get_output());
+        g->add_node(n2);
+
+        n2->set_name("markers");
+
+        std::shared_ptr<grpc_server_node> n3(new grpc_server_node());
+        n3->set_input(n5->get_output(), "sphere");
+        n3->set_address("0.0.0.0:50052");
+        g->add_node(n3);
+
+        const auto callbacks = std::make_shared<callback_list>();
+
+        callbacks->add([this](const callback_node *node, std::string input_name, graph_message_ptr message)
+                       {
+            if (node->get_name() == "markers")
+            {
+                if (const auto markers_msg = std::dynamic_pointer_cast<float3_list_message>(message))
+                {
+                    std::vector<glm::vec3> markers;
+                    for (const auto &marker : markers_msg->get_data())
+                    {
+                        markers.push_back(glm::vec3(marker.x, marker.y, marker.z));
+                    }
+
+                    {
+                        std::lock_guard lock(markers_mtx);
+                        this->markers = markers;
+                    }
+
+                    std::cout << "Markers: " << markers.size() << std::endl;
+
+                    for (const auto &f : markers_received)
+                    {
+                        f(markers);
+                    }
+                }
+            } });
+
+        graph.deploy(g);
+        graph.get_resources()->add(callbacks);
+        graph.run();
+
+        running = true;
+    }
+
+    void stop()
+    {
+        running.store(false);
+        graph.stop();
+    }
+
+    std::vector<glm::vec3> get_markers() const
+    {
+        std::vector<glm::vec3> result;
+
+        {
+            std::lock_guard lock(markers_mtx);
+            result = this->markers;
+        }
+
+        return result;
+    }
+
+    std::map<std::string, cv::Mat> get_features() const
+    {
+        return reconstruct_node->get_features();
+    }
+};
+
+class voxelpose_reconstruction::impl
+{
+public:
+    std::unique_ptr<voxelpose_reconstruction_pipeline> pipeline;
+    
     impl()
-        : service(new SensorServiceImpl()), reconstruction_workers(std::make_shared<task_queue<std::function<void()>>>(1)), task_id_gen(std::random_device()()) {}
+        : pipeline(std::make_unique<voxelpose_reconstruction_pipeline>())
+    {}
 
     ~impl() = default;
+
+    void run()
+    {
+        pipeline->run();
+    }
+
+    void stop()
+    {
+        pipeline->stop();
+    }
 };
 
 voxelpose_reconstruction::voxelpose_reconstruction()
@@ -1330,7 +1580,7 @@ voxelpose_reconstruction::~voxelpose_reconstruction() = default;
 
 void voxelpose_reconstruction::push_frame(const frame_type &frame)
 {
-    pimpl->push_frame(frame);
+    pimpl->pipeline->push_frame(frame);
 }
 
 void voxelpose_reconstruction::run()
@@ -1345,23 +1595,23 @@ void voxelpose_reconstruction::stop()
 
 std::map<std::string, cv::Mat> voxelpose_reconstruction::get_features() const
 {
-    return pimpl->get_features();
+    return pimpl->pipeline->get_features();
 }
 
 std::vector<glm::vec3> voxelpose_reconstruction::get_markers() const
 {
-    return pimpl->get_markers();
+    return pimpl->pipeline->get_markers();
 }
 
 void voxelpose_reconstruction::set_camera(const std::string &name, const stargazer::camera_t &camera)
 {
-    pimpl->cameras[name] = camera;
+    pimpl->pipeline->set_camera(name, camera);
     multiview_image_reconstruction::set_camera(name, camera);
 }
 
 void voxelpose_reconstruction::set_axis(const glm::mat4 &axis)
 {
-    pimpl->axis = axis;
+    pimpl->pipeline->set_axis(axis);
     multiview_image_reconstruction::set_axis(axis);
 }
 
