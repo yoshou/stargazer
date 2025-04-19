@@ -154,26 +154,8 @@ public:
 
 class voxelpose_reconstruction : public multiview_image_reconstruction
 {
-    std::vector<glm::vec3> dnn_reconstruct(const std::map<std::string, stargazer::camera_t> &cameras, const std::map<std::string, cv::Mat> &frame, glm::mat4 axis);
-
-    std::atomic_bool running;
-    std::unique_ptr<SensorServiceImpl> service;
-    std::shared_ptr<task_queue<std::function<void()>>> reconstruction_workers;
-    std::shared_ptr<std::thread> server_th;
-    std::unique_ptr<grpc::Server> server;
-    std::deque<uint32_t> reconstruction_task_wait_queue;
-    mutable std::mutex reconstruction_task_wait_queue_mtx;
-    std::condition_variable reconstruction_task_wait_queue_cv;
-    std::mt19937 task_id_gen;
-
-    std::vector<glm::vec3> markers;
-    mutable std::mutex markers_mtx;
-
-    std::vector<std::string> names;
-    coalsack::tensor<float, 4> features;
-    mutable std::mutex features_mtx;
-
-    stargazer::voxelpose::voxelpose pose_estimator;
+    class impl;
+    std::unique_ptr<impl> pimpl;
 
 public:
 
@@ -185,8 +167,9 @@ public:
     void stop();
 
     std::vector<glm::vec3> get_markers() const;
-
     std::map<std::string, cv::Mat> get_features() const;
+    void set_camera(const std::string &name, const stargazer::camera_t &camera) override;
+    void set_axis(const glm::mat4 &axis) override;
 };
 
 #define USE_THREAD_POOL 1
