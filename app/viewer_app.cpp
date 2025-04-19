@@ -221,6 +221,8 @@ class viewer_app : public window_base
                 new_device.params["width"] = 960.0f;
                 new_device.params["height"] = 540.0f;
                 break;
+            default:
+                break;
             }
 
             auto &node_infos = capture_config->get_node_infos();
