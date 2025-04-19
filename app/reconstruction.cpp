@@ -1090,7 +1090,33 @@ namespace stargazer_mvpose
 }
 #endif
 
-std::vector<glm::vec3> voxelpose_reconstruction::dnn_reconstruct(const std::map<std::string, stargazer::camera_t> &cameras, const std::map<std::string, cv::Mat> &frame, glm::mat4 axis)
+class voxelpose_reconstruction::impl
+{
+public:
+
+    std::atomic_bool running;
+    std::unique_ptr<SensorServiceImpl> service;
+    std::shared_ptr<task_queue<std::function<void()>>> reconstruction_workers;
+    std::shared_ptr<std::thread> server_th;
+    std::unique_ptr<grpc::Server> server;
+    std::deque<uint32_t> reconstruction_task_wait_queue;
+    mutable std::mutex reconstruction_task_wait_queue_mtx;
+    std::condition_variable reconstruction_task_wait_queue_cv;
+    std::mt19937 task_id_gen;
+
+    std::vector<glm::vec3> markers;
+    mutable std::mutex markers_mtx;
+
+    std::vector<std::string> names;
+    coalsack::tensor<float, 4> features;
+    mutable std::mutex features_mtx;
+
+    stargazer::voxelpose::voxelpose pose_estimator;
+    
+    std::map<std::string, stargazer::camera_t> cameras;
+    glm::mat4 axis;
+
+    std::vector<glm::vec3> dnn_reconstruct(const std::map<std::string, cv::Mat> &frame)
 {
     using namespace stargazer::voxelpose;
 
@@ -1177,11 +1203,7 @@ std::vector<glm::vec3> voxelpose_reconstruction::dnn_reconstruct(const std::map<
     return points;
 }
 
-voxelpose_reconstruction::voxelpose_reconstruction()
-    : service(new SensorServiceImpl()), reconstruction_workers(std::make_shared<task_queue<std::function<void()>>>(1)), task_id_gen(std::random_device()()) {}
-voxelpose_reconstruction::~voxelpose_reconstruction() = default;
-
-void voxelpose_reconstruction::push_frame(const frame_type &frame)
+    void push_frame(const frame_type &frame)
 {
     if (!running)
     {
@@ -1203,7 +1225,7 @@ void voxelpose_reconstruction::push_frame(const frame_type &frame)
 
     reconstruction_workers->push_task([frame, this, task_id]()
                                       {
-        const auto markers = dnn_reconstruct(get_cameras(), frame, get_axis());
+            const auto markers = dnn_reconstruct(frame);
 
         {
             std::unique_lock<std::mutex> lock(reconstruction_task_wait_queue_mtx);
@@ -1224,7 +1246,7 @@ void voxelpose_reconstruction::push_frame(const frame_type &frame)
         reconstruction_task_wait_queue_cv.notify_all(); });
 }
 
-void voxelpose_reconstruction::run()
+    void run()
 {
     running = true;
     server_th.reset(new std::thread([this]()
@@ -1239,7 +1261,7 @@ void voxelpose_reconstruction::run()
         server->Wait(); }));
 }
 
-void voxelpose_reconstruction::stop()
+    void stop()
 {
     if (running.load())
     {
@@ -1255,7 +1277,7 @@ void voxelpose_reconstruction::stop()
     }
 }
 
-std::map<std::string, cv::Mat> voxelpose_reconstruction::get_features() const
+    std::map<std::string, cv::Mat> get_features() const
 {
     coalsack::tensor<float, 4> features;
     std::vector<std::string> names;
@@ -1284,7 +1306,7 @@ std::map<std::string, cv::Mat> voxelpose_reconstruction::get_features() const
     return result;
 }
 
-std::vector<glm::vec3> voxelpose_reconstruction::get_markers() const
+    std::vector<glm::vec3> get_markers() const
 {
     std::vector<glm::vec3> result;
     {
@@ -1292,6 +1314,55 @@ std::vector<glm::vec3> voxelpose_reconstruction::get_markers() const
         result = markers;
     }
     return result;
+    }
+    
+    impl()
+        : service(new SensorServiceImpl()), reconstruction_workers(std::make_shared<task_queue<std::function<void()>>>(1)), task_id_gen(std::random_device()()) {}
+
+    ~impl() = default;
+};
+
+voxelpose_reconstruction::voxelpose_reconstruction()
+    : pimpl(new impl())
+{
+}
+voxelpose_reconstruction::~voxelpose_reconstruction() = default;
+
+void voxelpose_reconstruction::push_frame(const frame_type &frame)
+{
+    pimpl->push_frame(frame);
+}
+
+void voxelpose_reconstruction::run()
+{
+    pimpl->run();
+}
+
+void voxelpose_reconstruction::stop()
+{
+    pimpl->stop();
+}
+
+std::map<std::string, cv::Mat> voxelpose_reconstruction::get_features() const
+{
+    return pimpl->get_features();
+}
+
+std::vector<glm::vec3> voxelpose_reconstruction::get_markers() const
+{
+    return pimpl->get_markers();
+}
+
+void voxelpose_reconstruction::set_camera(const std::string &name, const stargazer::camera_t &camera)
+{
+    pimpl->cameras[name] = camera;
+    multiview_image_reconstruction::set_camera(name, camera);
+}
+
+void voxelpose_reconstruction::set_axis(const glm::mat4 &axis)
+{
+    pimpl->axis = axis;
+    multiview_image_reconstruction::set_axis(axis);
 }
 
 grpc_server::grpc_server(const std::string &server_address)
