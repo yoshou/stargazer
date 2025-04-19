@@ -1510,8 +1510,6 @@ public:
                         this->markers = markers;
                     }
 
-                    std::cout << "Markers: " << markers.size() << std::endl;
-
                     for (const auto &f : markers_received)
                     {
                         f(markers);
