@@ -125,7 +125,7 @@ public:
 
     virtual std::vector<glm::vec3> get_markers() const = 0;
     virtual std::map<std::string, cv::Mat> get_features() const = 0;
-    
+
     virtual std::map<std::string, stargazer::camera_t> get_cameras() const
     {
         return cameras;

@@ -27,7 +27,7 @@ class task_queue
                 std::unique_lock<std::mutex> lock(tasks_mutex);
                 condition.wait(lock, [&]
                                { return !tasks.empty() || !running; });
-                if (!running && tasks.empty())
+                if (!running)
                 {
                     return;
                 }
