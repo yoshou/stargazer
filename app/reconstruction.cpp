@@ -974,72 +974,6 @@ namespace fs = std::filesystem;
 #define PANOPTIC
 
 #ifdef PANOPTIC
-namespace stargazer::voxelpose
-{
-    static std::map<std::string, camera_data> load_cameras()
-    {
-        using namespace stargazer::voxelpose;
-
-        std::map<std::string, camera_data> cameras;
-
-        const auto camera_file = fs::path("/workspace/data/panoptic/calibration_171204_pose1.json");
-
-        std::ifstream f;
-        f.open(camera_file, std::ios::in | std::ios::binary);
-        std::string str((std::istreambuf_iterator<char>(f)),
-                        std::istreambuf_iterator<char>());
-
-        nlohmann::json calib = nlohmann::json::parse(str);
-
-        for (const auto &cam : calib["cameras"])
-        {
-            const auto panel = cam["panel"].get<int32_t>();
-            const auto node = cam["node"].get<int32_t>();
-
-            const auto k = cam["K"].get<std::vector<std::vector<double>>>();
-            const auto dist_coeffs = cam["distCoef"].get<std::vector<double>>();
-            const auto rotation = cam["R"].get<std::vector<std::vector<double>>>();
-            const auto translation = cam["t"].get<std::vector<std::vector<double>>>();
-
-            const std::array<std::array<double, 3>, 3> m = {{
-                {{1.0, 0.0, 0.0}},
-                {{0.0, 0.0, -1.0}},
-                {{0.0, 1.0, 0.0}},
-            }};
-
-            camera_data cam_data = {};
-            cam_data.fx = k[0][0];
-            cam_data.fy = k[1][1];
-            cam_data.cx = k[0][2];
-            cam_data.cy = k[1][2];
-            for (size_t i = 0; i < 3; i++)
-            {
-                for (size_t j = 0; j < 3; j++)
-                {
-                    for (size_t k = 0; k < 3; k++)
-                    {
-                        cam_data.rotation[i][j] += rotation[i][k] * m[k][j];
-                    }
-                }
-            }
-            for (size_t i = 0; i < 3; i++)
-            {
-                for (size_t j = 0; j < 3; j++)
-                {
-                    cam_data.translation[i] += -translation[j][0] * cam_data.rotation[j][i] * 10.0;
-                }
-            }
-            cam_data.k[0] = dist_coeffs[0];
-            cam_data.k[1] = dist_coeffs[1];
-            cam_data.k[2] = dist_coeffs[4];
-            cam_data.p[0] = dist_coeffs[2];
-            cam_data.p[1] = dist_coeffs[3];
-
-            cameras[cv::format("%02d_%02d", panel, node)] = cam_data;
-        }
-        return cameras;
-    }
-}
 namespace stargazer_mvpose
 {
     static std::map<std::string, stargazer::camera_t> load_cameras()
@@ -1159,10 +1093,6 @@ public:
             return std::vector<glm::vec3>();
         }
 
-#ifdef PANOPTIC
-        const auto panoptic_cameras = load_cameras();
-#endif
-
         for (const auto &[camera_name, image] : frame)
         {
             names.push_back(camera_name);
@@ -1171,10 +1101,6 @@ public:
         for (size_t i = 0; i < frame.size(); i++)
         {
             const auto name = names[i];
-
-#ifdef PANOPTIC
-            const auto &camera = panoptic_cameras.at(name);
-#else
             camera_data camera;
 
             const auto &src_camera = cameras.at(name);
@@ -1184,18 +1110,22 @@ public:
             camera.cx = src_camera.intrin.cx;
             camera.cy = src_camera.intrin.cy;
             camera.k[0] = src_camera.intrin.coeffs[0];
-            camera.k[1] = src_camera.intrin.coeffs[3];
+            camera.k[1] = src_camera.intrin.coeffs[1];
             camera.k[2] = src_camera.intrin.coeffs[4];
-            camera.p[0] = src_camera.intrin.coeffs[1];
-            camera.p[1] = src_camera.intrin.coeffs[2];
+            camera.p[0] = src_camera.intrin.coeffs[2];
+            camera.p[1] = src_camera.intrin.coeffs[3];
 
-            glm::mat4 basis(1.f);
-            basis[0] = glm::vec4(-1.f, 0.f, 0.f, 0.f);
-            basis[1] = glm::vec4(0.f, 0.f, 1.f, 0.f);
-            basis[2] = glm::vec4(0.f, 1.f, 0.f, 0.f);
+            glm::mat4 gl_to_cv(1.f);
+            gl_to_cv[0] = glm::vec4(1.f, 0.f, 0.f, 0.f);
+            gl_to_cv[1] = glm::vec4(0.f, -1.f, 0.f, 0.f);
+            gl_to_cv[2] = glm::vec4(0.f, 0.f, -1.f, 0.f);
 
-            const auto axis = glm::inverse(basis) * this->axis;
-            const auto camera_pose = axis * glm::inverse(src_camera.extrin.transform_matrix());
+            glm::mat4 m(1.f);
+            m[0] = glm::vec4(1.f, 0.f, 0.f, 0.f);
+            m[1] = glm::vec4(0.f, 0.f, 1.f, 0.f);
+            m[2] = glm::vec4(0.f, -1.f, 0.f, 0.f);
+
+            const auto camera_pose = axis * glm::inverse(src_camera.extrin.transform_matrix() * gl_to_cv * m);
 
             for (size_t i = 0; i < 3; i++)
             {
@@ -1205,7 +1135,6 @@ public:
                 }
                 camera.translation[i] = camera_pose[3][i] * 1000.0;
             }
-#endif
 
             cameras_list.push_back(camera);
             images_list.push_back(frame.at(name));
