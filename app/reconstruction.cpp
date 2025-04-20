@@ -1081,9 +1081,9 @@ namespace stargazer_mvpose
             }
 
             glm::mat4 cv_to_gl(1.f);
-            cv_to_gl[0] = glm::vec4(-1.f, 0.f, 0.f, 0.f);
+            cv_to_gl[0] = glm::vec4(1.f, 0.f, 0.f, 0.f);
             cv_to_gl[1] = glm::vec4(0.f, -1.f, 0.f, 0.f);
-            cv_to_gl[2] = glm::vec4(0.f, 0.f, 1.f, 0.f);
+            cv_to_gl[2] = glm::vec4(0.f, 0.f, -1.f, 0.f);
 
             camera_pose = camera_pose * cv_to_gl;
 

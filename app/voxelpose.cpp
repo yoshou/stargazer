@@ -931,8 +931,8 @@ namespace stargazer::voxelpose
                 CUDA_SAFE_CALL(cudaMemcpy(&joints[0][0], joint_extract->get_joints(), 3 * 15 * sizeof(float), cudaMemcpyDeviceToHost));
 
                 glm::mat4 basis(1.f);
-                basis[0] = glm::vec4(-1.f, 0.f, 0.f, 0.f);
-                basis[1] = glm::vec4(0.f, 0.f, 1.f, 0.f);
+                basis[0] = glm::vec4(1.f, 0.f, 0.f, 0.f);
+                basis[1] = glm::vec4(0.f, 0.f, -1.f, 0.f);
                 basis[2] = glm::vec4(0.f, 1.f, 0.f, 0.f);
 
                 for (const auto &joint : joints)
