@@ -966,88 +966,7 @@ void epipolar_reconstruction::set_axis(const glm::mat4 &axis)
     multiview_point_reconstruction::set_axis(axis);
 }
 
-#include <cereal/types/array.hpp>
-#include <nlohmann/json.hpp>
-
-namespace fs = std::filesystem;
-
 #define PANOPTIC
-
-#ifdef PANOPTIC
-namespace stargazer_mvpose
-{
-    static std::map<std::string, stargazer::camera_t> load_cameras()
-    {
-        using namespace stargazer::voxelpose;
-
-        std::map<std::string, stargazer::camera_t> cameras;
-
-        const auto camera_file = fs::path("/workspace/data/panoptic/calibration_171204_pose1.json");
-
-        std::ifstream f;
-        f.open(camera_file, std::ios::in | std::ios::binary);
-        std::string str((std::istreambuf_iterator<char>(f)),
-                        std::istreambuf_iterator<char>());
-
-        nlohmann::json calib = nlohmann::json::parse(str);
-
-        for (const auto &cam : calib["cameras"])
-        {
-            const auto panel = cam["panel"].get<int32_t>();
-            const auto node = cam["node"].get<int32_t>();
-
-            const auto k = cam["K"].get<std::vector<std::vector<double>>>();
-            const auto dist_coeffs = cam["distCoef"].get<std::vector<double>>();
-            const auto rotation = cam["R"].get<std::vector<std::vector<double>>>();
-            const auto translation = cam["t"].get<std::vector<std::vector<double>>>();
-
-            glm::mat4 camera_pose(1.0f);
-            for (size_t i = 0; i < 3; i++)
-            {
-                for (size_t j = 0; j < 3; j++)
-                {
-                    camera_pose[j][i] = rotation[i][j];
-                }
-            }
-            for (size_t i = 0; i < 3; i++)
-            {
-                camera_pose[3][i] = translation[i][0] / 100;
-            }
-
-            glm::mat4 cv_to_gl(1.f);
-            cv_to_gl[0] = glm::vec4(1.f, 0.f, 0.f, 0.f);
-            cv_to_gl[1] = glm::vec4(0.f, -1.f, 0.f, 0.f);
-            cv_to_gl[2] = glm::vec4(0.f, 0.f, -1.f, 0.f);
-
-            camera_pose = camera_pose * cv_to_gl;
-
-            stargazer::camera_t cam_data = {};
-            cam_data.intrin.fx = k[0][0];
-            cam_data.intrin.fy = k[1][1];
-            cam_data.intrin.cx = k[0][2];
-            cam_data.intrin.cy = k[1][2];
-            for (size_t i = 0; i < 3; i++)
-            {
-                for (size_t j = 0; j < 3; j++)
-                {
-                    cam_data.extrin.rotation[i][j] = camera_pose[i][j];
-                }
-            }
-            for (size_t i = 0; i < 3; i++)
-            {
-                cam_data.extrin.translation[i] = camera_pose[3][i];
-            }
-            for (size_t i = 0; i < 5; i++)
-            {
-                cam_data.intrin.coeffs[i] = dist_coeffs[i];
-            }
-
-            cameras[cv::format("%02d_%02d", panel, node)] = cam_data;
-        }
-        return cameras;
-    }
-}
-#endif
 
 class voxelpose_reconstruct_node : public graph_node
 {
@@ -1629,10 +1548,6 @@ std::tuple<std::vector<std::string>, coalsack::tensor<float, 4>, std::vector<glm
         return std::forward_as_tuple(names, heatmaps, points);
     }
 
-#ifdef PANOPTIC
-    const auto panoptic_cameras = load_cameras();
-#endif
-
     for (const auto &[camera_name, image] : frame)
     {
         names.push_back(camera_name);
@@ -1642,9 +1557,6 @@ std::tuple<std::vector<std::string>, coalsack::tensor<float, 4>, std::vector<glm
     {
         const auto name = names[i];
 
-#ifdef PANOPTIC
-        const auto &camera = panoptic_cameras.at(name);
-#else
         stargazer::camera_t camera;
 
         const auto &src_camera = cameras.at(name);
@@ -1659,7 +1571,7 @@ std::tuple<std::vector<std::string>, coalsack::tensor<float, 4>, std::vector<glm
         camera.intrin.coeffs[3] = src_camera.intrin.coeffs[3];
         camera.intrin.coeffs[4] = src_camera.intrin.coeffs[4];
 
-        const auto camera_pose = glm::inverse(axis * glm::inverse(src_camera.extrin.transform_matrix()));
+        const auto camera_pose = src_camera.extrin.transform_matrix() * glm::inverse(axis);
 
         for (size_t i = 0; i < 3; i++)
         {
@@ -1669,7 +1581,6 @@ std::tuple<std::vector<std::string>, coalsack::tensor<float, 4>, std::vector<glm
             }
             camera.extrin.translation[i] = camera_pose[3][i];
         }
-#endif
 
         cameras_list.push_back(camera);
         images_list.push_back(frame.at(name));
