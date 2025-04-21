@@ -8,6 +8,7 @@
 #include <opencv2/core.hpp>
 #include <opencv2/imgproc.hpp>
 
+#include "device_launch_parameters.h"
 #include "preprocess.hpp"
 
 namespace stargazer {
