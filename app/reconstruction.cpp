@@ -1282,7 +1282,7 @@ std::tuple<std::vector<std::string>, coalsack::tensor<float, 4>, std::vector<glm
 mvpose_reconstruction::mvpose_reconstruct(const std::map<std::string, stargazer::camera_t> &cameras,
                                           const std::map<std::string, cv::Mat> &frame,
                                           glm::mat4 axis) {
-  using namespace stargazer_mvpose;
+  using namespace stargazer::mvpose;
 
   std::vector<std::string> names;
   coalsack::tensor<float, 4> heatmaps;
