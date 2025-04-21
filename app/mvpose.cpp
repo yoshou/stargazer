@@ -44,7 +44,7 @@ class Logger : public nvinfer1::ILogger {
 #include <cpu_provider_factory.h>
 #include <onnxruntime_cxx_api.h>
 
-namespace stargazer_mvpose {
+namespace stargazer::mvpose {
 class dnn_inference_pose {
   std::vector<uint8_t> model_data;
 
@@ -922,14 +922,14 @@ class dnn_inference_det_trt {
                               cudaMemcpyDeviceToHost));
   }
 };
-}  // namespace stargazer_mvpose
+}  // namespace stargazer::mvpose
 #else
 #endif
 
 #include <Eigen/Core>
 #include <Eigen/Dense>
 
-namespace stargazer_mvpose {
+namespace stargazer::mvpose {
 static cv::Point2f operator*(cv::Mat M, const cv::Point2f &p) {
   cv::Mat_<double> src(3, 1);
 
@@ -1663,4 +1663,4 @@ mvpose::mvpose() {
 }
 
 mvpose::~mvpose() = default;
-}  // namespace stargazer_mvpose
+}  // namespace stargazer::mvpose

@@ -264,7 +264,7 @@ class mvpose_reconstruction : public multiview_image_reconstruction {
   coalsack::tensor<float, 4> features;
   mutable std::mutex features_mtx;
 
-  stargazer_mvpose::mvpose pose_estimator;
+  stargazer::mvpose::mvpose pose_estimator;
 
   struct task_result {
     std::vector<std::string> camera_names;
