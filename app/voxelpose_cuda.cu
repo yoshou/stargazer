@@ -6,6 +6,7 @@
 #include <iostream>
 #include <numeric>
 
+#include "device_launch_parameters.h"
 #include "preprocess.hpp"
 #include "voxelpose_cuda.hpp"
 
