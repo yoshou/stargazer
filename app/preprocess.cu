@@ -192,7 +192,6 @@ void preprocess_cuda(const uint8_t *src_data, int src_width, int src_height, int
 
   const auto scale = get_scale(image_size, resized_size);
   const auto center = cv::Point2f(image_size.width / 2.0f, image_size.height / 2.0f);
-  const auto rotation = 0.0;
 
   const auto trans = get_transform(center, scale, resized_size);
 
