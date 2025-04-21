@@ -726,8 +726,8 @@ voxelpose::voxelpose()
       local_proj(new voxel_projector()),
       prop(new get_proposal()),
       joint_extract(new joint_extractor()),
-      grid_size({8000.0, 8000.0, 2000.0}),
-      grid_center({0.0, 0.0, 0.0}) {
+      grid_center({0.0, 0.0, 0.0}),
+      grid_size({8000.0, 8000.0, 2000.0}) {
   std::vector<uint8_t> backbone_model_data;
   {
     const auto model_path = "../data/voxelpose/backbone.onnx";
