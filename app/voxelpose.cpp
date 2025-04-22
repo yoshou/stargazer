@@ -55,40 +55,13 @@ class dnn_inference {
   std::unordered_map<std::string, std::vector<int64_t>> output_node_dims;
 
  public:
-  dnn_inference(const std::vector<uint8_t> &model_data, std::string cache_dir)
-      : session(nullptr), io_binding(nullptr) {
+  dnn_inference(const std::vector<uint8_t> &model_data) : session(nullptr), io_binding(nullptr) {
     namespace fs = std::filesystem;
 
     // Create session
     Ort::SessionOptions session_options;
     session_options.SetIntraOpNumThreads(4);
     session_options.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_EXTENDED);
-
-#if 0
-            try
-            {
-                fs::create_directory(fs::path(cache_dir));
-
-                OrtTensorRTProviderOptions trt_options{};
-
-                trt_options.device_id = 0;
-                trt_options.trt_max_workspace_size = 2147483648;
-                trt_options.trt_max_partition_iterations = 1000;
-                trt_options.trt_min_subgraph_size = 1;
-                trt_options.trt_fp16_enable = 1;
-                trt_options.trt_int8_enable = 0;
-                trt_options.trt_int8_use_native_calibration_table = 0;
-                trt_options.trt_engine_cache_enable = 1;
-                trt_options.trt_engine_cache_path = cache_dir.c_str();
-                trt_options.trt_dump_subgraphs = 1;
-
-                session_options.AppendExecutionProvider_TensorRT(trt_options);
-            }
-            catch (const Ort::Exception &e)
-            {
-                spdlog::info(e.what());
-            }
-#endif
 
     try {
       OrtCUDAProviderOptions cuda_options{};
@@ -250,33 +223,6 @@ class dnn_inference_heatmap {
     Ort::SessionOptions session_options;
     session_options.SetIntraOpNumThreads(4);
     session_options.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_EXTENDED);
-
-#if 0
-            try
-            {
-                std::string cache_dir = "./cache";
-                fs::create_directory(fs::path(cache_dir));
-
-                OrtTensorRTProviderOptions trt_options{};
-
-                trt_options.device_id = 0;
-                trt_options.trt_max_workspace_size = 2147483648;
-                trt_options.trt_max_partition_iterations = 1000;
-                trt_options.trt_min_subgraph_size = 1;
-                trt_options.trt_fp16_enable = 1;
-                trt_options.trt_int8_enable = 0;
-                trt_options.trt_int8_use_native_calibration_table = 0;
-                trt_options.trt_engine_cache_enable = 1;
-                trt_options.trt_engine_cache_path = cache_dir.c_str();
-                trt_options.trt_dump_subgraphs = 1;
-
-                session_options.AppendExecutionProvider_TensorRT(trt_options);
-            }
-            catch (const Ort::Exception &e)
-            {
-                spdlog::info(e.what());
-            }
-#endif
 
     try {
       OrtCUDAProviderOptions cuda_options{};
@@ -473,7 +419,7 @@ class dnn_inference {
   float *output_data = nullptr;
 
  public:
-  dnn_inference(const std::vector<uint8_t> &model_data, std::string cache_dir) {
+  dnn_inference(const std::vector<uint8_t> &model_data) {
     const auto backend = cv::dnn::getAvailableBackends();
     net = cv::dnn::readNetFromONNX(model_data);
 
@@ -748,8 +694,7 @@ voxelpose::voxelpose()
     proposal_v2v_net_model_data = std::move(data);
   }
 
-  inference_proposal.reset(
-      new dnn_inference(proposal_v2v_net_model_data, "./proposal_model_cache"));
+  inference_proposal.reset(new dnn_inference(proposal_v2v_net_model_data));
 
   std::vector<uint8_t> pose_v2v_net_model_data;
   {
@@ -760,7 +705,7 @@ voxelpose::voxelpose()
     pose_v2v_net_model_data = std::move(data);
   }
 
-  inference_pose.reset(new dnn_inference(pose_v2v_net_model_data, "./pose_model_cache"));
+  inference_pose.reset(new dnn_inference(pose_v2v_net_model_data));
 }
 
 voxelpose::~voxelpose() = default;
@@ -787,27 +732,6 @@ std::vector<glm::vec3> voxelpose::inference(const std::vector<cv::Mat> &images_l
   global_proj->get_voxel(
       inference_heatmap->get_heatmaps(), images_list.size(), inference_heatmap->get_heatmap_width(),
       inference_heatmap->get_heatmap_height(), cameras_list, rois_list, grid_center);
-
-#if 0
-        {
-            static int counter = 0;
-            counter++;
-
-            const auto num_bins = static_cast<uint32_t>(std::accumulate(cube_size.begin(), cube_size.end(), 1, std::multiplies<int32_t>()));
-            const auto num_joints = 15;
-            coalsack::tensor<float, 4> temp_cubes({num_bins, 1, num_joints, 1});
-            CUDA_SAFE_CALL(cudaMemcpy(temp_cubes.get_data(), global_proj->get_cubes(), temp_cubes.get_size() * sizeof(float), cudaMemcpyDeviceToHost));
-
-            const auto cubes = temp_cubes.reshape_move<4>({static_cast<uint32_t>(cube_size[2]), static_cast<uint32_t>(cube_size[1]), static_cast<uint32_t>(cube_size[0]), num_joints});
-            
-            {
-                std::ofstream ofs;
-                ofs.open("./cubes" + std::to_string(counter) + ".bin", std::ios::out | std::ios::binary);
-
-                ofs.write((const char*)cubes.get_data(), cubes.get_size() * sizeof(float));
-            }
-        }
-#endif
 
   inference_proposal->inference(global_proj->get_cubes());
 
@@ -860,56 +784,6 @@ std::vector<glm::vec3> voxelpose::inference(const std::vector<cv::Mat> &images_l
       for (const auto &joint : joints) {
         points.push_back(basis * glm::vec4(joint / 1000.0f, 1.0f));
       }
-
-#if 0
-                {
-                    static int counter = 0;
-                    counter++;
-
-                    const auto num_bins = static_cast<uint32_t>(std::accumulate(cube_size.begin(), cube_size.end(), 1, std::multiplies<int32_t>()));
-                    const auto num_joints = 15;
-                    coalsack::tensor<float, 4> temp_cubes({num_bins, 1, num_joints, 1});
-                    CUDA_SAFE_CALL(cudaMemcpy(temp_cubes.get_data(), inference_pose->get_output_data(), temp_cubes.get_size() * sizeof(float), cudaMemcpyDeviceToHost));
-
-                    const auto cubes = temp_cubes.reshape_move<4>({static_cast<uint32_t>(cube_size[2]), static_cast<uint32_t>(cube_size[1]), static_cast<uint32_t>(cube_size[0]), num_joints});
-                    
-                    {
-                        std::ofstream ofs;
-                        ofs.open("./ind_cubes" + std::to_string(counter) + ".bin", std::ios::out | std::ios::binary);
-
-                        ofs.write((const char*)cubes.get_data(), cubes.get_size() * sizeof(float));
-                    }
-                }
-#endif
-
-#if 0
-                {
-                    static int counter = 0;
-                    counter++;
-
-                    const auto num_points = 15;
-
-                    std::ofstream ofs;
-                    ofs.open("./result" + std::to_string(counter) + ".pcd", std::ios::out);
-
-                    ofs << "VERSION 0.7" << std::endl;
-                    ofs << "FIELDS x y z rgba" << std::endl;
-                    ofs << "SIZE 4 4 4 4" << std::endl;
-                    ofs << "TYPE F F F U" << std::endl;
-                    ofs << "COUNT 1 1 1 1" << std::endl;
-                    ofs << "WIDTH " << num_points << std::endl;
-                    ofs << "HEIGHT 1" << std::endl;
-                    ofs << "VIEWPOINT 0 0 0 1 0 0 0" << std::endl;
-                    ofs << "POINTS " << num_points << std::endl;
-                    ofs << "DATA ascii" << std::endl;
-
-                    for (size_t j = 0; j < num_points; j++)
-                    {
-                        const auto joint = basis * glm::vec4(joints[j] / 1000.0f, 1.0f);
-                        ofs << joint.x << " " << joint.y << " " << joint.z << " " << 16711680 << std::endl;
-                    }
-                }
-#endif
     }
   }
 

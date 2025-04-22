@@ -1483,20 +1483,6 @@ std::vector<glm::vec3> mvpose::inference(const std::vector<cv::Mat> &images_list
             const auto bbox_left_top = inv_trans * cv::Point2f(bbox_left, bbox_top);
             const auto bbox_right_bottom = inv_trans * cv::Point2f(bbox_right, bbox_bottom);
 
-#if 0
-                            cv::Mat trans = cv::Mat::zeros(2, 3, CV_64FC1);
-                            trans.at<double>(0, 0) = 1;
-                            trans.at<double>(1, 1) = 1;
-                            trans.at<double>(0, 2) = -bbox_left_top.x;
-                            trans.at<double>(1, 2) = -bbox_left_top.y;
-
-                            cv::Mat image_part;
-                            cv::warpAffine(images_list.at(i), image_part, trans, cv::Rect(bbox_left_top, bbox_right_bottom).size(), cv::INTER_LINEAR);
-
-                            static int count = 0;
-                            cv::imwrite("image_" + std::to_string(count++) + ".jpg", image_part);
-#endif
-
             rects[i].push_back(cv::Rect2f(bbox_left_top, bbox_right_bottom));
           }
         }
@@ -1563,37 +1549,6 @@ std::vector<glm::vec3> mvpose::inference(const std::vector<cv::Mat> &images_list
   glm::mat4 axis(1.0f);
   std::vector<glm::vec3> markers;
   for (const auto &matched : matched_list) {
-#if 0
-            static int count = 0;
-            for (std::size_t i = 0; i < matched.size(); i++)
-            {
-                const auto rect = rects[matched[i].first][matched[i].second];
-
-                cv::Mat affine = cv::Mat::zeros(2, 3, CV_64FC1);
-                affine.at<double>(0, 0) = 1;
-                affine.at<double>(1, 1) = 1;
-                affine.at<double>(0, 2) = -rect.x;
-                affine.at<double>(1, 2) = -rect.y;
-
-                cv::Mat image_part;
-                cv::warpAffine(images_list.at(matched[i].first), image_part, affine, cv::Rect(rect).size(), cv::INTER_LINEAR);
-
-                for (size_t j = 5; j < 17; j++)
-                {
-                    const auto pt = std::get<0>(pose_joints_list[matched[i].first][matched[i].second][j]);
-                    const auto score = std::get<1>(pose_joints_list[matched[i].first][matched[i].second][j]);
-                    if (score > 0.7f)
-                    {
-                        cv::circle(image_part, cv::Point(pt.x - rect.x, pt.y - rect.y), 3, cv::Scalar(255, 0, 0), cv::FILLED);
-                        cv::putText(image_part, std::to_string(score), cv::Point(pt.x - rect.x + 5, pt.y - rect.y), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 0, 0), 1);
-                    }
-                }
-
-                cv::imwrite("image_" + std::to_string(count) + "_" + std::to_string(matched[i].first) + ".jpg", image_part);
-            }
-            count++;
-#endif
-
     for (size_t j = 5; j < 17; j++) {
       std::vector<glm::vec2> pts;
       std::vector<stargazer::camera_t> cams;
