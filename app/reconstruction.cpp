@@ -786,7 +786,15 @@ void epipolar_reconstruction::set_axis(const glm::mat4 &axis) {
 
 #define PANOPTIC
 
-class voxelpose_reconstruct_node : public graph_node {
+class image_reconstruct_node : public graph_node {
+ public:
+  virtual std::map<std::string, cv::Mat> get_features() const = 0;
+};
+
+CEREAL_REGISTER_TYPE(image_reconstruct_node)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, image_reconstruct_node)
+
+class voxelpose_reconstruct_node : public image_reconstruct_node {
   mutable std::mutex cameras_mtx;
   std::map<std::string, stargazer::camera_t> cameras;
   glm::mat4 axis;
@@ -800,7 +808,7 @@ class voxelpose_reconstruct_node : public graph_node {
 
  public:
   voxelpose_reconstruct_node()
-      : graph_node(), cameras(), axis(), output(std::make_shared<graph_edge>(this)) {
+      : image_reconstruct_node(), cameras(), axis(), output(std::make_shared<graph_edge>(this)) {
     set_output(output);
   }
 
@@ -890,21 +898,6 @@ class voxelpose_reconstruct_node : public graph_node {
     }
 
     return points;
-  }
-
-  static int convert_to_cv_type(image_format format) {
-    switch (format) {
-      case image_format::Y8_UINT:
-        return CV_8UC1;
-      case image_format::R8G8B8_UINT:
-      case image_format::B8G8R8_UINT:
-        return CV_8UC3;
-      case image_format::R8G8B8A8_UINT:
-      case image_format::B8G8R8A8_UINT:
-        return CV_8UC4;
-      default:
-        throw std::runtime_error("Invalid image format");
-    }
   }
 
   virtual void process(std::string input_name, graph_message_ptr message) override {
@@ -1000,9 +993,188 @@ class voxelpose_reconstruct_node : public graph_node {
 };
 
 CEREAL_REGISTER_TYPE(voxelpose_reconstruct_node)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, voxelpose_reconstruct_node)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(image_reconstruct_node, voxelpose_reconstruct_node)
 
-class voxelpose_reconstruction_pipeline {
+class mvpose_reconstruct_node : public image_reconstruct_node {
+  mutable std::mutex cameras_mtx;
+  std::map<std::string, stargazer::camera_t> cameras;
+  glm::mat4 axis;
+  graph_edge_ptr output;
+
+  std::vector<std::string> names;
+  coalsack::tensor<float, 4> features;
+  mutable std::mutex features_mtx;
+
+  stargazer::mvpose::mvpose pose_estimator;
+
+ public:
+  mvpose_reconstruct_node()
+      : image_reconstruct_node(), cameras(), axis(), output(std::make_shared<graph_edge>(this)) {
+    set_output(output);
+  }
+
+  virtual std::string get_proc_name() const override { return "mvpose_reconstruct_node"; }
+
+  template <typename Archive>
+  void serialize(Archive &archive) {
+    archive(cameras, axis);
+  }
+
+  std::vector<glm::vec3> reconstruct(const std::map<std::string, stargazer::camera_t> &cameras,
+                                     const std::map<std::string, cv::Mat> &frame,
+                                     const glm::mat4 &axis) {
+    using namespace stargazer::mvpose;
+
+    std::vector<std::string> names;
+    coalsack::tensor<float, 4> heatmaps;
+    std::vector<cv::Mat> images_list;
+    std::vector<stargazer::camera_t> cameras_list;
+
+    if (frame.size() <= 1) {
+      return std::vector<glm::vec3>();
+    }
+
+    for (const auto &[camera_name, image] : frame) {
+      names.push_back(camera_name);
+    }
+
+    for (size_t i = 0; i < frame.size(); i++) {
+      const auto name = names[i];
+
+      stargazer::camera_t camera;
+
+      const auto &src_camera = cameras.at(name);
+
+      camera.intrin.fx = src_camera.intrin.fx;
+      camera.intrin.fy = src_camera.intrin.fy;
+      camera.intrin.cx = src_camera.intrin.cx;
+      camera.intrin.cy = src_camera.intrin.cy;
+      camera.intrin.coeffs[0] = src_camera.intrin.coeffs[0];
+      camera.intrin.coeffs[1] = src_camera.intrin.coeffs[1];
+      camera.intrin.coeffs[2] = src_camera.intrin.coeffs[2];
+      camera.intrin.coeffs[3] = src_camera.intrin.coeffs[3];
+      camera.intrin.coeffs[4] = src_camera.intrin.coeffs[4];
+
+      const auto camera_pose = src_camera.extrin.transform_matrix() * glm::inverse(axis);
+
+      for (size_t i = 0; i < 3; i++) {
+        for (size_t j = 0; j < 3; j++) {
+          camera.extrin.rotation[i][j] = camera_pose[i][j];
+        }
+        camera.extrin.translation[i] = camera_pose[3][i];
+      }
+
+      cameras_list.push_back(camera);
+      images_list.push_back(frame.at(name));
+    }
+
+    const auto points = pose_estimator.inference(images_list, cameras_list);
+
+    {
+      std::lock_guard lock(features_mtx);
+      this->names = names;
+      this->features = std::move(heatmaps);
+    }
+
+    return points;
+  }
+
+  virtual void process(std::string input_name, graph_message_ptr message) override {
+    if (input_name == "cameras") {
+      if (auto camera_msg = std::dynamic_pointer_cast<object_message>(message)) {
+        for (const auto &[name, field] : camera_msg->get_fields()) {
+          if (auto camera_msg = std::dynamic_pointer_cast<camera_message>(field)) {
+            std::lock_guard lock(cameras_mtx);
+            cameras[name] = camera_msg->get_camera();
+          }
+        }
+      }
+
+      return;
+    }
+    if (input_name == "axis") {
+      if (auto mat4_msg = std::dynamic_pointer_cast<mat4_message>(message)) {
+        axis = mat4_msg->get_data();
+      }
+
+      return;
+    }
+
+    if (auto frame_msg = std::dynamic_pointer_cast<frame_message<object_message>>(message)) {
+      const auto obj_msg = frame_msg->get_data();
+
+      std::map<std::string, stargazer::camera_t> cameras;
+      {
+        std::lock_guard lock(cameras_mtx);
+        cameras = this->cameras;
+      }
+
+      std::map<std::string, cv::Mat> images;
+
+      for (const auto &[name, field] : obj_msg.get_fields()) {
+        if (auto img_msg = std::dynamic_pointer_cast<image_message>(field)) {
+          if (cameras.find(name) == cameras.end()) {
+            continue;
+          }
+          const auto &image = img_msg->get_image();
+          cv::Mat img(image.get_height(), image.get_width(), convert_to_cv_type(image.get_format()),
+                      (void *)image.get_data(), image.get_stride());
+          images[name] = img;
+        }
+      }
+
+      const auto markers = reconstruct(cameras, images, axis);
+
+      auto marker_msg = std::make_shared<float3_list_message>();
+      std::vector<float3> marker_data;
+      for (const auto &marker : markers) {
+        marker_data.push_back({marker.x, marker.y, marker.z});
+      }
+      marker_msg->set_data(marker_data);
+      marker_msg->set_frame_number(frame_msg->get_frame_number());
+
+      output->send(marker_msg);
+    }
+  }
+
+  std::map<std::string, cv::Mat> get_features() const {
+    coalsack::tensor<float, 4> features;
+    std::vector<std::string> names;
+    {
+      std::lock_guard lock(features_mtx);
+      features = this->features;
+      names = this->names;
+    }
+    std::map<std::string, cv::Mat> result;
+    if (features.get_size() == 0) {
+      return result;
+    }
+    for (size_t i = 0; i < names.size(); i++) {
+      const auto name = names[i];
+      const auto heatmap =
+          features
+              .view<3>({features.shape[0], features.shape[1], features.shape[2], 0},
+                       {0, 0, 0, static_cast<uint32_t>(i)})
+              .contiguous()
+              .sum<1>({2});
+
+      cv::Mat heatmap_mat;
+      cv::Mat(heatmap.shape[1], heatmap.shape[0], CV_32FC1, (float *)heatmap.get_data())
+          .clone()
+          .convertTo(heatmap_mat, CV_8U, 255);
+      cv::resize(heatmap_mat, heatmap_mat, cv::Size(960, 540));
+      cv::cvtColor(heatmap_mat, heatmap_mat, cv::COLOR_GRAY2BGR);
+
+      result[name] = heatmap_mat;
+    }
+    return result;
+  }
+};
+
+CEREAL_REGISTER_TYPE(mvpose_reconstruct_node)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(image_reconstruct_node, mvpose_reconstruct_node)
+
+class multiview_image_reconstruction_pipeline {
   graph_proc graph;
 
   std::atomic_bool running;
@@ -1011,7 +1183,7 @@ class voxelpose_reconstruction_pipeline {
   std::vector<glm::vec3> markers;
   std::vector<std::function<void(const std::vector<glm::vec3> &)>> markers_received;
 
-  std::shared_ptr<voxelpose_reconstruct_node> reconstruct_node;
+  std::shared_ptr<image_reconstruct_node> reconstruct_node;
   std::shared_ptr<graph_node> input_node;
 
  public:
@@ -1025,7 +1197,7 @@ class voxelpose_reconstruction_pipeline {
     markers_received.clear();
   }
 
-  voxelpose_reconstruction_pipeline()
+  multiview_image_reconstruction_pipeline()
       : graph(), running(false), markers(), markers_received(), reconstruct_node(), input_node() {}
 
   void set_camera(const std::string &name, const stargazer::camera_t &camera) {
@@ -1091,7 +1263,7 @@ class voxelpose_reconstruction_pipeline {
     }
   }
 
-  void run() {
+  void run(const std::vector<node_info> &infos) {
     std::shared_ptr<subgraph> g(new subgraph());
 
     std::shared_ptr<frame_number_numbering_node> n4(new frame_number_numbering_node());
@@ -1104,14 +1276,25 @@ class voxelpose_reconstruction_pipeline {
     n6->set_num_threads(1);
     g->add_node(n6);
 
-    std::shared_ptr<voxelpose_reconstruct_node> n1(new voxelpose_reconstruct_node());
-    n1->set_input(n6->get_output());
-    g->add_node(n1);
+    for (const auto &info : infos) {
+      if (info.type == node_type::voxelpose_reconstruction) {
+        std::shared_ptr<voxelpose_reconstruct_node> n1(new voxelpose_reconstruct_node());
+        n1->set_input(n6->get_output());
+        g->add_node(n1);
 
-    reconstruct_node = n1;
+        reconstruct_node = n1;
+      }
+      if (info.type == node_type::mvpose_reconstruction) {
+        std::shared_ptr<mvpose_reconstruct_node> n1(new mvpose_reconstruct_node());
+        n1->set_input(n6->get_output());
+        g->add_node(n1);
+
+        reconstruct_node = n1;
+      }
+    }
 
     std::shared_ptr<frame_number_ordering_node> n5(new frame_number_ordering_node());
-    n5->set_input(n1->get_output());
+    n5->set_input(reconstruct_node->get_output());
     g->add_node(n5);
 
     std::shared_ptr<callback_node> n2(new callback_node());
@@ -1174,47 +1357,45 @@ class voxelpose_reconstruction_pipeline {
   std::map<std::string, cv::Mat> get_features() const { return reconstruct_node->get_features(); }
 };
 
-class voxelpose_reconstruction::impl {
+class multiview_image_reconstruction::impl {
  public:
-  std::unique_ptr<voxelpose_reconstruction_pipeline> pipeline;
+  std::unique_ptr<multiview_image_reconstruction_pipeline> pipeline;
 
-  impl() : pipeline(std::make_unique<voxelpose_reconstruction_pipeline>()) {}
+  impl() : pipeline(std::make_unique<multiview_image_reconstruction_pipeline>()) {}
 
   ~impl() = default;
 
-  void run() { pipeline->run(); }
+  void run(const std::vector<node_info> &infos) { pipeline->run(infos); }
 
   void stop() { pipeline->stop(); }
 };
 
-voxelpose_reconstruction::voxelpose_reconstruction() : pimpl(new impl()) {}
-voxelpose_reconstruction::~voxelpose_reconstruction() = default;
+multiview_image_reconstruction::multiview_image_reconstruction() : pimpl(new impl()) {}
+multiview_image_reconstruction::~multiview_image_reconstruction() = default;
 
-void voxelpose_reconstruction::push_frame(const frame_type &frame) {
+void multiview_image_reconstruction::push_frame(const frame_type &frame) {
   pimpl->pipeline->push_frame(frame);
 }
 
-void voxelpose_reconstruction::run() { pimpl->run(); }
+void multiview_image_reconstruction::run(const std::vector<node_info> &infos) { pimpl->run(infos); }
 
-void voxelpose_reconstruction::stop() { pimpl->stop(); }
+void multiview_image_reconstruction::stop() { pimpl->stop(); }
 
-std::map<std::string, cv::Mat> voxelpose_reconstruction::get_features() const {
+std::map<std::string, cv::Mat> multiview_image_reconstruction::get_features() const {
   return pimpl->pipeline->get_features();
 }
 
-std::vector<glm::vec3> voxelpose_reconstruction::get_markers() const {
+std::vector<glm::vec3> multiview_image_reconstruction::get_markers() const {
   return pimpl->pipeline->get_markers();
 }
 
-void voxelpose_reconstruction::set_camera(const std::string &name,
-                                          const stargazer::camera_t &camera) {
+void multiview_image_reconstruction::set_camera(const std::string &name,
+                                                const stargazer::camera_t &camera) {
   pimpl->pipeline->set_camera(name, camera);
-  multiview_image_reconstruction::set_camera(name, camera);
 }
 
-void voxelpose_reconstruction::set_axis(const glm::mat4 &axis) {
+void multiview_image_reconstruction::set_axis(const glm::mat4 &axis) {
   pimpl->pipeline->set_axis(axis);
-  multiview_image_reconstruction::set_axis(axis);
 }
 
 grpc_server::grpc_server(const std::string &server_address)
@@ -1273,134 +1454,4 @@ void grpc_server::notify_sphere(const std::string &name, int64_t timestamp,
 void grpc_server::receive_se3(
     std::function<void(const std::string &, int64_t, const std::vector<se3> &)> f) {
   service->receive_se3(f);
-}
-
-mvpose_reconstruction::mvpose_reconstruction() : output("0.0.0.0:50053"), processor(1) {}
-mvpose_reconstruction::~mvpose_reconstruction() {}
-
-std::tuple<std::vector<std::string>, coalsack::tensor<float, 4>, std::vector<glm::vec3>>
-mvpose_reconstruction::mvpose_reconstruct(const std::map<std::string, stargazer::camera_t> &cameras,
-                                          const std::map<std::string, cv::Mat> &frame,
-                                          glm::mat4 axis) {
-  using namespace stargazer::mvpose;
-
-  std::vector<std::string> names;
-  coalsack::tensor<float, 4> heatmaps;
-  std::vector<cv::Mat> images_list;
-  std::vector<stargazer::camera_t> cameras_list;
-
-  if (frame.size() <= 1) {
-    std::vector<glm::vec3> points;
-    return std::forward_as_tuple(names, heatmaps, points);
-  }
-
-  for (const auto &[camera_name, image] : frame) {
-    names.push_back(camera_name);
-  }
-
-  for (size_t i = 0; i < frame.size(); i++) {
-    const auto name = names[i];
-
-    stargazer::camera_t camera;
-
-    const auto &src_camera = cameras.at(name);
-
-    camera.intrin.fx = src_camera.intrin.fx;
-    camera.intrin.fy = src_camera.intrin.fy;
-    camera.intrin.cx = src_camera.intrin.cx;
-    camera.intrin.cy = src_camera.intrin.cy;
-    camera.intrin.coeffs[0] = src_camera.intrin.coeffs[0];
-    camera.intrin.coeffs[1] = src_camera.intrin.coeffs[1];
-    camera.intrin.coeffs[2] = src_camera.intrin.coeffs[2];
-    camera.intrin.coeffs[3] = src_camera.intrin.coeffs[3];
-    camera.intrin.coeffs[4] = src_camera.intrin.coeffs[4];
-
-    const auto camera_pose = src_camera.extrin.transform_matrix() * glm::inverse(axis);
-
-    for (size_t i = 0; i < 3; i++) {
-      for (size_t j = 0; j < 3; j++) {
-        camera.extrin.rotation[i][j] = camera_pose[i][j];
-      }
-      camera.extrin.translation[i] = camera_pose[3][i];
-    }
-
-    cameras_list.push_back(camera);
-    images_list.push_back(frame.at(name));
-  }
-
-  const auto points = pose_estimator.inference(images_list, cameras_list);
-
-  return std::forward_as_tuple(names, heatmaps, points);
-}
-
-void mvpose_reconstruction::push_frame(const frame_type &frame) {
-  processor.push([this, frame = frame]() {
-    auto [names, features, markers] = mvpose_reconstruct(get_cameras(), frame, get_axis());
-
-    task_result result;
-    result.markers = markers;
-    result.camera_names = names;
-    result.features = std::move(features);
-    return result;
-  });
-}
-void mvpose_reconstruction::run() {
-  output.run();
-  processor.run([this](const task_result &result) {
-    {
-      std::lock_guard lock(markers_mtx);
-      this->markers = result.markers;
-    }
-    {
-      std::lock_guard lock(features_mtx);
-      this->names = result.camera_names;
-      this->features = result.features;
-    }
-    output.notify_sphere("sphere", 0, result.markers);
-  });
-}
-void mvpose_reconstruction::stop() {
-  processor.stop();
-  output.stop();
-}
-
-std::map<std::string, cv::Mat> mvpose_reconstruction::get_features() const {
-  coalsack::tensor<float, 4> features;
-  std::vector<std::string> names;
-  {
-    std::lock_guard lock(features_mtx);
-    features = this->features;
-    names = this->names;
-  }
-  std::map<std::string, cv::Mat> result;
-  if (features.get_size() == 0) {
-    return result;
-  }
-  for (size_t i = 0; i < names.size(); i++) {
-    const auto name = names[i];
-    const auto heatmap = features
-                             .view<3>({features.shape[0], features.shape[1], features.shape[2], 0},
-                                      {0, 0, 0, static_cast<uint32_t>(i)})
-                             .contiguous()
-                             .sum<1>({2});
-
-    cv::Mat heatmap_mat;
-    cv::Mat(heatmap.shape[1], heatmap.shape[0], CV_32FC1, (float *)heatmap.get_data())
-        .clone()
-        .convertTo(heatmap_mat, CV_8U, 255);
-    cv::resize(heatmap_mat, heatmap_mat, cv::Size(960, 540));
-    cv::cvtColor(heatmap_mat, heatmap_mat, cv::COLOR_GRAY2BGR);
-
-    result[name] = heatmap_mat;
-  }
-  return result;
-}
-
-std::vector<glm::vec3> mvpose_reconstruction::get_markers() const {
-  std::vector<glm::vec3> result;
-  {
-    std::lock_guard lock(markers_mtx);
-    result = markers;
-  }
-  return result;
 }

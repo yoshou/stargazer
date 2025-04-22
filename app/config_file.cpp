@@ -43,6 +43,12 @@ configuration_file::configuration_file(const std::string &path) : path(path) {
           node.type = node_type::record;
         } else if (type == "calibration") {
           node.type = node_type::calibration;
+        } else if (type == "voxelpose_reconstruction") {
+          node.type = node_type::voxelpose_reconstruction;
+        } else if (type == "mvpose_reconstruction") {
+          node.type = node_type::mvpose_reconstruction;
+        } else if (type == "epipolar_reconstruction") {
+          node.type = node_type::epipolar_reconstruction;
         } else if (type == "pattern_board_calibration_target_detector") {
           node.type = node_type::pattern_board_calibration_target_detector;
         } else if (type == "three_point_bar_calibration_target_detector") {
@@ -64,6 +70,9 @@ configuration_file::configuration_file(const std::string &path) : path(path) {
           node.db_path = j_node["db_path"].get<std::string>();
           node.name = j_node["name"].get<std::string>();
         } else if (type == "calibration") {
+        } else if (type == "voxelpose_reconstruction") {
+        } else if (type == "mvpose_reconstruction") {
+        } else if (type == "epipolar_reconstruction") {
         } else if (type == "pattern_board_calibration_target_detector") {
         } else if (type == "three_point_bar_calibration_target_detector") {
         } else {
@@ -132,6 +141,15 @@ void configuration_file::update() {
         case node_type::calibration:
           node_type_name = "calibration";
           break;
+        case node_type::voxelpose_reconstruction:
+          node_type_name = "voxelpose_reconstruction";
+          break;
+        case node_type::mvpose_reconstruction:
+          node_type_name = "mvpose_reconstruction";
+          break;
+        case node_type::epipolar_reconstruction:
+          node_type_name = "epipolar_reconstruction";
+          break;
         case node_type::pattern_board_calibration_target_detector:
           node_type_name = "pattern_board_calibration_target_detector";
           break;
@@ -162,6 +180,9 @@ void configuration_file::update() {
       } else if (node.type == node_type::record) {
         j_node["db_path"] = node.db_path;
       } else if (node.type == node_type::calibration) {
+      } else if (node.type == node_type::voxelpose_reconstruction) {
+      } else if (node.type == node_type::mvpose_reconstruction) {
+      } else if (node.type == node_type::epipolar_reconstruction) {
       } else if (node.type == node_type::pattern_board_calibration_target_detector) {
       } else if (node.type == node_type::three_point_bar_calibration_target_detector) {
       } else {
