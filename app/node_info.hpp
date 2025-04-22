@@ -16,6 +16,9 @@ enum class node_type {
   calibration,
   pattern_board_calibration_target_detector,
   three_point_bar_calibration_target_detector,
+  voxelpose_reconstruction,
+  mvpose_reconstruction,
+  epipolar_reconstruction,
 };
 
 struct node_info {

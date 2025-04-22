@@ -776,9 +776,9 @@ class viewer_app : public window_base {
         std::make_shared<azimuth_elevation>(glm::u32vec2(0, 0), glm::u32vec2(width, height));
     pose_view_ = std::make_unique<pose_view>();
 
-    multiview_image_reconstruction_ = std::make_unique<voxelpose_reconstruction>();
+    multiview_image_reconstruction_ = std::make_unique<multiview_image_reconstruction>();
     epipolar_reconstruction_.run();
-    multiview_image_reconstruction_->run();
+    multiview_image_reconstruction_->run(reconstruction_config->get_node_infos("static_pipeline"));
 
     {
       const auto &scene = std::get<stargazer::scene_t>(parameters->at("scene"));

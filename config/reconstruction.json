@@ -481,7 +481,16 @@
           "type": "panoptic"
         }
       ]
+    },
+    "voxelpose_reconstruction": {
+      "nodes": [
+        {
+          "name": "reconstruction",
+          "type": "voxelpose_reconstruction"
+        }
+      ]
     }
   },
-  "pipeline": "capture_playback"
+  "pipeline": "capture_playback",
+  "static_pipeline": "voxelpose_reconstruction"
 }
