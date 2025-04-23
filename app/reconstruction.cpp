@@ -7,12 +7,14 @@
 #include <grpcpp/server_context.h>
 #include <spdlog/spdlog.h>
 
+#include "capture.hpp"
 #include "correspondance.hpp"
 #include "glm_json.hpp"
 #include "glm_serialize.hpp"
 #include "graph_proc.h"
 #include "graph_proc_cv.h"
 #include "graph_proc_img.h"
+#include "graph_proc_tensor.h"
 #include "mvpose.hpp"
 #include "parameters.hpp"
 #include "point_data.hpp"
@@ -27,6 +29,54 @@ static std::string read_text_file(const std::string &filename) {
   std::ifstream ifs(filename.c_str());
   return std::string(std::istreambuf_iterator<char>(ifs), std::istreambuf_iterator<char>());
 }
+
+struct se3 {
+  glm::vec3 position;
+  glm::quat rotation;
+
+  template <typename Archive>
+  void serialize(Archive &archive) {
+    archive(position, rotation);
+  }
+};
+
+struct float2 {
+  float x;
+  float y;
+
+  template <typename Archive>
+  void serialize(Archive &archive) {
+    archive(x, y);
+  }
+};
+
+struct float3 {
+  float x;
+  float y;
+  float z;
+
+  template <typename Archive>
+  void serialize(Archive &archive) {
+    archive(x, y, z);
+  }
+};
+
+using float2_list_message = frame_message<std::vector<float2>>;
+using float3_list_message = frame_message<std::vector<float3>>;
+using mat4_message = frame_message<glm::mat4>;
+using se3_list_message = frame_message<std::vector<se3>>;
+
+CEREAL_REGISTER_TYPE(float2_list_message)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(coalsack::frame_message_base, float2_list_message)
+
+CEREAL_REGISTER_TYPE(float3_list_message)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(coalsack::frame_message_base, float3_list_message)
+
+CEREAL_REGISTER_TYPE(mat4_message)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(coalsack::frame_message_base, mat4_message)
+
+CEREAL_REGISTER_TYPE(se3_list_message)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(coalsack::frame_message_base, se3_list_message)
 
 class SensorServiceImpl final : public stargazer::Sensor::Service {
   std::mutex mtx;
@@ -102,6 +152,145 @@ class SensorServiceImpl final : public stargazer::Sensor::Service {
   }
 };
 
+class grpc_server {
+  std::string server_address;
+  std::atomic_bool running;
+  std::shared_ptr<std::thread> server_th;
+  std::unique_ptr<grpc::Server> server;
+  std::unique_ptr<SensorServiceImpl> service;
+
+ public:
+  grpc_server(const std::string &server_address);
+  ~grpc_server();
+
+  void run();
+  void stop();
+
+  void notify_sphere(const std::string &name, int64_t timestamp,
+                     const std::vector<glm::vec3> &spheres);
+  void receive_se3(std::function<void(const std::string &, int64_t, const std::vector<se3> &)> f);
+};
+
+grpc_server::grpc_server(const std::string &server_address)
+    : server_address(server_address),
+      running(false),
+      server_th(),
+      server(),
+      service(std::make_unique<SensorServiceImpl>()) {}
+
+grpc_server::~grpc_server() {}
+
+void grpc_server::run() {
+  running = true;
+
+  grpc::ServerBuilder builder;
+
+#ifdef USE_SECURE_CREDENTIALS
+  std::string ca_crt_content = read_text_file("../data/ca.crt");
+  std::string server_crt_content = read_text_file("../data/server.crt");
+  std::string server_key_content = read_text_file("../data/server.key");
+
+  grpc::SslServerCredentialsOptions ssl_options;
+  grpc::SslServerCredentialsOptions::PemKeyCertPair key_cert = {server_key_content,
+                                                                server_crt_content};
+  ssl_options.pem_root_certs = ca_crt_content;
+  ssl_options.pem_key_cert_pairs.push_back(key_cert);
+  builder.AddListeningPort(server_address, grpc::SslServerCredentials(ssl_options));
+#else
+  builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
+#endif
+  builder.RegisterService(service.get());
+  server = builder.BuildAndStart();
+  spdlog::info("Server listening on " + server_address);
+  server_th.reset(new std::thread([this]() { server->Wait(); }));
+}
+
+void grpc_server::stop() {
+  if (running.load()) {
+    running.store(false);
+  }
+  if (server) {
+    server->Shutdown();
+    if (server_th && server_th->joinable()) {
+      server_th->join();
+    }
+  }
+}
+
+void grpc_server::notify_sphere(const std::string &name, int64_t timestamp,
+                                const std::vector<glm::vec3> &spheres) {
+  if (running && service) {
+    service->notify_sphere(name, timestamp, spheres);
+  }
+}
+
+void grpc_server::receive_se3(
+    std::function<void(const std::string &, int64_t, const std::vector<se3> &)> f) {
+  service->receive_se3(f);
+}
+
+class grpc_server_node : public graph_node {
+  std::unique_ptr<grpc_server> server;
+  graph_edge_ptr output;
+
+  std::string address;
+
+ public:
+  grpc_server_node()
+      : graph_node(),
+        server(),
+        output(std::make_shared<graph_edge>(this)),
+        address("0.0.0.0:50051") {
+    set_output(output);
+  }
+
+  virtual std::string get_proc_name() const override { return "grpc_server_node"; }
+
+  void set_address(const std::string &value) { address = value; }
+
+  template <typename Archive>
+  void serialize(Archive &archive) {
+    archive(address);
+  }
+
+  virtual void run() override {
+    server.reset(new grpc_server(address));
+
+    server->receive_se3(
+        [this](const std::string &name, int64_t timestamp, const std::vector<se3> &se3) {
+          auto msg = std::make_shared<frame_message<object_message>>();
+          auto obj_msg = object_message();
+          auto se3_msg = std::make_shared<se3_list_message>();
+          se3_msg->set_data(se3);
+          obj_msg.set_field(name, se3_msg);
+          msg->set_data(obj_msg);
+          msg->set_frame_number(static_cast<uint64_t>(timestamp));
+          output->send(msg);
+        });
+
+    server->run();
+  }
+
+  virtual void process(std::string input_name, graph_message_ptr message) override {
+    if (const auto msg = std::dynamic_pointer_cast<float3_list_message>(message)) {
+      std::vector<glm::vec3> spheres;
+      for (const auto &data : msg->get_data()) {
+        spheres.push_back(glm::vec3(data.x, data.y, data.z));
+      }
+
+      server->notify_sphere(input_name, static_cast<int64_t>(msg->get_timestamp()), spheres);
+    }
+  }
+
+  virtual void stop() override {
+    server->stop();
+    server.reset();
+  }
+};
+
+CEREAL_REGISTER_TYPE(grpc_server_node)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, grpc_server_node)
+
 static std::vector<glm::vec3> reconstruct(const std::vector<stargazer::camera_t> &camera_list,
                                           const std::vector<std::vector<glm::vec2>> &camera_pts,
                                           glm::mat4 axis) {
@@ -176,44 +365,6 @@ std::vector<glm::vec3> reconstruct(
   }
   return reconstruct(camera_list, camera_pts, axis);
 }
-
-struct float2 {
-  float x;
-  float y;
-
-  template <typename Archive>
-  void serialize(Archive &archive) {
-    archive(x, y);
-  }
-};
-
-struct float3 {
-  float x;
-  float y;
-  float z;
-
-  template <typename Archive>
-  void serialize(Archive &archive) {
-    archive(x, y, z);
-  }
-};
-
-using float2_list_message = frame_message<std::vector<float2>>;
-using float3_list_message = frame_message<std::vector<float3>>;
-using mat4_message = frame_message<glm::mat4>;
-using se3_list_message = frame_message<std::vector<se3>>;
-
-CEREAL_REGISTER_TYPE(float2_list_message)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(coalsack::frame_message_base, float2_list_message)
-
-CEREAL_REGISTER_TYPE(float3_list_message)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(coalsack::frame_message_base, float3_list_message)
-
-CEREAL_REGISTER_TYPE(mat4_message)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(coalsack::frame_message_base, mat4_message)
-
-CEREAL_REGISTER_TYPE(se3_list_message)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(coalsack::frame_message_base, se3_list_message)
 
 CEREAL_REGISTER_TYPE(frame_message<object_message>)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(coalsack::frame_message_base, frame_message<object_message>)
@@ -369,68 +520,6 @@ class epipolar_reconstruct_node : public graph_node {
 CEREAL_REGISTER_TYPE(epipolar_reconstruct_node)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, epipolar_reconstruct_node)
 
-class grpc_server_node : public graph_node {
-  std::unique_ptr<grpc_server> server;
-  graph_edge_ptr output;
-
-  std::string address;
-
- public:
-  grpc_server_node()
-      : graph_node(),
-        server(),
-        output(std::make_shared<graph_edge>(this)),
-        address("0.0.0.0:50051") {
-    set_output(output);
-  }
-
-  virtual std::string get_proc_name() const override { return "grpc_server_node"; }
-
-  void set_address(const std::string &value) { address = value; }
-
-  template <typename Archive>
-  void serialize(Archive &archive) {
-    archive(address);
-  }
-
-  virtual void run() override {
-    server.reset(new grpc_server(address));
-
-    server->receive_se3(
-        [this](const std::string &name, int64_t timestamp, const std::vector<se3> &se3) {
-          auto msg = std::make_shared<frame_message<object_message>>();
-          auto obj_msg = object_message();
-          auto se3_msg = std::make_shared<se3_list_message>();
-          se3_msg->set_data(se3);
-          obj_msg.set_field(name, se3_msg);
-          msg->set_data(obj_msg);
-          msg->set_frame_number(static_cast<uint64_t>(timestamp));
-          output->send(msg);
-        });
-
-    server->run();
-  }
-
-  virtual void process(std::string input_name, graph_message_ptr message) override {
-    if (const auto msg = std::dynamic_pointer_cast<float3_list_message>(message)) {
-      std::vector<glm::vec3> spheres;
-      for (const auto &data : msg->get_data()) {
-        spheres.push_back(glm::vec3(data.x, data.y, data.z));
-      }
-
-      server->notify_sphere(input_name, static_cast<int64_t>(msg->get_timestamp()), spheres);
-    }
-  }
-
-  virtual void stop() override {
-    server->stop();
-    server.reset();
-  }
-};
-
-CEREAL_REGISTER_TYPE(grpc_server_node)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, grpc_server_node)
-
 class frame_number_numbering_node : public graph_node {
   uint64_t frame_number;
   graph_edge_ptr output;
@@ -458,6 +547,70 @@ class frame_number_numbering_node : public graph_node {
 
 CEREAL_REGISTER_TYPE(frame_number_numbering_node)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, frame_number_numbering_node)
+
+template <typename Task>
+class task_queue {
+  const uint32_t thread_count;
+  std::unique_ptr<std::thread[]> threads;
+  std::queue<Task> tasks{};
+  std::mutex tasks_mutex;
+  std::condition_variable condition;
+  std::atomic_bool running{true};
+
+  void worker() {
+    for (;;) {
+      Task task;
+
+      {
+        std::unique_lock<std::mutex> lock(tasks_mutex);
+        condition.wait(lock, [&] { return !tasks.empty() || !running; });
+        if (!running) {
+          return;
+        }
+
+        task = std::move(tasks.front());
+        tasks.pop();
+      }
+
+      task();
+    }
+  }
+
+ public:
+  task_queue(const uint32_t thread_count = std::thread::hardware_concurrency())
+      : thread_count(thread_count), threads(std::make_unique<std::thread[]>(thread_count)) {
+    for (uint32_t i = 0; i < thread_count; ++i) {
+      threads[i] = std::thread(&task_queue::worker, this);
+    }
+  }
+
+  void push_task(const Task &task) {
+    {
+      const std::lock_guard<std::mutex> lock(tasks_mutex);
+
+      if (!running) {
+        throw std::runtime_error("Cannot schedule new task after shutdown.");
+      }
+
+      tasks.push(task);
+    }
+
+    condition.notify_one();
+  }
+  ~task_queue() {
+    {
+      std::lock_guard<std::mutex> lock(tasks_mutex);
+      running = false;
+    }
+
+    condition.notify_all();
+
+    for (uint32_t i = 0; i < thread_count; ++i) {
+      threads[i].join();
+    }
+  }
+  size_t size() const { return tasks.size(); }
+};
 
 class parallel_queue_node : public graph_node {
   std::unique_ptr<task_queue<std::function<void()>>> workers;
@@ -1396,62 +1549,4 @@ void multiview_image_reconstruction::set_camera(const std::string &name,
 
 void multiview_image_reconstruction::set_axis(const glm::mat4 &axis) {
   pimpl->pipeline->set_axis(axis);
-}
-
-grpc_server::grpc_server(const std::string &server_address)
-    : server_address(server_address),
-      running(false),
-      server_th(),
-      server(),
-      service(std::make_unique<SensorServiceImpl>()) {}
-
-grpc_server::~grpc_server() {}
-
-void grpc_server::run() {
-  running = true;
-
-  grpc::ServerBuilder builder;
-
-#ifdef USE_SECURE_CREDENTIALS
-  std::string ca_crt_content = read_text_file("../data/ca.crt");
-  std::string server_crt_content = read_text_file("../data/server.crt");
-  std::string server_key_content = read_text_file("../data/server.key");
-
-  grpc::SslServerCredentialsOptions ssl_options;
-  grpc::SslServerCredentialsOptions::PemKeyCertPair key_cert = {server_key_content,
-                                                                server_crt_content};
-  ssl_options.pem_root_certs = ca_crt_content;
-  ssl_options.pem_key_cert_pairs.push_back(key_cert);
-  builder.AddListeningPort(server_address, grpc::SslServerCredentials(ssl_options));
-#else
-  builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
-#endif
-  builder.RegisterService(service.get());
-  server = builder.BuildAndStart();
-  spdlog::info("Server listening on " + server_address);
-  server_th.reset(new std::thread([this]() { server->Wait(); }));
-}
-
-void grpc_server::stop() {
-  if (running.load()) {
-    running.store(false);
-  }
-  if (server) {
-    server->Shutdown();
-    if (server_th && server_th->joinable()) {
-      server_th->join();
-    }
-  }
-}
-
-void grpc_server::notify_sphere(const std::string &name, int64_t timestamp,
-                                const std::vector<glm::vec3> &spheres) {
-  if (running && service) {
-    service->notify_sphere(name, timestamp, spheres);
-  }
-}
-
-void grpc_server::receive_se3(
-    std::function<void(const std::string &, int64_t, const std::vector<se3> &)> f) {
-  service->receive_se3(f);
 }
