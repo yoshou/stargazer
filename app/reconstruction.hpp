@@ -1,45 +1,15 @@
 #pragma once
 
-#include <grpc/grpc.h>
-#include <grpcpp/security/server_credentials.h>
-#include <grpcpp/server.h>
-#include <grpcpp/server_builder.h>
-#include <grpcpp/server_context.h>
-
-#include <atomic>
-#include <condition_variable>
-#include <deque>
-#include <glm/gtc/quaternion.hpp>
+#include <glm/glm.hpp>
+#include <map>
 #include <memory>
-#include <mutex>
-#include <random>
-#include <thread>
+#include <opencv2/core.hpp>
+#include <string>
+#include <vector>
 
-#include "capture.hpp"
-#include "graph_proc.h"
-#include "graph_proc_cv.h"
-#include "graph_proc_img.h"
-#include "graph_proc_tensor.h"
-#include "mvpose.hpp"
+#include "config_file.hpp"
 #include "parameters.hpp"
 #include "point_data.hpp"
-#include "sensor.grpc.pb.h"
-#include "task_queue.hpp"
-#include "voxelpose.hpp"
-
-class ServiceImpl;
-
-class SensorServiceImpl;
-
-struct se3 {
-  glm::vec3 position;
-  glm::quat rotation;
-
-  template <typename Archive>
-  void serialize(Archive &archive) {
-    archive(position, rotation);
-  }
-};
 
 std::vector<glm::vec3> reconstruct(
     const std::map<std::string, stargazer::camera_t> &cameras,
@@ -109,23 +79,4 @@ class multiview_image_reconstruction {
   std::map<std::string, cv::Mat> get_features() const;
   void set_camera(const std::string &name, const stargazer::camera_t &camera);
   void set_axis(const glm::mat4 &axis);
-};
-
-class grpc_server {
-  std::string server_address;
-  std::atomic_bool running;
-  std::shared_ptr<std::thread> server_th;
-  std::unique_ptr<grpc::Server> server;
-  std::unique_ptr<SensorServiceImpl> service;
-
- public:
-  grpc_server(const std::string &server_address);
-  ~grpc_server();
-
-  void run();
-  void stop();
-
-  void notify_sphere(const std::string &name, int64_t timestamp,
-                     const std::vector<glm::vec3> &spheres);
-  void receive_se3(std::function<void(const std::string &, int64_t, const std::vector<se3> &)> f);
 };
