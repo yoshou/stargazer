@@ -19,46 +19,25 @@ std::vector<glm::vec3> reconstruct(
 class multiview_point_reconstruction {
   std::map<std::string, stargazer::camera_t> cameras;
   glm::mat4 axis;
-
- public:
-  using frame_type = std::map<std::string, std::vector<stargazer::point_data>>;
-
-  multiview_point_reconstruction() = default;
-  virtual ~multiview_point_reconstruction() = default;
-
-  virtual void push_frame(const frame_type &frame) = 0;
-  virtual void run() = 0;
-  virtual void stop() = 0;
-
-  virtual std::vector<glm::vec3> get_markers() const = 0;
-
-  virtual std::map<std::string, stargazer::camera_t> get_cameras() const { return cameras; }
-  virtual void set_camera(const std::string &name, const stargazer::camera_t &camera) {
-    cameras[name] = camera;
-  }
-  virtual const stargazer::camera_t &get_camera(const std::string &name) const {
-    return cameras.at(name);
-  }
-  virtual stargazer::camera_t &get_camera(const std::string &name) { return cameras.at(name); }
-  virtual void set_axis(const glm::mat4 &axis) { this->axis = axis; }
-  virtual glm::mat4 get_axis() const { return axis; }
-};
-
-class epipolar_reconstruction : public multiview_point_reconstruction {
   class impl;
   std::unique_ptr<impl> pimpl;
 
+  using frame_type = std::map<std::string, std::vector<stargazer::point_data>>;
+
  public:
-  epipolar_reconstruction();
-  virtual ~epipolar_reconstruction();
+  multiview_point_reconstruction();
+  virtual ~multiview_point_reconstruction();
 
   void push_frame(const frame_type &frame);
   void run();
   void stop();
 
   std::vector<glm::vec3> get_markers() const;
-  void set_camera(const std::string &name, const stargazer::camera_t &camera) override;
-  void set_axis(const glm::mat4 &axis) override;
+  virtual std::map<std::string, stargazer::camera_t> get_cameras() const { return cameras; }
+  virtual stargazer::camera_t &get_camera(const std::string &name) { return cameras.at(name); }
+  void set_camera(const std::string &name, const stargazer::camera_t &camera);
+  virtual glm::mat4 get_axis() const { return axis; }
+  void set_axis(const glm::mat4 &axis);
 };
 
 class multiview_image_reconstruction {
