@@ -45,12 +45,11 @@ class viewer_app : public window_base {
   std::map<std::string, std::shared_ptr<capture_pipeline>> captures;
   std::shared_ptr<multiview_capture_pipeline> multiview_capture;
 
-  epipolar_reconstruction epipolar_reconstruction_;
-
   calibration calib;
   intrinsic_calibration intrinsic_calib;
   std::unique_ptr<axis_calibration> axis_calib;
 
+  std::unique_ptr<multiview_point_reconstruction> multiview_point_reconstruction_;
   std::unique_ptr<multiview_image_reconstruction> multiview_image_reconstruction_;
 
   std::unique_ptr<stargazer::configuration_file> capture_config;
@@ -573,7 +572,7 @@ class viewer_app : public window_base {
                       }
                       frame.insert(std::make_pair(name, points));
                     }
-                    epipolar_reconstruction_.push_frame(frame);
+                    multiview_point_reconstruction_->push_frame(frame);
                   });
 
               for (const auto &device : devices) {
@@ -777,21 +776,29 @@ class viewer_app : public window_base {
         std::make_shared<azimuth_elevation>(glm::u32vec2(0, 0), glm::u32vec2(width, height));
     pose_view_ = std::make_unique<pose_view>();
 
-    multiview_image_reconstruction_ = std::make_unique<multiview_image_reconstruction>();
-    epipolar_reconstruction_.run();
-    multiview_image_reconstruction_->run(reconstruction_config->get_node_infos("static_pipeline"));
+    multiview_point_reconstruction_ = std::make_unique<multiview_point_reconstruction>();
+    multiview_point_reconstruction_->run();
 
     {
       const auto &scene = std::get<stargazer::scene_t>(parameters->at("scene"));
-      epipolar_reconstruction_.set_axis(scene.axis);
+      multiview_point_reconstruction_->set_axis(scene.axis);
     }
 
     for (const auto &device : reconstruction_config->get_node_infos()) {
       if (device.is_camera()) {
         const auto &params = std::get<stargazer::camera_t>(parameters->at(device.id));
-        epipolar_reconstruction_.set_camera(device.name, params);
+        multiview_point_reconstruction_->set_camera(device.name, params);
       }
     }
+
+    calib.add_calibrated([&](const std::unordered_map<std::string, stargazer::camera_t> &cameras) {
+      for (const auto &[name, camera] : cameras) {
+        multiview_point_reconstruction_->set_camera(name, camera);
+      }
+    });
+
+    multiview_image_reconstruction_ = std::make_unique<multiview_image_reconstruction>();
+    multiview_image_reconstruction_->run(reconstruction_config->get_node_infos("static_pipeline"));
 
     {
       const auto &scene = std::get<stargazer::scene_t>(parameters->at("scene"));
@@ -804,12 +811,6 @@ class viewer_app : public window_base {
         multiview_image_reconstruction_->set_camera(device.name, params);
       }
     }
-
-    calib.add_calibrated([&](const std::unordered_map<std::string, stargazer::camera_t> &cameras) {
-      for (const auto &[name, camera] : cameras) {
-        epipolar_reconstruction_.set_camera(name, camera);
-      }
-    });
 
     for (const auto &device : calibration_config->get_node_infos()) {
       if (device.is_camera()) {
@@ -850,9 +851,9 @@ class viewer_app : public window_base {
   virtual void finalize() override {
     term_gui();
 
-    epipolar_reconstruction_.stop();
     calib.stop();
     axis_calib->stop();
+    multiview_point_reconstruction_->stop();
     multiview_image_reconstruction_->stop();
 
     window_base::finalize();
@@ -1038,7 +1039,7 @@ class viewer_app : public window_base {
         pose_view_->cameras.clear();
 
         for (const auto &device : reconstruction_config->get_node_infos()) {
-          const auto &cameras = epipolar_reconstruction_.get_cameras();
+          const auto &cameras = multiview_point_reconstruction_->get_cameras();
 
           if (cameras.find(device.name) != cameras.end()) {
             const auto &camera = cameras.at(device.name);
@@ -1051,10 +1052,10 @@ class viewer_app : public window_base {
           }
         }
 
-        pose_view_->axis = epipolar_reconstruction_.get_axis();
+        pose_view_->axis = multiview_point_reconstruction_->get_axis();
 
         pose_view_->points.clear();
-        for (const auto &point : epipolar_reconstruction_.get_markers()) {
+        for (const auto &point : multiview_point_reconstruction_->get_markers()) {
           pose_view_->points.push_back(point);
         }
         for (const auto &point : multiview_image_reconstruction_->get_markers()) {

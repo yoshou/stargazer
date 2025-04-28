@@ -747,7 +747,7 @@ class frame_number_ordering_node : public graph_node {
   }
 };
 
-class epipolar_reconstruction_pipeline {
+class multiview_point_reconstruction_pipeline {
   graph_proc graph;
 
   std::atomic_bool running;
@@ -770,7 +770,7 @@ class epipolar_reconstruction_pipeline {
     markers_received.clear();
   }
 
-  epipolar_reconstruction_pipeline()
+  multiview_point_reconstruction_pipeline()
       : graph(), running(false), markers(), markers_received(), reconstruct_node(), input_node() {}
 
   void set_camera(const std::string &name, const stargazer::camera_t &camera) {
@@ -899,11 +899,11 @@ class epipolar_reconstruction_pipeline {
   }
 };
 
-class epipolar_reconstruction::impl {
+class multiview_point_reconstruction::impl {
  public:
-  std::shared_ptr<epipolar_reconstruction_pipeline> pipeline;
+  std::shared_ptr<multiview_point_reconstruction_pipeline> pipeline;
 
-  impl() : pipeline(std::make_shared<epipolar_reconstruction_pipeline>()) {}
+  impl() : pipeline(std::make_shared<multiview_point_reconstruction_pipeline>()) {}
 
   ~impl() = default;
 
@@ -912,27 +912,27 @@ class epipolar_reconstruction::impl {
   void stop() { pipeline->stop(); }
 };
 
-epipolar_reconstruction::epipolar_reconstruction() : pimpl(new impl()) {}
-epipolar_reconstruction::~epipolar_reconstruction() = default;
+multiview_point_reconstruction::multiview_point_reconstruction() : pimpl(new impl()) {}
+multiview_point_reconstruction::~multiview_point_reconstruction() = default;
 
-void epipolar_reconstruction::push_frame(const frame_type &frame) {
+void multiview_point_reconstruction::push_frame(const frame_type &frame) {
   pimpl->pipeline->push_frame(frame);
 }
 
-void epipolar_reconstruction::run() { pimpl->run(); }
+void multiview_point_reconstruction::run() { pimpl->run(); }
 
-void epipolar_reconstruction::stop() { pimpl->stop(); }
+void multiview_point_reconstruction::stop() { pimpl->stop(); }
 
-std::vector<glm::vec3> epipolar_reconstruction::get_markers() const {
+std::vector<glm::vec3> multiview_point_reconstruction::get_markers() const {
   return pimpl->pipeline->get_markers();
 }
 
-void epipolar_reconstruction::set_camera(const std::string &name,
+void multiview_point_reconstruction::set_camera(const std::string &name,
                                          const stargazer::camera_t &camera) {
   pimpl->pipeline->set_camera(name, camera);
   multiview_point_reconstruction::set_camera(name, camera);
 }
-void epipolar_reconstruction::set_axis(const glm::mat4 &axis) {
+void multiview_point_reconstruction::set_axis(const glm::mat4 &axis) {
   pimpl->pipeline->set_axis(axis);
   multiview_point_reconstruction::set_axis(axis);
 }
