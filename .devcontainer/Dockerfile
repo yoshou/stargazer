@@ -14,6 +14,9 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
     && apt-get -y install --no-install-recommends gfortran bison python3 python3-setuptools libarchive-dev libblas-dev liblapack-dev \
     libxinerama-dev libxcursor-dev xorg-dev libglu1-mesa-dev pkg-config
 
+RUN update-alternatives --set c++ /usr/bin/clang++ \
+    && update-alternatives --set cc /usr/bin/clang
+
 RUN su vscode -c "${VCPKG_ROOT}/vcpkg install boost-program-options boost-asio boost-graph ceres opencv4[core,highgui,calib3d,contrib,jpeg] glm grpc glfw3 glad nanoflann nlohmann-json imgui[opengl3-binding,glfw-binding] libjpeg-turbo sqlite3 cereal spdlog"
 
 ENV PATH $PATH:${VCPKG_ROOT}/installed/x64-linux
@@ -22,9 +25,15 @@ ENV PATH $PATH:${VCPKG_ROOT}/installed/x64-linux/tools/grpc
 
 RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
     && apt-get -y install --no-install-recommends software-properties-common
+
+ENV NVARCH x86_64
     
-RUN apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/3bf863cc.pub \
-    && add-apt-repository "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/ /"
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gnupg2 curl ca-certificates && \
+    curl -fsSLO https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/${NVARCH}/cuda-keyring_1.1-1_all.deb && \
+    dpkg -i cuda-keyring_1.1-1_all.deb && \
+    apt-get purge --autoremove -y curl \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install CUDA
 ENV NV_CUDA_LIB_VERSION "12.4.1-1"
