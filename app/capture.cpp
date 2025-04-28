@@ -588,7 +588,7 @@ class remote_cluster_rs_d435_color : public remote_cluster {
 };
 
 class local_server {
-  asio::io_service io_service;
+  asio::io_context io_context;
   std::shared_ptr<resource_list> resources;
   std::shared_ptr<graph_proc_server> server;
   std::shared_ptr<std::thread> th;
@@ -596,9 +596,9 @@ class local_server {
 
  public:
   local_server(uint16_t port = 0)
-      : io_service(),
+      : io_context(),
         resources(std::make_shared<resource_list>()),
-        server(std::make_shared<graph_proc_server>(io_service, "0.0.0.0", port, resources)),
+        server(std::make_shared<graph_proc_server>(io_context, "0.0.0.0", port, resources)),
         th(),
         running(false) {}
 
@@ -606,13 +606,13 @@ class local_server {
 
   void run() {
     running = true;
-    th.reset(new std::thread([this] { io_service.run(); }));
+    th.reset(new std::thread([this] { io_context.run(); }));
   }
 
   void stop() {
     if (running.load()) {
       running.store(false);
-      io_service.stop();
+      io_context.stop();
       if (th && th->joinable()) {
         th->join();
       }
@@ -1640,7 +1640,7 @@ static void genenerate_common_nodes(
 
 class capture_pipeline::impl {
   local_server server;
-  asio::io_service io_service;
+  asio::io_context io_context;
   graph_proc_client client;
   std::unique_ptr<std::thread> io_thread;
 
@@ -1791,12 +1791,12 @@ class capture_pipeline::impl {
 
     for (std::size_t i = 0; i < clusters.size(); i++) {
       if (clusters[i]) {
-        client.deploy(io_service, node_infos[i].address, 31400, clusters[i]->g);
+        client.deploy(io_context, node_infos[i].address, 31400, clusters[i]->g);
       }
     }
-    client.deploy(io_service, "127.0.0.1", server.get_port(), g);
+    client.deploy(io_context, "127.0.0.1", server.get_port(), g);
 
-    io_thread.reset(new std::thread([this] { io_service.run(); }));
+    io_thread.reset(new std::thread([this] { io_context.run(); }));
 
     client.run();
   }
@@ -1804,7 +1804,7 @@ class capture_pipeline::impl {
   void stop() {
     client.stop();
     server.stop();
-    io_service.stop();
+    io_context.stop();
     if (io_thread && io_thread->joinable()) {
       io_thread->join();
     }
@@ -1872,7 +1872,7 @@ void capture_pipeline::clear_image_received() { pimpl->clear_image_received(); }
 
 class multiview_capture_pipeline::impl {
   local_server server;
-  asio::io_service io_service;
+  asio::io_context io_context;
   graph_proc_client client;
   std::unique_ptr<std::thread> io_thread;
 
@@ -2100,12 +2100,12 @@ class multiview_capture_pipeline::impl {
 
     for (std::size_t i = 0; i < clusters.size(); i++) {
       if (clusters[i]) {
-        client.deploy(io_service, node_infos[i].address, 31400, clusters[i]->g);
+        client.deploy(io_context, node_infos[i].address, 31400, clusters[i]->g);
       }
     }
-    client.deploy(io_service, "127.0.0.1", server.get_port(), g);
+    client.deploy(io_context, "127.0.0.1", server.get_port(), g);
 
-    io_thread.reset(new std::thread([this] { io_service.run(); }));
+    io_thread.reset(new std::thread([this] { io_context.run(); }));
 
     client.run();
   }
@@ -2113,7 +2113,7 @@ class multiview_capture_pipeline::impl {
   void stop() {
     client.stop();
     server.stop();
-    io_service.stop();
+    io_context.stop();
     if (io_thread && io_thread->joinable()) {
       io_thread->join();
     }
