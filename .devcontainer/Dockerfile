@@ -23,19 +23,15 @@ ENV PATH $PATH:${VCPKG_ROOT}/installed/x64-linux
 ENV PATH $PATH:${VCPKG_ROOT}/installed/x64-linux/tools/protobuf
 ENV PATH $PATH:${VCPKG_ROOT}/installed/x64-linux/tools/grpc
 
-RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
-    && apt-get -y install --no-install-recommends software-properties-common
-
+# Install CUDA
 ENV NVARCH x86_64
     
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    gnupg2 curl ca-certificates && \
-    curl -fsSLO https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/${NVARCH}/cuda-keyring_1.1-1_all.deb && \
-    dpkg -i cuda-keyring_1.1-1_all.deb && \
-    apt-get purge --autoremove -y curl \
+    gnupg2 curl ca-certificates\
+    && curl -fsSLO https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/${NVARCH}/cuda-keyring_1.1-1_all.deb \
+    && dpkg -i cuda-keyring_1.1-1_all.deb \
     && rm -rf /var/lib/apt/lists/*
 
-# Install CUDA
 ENV NV_CUDA_LIB_VERSION "12.4.1-1"
 
 ENV NV_CUDA_CUDART_DEV_VERSION 12.4.127-1
