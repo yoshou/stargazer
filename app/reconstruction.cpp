@@ -929,12 +929,12 @@ std::vector<glm::vec3> multiview_point_reconstruction::get_markers() const {
 
 void multiview_point_reconstruction::set_camera(const std::string &name,
                                          const stargazer::camera_t &camera) {
+  cameras[name] = camera;
   pimpl->pipeline->set_camera(name, camera);
-  multiview_point_reconstruction::set_camera(name, camera);
 }
 void multiview_point_reconstruction::set_axis(const glm::mat4 &axis) {
+  this->axis = axis;
   pimpl->pipeline->set_axis(axis);
-  multiview_point_reconstruction::set_axis(axis);
 }
 
 #define PANOPTIC
