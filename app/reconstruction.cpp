@@ -6,6 +6,12 @@
 #include <grpcpp/server_builder.h>
 #include <grpcpp/server_context.h>
 #include <spdlog/spdlog.h>
+#include <sqlite3.h>
+
+#include <filesystem>
+#include <fstream>
+#include <nlohmann/json.hpp>
+#include <regex>
 
 #include "capture.hpp"
 #include "correspondance.hpp"
@@ -210,7 +216,7 @@ void grpc_server::stop() {
     running.store(false);
   }
   if (server) {
-    server->Shutdown();
+    server->Shutdown(std::chrono::system_clock::now());
     if (server_th && server_th->joinable()) {
       server_th->join();
     }
@@ -262,9 +268,10 @@ class grpc_server_node : public graph_node {
           auto obj_msg = object_message();
           auto se3_msg = std::make_shared<se3_list_message>();
           se3_msg->set_data(se3);
+          se3_msg->set_timestamp(static_cast<double>(timestamp));
           obj_msg.set_field(name, se3_msg);
           msg->set_data(obj_msg);
-          msg->set_frame_number(static_cast<uint64_t>(timestamp));
+          msg->set_timestamp(static_cast<double>(timestamp));
           output->send(msg);
         });
 
@@ -928,7 +935,7 @@ std::vector<glm::vec3> multiview_point_reconstruction::get_markers() const {
 }
 
 void multiview_point_reconstruction::set_camera(const std::string &name,
-                                         const stargazer::camera_t &camera) {
+                                                const stargazer::camera_t &camera) {
   cameras[name] = camera;
   pimpl->pipeline->set_camera(name, camera);
 }
@@ -1111,7 +1118,7 @@ class voxelpose_reconstruct_node : public image_reconstruct_node {
     }
   }
 
-  std::map<std::string, cv::Mat> get_features() const {
+  std::map<std::string, cv::Mat> get_features() const override {
     coalsack::tensor<float, 4> features;
     std::vector<std::string> names;
     {
@@ -1290,7 +1297,7 @@ class mvpose_reconstruct_node : public image_reconstruct_node {
     }
   }
 
-  std::map<std::string, cv::Mat> get_features() const {
+  std::map<std::string, cv::Mat> get_features() const override {
     coalsack::tensor<float, 4> features;
     std::vector<std::string> names;
     {
@@ -1326,6 +1333,218 @@ class mvpose_reconstruct_node : public image_reconstruct_node {
 
 CEREAL_REGISTER_TYPE(mvpose_reconstruct_node)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(image_reconstruct_node, mvpose_reconstruct_node)
+
+class dump_se3_node : public graph_node {
+  std::string db_path;
+  std::string name;
+
+  sqlite3 *db;
+  sqlite3_stmt *stmt;
+  int topic_id;
+
+  std::deque<std::tuple<double, std::string>> queue;
+
+ public:
+  dump_se3_node() : graph_node(), db(nullptr), stmt(nullptr), topic_id(-1) {}
+
+  void set_db_path(std::string value) { db_path = value; }
+
+  void set_name(std::string value) { name = value; }
+
+  virtual std::string get_proc_name() const override { return "dump_se3_node"; }
+
+  template <typename Archive>
+  void serialize(Archive &archive) {
+    archive(db_path);
+    archive(name);
+  }
+
+  virtual void initialize() override {
+    if (sqlite3_open(db_path.c_str(), &db) != SQLITE_OK) {
+      throw std::runtime_error("Failed to open database");
+    }
+
+    if (sqlite3_exec(db,
+                     "CREATE TABLE IF NOT EXISTS topics(id INTEGER PRIMARY KEY, name TEXT NOT "
+                     "NULL, type TEXT NOT NULL)",
+                     nullptr, nullptr, nullptr) != SQLITE_OK) {
+      throw std::runtime_error("Failed to create table");
+    }
+
+    if (sqlite3_exec(db,
+                     "CREATE TABLE IF NOT EXISTS messages(id INTEGER PRIMARY KEY, topic_id INTEGER "
+                     "NOT NULL, timestamp INTEGER NOT NULL, data BLOB NOT NULL)",
+                     nullptr, nullptr, nullptr) != SQLITE_OK) {
+      throw std::runtime_error("Failed to create table");
+    }
+
+    if (sqlite3_exec(db, "CREATE INDEX IF NOT EXISTS timestamp_idx ON messages (timestamp ASC)",
+                     nullptr, nullptr, nullptr) != SQLITE_OK) {
+      throw std::runtime_error("Failed to create index");
+    }
+
+    {
+      sqlite3_stmt *stmt;
+      if (sqlite3_prepare_v2(db, "SELECT id FROM topics WHERE name = ?", -1, &stmt, nullptr) !=
+          SQLITE_OK) {
+        throw std::runtime_error("Failed to prepare statement");
+      }
+
+      if (sqlite3_bind_text(stmt, 1, name.c_str(), -1, SQLITE_STATIC) != SQLITE_OK) {
+        throw std::runtime_error("Failed to bind text");
+      }
+
+      if (sqlite3_step(stmt) == SQLITE_ROW) {
+        topic_id = sqlite3_column_int(stmt, 0);
+      } else {
+        topic_id = -1;
+      }
+
+      sqlite3_finalize(stmt);
+    }
+
+    if (topic_id == -1) {
+      sqlite3_stmt *stmt;
+      if (sqlite3_prepare_v2(db, "INSERT INTO topics (name, type) VALUES (?, ?)", -1, &stmt,
+                             nullptr) != SQLITE_OK) {
+        throw std::runtime_error("Failed to prepare statement");
+      }
+
+      if (sqlite3_bind_text(stmt, 1, name.c_str(), -1, SQLITE_STATIC) != SQLITE_OK) {
+        throw std::runtime_error("Failed to bind text");
+      }
+
+      if (sqlite3_bind_text(stmt, 2, "se3", -1, SQLITE_STATIC) != SQLITE_OK) {
+        throw std::runtime_error("Failed to bind text");
+      }
+
+      auto result = sqlite3_step(stmt);
+
+      while (result == SQLITE_BUSY) {
+        result = sqlite3_step(stmt);
+      }
+
+      if (result != SQLITE_DONE) {
+        throw std::runtime_error("Failed to step");
+      }
+
+      sqlite3_finalize(stmt);
+
+      if (sqlite3_prepare_v2(db, "SELECT last_insert_rowid()", -1, &stmt, nullptr) != SQLITE_OK) {
+        throw std::runtime_error("Failed to prepare statement");
+      }
+
+      if (sqlite3_step(stmt) == SQLITE_ROW) {
+        topic_id = sqlite3_column_int(stmt, 0);
+      } else {
+        throw std::runtime_error("Failed to get last insert id");
+      }
+
+      sqlite3_finalize(stmt);
+    }
+
+    if (sqlite3_prepare_v2(db, "INSERT INTO messages (topic_id, timestamp, data) VALUES (?, ?, ?)",
+                           -1, &stmt, nullptr) != SQLITE_OK) {
+      throw std::runtime_error("Failed to prepare statement");
+    }
+  }
+
+  virtual void finalize() override {
+    flush_queue();
+
+    if (stmt) {
+      sqlite3_finalize(stmt);
+      stmt = nullptr;
+    }
+    if (db) {
+      sqlite3_close(db);
+      db = nullptr;
+    }
+  }
+
+  void flush_queue() {
+    if (sqlite3_exec(db, "BEGIN TRANSACTION", nullptr, nullptr, nullptr) != SQLITE_OK) {
+      throw std::runtime_error("Failed to begin transaction");
+    }
+
+    while (queue.size() > 0) {
+      const auto &[timestamp, str] = queue.front();
+
+      if (sqlite3_reset(stmt) != SQLITE_OK) {
+        throw std::runtime_error("Failed to reset");
+      }
+
+      if (sqlite3_bind_int64(stmt, 1, topic_id) != SQLITE_OK) {
+        throw std::runtime_error("Failed to bind int64");
+      }
+
+      if (sqlite3_bind_int64(stmt, 2, timestamp) != SQLITE_OK) {
+        throw std::runtime_error("Failed to bind int64");
+      }
+
+      if (sqlite3_bind_blob(stmt, 3, str.c_str(), str.size(), SQLITE_STATIC) != SQLITE_OK) {
+        throw std::runtime_error("Failed to bind text");
+      }
+
+      auto result = sqlite3_step(stmt);
+
+      while (result == SQLITE_BUSY) {
+        result = sqlite3_step(stmt);
+      }
+
+      if (result != SQLITE_DONE) {
+        throw std::runtime_error("Failed to step");
+      }
+
+      queue.pop_front();
+    }
+
+    auto result = sqlite3_exec(db, "END TRANSACTION", nullptr, nullptr, nullptr);
+
+    while (result == SQLITE_BUSY) {
+      result = sqlite3_exec(db, "END TRANSACTION", nullptr, nullptr, nullptr);
+    }
+
+    if (result != SQLITE_OK) {
+      throw std::runtime_error("Failed to end transaction");
+    }
+  }
+
+  virtual void process(std::string input_name, graph_message_ptr message) override {
+    if (auto frame_msg = std::dynamic_pointer_cast<se3_list_message>(message)) {
+      const auto &data = frame_msg->get_data();
+
+      nlohmann::json j_frame;
+      std::vector<nlohmann::json> j_se3_list;
+      for (const auto &se3 : data) {
+        nlohmann::json j_se3;
+        j_se3["position"]["x"] = se3.position.x;
+        j_se3["position"]["y"] = se3.position.y;
+        j_se3["position"]["z"] = se3.position.z;
+        j_se3["rotation"]["x"] = se3.rotation.x;
+        j_se3["rotation"]["y"] = se3.rotation.y;
+        j_se3["rotation"]["z"] = se3.rotation.z;
+        j_se3["rotation"]["w"] = se3.rotation.w;
+        j_se3_list.push_back(j_se3);
+      }
+
+      j_frame["se3_list"] = j_se3_list;
+      j_frame["timestamp"] = frame_msg->get_timestamp();
+      j_frame["frame_number"] = frame_msg->get_frame_number();
+
+      const auto j_str = j_frame.dump(2);
+
+      queue.emplace_back(frame_msg->get_timestamp(), j_str);
+
+      if (queue.size() >= 200) {
+        flush_queue();
+      }
+    }
+  }
+};
+
+CEREAL_REGISTER_TYPE(dump_se3_node)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, dump_se3_node)
 
 class multiview_image_reconstruction_pipeline {
   graph_proc graph;
@@ -1460,6 +1679,30 @@ class multiview_image_reconstruction_pipeline {
     n3->set_input(n5->get_output(), "sphere");
     n3->set_address("0.0.0.0:50052");
     g->add_node(n3);
+
+    const std::vector<std::string> device_names = {
+    };
+
+    std::shared_ptr<grpc_server_node> n7(new grpc_server_node());
+    n7->set_address("0.0.0.0:50053");
+    g->add_node(n7);
+
+    std::shared_ptr<frame_demux_node> n8(new frame_demux_node());
+    n8->set_input(n7->get_output());
+
+    for (const auto &device_name : device_names) {
+      n8->add_output(device_name);
+    }
+
+    g->add_node(n8);
+
+    for (auto &device_name : device_names) {
+      std::shared_ptr<dump_se3_node> n9(new dump_se3_node());
+      n9->set_db_path("../data/data_20250115_1/imu.db");
+      n9->set_name(device_name);
+      n9->set_input(n8->get_output(device_name), device_name);
+      g->add_node(n9);
+    }
 
     const auto callbacks = std::make_shared<callback_list>();
 
