@@ -4,6 +4,7 @@ add_library(stargazer
     ${CMAKE_CURRENT_LIST_DIR}/parameters.cpp
     ${CMAKE_CURRENT_LIST_DIR}/reconstruction/triangulation.cpp
     ${CMAKE_CURRENT_LIST_DIR}/reconstruction/correspondance.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/reconstruction/reconstruction.cpp
     ${CMAKE_CURRENT_LIST_DIR}/calibration/bundle_adjust_data.cpp
 )
 
