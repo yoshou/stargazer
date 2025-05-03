@@ -15,8 +15,8 @@
 #include <map>
 #include <memory>
 
-#include "calibration.hpp"
-#include "capture.hpp"
+#include "calibration_pipeline.hpp"
+#include "capture_pipeline.hpp"
 #include "config_file.hpp"
 #include "parameters.hpp"
 #include "reconstruction_pipeline.hpp"

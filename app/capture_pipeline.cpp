@@ -1,4 +1,4 @@
-#include "capture.hpp"
+#include "capture_pipeline.hpp"
 
 #include <sqlite3.h>
 
