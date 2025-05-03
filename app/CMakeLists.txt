@@ -75,8 +75,8 @@ target_link_libraries(stargazer_preprocess
 add_executable(stargazer_viewer
     ${CMAKE_CURRENT_LIST_DIR}/viewer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/views.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/capture.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/calibration.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/capture_pipeline.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/calibration_pipeline.cpp
     ${CMAKE_CURRENT_LIST_DIR}/reconstruction_pipeline.cpp
     ${CMAKE_CURRENT_LIST_DIR}/config_file.cpp
     ${CMAKE_CURRENT_LIST_DIR}/viewer_app.cpp

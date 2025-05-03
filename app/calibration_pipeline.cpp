@@ -1,4 +1,4 @@
-#include "calibration.hpp"
+#include "calibration_pipeline.hpp"
 
 #include <ceres/ceres.h>
 #include <ceres/rotation.h>
