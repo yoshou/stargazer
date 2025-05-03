@@ -1781,7 +1781,7 @@ void axis_reconstruction::push_frame(const std::map<std::string, cv::Mat> &frame
 
 void axis_reconstruction::push_frame(
     const std::map<std::string, std::vector<stargazer::point_data>> &frame) {
-  const auto markers = reconstruct(cameras, frame);
+  const auto markers = stargazer::reconstruction::reconstruct(cameras, frame);
 
   glm::mat4 axis;
   if (markers.size() == 3) {

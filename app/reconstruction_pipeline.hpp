@@ -11,11 +11,6 @@
 #include "parameters.hpp"
 #include "point_data.hpp"
 
-std::vector<glm::vec3> reconstruct(
-    const std::map<std::string, stargazer::camera_t> &cameras,
-    const std::map<std::string, std::vector<stargazer::point_data>> &frame,
-    glm::mat4 axis = glm::mat4(1.0f));
-
 class multiview_point_reconstruction {
   std::map<std::string, stargazer::camera_t> cameras;
   glm::mat4 axis;
