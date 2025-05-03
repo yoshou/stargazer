@@ -19,7 +19,7 @@
 #include "capture.hpp"
 #include "config_file.hpp"
 #include "parameters.hpp"
-#include "reconstruction.hpp"
+#include "reconstruction_pipeline.hpp"
 #include "views.hpp"
 
 const int SCREEN_WIDTH = 1680;
