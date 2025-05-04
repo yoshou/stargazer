@@ -45,12 +45,12 @@ class viewer_app : public window_base {
   std::map<std::string, std::shared_ptr<capture_pipeline>> captures;
   std::shared_ptr<multiview_capture_pipeline> multiview_capture;
 
-  calibration calib;
-  intrinsic_calibration intrinsic_calib;
-  std::unique_ptr<axis_calibration> axis_calib;
+  std::unique_ptr<calibration_pipeline> calib;
+  std::unique_ptr<intrinsic_calibration_pipeline> intrinsic_calib;
+  std::unique_ptr<axis_calibration_pipeline> axis_calib;
 
-  std::unique_ptr<multiview_point_reconstruction> multiview_point_reconstruction_;
-  std::unique_ptr<multiview_image_reconstruction> multiview_image_reconstruction_;
+  std::unique_ptr<multiview_point_reconstruction_pipeline> multiview_point_reconstruction_pipeline_;
+  std::unique_ptr<multiview_image_reconstruction_pipeline> multiview_image_reconstruction_pipeline_;
 
   std::unique_ptr<stargazer::configuration_file> capture_config;
   std::unique_ptr<stargazer::configuration_file> reconstruction_config;
@@ -230,8 +230,8 @@ class viewer_app : public window_base {
               if (node_info.params.find("db_path") != node_info.params.end()) {
                 path = node_info.get_param<std::string>("db_path");
               }
-              capture_panel_view_->devices.push_back(capture_panel_view::node_info{
-                  node_info.name, path, node_info.params});
+              capture_panel_view_->devices.push_back(
+                  capture_panel_view::node_info{node_info.name, path, node_info.params});
             }
             capture_config->update();
           }
@@ -253,8 +253,8 @@ class viewer_app : public window_base {
           if (node_info.params.find("db_path") != node_info.params.end()) {
             path = node_info.get_param<std::string>("db_path");
           }
-          capture_panel_view_->devices.push_back(capture_panel_view::node_info{
-              node_info.name, path, node_info.params});
+          capture_panel_view_->devices.push_back(
+              capture_panel_view::node_info{node_info.name, path, node_info.params});
         }
         capture_config->update();
       }
@@ -303,7 +303,7 @@ class viewer_app : public window_base {
                       }
                       frame.insert(std::make_pair(name, points));
                     }
-                    calib.push_frame(frame);
+                    calib->push_frame(frame);
                   });
 
               multiview_capture->run(devices);
@@ -332,7 +332,7 @@ class viewer_app : public window_base {
 
               capture->add_image_received([this](const cv::Mat &frame) {
                 if (!frame.empty() && calibration_panel_view_->is_marker_collecting) {
-                  intrinsic_calib.add_frame(frame);
+                  intrinsic_calib->add_frame(frame);
                 }
               });
 
@@ -493,17 +493,17 @@ class viewer_app : public window_base {
         [this](const std::vector<calibration_panel_view::node_info> &devices, bool on_calibrate) {
           if (calibration_panel_view_->calibration_target_index == 0) {
             for (const auto &device : devices) {
-              if (calib.get_num_frames(device.name) > 0) {
+              if (calib->get_num_frames(device.name) > 0) {
                 spdlog::info("Start calibration");
 
-                calib.calibrate();
+                calib->calibrate();
 
                 std::unordered_map<std::string, std::string> device_name_to_id;
                 for (const auto &device : devices) {
                   device_name_to_id[device.name] = std::get<std::string>(device.params.at("id"));
                 }
 
-                for (const auto &[camera_name, camera] : calib.get_calibrated_cameras()) {
+                for (const auto &[camera_name, camera] : calib->get_calibrated_cameras()) {
                   const auto &camera_id = device_name_to_id.at(camera_name);
 
                   auto &params = std::get<stargazer::camera_t>(parameters->at(camera_id));
@@ -523,37 +523,37 @@ class viewer_app : public window_base {
             const auto &device =
                 devices.at(calibration_panel_view_->intrinsic_calibration_device_index);
 
-            intrinsic_calib.image_width =
+            intrinsic_calib->image_width =
                 static_cast<int>(std::round(std::get<float>(device.params.at("width"))));
-            intrinsic_calib.image_height =
+            intrinsic_calib->image_height =
                 static_cast<int>(std::round(std::get<float>(device.params.at("height"))));
 
-            intrinsic_calib.calibrate();
+            intrinsic_calib->calibrate();
 
-            calibration_panel_view_->fx = intrinsic_calib.calibrated_camera.intrin.fx;
-            calibration_panel_view_->fy = intrinsic_calib.calibrated_camera.intrin.fy;
-            calibration_panel_view_->cx = intrinsic_calib.calibrated_camera.intrin.cx;
-            calibration_panel_view_->cy = intrinsic_calib.calibrated_camera.intrin.cy;
-            calibration_panel_view_->k0 = intrinsic_calib.calibrated_camera.intrin.coeffs[0];
-            calibration_panel_view_->k1 = intrinsic_calib.calibrated_camera.intrin.coeffs[1];
-            calibration_panel_view_->k2 = intrinsic_calib.calibrated_camera.intrin.coeffs[4];
-            calibration_panel_view_->p0 = intrinsic_calib.calibrated_camera.intrin.coeffs[2];
-            calibration_panel_view_->p1 = intrinsic_calib.calibrated_camera.intrin.coeffs[3];
-            calibration_panel_view_->rms = intrinsic_calib.rms;
+            calibration_panel_view_->fx = intrinsic_calib->calibrated_camera.intrin.fx;
+            calibration_panel_view_->fy = intrinsic_calib->calibrated_camera.intrin.fy;
+            calibration_panel_view_->cx = intrinsic_calib->calibrated_camera.intrin.cx;
+            calibration_panel_view_->cy = intrinsic_calib->calibrated_camera.intrin.cy;
+            calibration_panel_view_->k0 = intrinsic_calib->calibrated_camera.intrin.coeffs[0];
+            calibration_panel_view_->k1 = intrinsic_calib->calibrated_camera.intrin.coeffs[1];
+            calibration_panel_view_->k2 = intrinsic_calib->calibrated_camera.intrin.coeffs[4];
+            calibration_panel_view_->p0 = intrinsic_calib->calibrated_camera.intrin.coeffs[2];
+            calibration_panel_view_->p1 = intrinsic_calib->calibrated_camera.intrin.coeffs[3];
+            calibration_panel_view_->rms = intrinsic_calib->rms;
 
             auto &params = std::get<stargazer::camera_t>(
                 parameters->at(std::get<std::string>(device.params.at("id"))));
-            params.intrin.fx = intrinsic_calib.calibrated_camera.intrin.fx;
-            params.intrin.fy = intrinsic_calib.calibrated_camera.intrin.fy;
-            params.intrin.cx = intrinsic_calib.calibrated_camera.intrin.cx;
-            params.intrin.cy = intrinsic_calib.calibrated_camera.intrin.cy;
-            params.intrin.coeffs[0] = intrinsic_calib.calibrated_camera.intrin.coeffs[0];
-            params.intrin.coeffs[1] = intrinsic_calib.calibrated_camera.intrin.coeffs[1];
-            params.intrin.coeffs[2] = intrinsic_calib.calibrated_camera.intrin.coeffs[2];
-            params.intrin.coeffs[3] = intrinsic_calib.calibrated_camera.intrin.coeffs[3];
-            params.intrin.coeffs[4] = intrinsic_calib.calibrated_camera.intrin.coeffs[4];
-            params.width = intrinsic_calib.calibrated_camera.width;
-            params.height = intrinsic_calib.calibrated_camera.height;
+            params.intrin.fx = intrinsic_calib->calibrated_camera.intrin.fx;
+            params.intrin.fy = intrinsic_calib->calibrated_camera.intrin.fy;
+            params.intrin.cx = intrinsic_calib->calibrated_camera.intrin.cx;
+            params.intrin.cy = intrinsic_calib->calibrated_camera.intrin.cy;
+            params.intrin.coeffs[0] = intrinsic_calib->calibrated_camera.intrin.coeffs[0];
+            params.intrin.coeffs[1] = intrinsic_calib->calibrated_camera.intrin.coeffs[1];
+            params.intrin.coeffs[2] = intrinsic_calib->calibrated_camera.intrin.coeffs[2];
+            params.intrin.coeffs[3] = intrinsic_calib->calibrated_camera.intrin.coeffs[3];
+            params.intrin.coeffs[4] = intrinsic_calib->calibrated_camera.intrin.coeffs[4];
+            params.width = intrinsic_calib->calibrated_camera.width;
+            params.height = intrinsic_calib->calibrated_camera.height;
             parameters->save();
             return true;
           } else if (calibration_panel_view_->calibration_target_index == 2) {
@@ -610,7 +610,7 @@ class viewer_app : public window_base {
                       }
                       frame.insert(std::make_pair(name, points));
                     }
-                    multiview_point_reconstruction_->push_frame(frame);
+                    multiview_point_reconstruction_pipeline_->push_frame(frame);
                   });
 
               for (const auto &device : devices) {
@@ -649,7 +649,7 @@ class viewer_app : public window_base {
                         color_image_frame[name] = image;
                       }
                     }
-                    multiview_image_reconstruction_->push_frame(color_image_frame);
+                    multiview_image_reconstruction_pipeline_->push_frame(color_image_frame);
                   });
 
               multiview_capture->run(devices);
@@ -814,64 +814,69 @@ class viewer_app : public window_base {
         std::make_shared<azimuth_elevation>(glm::u32vec2(0, 0), glm::u32vec2(width, height));
     pose_view_ = std::make_unique<pose_view>();
 
-    multiview_point_reconstruction_ = std::make_unique<multiview_point_reconstruction>();
-    multiview_point_reconstruction_->run();
+    multiview_point_reconstruction_pipeline_ =
+        std::make_unique<multiview_point_reconstruction_pipeline>();
+    multiview_point_reconstruction_pipeline_->run();
 
     {
       const auto &scene = std::get<stargazer::scene_t>(parameters->at("scene"));
-      multiview_point_reconstruction_->set_axis(scene.axis);
+      multiview_point_reconstruction_pipeline_->set_axis(scene.axis);
     }
 
     for (const auto &device : reconstruction_config->get_node_infos()) {
       if (device.is_camera()) {
         const auto &params =
             std::get<stargazer::camera_t>(parameters->at(device.get_param<std::string>("id")));
-        multiview_point_reconstruction_->set_camera(device.name, params);
+        multiview_point_reconstruction_pipeline_->set_camera(device.name, params);
       }
     }
 
-    calib.add_calibrated([&](const std::unordered_map<std::string, stargazer::camera_t> &cameras) {
+    multiview_image_reconstruction_pipeline_ =
+        std::make_unique<multiview_image_reconstruction_pipeline>();
+    multiview_image_reconstruction_pipeline_->run(
+        reconstruction_config->get_node_infos("static_pipeline"));
+
+    {
+      const auto &scene = std::get<stargazer::scene_t>(parameters->at("scene"));
+      multiview_image_reconstruction_pipeline_->set_axis(scene.axis);
+    }
+
+    for (const auto &device : reconstruction_config->get_node_infos()) {
+      if (device.is_camera()) {
+        const auto &params =
+            std::get<stargazer::camera_t>(parameters->at(device.get_param<std::string>("id")));
+        multiview_image_reconstruction_pipeline_->set_camera(device.name, params);
+      }
+    }
+
+    calib = std::make_unique<calibration_pipeline>();
+
+    calib->add_calibrated([&](const std::unordered_map<std::string, stargazer::camera_t> &cameras) {
       for (const auto &[name, camera] : cameras) {
-        multiview_point_reconstruction_->set_camera(name, camera);
+        multiview_point_reconstruction_pipeline_->set_camera(name, camera);
       }
     });
-
-    multiview_image_reconstruction_ = std::make_unique<multiview_image_reconstruction>();
-    multiview_image_reconstruction_->run(reconstruction_config->get_node_infos("static_pipeline"));
-
-    {
-      const auto &scene = std::get<stargazer::scene_t>(parameters->at("scene"));
-      multiview_image_reconstruction_->set_axis(scene.axis);
-    }
-
-    for (const auto &device : reconstruction_config->get_node_infos()) {
-      if (device.is_camera()) {
-        const auto &params =
-            std::get<stargazer::camera_t>(parameters->at(device.get_param<std::string>("id")));
-        multiview_image_reconstruction_->set_camera(device.name, params);
-      }
-    }
 
     for (const auto &device : calibration_config->get_node_infos()) {
       if (device.is_camera()) {
         if (parameters->contains(device.get_param<std::string>("id"))) {
           const auto &params =
               std::get<stargazer::camera_t>(parameters->at(device.get_param<std::string>("id")));
-          calib.set_camera(device.name, params);
+          calib->set_camera(device.name, params);
         } else {
           spdlog::error("No camera params found for device: {}", device.name);
         }
       }
     }
 
-    calib.run(calibration_config->get_node_infos("static_pipeline"));
+    calib->run(calibration_config->get_node_infos("static_pipeline"));
 
-    for (auto &[camera_name, camera] : calib.get_cameras()) {
+    for (auto &[camera_name, camera] : calib->get_cameras()) {
       camera.extrin.rotation = glm::mat3(1.0);
       camera.extrin.translation = glm::vec3(1.0);
     }
 
-    axis_calib.reset(new axis_calibration(parameters));
+    axis_calib = std::make_unique<axis_calibration_pipeline>(parameters);
 
     for (const auto &device : calibration_config->get_node_infos()) {
       if (device.is_camera()) {
@@ -887,16 +892,18 @@ class viewer_app : public window_base {
 
     axis_calib->run(calibration_config->get_node_infos("static_pipeline"));
 
+    intrinsic_calib = std::make_unique<intrinsic_calibration_pipeline>();
+
     window_base::initialize();
   }
 
   virtual void finalize() override {
     term_gui();
 
-    calib.stop();
+    calib->stop();
     axis_calib->stop();
-    multiview_point_reconstruction_->stop();
-    multiview_image_reconstruction_->stop();
+    multiview_point_reconstruction_pipeline_->stop();
+    multiview_image_reconstruction_pipeline_->stop();
 
     window_base::finalize();
   }
@@ -973,13 +980,13 @@ class viewer_app : public window_base {
                   std::find_if(node_infos.begin(), node_infos.end(),
                                [&](const auto &x) { return x.name == device.name; });
               node_info != node_infos.end()) {
-            device.num_points = calib.get_num_frames(device.name);
+            device.num_points = calib->get_num_frames(device.name);
           }
         }
       } else if (calibration_panel_view_->calibration_target_index == 1) {
         calibration_panel_view_
             ->devices[calibration_panel_view_->intrinsic_calibration_device_index]
-            .num_points = intrinsic_calib.get_num_frames();
+            .num_points = intrinsic_calib->get_num_frames();
       } else if (calibration_panel_view_->calibration_target_index == 2) {
         for (auto &device : calibration_panel_view_->devices) {
           const auto &node_infos = calibration_config->get_node_infos();
@@ -1016,7 +1023,7 @@ class viewer_app : public window_base {
         pose_view_->cameras.clear();
 
         for (const auto &device : calibration_config->get_node_infos()) {
-          const auto &cameras = calib.get_calibrated_cameras();
+          const auto &cameras = calib->get_calibrated_cameras();
 
           if (cameras.find(device.name) != cameras.end()) {
             const auto &camera = cameras.at(device.name);
@@ -1052,7 +1059,7 @@ class viewer_app : public window_base {
             stream = *found;
           }
 
-          const auto observed_points = calib.get_observed_points(node.name);
+          const auto observed_points = calib->get_observed_points(node.name);
           cv::Mat cloud_image(height, width, CV_8UC3, cv::Scalar::all(0));
 
           for (const auto &observed_point : observed_points) {
@@ -1081,7 +1088,7 @@ class viewer_app : public window_base {
         pose_view_->cameras.clear();
 
         for (const auto &device : reconstruction_config->get_node_infos()) {
-          const auto &cameras = multiview_point_reconstruction_->get_cameras();
+          const auto &cameras = multiview_point_reconstruction_pipeline_->get_cameras();
 
           if (cameras.find(device.name) != cameras.end()) {
             const auto &camera = cameras.at(device.name);
@@ -1094,18 +1101,18 @@ class viewer_app : public window_base {
           }
         }
 
-        pose_view_->axis = multiview_point_reconstruction_->get_axis();
+        pose_view_->axis = multiview_point_reconstruction_pipeline_->get_axis();
 
         pose_view_->points.clear();
-        for (const auto &point : multiview_point_reconstruction_->get_markers()) {
+        for (const auto &point : multiview_point_reconstruction_pipeline_->get_markers()) {
           pose_view_->points.push_back(point);
         }
-        for (const auto &point : multiview_image_reconstruction_->get_markers()) {
+        for (const auto &point : multiview_image_reconstruction_pipeline_->get_markers()) {
           pose_view_->points.push_back(point);
         }
       } else if (top_bar_view_->view_type == top_bar_view::ViewType::Point) {
         if (multiview_capture) {
-          const auto frames = multiview_image_reconstruction_->get_features();
+          const auto frames = multiview_image_reconstruction_pipeline_->get_features();
           for (const auto &[name, frame] : frames) {
             const auto device_name = name;
             if (!frame.empty()) {
