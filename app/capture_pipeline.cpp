@@ -1328,11 +1328,10 @@ class load_marker_node : public graph_node {
     nlohmann::json j_frame = nlohmann::json::parse(text);
 
     const auto j_kpts = j_frame["points"];
-    const auto timestamp = j_frame["timestamp"].get<double>();
 
     for (std::size_t j = 0; j < j_kpts.size(); j++) {
       frame_data.push_back(keypoint{j_kpts[j]["x"].get<float>(), j_kpts[j]["y"].get<float>(),
-                                    j_kpts[j]["r"].get<float>()});
+                                    j_kpts[j]["r"].get<float>(), 0.0f, 0.0f, 0, 0});
     }
   }
 
