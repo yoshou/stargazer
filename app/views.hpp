@@ -350,11 +350,11 @@ class capture_panel_view {
   struct node_info {
     std::string name;
     std::string address;
-    std::unordered_map<std::string, std::variant<float, bool>> params;
+    std::unordered_map<std::string, node_param_t> params;
     bool is_streaming = false;
 
     node_info(const std::string &name, const std::string &address,
-              const std::unordered_map<std::string, std::variant<float, bool>> &params)
+              const std::unordered_map<std::string, node_param_t> &params)
         : name(name), address(address), params(params) {}
   };
   std::vector<node_info> devices;
@@ -385,16 +385,15 @@ class capture_panel_view {
 class calibration_panel_view {
  public:
   struct node_info {
-    std::string id;
     std::string name;
     std::string address;
-    std::unordered_map<std::string, std::variant<float, bool>> params;
+    std::unordered_map<std::string, node_param_t> params;
     bool is_streaming = true;
     size_t num_points = 0;
 
-    node_info(const std::string &id, const std::string &name, const std::string &address,
-              const std::unordered_map<std::string, std::variant<float, bool>> &params)
-        : id(id), name(name), address(address), params(params) {}
+    node_info(const std::string &name, const std::string &address,
+              const std::unordered_map<std::string, node_param_t> &params)
+        : name(name), address(address), params(params) {}
   };
   std::vector<node_info> devices;
   bool is_marker_collecting = false;

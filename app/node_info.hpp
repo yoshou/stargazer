@@ -21,15 +21,21 @@ enum class node_type {
   epipolar_reconstruction,
 };
 
+using node_param_t = std::variant<std::string, std::int64_t, float, bool>;
+
 struct node_info {
   std::string name;
   node_type type;
-  std::string id;
-  std::string address;
-  std::string endpoint;
-  std::string db_path;
   std::unordered_map<std::string, std::string> inputs;
-  std::unordered_map<std::string, std::variant<float, bool>> params;
+  std::unordered_map<std::string, node_param_t> params;
+
+  template <typename T>
+  const T& get_param(const std::string& key) const {
+    if (params.find(key) == params.end()) {
+      throw std::runtime_error("Parameter not found: " + key);
+    }
+    return std::get<T>(params.at(key));
+  }
 
   bool is_camera() const {
     return type == node_type::raspi || type == node_type::raspi_color ||

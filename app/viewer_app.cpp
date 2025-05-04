@@ -60,9 +60,10 @@ class viewer_app : public window_base {
     uint64_t max_id = 0;
     for (const auto &node_info : capture_config->get_node_infos()) {
       size_t idx = 0;
-      const auto id = std::stoull(node_info.id, &idx);
+      const auto id_str = node_info.get_param<std::string>("id");
+      const auto id = std::stoull(id_str, &idx);
 
-      if (node_info.id.size() == idx) {
+      if (id_str.size() == idx) {
         max_id = std::max(max_id, static_cast<uint64_t>(id + 1));
       }
     }
@@ -72,8 +73,15 @@ class viewer_app : public window_base {
   void init_capture_panel() {
     capture_panel_view_ = std::make_unique<capture_panel_view>();
     for (const auto &node_info : capture_config->get_node_infos()) {
+      std::string path;
+      if (node_info.params.find("address") != node_info.params.end()) {
+        path = node_info.get_param<std::string>("address");
+      }
+      if (node_info.params.find("db_path") != node_info.params.end()) {
+        path = node_info.get_param<std::string>("db_path");
+      }
       capture_panel_view_->devices.push_back(
-          capture_panel_view::node_info{node_info.name, node_info.address, node_info.params});
+          capture_panel_view::node_info{node_info.name, path, node_info.params});
     }
 
     capture_panel_view_->is_streaming_changed.push_back(
@@ -177,11 +185,11 @@ class viewer_app : public window_base {
         [this](const std::string &device_name, node_type node_type, const std::string &ip_address,
                const std::string &gateway_address) {
           node_info new_device{};
-          new_device.id = generate_new_id();
           new_device.name = device_name;
-          new_device.address = ip_address;
-          new_device.endpoint = gateway_address;
           new_device.type = node_type;
+          new_device.params["id"] = generate_new_id();
+          new_device.params["address"] = ip_address;
+          new_device.params["endpoint"] = gateway_address;
 
           switch (node_type) {
             case node_type::depthai_color:
@@ -215,8 +223,15 @@ class viewer_app : public window_base {
             node_infos.push_back(new_device);
 
             for (const auto &node_info : node_infos) {
+              std::string path;
+              if (node_info.params.find("address") != node_info.params.end()) {
+                path = node_info.get_param<std::string>("address");
+              }
+              if (node_info.params.find("db_path") != node_info.params.end()) {
+                path = node_info.get_param<std::string>("db_path");
+              }
               capture_panel_view_->devices.push_back(capture_panel_view::node_info{
-                  node_info.name, node_info.address, node_info.params});
+                  node_info.name, path, node_info.params});
             }
             capture_config->update();
           }
@@ -231,8 +246,15 @@ class viewer_app : public window_base {
         capture_panel_view_->devices.clear();
 
         for (const auto &node_info : node_infos) {
-          capture_panel_view_->devices.push_back(
-              capture_panel_view::node_info{node_info.name, node_info.address, node_info.params});
+          std::string path;
+          if (node_info.params.find("address") != node_info.params.end()) {
+            path = node_info.get_param<std::string>("address");
+          }
+          if (node_info.params.find("db_path") != node_info.params.end()) {
+            path = node_info.get_param<std::string>("db_path");
+          }
+          capture_panel_view_->devices.push_back(capture_panel_view::node_info{
+              node_info.name, path, node_info.params});
         }
         capture_config->update();
       }
@@ -242,8 +264,15 @@ class viewer_app : public window_base {
   void init_calibration_panel() {
     calibration_panel_view_ = std::make_unique<calibration_panel_view>();
     for (const auto &node_info : calibration_config->get_node_infos()) {
-      calibration_panel_view_->devices.push_back(calibration_panel_view::node_info{
-          node_info.id, node_info.name, node_info.address, node_info.params});
+      std::string path;
+      if (node_info.params.find("address") != node_info.params.end()) {
+        path = node_info.get_param<std::string>("address");
+      }
+      if (node_info.params.find("db_path") != node_info.params.end()) {
+        path = node_info.get_param<std::string>("db_path");
+      }
+      calibration_panel_view_->devices.push_back(
+          calibration_panel_view::node_info{node_info.name, path, node_info.params});
     }
 
     calibration_panel_view_->is_streaming_changed.push_back(
@@ -446,7 +475,8 @@ class viewer_app : public window_base {
 
     calibration_panel_view_->on_intrinsic_calibration_device_changed.push_back(
         [this](const calibration_panel_view::node_info &device) {
-          const auto &params = std::get<stargazer::camera_t>(parameters->at(device.id));
+          const auto &params = std::get<stargazer::camera_t>(
+              parameters->at(std::get<std::string>(device.params.at("id"))));
           calibration_panel_view_->fx = params.intrin.fx;
           calibration_panel_view_->fy = params.intrin.fy;
           calibration_panel_view_->cx = params.intrin.cx;
@@ -470,7 +500,7 @@ class viewer_app : public window_base {
 
                 std::unordered_map<std::string, std::string> device_name_to_id;
                 for (const auto &device : devices) {
-                  device_name_to_id[device.name] = device.id;
+                  device_name_to_id[device.name] = std::get<std::string>(device.params.at("id"));
                 }
 
                 for (const auto &[camera_name, camera] : calib.get_calibrated_cameras()) {
@@ -511,7 +541,8 @@ class viewer_app : public window_base {
             calibration_panel_view_->p1 = intrinsic_calib.calibrated_camera.intrin.coeffs[3];
             calibration_panel_view_->rms = intrinsic_calib.rms;
 
-            auto &params = std::get<stargazer::camera_t>(parameters->at(device.id));
+            auto &params = std::get<stargazer::camera_t>(
+                parameters->at(std::get<std::string>(device.params.at("id"))));
             params.intrin.fx = intrinsic_calib.calibrated_camera.intrin.fx;
             params.intrin.fy = intrinsic_calib.calibrated_camera.intrin.fy;
             params.intrin.cx = intrinsic_calib.calibrated_camera.intrin.cx;
@@ -540,8 +571,15 @@ class viewer_app : public window_base {
   void init_reconstruction_panel() {
     reconstruction_panel_view_ = std::make_unique<reconstruction_panel_view>();
     for (const auto &node_info : reconstruction_config->get_node_infos()) {
+      std::string path;
+      if (node_info.params.find("address") != node_info.params.end()) {
+        path = node_info.get_param<std::string>("address");
+      }
+      if (node_info.params.find("db_path") != node_info.params.end()) {
+        path = node_info.get_param<std::string>("db_path");
+      }
       reconstruction_panel_view_->devices.push_back(
-          reconstruction_panel_view::node_info{node_info.name, node_info.address});
+          reconstruction_panel_view::node_info{node_info.name, path});
     }
 
     reconstruction_panel_view_->is_streaming_changed.push_back(
@@ -786,7 +824,8 @@ class viewer_app : public window_base {
 
     for (const auto &device : reconstruction_config->get_node_infos()) {
       if (device.is_camera()) {
-        const auto &params = std::get<stargazer::camera_t>(parameters->at(device.id));
+        const auto &params =
+            std::get<stargazer::camera_t>(parameters->at(device.get_param<std::string>("id")));
         multiview_point_reconstruction_->set_camera(device.name, params);
       }
     }
@@ -807,15 +846,17 @@ class viewer_app : public window_base {
 
     for (const auto &device : reconstruction_config->get_node_infos()) {
       if (device.is_camera()) {
-        const auto &params = std::get<stargazer::camera_t>(parameters->at(device.id));
+        const auto &params =
+            std::get<stargazer::camera_t>(parameters->at(device.get_param<std::string>("id")));
         multiview_image_reconstruction_->set_camera(device.name, params);
       }
     }
 
     for (const auto &device : calibration_config->get_node_infos()) {
       if (device.is_camera()) {
-        if (parameters->contains(device.id)) {
-          const auto &params = std::get<stargazer::camera_t>(parameters->at(device.id));
+        if (parameters->contains(device.get_param<std::string>("id"))) {
+          const auto &params =
+              std::get<stargazer::camera_t>(parameters->at(device.get_param<std::string>("id")));
           calib.set_camera(device.name, params);
         } else {
           spdlog::error("No camera params found for device: {}", device.name);
@@ -834,8 +875,9 @@ class viewer_app : public window_base {
 
     for (const auto &device : calibration_config->get_node_infos()) {
       if (device.is_camera()) {
-        if (parameters->contains(device.id)) {
-          const auto &params = std::get<stargazer::camera_t>(parameters->at(device.id));
+        if (parameters->contains(device.get_param<std::string>("id"))) {
+          const auto &params =
+              std::get<stargazer::camera_t>(parameters->at(device.get_param<std::string>("id")));
           axis_calib->set_camera(device.name, params);
         } else {
           spdlog::error("No camera params found for device: {}", device.name);
