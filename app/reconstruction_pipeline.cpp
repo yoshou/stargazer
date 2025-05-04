@@ -24,11 +24,11 @@
 #include "mvpose.hpp"
 #include "parameters.hpp"
 #include "point_data.hpp"
+#include "reconstruction.hpp"
 #include "sensor.grpc.pb.h"
 #include "triangulation.hpp"
 #include "utils.hpp"
 #include "voxelpose.hpp"
-#include "reconstruction.hpp"
 
 using namespace coalsack;
 
@@ -680,7 +680,7 @@ class frame_number_ordering_node : public graph_node {
   }
 };
 
-class multiview_point_reconstruction_pipeline {
+class multiview_point_reconstruction_pipeline::impl {
   graph_proc graph;
 
   std::atomic_bool running;
@@ -703,7 +703,7 @@ class multiview_point_reconstruction_pipeline {
     markers_received.clear();
   }
 
-  multiview_point_reconstruction_pipeline()
+  impl()
       : graph(), running(false), markers(), markers_received(), reconstruct_node(), input_node() {}
 
   void set_camera(const std::string &name, const stargazer::camera_t &camera) {
@@ -832,42 +832,30 @@ class multiview_point_reconstruction_pipeline {
   }
 };
 
-class multiview_point_reconstruction::impl {
- public:
-  std::shared_ptr<multiview_point_reconstruction_pipeline> pipeline;
+multiview_point_reconstruction_pipeline::multiview_point_reconstruction_pipeline()
+    : pimpl(new impl()) {}
+multiview_point_reconstruction_pipeline::~multiview_point_reconstruction_pipeline() = default;
 
-  impl() : pipeline(std::make_shared<multiview_point_reconstruction_pipeline>()) {}
-
-  ~impl() = default;
-
-  void run() { pipeline->run(); }
-
-  void stop() { pipeline->stop(); }
-};
-
-multiview_point_reconstruction::multiview_point_reconstruction() : pimpl(new impl()) {}
-multiview_point_reconstruction::~multiview_point_reconstruction() = default;
-
-void multiview_point_reconstruction::push_frame(const frame_type &frame) {
-  pimpl->pipeline->push_frame(frame);
+void multiview_point_reconstruction_pipeline::push_frame(const frame_type &frame) {
+  pimpl->push_frame(frame);
 }
 
-void multiview_point_reconstruction::run() { pimpl->run(); }
+void multiview_point_reconstruction_pipeline::run() { pimpl->run(); }
 
-void multiview_point_reconstruction::stop() { pimpl->stop(); }
+void multiview_point_reconstruction_pipeline::stop() { pimpl->stop(); }
 
-std::vector<glm::vec3> multiview_point_reconstruction::get_markers() const {
-  return pimpl->pipeline->get_markers();
+std::vector<glm::vec3> multiview_point_reconstruction_pipeline::get_markers() const {
+  return pimpl->get_markers();
 }
 
-void multiview_point_reconstruction::set_camera(const std::string &name,
-                                                const stargazer::camera_t &camera) {
+void multiview_point_reconstruction_pipeline::set_camera(const std::string &name,
+                                                         const stargazer::camera_t &camera) {
   cameras[name] = camera;
-  pimpl->pipeline->set_camera(name, camera);
+  pimpl->set_camera(name, camera);
 }
-void multiview_point_reconstruction::set_axis(const glm::mat4 &axis) {
+void multiview_point_reconstruction_pipeline::set_axis(const glm::mat4 &axis) {
   this->axis = axis;
-  pimpl->pipeline->set_axis(axis);
+  pimpl->set_axis(axis);
 }
 
 #define PANOPTIC
@@ -1472,7 +1460,7 @@ class dump_se3_node : public graph_node {
 CEREAL_REGISTER_TYPE(dump_se3_node)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, dump_se3_node)
 
-class multiview_image_reconstruction_pipeline {
+class multiview_image_reconstruction_pipeline::impl {
   graph_proc graph;
 
   std::atomic_bool running;
@@ -1495,7 +1483,7 @@ class multiview_image_reconstruction_pipeline {
     markers_received.clear();
   }
 
-  multiview_image_reconstruction_pipeline()
+  impl()
       : graph(), running(false), markers(), markers_received(), reconstruct_node(), input_node() {}
 
   void set_camera(const std::string &name, const stargazer::camera_t &camera) {
@@ -1679,43 +1667,33 @@ class multiview_image_reconstruction_pipeline {
   std::map<std::string, cv::Mat> get_features() const { return reconstruct_node->get_features(); }
 };
 
-class multiview_image_reconstruction::impl {
- public:
-  std::unique_ptr<multiview_image_reconstruction_pipeline> pipeline;
+multiview_image_reconstruction_pipeline::multiview_image_reconstruction_pipeline()
+    : pimpl(new impl()) {}
+multiview_image_reconstruction_pipeline::~multiview_image_reconstruction_pipeline() = default;
 
-  impl() : pipeline(std::make_unique<multiview_image_reconstruction_pipeline>()) {}
-
-  ~impl() = default;
-
-  void run(const std::vector<node_info> &infos) { pipeline->run(infos); }
-
-  void stop() { pipeline->stop(); }
-};
-
-multiview_image_reconstruction::multiview_image_reconstruction() : pimpl(new impl()) {}
-multiview_image_reconstruction::~multiview_image_reconstruction() = default;
-
-void multiview_image_reconstruction::push_frame(const frame_type &frame) {
-  pimpl->pipeline->push_frame(frame);
+void multiview_image_reconstruction_pipeline::push_frame(const frame_type &frame) {
+  pimpl->push_frame(frame);
 }
 
-void multiview_image_reconstruction::run(const std::vector<node_info> &infos) { pimpl->run(infos); }
-
-void multiview_image_reconstruction::stop() { pimpl->stop(); }
-
-std::map<std::string, cv::Mat> multiview_image_reconstruction::get_features() const {
-  return pimpl->pipeline->get_features();
+void multiview_image_reconstruction_pipeline::run(const std::vector<node_info> &infos) {
+  pimpl->run(infos);
 }
 
-std::vector<glm::vec3> multiview_image_reconstruction::get_markers() const {
-  return pimpl->pipeline->get_markers();
+void multiview_image_reconstruction_pipeline::stop() { pimpl->stop(); }
+
+std::map<std::string, cv::Mat> multiview_image_reconstruction_pipeline::get_features() const {
+  return pimpl->get_features();
 }
 
-void multiview_image_reconstruction::set_camera(const std::string &name,
-                                                const stargazer::camera_t &camera) {
-  pimpl->pipeline->set_camera(name, camera);
+std::vector<glm::vec3> multiview_image_reconstruction_pipeline::get_markers() const {
+  return pimpl->get_markers();
 }
 
-void multiview_image_reconstruction::set_axis(const glm::mat4 &axis) {
-  pimpl->pipeline->set_axis(axis);
+void multiview_image_reconstruction_pipeline::set_camera(const std::string &name,
+                                                         const stargazer::camera_t &camera) {
+  pimpl->set_camera(name, camera);
+}
+
+void multiview_image_reconstruction_pipeline::set_axis(const glm::mat4 &axis) {
+  pimpl->set_axis(axis);
 }

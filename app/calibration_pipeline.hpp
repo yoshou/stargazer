@@ -16,7 +16,7 @@ struct observed_points_t {
   std::vector<glm::vec2> points;
 };
 
-class calibration {
+class calibration_pipeline {
   class impl;
   std::unique_ptr<impl> pimpl;
 
@@ -35,8 +35,8 @@ class calibration {
 
   const std::unordered_map<std::string, stargazer::camera_t> &get_calibrated_cameras() const;
 
-  calibration();
-  virtual ~calibration();
+  calibration_pipeline();
+  virtual ~calibration_pipeline();
 
   size_t get_num_frames(std::string name) const;
   const std::vector<observed_points_t> get_observed_points(std::string name) const;
@@ -48,7 +48,7 @@ class calibration {
   void calibrate();
 };
 
-class intrinsic_calibration {
+class intrinsic_calibration_pipeline {
   std::vector<std::vector<stargazer::point_data>> frames;
 
  public:
@@ -65,13 +65,13 @@ class intrinsic_calibration {
   void calibrate();
 };
 
-class axis_calibration {
+class axis_calibration_pipeline {
   class impl;
   std::unique_ptr<impl> pimpl;
 
  public:
-  axis_calibration(std::shared_ptr<stargazer::parameters_t> parameters);
-  virtual ~axis_calibration();
+  axis_calibration_pipeline(std::shared_ptr<stargazer::parameters_t> parameters);
+  virtual ~axis_calibration_pipeline();
 
   void set_camera(const std::string &name, const stargazer::camera_t &camera);
 

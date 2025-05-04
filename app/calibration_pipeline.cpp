@@ -1211,7 +1211,7 @@ class object_mux_node : public graph_node {
 CEREAL_REGISTER_TYPE(object_mux_node)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, object_mux_node)
 
-class calibration::impl {
+class calibration_pipeline::impl {
  public:
   graph_proc graph;
 
@@ -1373,52 +1373,56 @@ class calibration::impl {
   }
 };
 
-calibration::calibration() : pimpl(std::make_unique<impl>()) {}
+calibration_pipeline::calibration_pipeline() : pimpl(std::make_unique<impl>()) {}
 
-calibration::~calibration() = default;
+calibration_pipeline::~calibration_pipeline() = default;
 
-void calibration::set_camera(const std::string &name, const stargazer::camera_t &camera) {
+void calibration_pipeline::set_camera(const std::string &name, const stargazer::camera_t &camera) {
   pimpl->cameras[name] = camera;
 }
 
-size_t calibration::get_camera_size() const { return pimpl->cameras.size(); }
+size_t calibration_pipeline::get_camera_size() const { return pimpl->cameras.size(); }
 
-const std::unordered_map<std::string, stargazer::camera_t> &calibration::get_cameras() const {
+const std::unordered_map<std::string, stargazer::camera_t> &calibration_pipeline::get_cameras()
+    const {
   return pimpl->cameras;
 }
 
-std::unordered_map<std::string, stargazer::camera_t> &calibration::get_cameras() {
+std::unordered_map<std::string, stargazer::camera_t> &calibration_pipeline::get_cameras() {
   return pimpl->cameras;
 }
 
-void calibration::run(const std::vector<node_info> &infos) { pimpl->run(infos); }
+void calibration_pipeline::run(const std::vector<node_info> &infos) { pimpl->run(infos); }
 
-void calibration::stop() { pimpl->stop(); }
+void calibration_pipeline::stop() { pimpl->stop(); }
 
-void calibration::add_calibrated(
+void calibration_pipeline::add_calibrated(
     std::function<void(const std::unordered_map<std::string, stargazer::camera_t> &)> callback) {
   pimpl->add_calibrated(callback);
 }
 
-void calibration::clear_calibrated() { pimpl->clear_calibrated(); }
+void calibration_pipeline::clear_calibrated() { pimpl->clear_calibrated(); }
 
-size_t calibration::get_num_frames(std::string name) const { return pimpl->get_num_frames(name); }
+size_t calibration_pipeline::get_num_frames(std::string name) const {
+  return pimpl->get_num_frames(name);
+}
 
-const std::vector<observed_points_t> calibration::get_observed_points(std::string name) const {
+const std::vector<observed_points_t> calibration_pipeline::get_observed_points(
+    std::string name) const {
   return pimpl->get_observed_points(name);
 }
 
-const std::unordered_map<std::string, stargazer::camera_t> &calibration::get_calibrated_cameras()
-    const {
+const std::unordered_map<std::string, stargazer::camera_t> &
+calibration_pipeline::get_calibrated_cameras() const {
   return pimpl->calibrated_cameras;
 }
 
-void calibration::push_frame(
+void calibration_pipeline::push_frame(
     const std::map<std::string, std::vector<stargazer::point_data>> &frame) {
   pimpl->push_frame(frame);
 }
 
-void calibration::calibrate() { pimpl->calibrate(pimpl->cameras); }
+void calibration_pipeline::calibrate() { pimpl->calibrate(pimpl->cameras); }
 
 static void calc_board_corner_positions(cv::Size board_size, cv::Size2f square_size,
                                         std::vector<cv::Point3f> &corners,
@@ -1519,11 +1523,11 @@ static std::vector<size_t> create_random_indices(size_t size) {
   return data;
 }
 
-void intrinsic_calibration::add_frame(const std::vector<stargazer::point_data> &frame) {
+void intrinsic_calibration_pipeline::add_frame(const std::vector<stargazer::point_data> &frame) {
   frames.push_back(frame);
 }
 
-void intrinsic_calibration::add_frame(const cv::Mat &frame) {
+void intrinsic_calibration_pipeline::add_frame(const cv::Mat &frame) {
   std::vector<cv::Point2f> board;
   if (detect_calibration_board(frame, board)) {
     std::vector<stargazer::point_data> points;
@@ -1534,7 +1538,7 @@ void intrinsic_calibration::add_frame(const cv::Mat &frame) {
   }
 }
 
-void intrinsic_calibration::calibrate() {
+void intrinsic_calibration_pipeline::calibrate() {
   const auto square_size = cv::Size2f(2.41, 2.4);  // TODO: Define as config
   const auto board_size = cv::Size(10, 7);         // TODO: Define as config
   const auto image_size = cv::Size(image_width, image_height);
@@ -1895,7 +1899,7 @@ class axis_calibration_node : public graph_node {
 CEREAL_REGISTER_TYPE(axis_calibration_node);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, axis_calibration_node);
 
-class axis_calibration::impl {
+class axis_calibration_pipeline::impl {
  public:
   graph_proc graph;
 
@@ -2026,41 +2030,45 @@ class axis_calibration::impl {
   }
 };
 
-axis_calibration::axis_calibration(std::shared_ptr<stargazer::parameters_t> parameters)
+axis_calibration_pipeline::axis_calibration_pipeline(
+    std::shared_ptr<stargazer::parameters_t> parameters)
     : pimpl(std::make_unique<impl>()) {
   pimpl->parameters = parameters;
 }
 
-axis_calibration::~axis_calibration() = default;
+axis_calibration_pipeline::~axis_calibration_pipeline() = default;
 
-void axis_calibration::set_camera(const std::string &name, const stargazer::camera_t &camera) {
+void axis_calibration_pipeline::set_camera(const std::string &name,
+                                           const stargazer::camera_t &camera) {
   pimpl->cameras[name] = camera;
 }
 
-size_t axis_calibration::get_camera_size() const { return pimpl->cameras.size(); }
+size_t axis_calibration_pipeline::get_camera_size() const { return pimpl->cameras.size(); }
 
-const std::unordered_map<std::string, stargazer::camera_t> &axis_calibration::get_cameras() const {
+const std::unordered_map<std::string, stargazer::camera_t> &axis_calibration_pipeline::get_cameras()
+    const {
   return pimpl->cameras;
 }
 
-std::unordered_map<std::string, stargazer::camera_t> &axis_calibration::get_cameras() {
+std::unordered_map<std::string, stargazer::camera_t> &axis_calibration_pipeline::get_cameras() {
   return pimpl->cameras;
 }
 
-size_t axis_calibration::get_num_frames(std::string name) const {
+size_t axis_calibration_pipeline::get_num_frames(std::string name) const {
   return pimpl->get_num_frames(name);
 }
 
-const std::vector<observed_points_t> axis_calibration::get_observed_points(std::string name) const {
+const std::vector<observed_points_t> axis_calibration_pipeline::get_observed_points(
+    std::string name) const {
   return pimpl->get_observed_points(name);
 }
 
-void axis_calibration::push_frame(
+void axis_calibration_pipeline::push_frame(
     const std::map<std::string, std::vector<stargazer::point_data>> &frame) {
   pimpl->push_frame(frame);
 }
 
-void axis_calibration::run(const std::vector<node_info> &infos) { pimpl->run(infos); }
-void axis_calibration::stop() { pimpl->stop(); }
+void axis_calibration_pipeline::run(const std::vector<node_info> &infos) { pimpl->run(infos); }
+void axis_calibration_pipeline::stop() { pimpl->stop(); }
 
-void axis_calibration::calibrate() { pimpl->calibrate(); }
+void axis_calibration_pipeline::calibrate() { pimpl->calibrate(); }
