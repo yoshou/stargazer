@@ -7,10 +7,8 @@
           "address": "192.168.0.1",
           "gateway": "192.168.0.254",
           "id": "000000000001",
-          "params": {
-            "height": 616.0,
-            "width": 820.0
-          },
+          "height": 616.0,
+          "width": 820.0,
           "type": "raspi"
         },
         {
@@ -18,10 +16,8 @@
           "address": "192.168.0.2",
           "gateway": "192.168.0.254",
           "id": "000000000002",
-          "params": {
-            "height": 616.0,
-            "width": 820.0
-          },
+          "height": 616.0,
+          "width": 820.0,
           "type": "raspi"
         },
         {
@@ -29,10 +25,8 @@
           "address": "192.168.0.3",
           "gateway": "192.168.0.254",
           "id": "000000000003",
-          "params": {
-            "height": 616.0,
-            "width": 820.0
-          },
+          "height": 616.0,
+          "width": 820.0,
           "type": "raspi"
         },
         {
@@ -40,10 +34,8 @@
           "address": "192.168.0.4",
           "gateway": "192.168.0.254",
           "id": "000000000004",
-          "params": {
-            "height": 616.0,
-            "width": 820.0
-          },
+          "height": 616.0,
+          "width": 820.0,
           "type": "raspi"
         },
         {
@@ -51,10 +43,8 @@
           "address": "192.168.0.5",
           "gateway": "192.168.0.254",
           "id": "000000000005",
-          "params": {
-            "height": 616.0,
-            "width": 820.0
-          },
+          "height": 616.0,
+          "width": 820.0,
           "type": "raspi"
         },
         {
@@ -62,10 +52,8 @@
           "address": "192.168.0.6",
           "gateway": "192.168.0.254",
           "id": "000000000006",
-          "params": {
-            "height": 616.0,
-            "width": 820.0
-          },
+          "height": 616.0,
+          "width": 820.0,
           "type": "raspi"
         },
         {
@@ -73,10 +61,8 @@
           "address": "192.168.0.7",
           "gateway": "192.168.0.254",
           "id": "000000000007",
-          "params": {
-            "height": 616.0,
-            "width": 820.0
-          },
+          "height": 616.0,
+          "width": 820.0,
           "type": "raspi"
         },
         {
@@ -84,10 +70,8 @@
           "address": "192.168.0.8",
           "gateway": "192.168.0.254",
           "id": "000000000008",
-          "params": {
-            "height": 616.0,
-            "width": 820.0
-          },
+          "height": 616.0,
+          "width": 820.0,
           "type": "raspi"
         },
         {
@@ -95,10 +79,8 @@
           "address": "192.168.0.9",
           "gateway": "192.168.0.254",
           "id": "000000000009",
-          "params": {
-            "height": 616.0,
-            "width": 820.0
-          },
+          "height": 616.0,
+          "width": 820.0,
           "type": "raspi"
         },
         {
@@ -106,10 +88,8 @@
           "address": "192.168.0.10",
           "gateway": "192.168.0.254",
           "id": "000000000010",
-          "params": {
-            "height": 616.0,
-            "width": 820.0
-          },
+          "height": 616.0,
+          "width": 820.0,
           "type": "raspi"
         },
         {
@@ -117,10 +97,8 @@
           "address": "192.168.0.11",
           "gateway": "192.168.0.254",
           "id": "000000000011",
-          "params": {
-            "height": 616.0,
-            "width": 820.0
-          },
+          "height": 616.0,
+          "width": 820.0,
           "type": "raspi"
         },
         {
@@ -128,10 +106,8 @@
           "address": "192.168.0.12",
           "gateway": "192.168.0.254",
           "id": "000000000012",
-          "params": {
-            "height": 616.0,
-            "width": 820.0
-          },
+          "height": 616.0,
+          "width": 820.0,
           "type": "raspi"
         },
         {
@@ -139,10 +115,8 @@
           "address": "192.168.0.13",
           "gateway": "192.168.0.254",
           "id": "000000000013",
-          "params": {
-            "height": 616.0,
-            "width": 820.0
-          },
+          "height": 616.0,
+          "width": 820.0,
           "type": "raspi"
         },
         {
@@ -150,10 +124,8 @@
           "address": "192.168.0.14",
           "gateway": "192.168.0.254",
           "id": "000000000014",
-          "params": {
-            "height": 616.0,
-            "width": 820.0
-          },
+          "height": 616.0,
+          "width": 820.0,
           "type": "raspi"
         },
         {
@@ -161,10 +133,8 @@
           "address": "192.168.0.15",
           "gateway": "192.168.0.254",
           "id": "000000000015",
-          "params": {
-            "height": 616.0,
-            "width": 820.0
-          },
+          "height": 616.0,
+          "width": 820.0,
           "type": "raspi"
         },
         {
@@ -172,10 +142,8 @@
           "address": "192.168.0.16",
           "gateway": "192.168.0.254",
           "id": "000000000016",
-          "params": {
-            "height": 616.0,
-            "width": 820.0
-          },
+          "height": 616.0,
+          "width": 820.0,
           "type": "raspi"
         },
         {
@@ -183,10 +151,8 @@
           "address": "192.168.0.17",
           "gateway": "192.168.0.254",
           "id": "000000000017",
-          "params": {
-            "height": 616.0,
-            "width": 820.0
-          },
+          "height": 616.0,
+          "width": 820.0,
           "type": "raspi"
         },
         {
@@ -194,10 +160,8 @@
           "address": "192.168.0.18",
           "gateway": "192.168.0.254",
           "id": "000000000018",
-          "params": {
-            "height": 616.0,
-            "width": 820.0
-          },
+          "height": 616.0,
+          "width": 820.0,
           "type": "raspi"
         },
         {
@@ -205,10 +169,8 @@
           "address": "192.168.0.19",
           "gateway": "192.168.0.254",
           "id": "000000000019",
-          "params": {
-            "height": 616.0,
-            "width": 820.0
-          },
+          "height": 616.0,
+          "width": 820.0,
           "type": "raspi"
         },
         {
@@ -216,10 +178,44 @@
           "address": "192.168.0.20",
           "gateway": "192.168.0.254",
           "id": "000000000020",
-          "params": {
-            "height": 616.0,
-            "width": 820.0
-          },
+          "height": 616.0,
+          "width": 820.0,
+          "type": "raspi"
+        },
+        {
+          "name": "camera21",
+          "address": "192.168.0.21",
+          "gateway": "192.168.0.254",
+          "id": "000000000021",
+          "height": 616.0,
+          "width": 820.0,
+          "type": "raspi"
+        },
+        {
+          "name": "camera22",
+          "address": "192.168.0.22",
+          "gateway": "192.168.0.254",
+          "id": "000000000022",
+          "height": 616.0,
+          "width": 820.0,
+          "type": "raspi"
+        },
+        {
+          "name": "camera23",
+          "address": "192.168.0.23",
+          "gateway": "192.168.0.254",
+          "id": "000000000023",
+          "height": 616.0,
+          "width": 820.0,
+          "type": "raspi"
+        },
+        {
+          "name": "camera24",
+          "address": "192.168.0.24",
+          "gateway": "192.168.0.254",
+          "id": "000000000024",
+          "height": 616.0,
+          "width": 820.0,
           "type": "raspi"
         }
       ]
@@ -230,200 +226,160 @@
           "name": "camera1",
           "db_path": "../data/data_20221004_1/capture.db",
           "id": "000000000001",
-          "params": {
-            "height": 616.0,
-            "width": 820.0
-          },
+          "height": 616.0,
+          "width": 820.0,
           "type": "raspi_playback"
         },
         {
           "name": "camera2",
           "db_path": "../data/data_20221004_1/capture.db",
           "id": "000000000002",
-          "params": {
-            "height": 616.0,
-            "width": 820.0
-          },
+          "height": 616.0,
+          "width": 820.0,
           "type": "raspi_playback"
         },
         {
           "name": "camera3",
           "db_path": "../data/data_20221004_1/capture.db",
           "id": "000000000003",
-          "params": {
-            "height": 616.0,
-            "width": 820.0
-          },
+          "height": 616.0,
+          "width": 820.0,
           "type": "raspi_playback"
         },
         {
           "name": "camera4",
           "db_path": "../data/data_20221004_1/capture.db",
           "id": "000000000004",
-          "params": {
-            "height": 616.0,
-            "width": 820.0
-          },
+          "height": 616.0,
+          "width": 820.0,
           "type": "raspi_playback"
         },
         {
           "name": "camera5",
           "db_path": "../data/data_20221004_1/capture.db",
           "id": "000000000005",
-          "params": {
-            "height": 616.0,
-            "width": 820.0
-          },
+          "height": 616.0,
+          "width": 820.0,
           "type": "raspi_playback"
         },
         {
           "name": "camera6",
           "db_path": "../data/data_20221004_1/capture.db",
           "id": "000000000006",
-          "params": {
-            "height": 616.0,
-            "width": 820.0
-          },
+          "height": 616.0,
+          "width": 820.0,
           "type": "raspi_playback"
         },
         {
           "name": "camera7",
           "db_path": "../data/data_20221004_1/capture.db",
           "id": "000000000007",
-          "params": {
-            "height": 616.0,
-            "width": 820.0
-          },
+          "height": 616.0,
+          "width": 820.0,
           "type": "raspi_playback"
         },
         {
           "name": "camera8",
           "db_path": "../data/data_20221004_1/capture.db",
           "id": "000000000008",
-          "params": {
-            "height": 616.0,
-            "width": 820.0
-          },
+          "height": 616.0,
+          "width": 820.0,
           "type": "raspi_playback"
         },
         {
           "name": "camera9",
           "db_path": "../data/data_20221004_1/capture.db",
           "id": "000000000009",
-          "params": {
-            "height": 616.0,
-            "width": 820.0
-          },
+          "height": 616.0,
+          "width": 820.0,
           "type": "raspi_playback"
         },
         {
           "name": "camera10",
           "db_path": "../data/data_20221004_1/capture.db",
           "id": "000000000010",
-          "params": {
-            "height": 616.0,
-            "width": 820.0
-          },
+          "height": 616.0,
+          "width": 820.0,
           "type": "raspi_playback"
         },
         {
           "name": "camera11",
           "db_path": "../data/data_20221004_1/capture.db",
           "id": "000000000011",
-          "params": {
-            "height": 616.0,
-            "width": 820.0
-          },
+          "height": 616.0,
+          "width": 820.0,
           "type": "raspi_playback"
         },
         {
           "name": "camera12",
           "db_path": "../data/data_20221004_1/capture.db",
           "id": "000000000012",
-          "params": {
-            "height": 616.0,
-            "width": 820.0
-          },
+          "height": 616.0,
+          "width": 820.0,
           "type": "raspi_playback"
         },
         {
           "name": "camera13",
           "db_path": "../data/data_20221004_1/capture.db",
           "id": "000000000013",
-          "params": {
-            "height": 616.0,
-            "width": 820.0
-          },
+          "height": 616.0,
+          "width": 820.0,
           "type": "raspi_playback"
         },
         {
           "name": "camera14",
           "db_path": "../data/data_20221004_1/capture.db",
           "id": "000000000014",
-          "params": {
-            "height": 616.0,
-            "width": 820.0
-          },
+          "height": 616.0,
+          "width": 820.0,
           "type": "raspi_playback"
         },
         {
           "name": "camera15",
           "db_path": "../data/data_20221004_1/capture.db",
           "id": "000000000015",
-          "params": {
-            "height": 616.0,
-            "width": 820.0
-          },
+          "height": 616.0,
+          "width": 820.0,
           "type": "raspi_playback"
         },
         {
           "name": "camera16",
           "db_path": "../data/data_20221004_1/capture.db",
           "id": "000000000016",
-          "params": {
-            "height": 616.0,
-            "width": 820.0
-          },
+          "height": 616.0,
+          "width": 820.0,
           "type": "raspi_playback"
         },
         {
           "name": "camera17",
           "db_path": "../data/data_20221004_1/capture.db",
           "id": "000000000017",
-          "params": {
-            "height": 616.0,
-            "width": 820.0
-          },
+          "height": 616.0,
+          "width": 820.0,
           "type": "raspi_playback"
         },
         {
           "name": "camera18",
           "db_path": "../data/data_20221004_1/capture.db",
           "id": "000000000018",
-          "params": {
-            "height": 616.0,
-            "width": 820.0
-          },
+          "height": 616.0,
+          "width": 820.0,
           "type": "raspi_playback"
         },
         {
           "name": "camera19",
           "db_path": "../data/data_20221004_1/capture.db",
           "id": "000000000019",
-          "params": {
-            "height": 616.0,
-            "width": 820.0
-          },
+          "height": 616.0,
+          "width": 820.0,
           "type": "raspi_playback"
         },
         {
           "name": "camera20",
           "db_path": "../data/data_20221004_1/capture.db",
           "id": "000000000020",
-          "params": {
-            "height": 616.0,
-            "width": 820.0
-          },
+          "height": 616.0,
+          "width": 820.0,
           "type": "raspi_playback"
         }
       ]
@@ -434,50 +390,40 @@
           "name": "00_03",
           "db_path": "../data/panoptic",
           "id": "00_03",
-          "params": {
-            "height": 1080.0,
-            "width": 1920.0
-          },
+          "height": 1080.0,
+          "width": 1920.0,
           "type": "panoptic"
         },
         {
           "name": "00_06",
           "db_path": "../data/panoptic",
           "id": "00_06",
-          "params": {
-            "height": 1080.0,
-            "width": 1920.0
-          },
+          "height": 1080.0,
+          "width": 1920.0,
           "type": "panoptic"
         },
         {
           "name": "00_12",
           "db_path": "../data/panoptic",
           "id": "00_12",
-          "params": {
-            "height": 1080.0,
-            "width": 1920.0
-          },
+          "height": 1080.0,
+          "width": 1920.0,
           "type": "panoptic"
         },
         {
           "name": "00_13",
           "db_path": "../data/panoptic",
           "id": "00_13",
-          "params": {
-            "height": 1080.0,
-            "width": 1920.0
-          },
+          "height": 1080.0,
+          "width": 1920.0,
           "type": "panoptic"
         },
         {
           "name": "00_23",
           "db_path": "../data/panoptic",
           "id": "00_23",
-          "params": {
-            "height": 1080.0,
-            "width": 1920.0
-          },
+          "height": 1080.0,
+          "width": 1920.0,
           "type": "panoptic"
         }
       ]
@@ -487,6 +433,14 @@
         {
           "name": "reconstruction",
           "type": "voxelpose_reconstruction"
+        }
+      ]
+    },
+    "mvpose_reconstruction": {
+      "nodes": [
+        {
+          "name": "reconstruction",
+          "type": "mvpose_reconstruction"
         }
       ]
     }
