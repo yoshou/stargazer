@@ -13,7 +13,7 @@
 #include <nlohmann/json.hpp>
 #include <regex>
 
-#include "capture.hpp"
+#include "capture_pipeline.hpp"
 #include "correspondance.hpp"
 #include "glm_json.hpp"
 #include "glm_serialize.hpp"
