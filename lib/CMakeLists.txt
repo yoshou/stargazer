@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.18)
 
 enable_language(CUDA)
 
@@ -18,6 +18,7 @@ target_include_directories(stargazer_voxelpose
 
 set_target_properties(stargazer_voxelpose PROPERTIES
     LINKER_LANGUAGE CUDA C CXX
+    CUDA_ARCHITECTURES OFF
     CUDA_RESOLVE_DEVICE_SYMBOLS ON
     CUDA_SEPARABLE_COMPILATION ON)
 
@@ -48,6 +49,7 @@ target_include_directories(stargazer_preprocess
 
 set_target_properties(stargazer_preprocess PROPERTIES
     LINKER_LANGUAGE CUDA C CXX
+    CUDA_ARCHITECTURES OFF
     CUDA_RESOLVE_DEVICE_SYMBOLS ON
     CUDA_SEPARABLE_COMPILATION ON)
 
