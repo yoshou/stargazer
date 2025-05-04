@@ -348,13 +348,13 @@ class callback_node : public graph_node {
 CEREAL_REGISTER_TYPE(callback_node)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, callback_node)
 
-class camera_message : public object_message {
+class camera_message : public graph_message {
   stargazer::camera_t camera;
 
  public:
-  camera_message() : object_message(), camera() {}
+  camera_message() : graph_message(), camera() {}
 
-  camera_message(const stargazer::camera_t &camera) : object_message(), camera(camera) {}
+  camera_message(const stargazer::camera_t &camera) : graph_message(), camera(camera) {}
 
   stargazer::camera_t get_camera() const { return camera; }
 
@@ -367,7 +367,7 @@ class camera_message : public object_message {
 };
 
 CEREAL_REGISTER_TYPE(camera_message)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(object_message, camera_message)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_message, camera_message)
 
 class epipolar_reconstruct_node : public graph_node {
   mutable std::mutex cameras_mtx;
