@@ -62,6 +62,8 @@ static node_type get_node_type(const std::string &type) {
 
 static std::string get_node_type_name(node_type type) {
   switch (type) {
+    case node_type::unknown:
+      throw std::runtime_error("Invalid node type");
     case node_type::raspi:
       return "raspi";
     case node_type::raspi_color:
