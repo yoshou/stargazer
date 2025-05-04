@@ -6,6 +6,7 @@
 #include <variant>
 
 enum class node_type {
+  unknown,
   raspi,
   raspi_color,
   depthai_color,
@@ -25,10 +26,10 @@ enum class node_type {
 using node_param_t = std::variant<std::string, std::int64_t, float, bool>;
 
 struct node_info {
-  std::string name;
-  node_type type;
-  std::unordered_map<std::string, std::string> inputs;
-  std::unordered_map<std::string, node_param_t> params;
+  std::string name{};
+  node_type type{node_type::unknown};
+  std::unordered_map<std::string, std::string> inputs{};
+  std::unordered_map<std::string, node_param_t> params{};
 
   template <typename T>
   const T& get_param(const std::string& key) const {
