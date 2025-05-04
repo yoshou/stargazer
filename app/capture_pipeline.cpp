@@ -1582,7 +1582,7 @@ static void genenerate_common_nodes(
     if (cluster && cluster->encoded_image_output) {
       std::shared_ptr<p2p_tcp_listener_node> n1(new p2p_tcp_listener_node());
       n1->set_input(cluster->encoded_image_output);
-      n1->set_endpoint(node_infos[i].endpoint, 0);
+      n1->set_endpoint(node_infos[i].get_param<std::string>("endpoint"), 0);
       g->add_node(n1);
 
       rcv_blob_nodes[node_infos[i].name] = n1;
@@ -1595,7 +1595,7 @@ static void genenerate_common_nodes(
     } else if (node_infos[i].type == node_type::raspi_playback) {
       std::shared_ptr<load_blob_node> n1(new load_blob_node());
       n1->set_name(std::regex_replace(node_infos[i].name, std::regex("camera"), "image_"));
-      n1->set_db_path(node_infos[i].db_path);
+      n1->set_db_path(node_infos[i].get_param<std::string>("db_path"));
       g->add_node(n1);
 
       rcv_blob_nodes[node_infos[i].name] = n1;
@@ -1608,7 +1608,7 @@ static void genenerate_common_nodes(
     } else if (node_infos[i].type == node_type::panoptic) {
       std::shared_ptr<load_panoptic_node> n1(new load_panoptic_node());
       n1->set_name(node_infos[i].name);
-      n1->set_db_path(node_infos[i].db_path);
+      n1->set_db_path(node_infos[i].get_param<std::string>("db_path"));
       g->add_node(n1);
 
       rcv_blob_nodes[node_infos[i].name] = n1;
@@ -1623,14 +1623,14 @@ static void genenerate_common_nodes(
     if (cluster && cluster->marker_output) {
       std::shared_ptr<p2p_tcp_listener_node> n2(new p2p_tcp_listener_node());
       n2->set_input(cluster->marker_output);
-      n2->set_endpoint(node_infos[i].endpoint, 0);
+      n2->set_endpoint(node_infos[i].get_param<std::string>("endpoint"), 0);
       g->add_node(n2);
 
       rcv_marker_nodes[node_infos[i].name] = n2;
     } else if (node_infos[i].type == node_type::raspi_playback) {
       std::shared_ptr<load_marker_node> n1(new load_marker_node());
       n1->set_name(std::regex_replace(node_infos[i].name, std::regex("camera"), "marker_"));
-      n1->set_db_path(node_infos[i].db_path);
+      n1->set_db_path(node_infos[i].get_param<std::string>("db_path"));
       g->add_node(n1);
 
       rcv_marker_nodes[node_infos[i].name] = n1;
@@ -1791,7 +1791,8 @@ class capture_pipeline::impl {
 
     for (std::size_t i = 0; i < clusters.size(); i++) {
       if (clusters[i]) {
-        client.deploy(io_context, node_infos[i].address, 31400, clusters[i]->g);
+        client.deploy(io_context, node_infos[i].get_param<std::string>("address"), 31400,
+                      clusters[i]->g);
       }
     }
     client.deploy(io_context, "127.0.0.1", server.get_port(), g);
@@ -1945,7 +1946,7 @@ class multiview_capture_pipeline::impl {
               std::shared_ptr<dump_blob_node> n5(new dump_blob_node());
               n5->set_input(n12->get_output());
               n5->set_name(std::regex_replace(node_infos[i].name, std::regex("record"), "image_"));
-              n5->set_db_path(node_infos[i].db_path);
+              n5->set_db_path(node_infos[i].get_param<std::string>("db_path"));
               g->add_node(n5);
             }
           }
@@ -1964,7 +1965,7 @@ class multiview_capture_pipeline::impl {
               std::shared_ptr<dump_keypoint_node> n5(new dump_keypoint_node());
               n5->set_input(n12->get_output());
               n5->set_name(std::regex_replace(node_infos[i].name, std::regex("record"), "marker_"));
-              n5->set_db_path(node_infos[i].db_path);
+              n5->set_db_path(node_infos[i].get_param<std::string>("db_path"));
               g->add_node(n5);
             }
           }
@@ -2100,7 +2101,8 @@ class multiview_capture_pipeline::impl {
 
     for (std::size_t i = 0; i < clusters.size(); i++) {
       if (clusters[i]) {
-        client.deploy(io_context, node_infos[i].address, 31400, clusters[i]->g);
+        client.deploy(io_context, node_infos[i].get_param<std::string>("address"), 31400,
+                      clusters[i]->g);
       }
     }
     client.deploy(io_context, "127.0.0.1", server.get_port(), g);
