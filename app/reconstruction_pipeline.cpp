@@ -1562,14 +1562,14 @@ class multiview_image_reconstruction_pipeline::impl {
     g->add_node(n6);
 
     for (const auto &info : infos) {
-      if (info.type == node_type::voxelpose_reconstruction) {
+      if (info.get_type() == node_type::voxelpose_reconstruction) {
         std::shared_ptr<voxelpose_reconstruct_node> n1(new voxelpose_reconstruct_node());
         n1->set_input(n6->get_output());
         g->add_node(n1);
 
         reconstruct_node = n1;
       }
-      if (info.type == node_type::mvpose_reconstruction) {
+      if (info.get_type() == node_type::mvpose_reconstruction) {
         std::shared_ptr<mvpose_reconstruct_node> n1(new mvpose_reconstruct_node());
         n1->set_input(n6->get_output());
         g->add_node(n1);

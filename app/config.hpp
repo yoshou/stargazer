@@ -5,6 +5,8 @@
 #include <unordered_map>
 #include <variant>
 #include <vector>
+#include <memory>
+#include <optional>
 
 namespace stargazer {
 enum class node_type {
@@ -27,21 +29,72 @@ enum class node_type {
 
 using node_param_t = std::variant<std::string, std::int64_t, float, bool>;
 
-struct node_info {
-  std::string name{};
+class node_info {
   node_type type{node_type::unknown};
+  std::vector<std::shared_ptr<node_info>> extends;
+
+  friend class configuration;
+
+  void get_type(node_type& result_type) const {
+    if (type != node_type::unknown) {
+      result_type = type;
+    } else {
+      for (const auto& extend : extends) {
+        extend->get_type(result_type);
+      }
+    }
+  }
+
+  template <typename T>
+  void get_param(const std::string& key, std::optional<T>& value) const {
+    if (params.find(key) != params.end()) {
+      value = std::get<T>(params.at(key));
+    } else {
+      for (const auto& extend : extends) {
+        extend->get_param(key, value);
+      }
+    }
+  }
+
+ public:
+  std::string name{};
   std::unordered_map<std::string, std::string> inputs{};
   std::unordered_map<std::string, node_param_t> params{};
 
+  void set_type(node_type type) { this->type = type; }
+  node_type get_type() const {
+    node_type result_type = type;
+    get_type(result_type);
+    if (result_type == node_type::unknown) {
+      throw std::runtime_error("Node type is unknown");
+    }
+    return result_type;
+  }
+  
+  bool contains_param(const std::string &key) const {
+    if (params.find(key) != params.end()) {
+      return true;
+    }
+    for (const auto &extend : extends) {
+      if (extend->contains_param(key)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   template <typename T>
-  const T &get_param(const std::string &key) const {
-    if (params.find(key) == params.end()) {
+  T get_param(const std::string &key) const {
+    std::optional<T> value;
+    get_param(key, value);
+    if (!value.has_value()) {
       throw std::runtime_error("Parameter not found: " + key);
     }
-    return std::get<T>(params.at(key));
+    return value.value();
   }
 
   bool is_camera() const {
+    const auto type = get_type();
     return type == node_type::raspi || type == node_type::raspi_color ||
            type == node_type::depthai_color || type == node_type::rs_d435 ||
            type == node_type::rs_d435_color || type == node_type::raspi_playback ||
@@ -53,6 +106,7 @@ class configuration {
   std::string path;
   std::unordered_map<std::string, std::vector<node_info>> pipeline_nodes;
   std::unordered_map<std::string, std::string> pipeline_names;
+  std::unordered_map<std::string, std::shared_ptr<node_info>> nodes;
 
  public:
   configuration(const std::string &path);

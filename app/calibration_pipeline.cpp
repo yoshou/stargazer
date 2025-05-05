@@ -1274,7 +1274,7 @@ class calibration_pipeline::impl {
     std::unordered_map<std::string, graph_node_ptr> detector_nodes;
 
     for (const auto &info : infos) {
-      if (info.type == node_type::pattern_board_calibration_target_detector) {
+      if (info.get_type() == node_type::pattern_board_calibration_target_detector) {
         for (const auto &[name, camera] : cameras) {
           std::shared_ptr<pattern_board_calibration_target_detector_node> n1(
               new pattern_board_calibration_target_detector_node());
@@ -1285,7 +1285,7 @@ class calibration_pipeline::impl {
           detector_nodes[name] = n1;
         }
       }
-      if (info.type == node_type::three_point_bar_calibration_target_detector) {
+      if (info.get_type() == node_type::three_point_bar_calibration_target_detector) {
         for (const auto &[name, camera] : cameras) {
           std::shared_ptr<three_point_bar_calibration_target_detector_node> n1(
               new three_point_bar_calibration_target_detector_node());
@@ -1298,14 +1298,14 @@ class calibration_pipeline::impl {
     }
 
     for (const auto &info : infos) {
-      if (info.type == node_type::calibration) {
+      if (info.get_type() == node_type::calibration) {
         std::shared_ptr<calibration_node> n1(new calibration_node());
         for (const auto &[name, node] : detector_nodes) {
           n1->set_input(node->get_output(), name);
         }
         n1->set_cameras(cameras);
-        n1->set_only_extrinsic(std::get<bool>(info.params.at("only_extrinsic")));
-        n1->set_robust(std::get<bool>(info.params.at("robust")));
+        n1->set_only_extrinsic(info.get_param<bool>("only_extrinsic"));
+        n1->set_robust(info.get_param<bool>("robust"));
         g->add_node(n1);
 
         calib_node = n1;
@@ -1958,7 +1958,7 @@ class axis_calibration_pipeline::impl {
     g->add_node(n5);
 
     for (const auto &info : infos) {
-      if (info.type == node_type::calibration) {
+      if (info.get_type() == node_type::calibration) {
         std::shared_ptr<axis_calibration_node> n1(new axis_calibration_node());
         n1->set_input(n5->get_output());
         g->add_node(n1);
