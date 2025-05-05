@@ -112,12 +112,12 @@ struct to_string {
 };
 
 struct textual_icon {
-  explicit constexpr textual_icon(const char (&unicode_icon)[4])
+  explicit constexpr textual_icon(const char8_t (&unicode_icon)[4])
       : _icon{unicode_icon[0], unicode_icon[1], unicode_icon[2], unicode_icon[3]} {}
-  operator const char *() const { return _icon.data(); }
+  operator const char *() const { return reinterpret_cast<const char *>(_icon.data()); }
 
  private:
-  std::array<char, 5> _icon;
+  std::array<char8_t, 5> _icon;
 };
 
 namespace textual_icons {
