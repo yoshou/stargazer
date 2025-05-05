@@ -191,7 +191,7 @@ class viewer_app : public window_base {
           new_device.type = node_type;
           new_device.params["id"] = generate_new_id();
           new_device.params["address"] = ip_address;
-          new_device.params["endpoint"] = gateway_address;
+          new_device.params["gateway"] = gateway_address;
 
           switch (node_type) {
             case node_type::depthai_color:
