@@ -1518,8 +1518,8 @@ static void genenerate_common_nodes(
   size_t num_raspi = 0;
 
   for (std::size_t i = 0; i < node_infos.size(); i++) {
-    if ((node_infos[i].type == node_type::raspi) ||
-        (node_infos[i].type == node_type::raspi_color)) {
+    if ((node_infos[i].get_type() == node_type::raspi) ||
+        (node_infos[i].get_type() == node_type::raspi_color)) {
       num_raspi++;
     }
   }
@@ -1529,7 +1529,7 @@ static void genenerate_common_nodes(
   for (std::size_t i = 0; i < node_infos.size(); i++) {
     std::shared_ptr<remote_cluster> cluster;
 
-    if (node_infos[i].type == node_type::raspi) {
+    if (node_infos[i].get_type() == node_type::raspi) {
       constexpr int fps = 90;
       sync_fps = std::min(sync_fps, fps);
       std::shared_ptr<image> mask_img;
@@ -1542,18 +1542,18 @@ static void genenerate_common_nodes(
       is_master = false;
       mask_nodes.insert(std::make_pair(node_infos[i].name, cluster->mask_node_));
       clusters.emplace_back(cluster);
-    } else if (node_infos[i].type == node_type::raspi_color) {
+    } else if (node_infos[i].get_type() == node_type::raspi_color) {
       constexpr int fps = 30;
       sync_fps = std::min(sync_fps, fps);
       cluster = std::make_shared<remote_cluster_raspi_color_v3>(fps, is_master);
       is_master = false;
       clusters.emplace_back(cluster);
-    } else if (node_infos[i].type == node_type::depthai_color) {
+    } else if (node_infos[i].get_type() == node_type::depthai_color) {
       constexpr int fps = 30;
       sync_fps = std::min(sync_fps, fps);
       cluster = std::make_unique<remote_cluster_depthai_color>(fps);
       clusters.emplace_back(cluster);
-    } else if (node_infos[i].type == node_type::rs_d435) {
+    } else if (node_infos[i].get_type() == node_type::rs_d435) {
       constexpr int fps = 90;
       sync_fps = std::min(sync_fps, fps);
       constexpr int exposure = 5715;
@@ -1564,16 +1564,16 @@ static void genenerate_common_nodes(
       cluster = std::make_unique<remote_cluster_rs_d435>(fps, exposure, gain, laser_power,
                                                          with_image, emitter_enabled);
       clusters.emplace_back(cluster);
-    } else if (node_infos[i].type == node_type::rs_d435_color) {
+    } else if (node_infos[i].get_type() == node_type::rs_d435_color) {
       constexpr int fps = 30;
       sync_fps = std::min(sync_fps, fps);
       cluster = std::make_unique<remote_cluster_rs_d435_color>(fps);
       clusters.emplace_back(cluster);
-    } else if (node_infos[i].type == node_type::raspi_playback) {
+    } else if (node_infos[i].get_type() == node_type::raspi_playback) {
       constexpr int fps = 90;
       sync_fps = std::min(sync_fps, fps);
       clusters.push_back(nullptr);
-    } else if (node_infos[i].type == node_type::panoptic) {
+    } else if (node_infos[i].get_type() == node_type::panoptic) {
       constexpr int fps = 30;
       sync_fps = std::min(sync_fps, fps);
       clusters.push_back(nullptr);
@@ -1592,7 +1592,7 @@ static void genenerate_common_nodes(
       g->add_node(n7);
 
       rcv_nodes[node_infos[i].name] = n7;
-    } else if (node_infos[i].type == node_type::raspi_playback) {
+    } else if (node_infos[i].get_type() == node_type::raspi_playback) {
       std::shared_ptr<load_blob_node> n1(new load_blob_node());
       n1->set_name(std::regex_replace(node_infos[i].name, std::regex("camera"), "image_"));
       n1->set_db_path(node_infos[i].get_param<std::string>("db_path"));
@@ -1605,7 +1605,7 @@ static void genenerate_common_nodes(
       g->add_node(n7);
 
       rcv_nodes[node_infos[i].name] = n7;
-    } else if (node_infos[i].type == node_type::panoptic) {
+    } else if (node_infos[i].get_type() == node_type::panoptic) {
       std::shared_ptr<load_panoptic_node> n1(new load_panoptic_node());
       n1->set_name(node_infos[i].name);
       n1->set_db_path(node_infos[i].get_param<std::string>("db_path"));
@@ -1627,7 +1627,7 @@ static void genenerate_common_nodes(
       g->add_node(n2);
 
       rcv_marker_nodes[node_infos[i].name] = n2;
-    } else if (node_infos[i].type == node_type::raspi_playback) {
+    } else if (node_infos[i].get_type() == node_type::raspi_playback) {
       std::shared_ptr<load_marker_node> n1(new load_marker_node());
       n1->set_name(std::regex_replace(node_infos[i].name, std::regex("camera"), "marker_"));
       n1->set_db_path(node_infos[i].get_param<std::string>("db_path"));
@@ -1932,7 +1932,7 @@ class multiview_capture_pipeline::impl {
                             rcv_marker_nodes, rcv_blob_nodes);
 
     for (std::size_t i = 0; i < node_infos.size(); i++) {
-      if (node_infos[i].type == node_type::record) {
+      if (node_infos[i].get_type() == node_type::record) {
         {
           const auto &input = node_infos[i].inputs.at("default");
           if (rcv_blob_nodes.find(input) != rcv_blob_nodes.end()) {
