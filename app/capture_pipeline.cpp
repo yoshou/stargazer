@@ -1582,7 +1582,7 @@ static void genenerate_common_nodes(
     if (cluster && cluster->encoded_image_output) {
       std::shared_ptr<p2p_tcp_listener_node> n1(new p2p_tcp_listener_node());
       n1->set_input(cluster->encoded_image_output);
-      n1->set_endpoint(node_infos[i].get_param<std::string>("endpoint"), 0);
+      n1->set_endpoint(node_infos[i].get_param<std::string>("gateway"), 0);
       g->add_node(n1);
 
       rcv_blob_nodes[node_infos[i].name] = n1;
@@ -1623,7 +1623,7 @@ static void genenerate_common_nodes(
     if (cluster && cluster->marker_output) {
       std::shared_ptr<p2p_tcp_listener_node> n2(new p2p_tcp_listener_node());
       n2->set_input(cluster->marker_output);
-      n2->set_endpoint(node_infos[i].get_param<std::string>("endpoint"), 0);
+      n2->set_endpoint(node_infos[i].get_param<std::string>("gateway"), 0);
       g->add_node(n2);
 
       rcv_marker_nodes[node_infos[i].name] = n2;
