@@ -17,6 +17,7 @@ target_include_directories(stargazer_voxelpose
 )
 
 set_target_properties(stargazer_voxelpose PROPERTIES
+    CXX_STANDARD 20
     LINKER_LANGUAGE CUDA C CXX
     CUDA_ARCHITECTURES OFF
     CUDA_RESOLVE_DEVICE_SYMBOLS ON
@@ -49,6 +50,7 @@ target_include_directories(stargazer_preprocess
 )
 
 set_target_properties(stargazer_preprocess PROPERTIES
+    CXX_STANDARD 20
     LINKER_LANGUAGE CUDA C CXX
     CUDA_ARCHITECTURES OFF
     CUDA_RESOLVE_DEVICE_SYMBOLS ON
@@ -86,6 +88,9 @@ target_link_libraries(stargazer_mvpose
     CUDA::cuda_driver
 )
 
+set_target_properties(stargazer_mvpose PROPERTIES
+    CXX_STANDARD 20)
+
 add_library(stargazer
     ${CMAKE_CURRENT_LIST_DIR}/parameters.cpp
     ${CMAKE_CURRENT_LIST_DIR}/reconstruction/triangulation.cpp
@@ -113,3 +118,6 @@ target_link_libraries(stargazer
     $<$<NOT:$<BOOL:${MSVC}>>:pthread>
     $<$<NOT:$<BOOL:${MSVC}>>:stdc++fs>
 )
+
+set_target_properties(stargazer PROPERTIES
+    CXX_STANDARD 20)

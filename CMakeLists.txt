@@ -2,8 +2,6 @@ cmake_minimum_required(VERSION 3.18)
 
 project(stargazer C CXX)
 
-set(CMAKE_CXX_STANDARD 17)
-
 if (WIN32)
 else ()
 set(CMAKE_C_FLAGS "-Wall -Wextra -pedantic -mavx -march=native")
