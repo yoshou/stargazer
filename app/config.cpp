@@ -178,16 +178,54 @@ configuration::configuration(const std::string &path) : path(path) {
 
 void configuration::update() {
   nlohmann::json j;
+
+  {
+    std::vector<nlohmann::json> j_nodes;
+    for (const auto &[name, node] : nodes) {
+      nlohmann::json j_node;
+      if (node->type != node_type::unknown) {
+        j_node["type"] = get_node_type_name(node->type);
+      }
+      j_node["name"] = node->name;
+      if (node->inputs.size() > 0) {
+        j_node["inputs"] = node->inputs;
+      }
+      for (const auto &[key, value] : node->params) {
+        j_node[key] = value;
+      }
+      if (node->extends.size() > 0) {
+        std::vector<std::string> extends;
+        for (const auto &extend : node->extends) {
+          extends.push_back(extend->name);
+        }
+        j_node["extends"] = extends;
+      }
+      j_nodes.push_back(j_node);
+    }
+    j["nodes"] = j_nodes;
+  }
+
   for (const auto &[pipeline_name, nodes] : pipeline_nodes) {
     std::vector<nlohmann::json> j_nodes;
     for (const auto &node : nodes) {
       nlohmann::json j_node;
 
-      j_node["type"] = get_node_type_name(node.type);
+      if (node.type != node_type::unknown) {
+        j_node["type"] = get_node_type_name(node.type);
+      }
       j_node["name"] = node.name;
-      j_node["inputs"] = node.inputs;
+      if (node.inputs.size() > 0) {
+        j_node["inputs"] = node.inputs;
+      }
       for (const auto &[key, value] : node.params) {
         j_node[key] = value;
+      }
+      if (node.extends.size() > 0) {
+        std::vector<std::string> extends;
+        for (const auto &extend : node.extends) {
+          extends.push_back(extend->name);
+        }
+        j_node["extends"] = extends;
       }
       j_nodes.push_back(j_node);
     }
