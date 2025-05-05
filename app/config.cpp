@@ -1,4 +1,4 @@
-#include "config_file.hpp"
+#include "config.hpp"
 
 #include <fstream>
 #include <nlohmann/json.hpp>
@@ -96,7 +96,7 @@ static std::string get_node_type_name(node_type type) {
   throw std::runtime_error("Invalid node type");
 }
 
-configuration_file::configuration_file(const std::string &path) : path(path) {
+configuration::configuration(const std::string &path) : path(path) {
   std::ifstream ifs;
   ifs.open(path, std::ios::in);
 
@@ -139,7 +139,7 @@ configuration_file::configuration_file(const std::string &path) : path(path) {
   }
 }
 
-void configuration_file::update() {
+void configuration::update() {
   nlohmann::json j;
   for (const auto &[pipeline_name, nodes] : pipeline_nodes) {
     std::vector<nlohmann::json> j_nodes;

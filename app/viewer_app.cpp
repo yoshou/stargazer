@@ -17,7 +17,7 @@
 
 #include "calibration_pipeline.hpp"
 #include "capture_pipeline.hpp"
-#include "config_file.hpp"
+#include "config.hpp"
 #include "parameters.hpp"
 #include "reconstruction_pipeline.hpp"
 #include "views.hpp"
@@ -52,9 +52,9 @@ class viewer_app : public window_base {
   std::unique_ptr<multiview_point_reconstruction_pipeline> multiview_point_reconstruction_pipeline_;
   std::unique_ptr<multiview_image_reconstruction_pipeline> multiview_image_reconstruction_pipeline_;
 
-  std::unique_ptr<stargazer::configuration_file> capture_config;
-  std::unique_ptr<stargazer::configuration_file> reconstruction_config;
-  std::unique_ptr<stargazer::configuration_file> calibration_config;
+  std::unique_ptr<stargazer::configuration> capture_config;
+  std::unique_ptr<stargazer::configuration> reconstruction_config;
+  std::unique_ptr<stargazer::configuration> calibration_config;
 
   std::string generate_new_id() const {
     uint64_t max_id = 0;
@@ -788,9 +788,9 @@ class viewer_app : public window_base {
   virtual void initialize() override {
     gladLoadGL();
 
-    capture_config.reset(new stargazer::configuration_file("../config/capture.json"));
-    reconstruction_config.reset(new stargazer::configuration_file("../config/reconstruction.json"));
-    calibration_config.reset(new stargazer::configuration_file("../config/calibration.json"));
+    capture_config.reset(new stargazer::configuration("../config/capture.json"));
+    reconstruction_config.reset(new stargazer::configuration("../config/reconstruction.json"));
+    calibration_config.reset(new stargazer::configuration("../config/calibration.json"));
 
     parameters = std::make_shared<stargazer::parameters_t>("../config/parameters.json");
     parameters->load();
