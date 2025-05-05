@@ -9,7 +9,7 @@ set(GFLAGS_USE_TARGET_NAMESPACE ON)
 
 find_package(OpenCV REQUIRED)
 find_package(Ceres CONFIG REQUIRED)
-find_package(Boost REQUIRED COMPONENTS program_options)
+find_package(Boost REQUIRED COMPONENTS asio)
 find_package(nlohmann_json CONFIG REQUIRED)
 find_package(glfw3 REQUIRED)
 find_package(glad CONFIG REQUIRED)

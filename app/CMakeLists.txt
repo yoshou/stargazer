@@ -56,7 +56,7 @@ target_link_libraries(stargazer_viewer
     $<$<NOT:$<BOOL:${WIN32}>>:pthread>
     spdlog::spdlog_header_only
     cereal::cereal
-    Boost::program_options
+    Boost::asio
     JPEG::JPEG
     lz4::lz4
     Ceres::ceres
