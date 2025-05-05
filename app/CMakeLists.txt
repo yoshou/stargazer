@@ -75,3 +75,6 @@ target_compile_options(stargazer_viewer
 target_sources(stargazer_viewer
     PRIVATE
 )
+
+set_target_properties(stargazer_viewer PROPERTIES
+    CXX_STANDARD 20)
