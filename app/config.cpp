@@ -230,7 +230,7 @@ void configuration::update() {
       j_nodes.push_back(j_node);
     }
 
-    j["pipelines"][pipeline_name] = j_nodes;
+    j["pipelines"][pipeline_name]["nodes"] = j_nodes;
   }
 
   for (const auto &[pipeline, pipeline_name] : pipeline_names) {
