@@ -9,7 +9,7 @@ ARG USER_GID=$USER_UID
 COPY ./common-debian.sh /tmp/
 RUN yes | unminimize 2>&1 \ 
     && bash /tmp/common-debian.sh "${INSTALL_ZSH}" "${USERNAME}" "${USER_UID}" "${USER_GID}" "${UPGRADE_PACKAGES}" "true" "true" \
-    && apt-get clean -y && rm -rf /var/lib/apt/lists/* /tmp/library-scripts
+    && apt-get clean -y && rm -rf /var/lib/apt/lists/* /tmp/common-debian.sh
 
 RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
     && apt-get -y install build-essential cmake cppcheck valgrind clang lldb llvm gdb \
