@@ -22,6 +22,8 @@
 #include "reconstruction_pipeline.hpp"
 #include "views.hpp"
 
+using namespace stargazer;
+
 const int SCREEN_WIDTH = 1680;
 const int SCREEN_HEIGHT = 1050;
 
@@ -39,7 +41,7 @@ class viewer_app : public window_base {
   std::unique_ptr<pose_view> pose_view_;
   std::shared_ptr<azimuth_elevation> view_controller;
 
-  std::shared_ptr<stargazer::parameters_t> parameters;
+  std::shared_ptr<parameters_t> parameters;
   std::map<std::string, cv::Mat> masks;
 
   std::map<std::string, std::shared_ptr<capture_pipeline>> captures;
@@ -52,9 +54,9 @@ class viewer_app : public window_base {
   std::unique_ptr<multiview_point_reconstruction_pipeline> multiview_point_reconstruction_pipeline_;
   std::unique_ptr<multiview_image_reconstruction_pipeline> multiview_image_reconstruction_pipeline_;
 
-  std::unique_ptr<stargazer::configuration> capture_config;
-  std::unique_ptr<stargazer::configuration> reconstruction_config;
-  std::unique_ptr<stargazer::configuration> calibration_config;
+  std::unique_ptr<configuration> capture_config;
+  std::unique_ptr<configuration> reconstruction_config;
+  std::unique_ptr<configuration> calibration_config;
 
   std::string generate_new_id() const {
     uint64_t max_id = 0;
@@ -294,12 +296,12 @@ class viewer_app : public window_base {
 
               multiview_capture->add_marker_received(
                   [this](const std::map<std::string, marker_frame_data> &marker_frame) {
-                    std::map<std::string, std::vector<stargazer::point_data>> frame;
+                    std::map<std::string, std::vector<point_data>> frame;
                     for (const auto &[name, markers] : marker_frame) {
-                      std::vector<stargazer::point_data> points;
+                      std::vector<point_data> points;
                       for (const auto &marker : markers.markers) {
-                        points.push_back(stargazer::point_data{glm::vec2(marker.x, marker.y),
-                                                               marker.r, markers.timestamp});
+                        points.push_back(
+                            point_data{glm::vec2(marker.x, marker.y), marker.r, markers.timestamp});
                       }
                       frame.insert(std::make_pair(name, points));
                     }
@@ -363,12 +365,12 @@ class viewer_app : public window_base {
 
               multiview_capture->add_marker_received(
                   [this](const std::map<std::string, marker_frame_data> &marker_frame) {
-                    std::map<std::string, std::vector<stargazer::point_data>> frame;
+                    std::map<std::string, std::vector<point_data>> frame;
                     for (const auto &[name, markers] : marker_frame) {
-                      std::vector<stargazer::point_data> points;
+                      std::vector<point_data> points;
                       for (const auto &marker : markers.markers) {
-                        points.push_back(stargazer::point_data{glm::vec2(marker.x, marker.y),
-                                                               marker.r, markers.timestamp});
+                        points.push_back(
+                            point_data{glm::vec2(marker.x, marker.y), marker.r, markers.timestamp});
                       }
                       frame.insert(std::make_pair(name, points));
                     }
@@ -475,8 +477,8 @@ class viewer_app : public window_base {
 
     calibration_panel_view_->on_intrinsic_calibration_device_changed.push_back(
         [this](const calibration_panel_view::node_info &device) {
-          const auto &params = std::get<stargazer::camera_t>(
-              parameters->at(std::get<std::string>(device.params.at("id"))));
+          const auto &params =
+              std::get<camera_t>(parameters->at(std::get<std::string>(device.params.at("id"))));
           calibration_panel_view_->fx = params.intrin.fx;
           calibration_panel_view_->fy = params.intrin.fy;
           calibration_panel_view_->cx = params.intrin.cx;
@@ -506,7 +508,7 @@ class viewer_app : public window_base {
                 for (const auto &[camera_name, camera] : calib->get_calibrated_cameras()) {
                   const auto &camera_id = device_name_to_id.at(camera_name);
 
-                  auto &params = std::get<stargazer::camera_t>(parameters->at(camera_id));
+                  auto &params = std::get<camera_t>(parameters->at(camera_id));
                   params.extrin = camera.extrin;
                   params.intrin = camera.intrin;
                 }
@@ -541,8 +543,8 @@ class viewer_app : public window_base {
             calibration_panel_view_->p1 = intrinsic_calib->calibrated_camera.intrin.coeffs[3];
             calibration_panel_view_->rms = intrinsic_calib->rms;
 
-            auto &params = std::get<stargazer::camera_t>(
-                parameters->at(std::get<std::string>(device.params.at("id"))));
+            auto &params =
+                std::get<camera_t>(parameters->at(std::get<std::string>(device.params.at("id"))));
             params.intrin.fx = intrinsic_calib->calibrated_camera.intrin.fx;
             params.intrin.fy = intrinsic_calib->calibrated_camera.intrin.fy;
             params.intrin.cx = intrinsic_calib->calibrated_camera.intrin.cx;
@@ -601,12 +603,12 @@ class viewer_app : public window_base {
 
               multiview_capture->add_marker_received(
                   [this](const std::map<std::string, marker_frame_data> &marker_frame) {
-                    std::map<std::string, std::vector<stargazer::point_data>> frame;
+                    std::map<std::string, std::vector<point_data>> frame;
                     for (const auto &[name, markers] : marker_frame) {
-                      std::vector<stargazer::point_data> points;
+                      std::vector<point_data> points;
                       for (const auto &marker : markers.markers) {
-                        points.push_back(stargazer::point_data{glm::vec2(marker.x, marker.y),
-                                                               marker.r, markers.timestamp});
+                        points.push_back(
+                            point_data{glm::vec2(marker.x, marker.y), marker.r, markers.timestamp});
                       }
                       frame.insert(std::make_pair(name, points));
                     }
@@ -788,11 +790,11 @@ class viewer_app : public window_base {
   virtual void initialize() override {
     gladLoadGL();
 
-    capture_config.reset(new stargazer::configuration("../config/capture.json"));
-    reconstruction_config.reset(new stargazer::configuration("../config/reconstruction.json"));
-    calibration_config.reset(new stargazer::configuration("../config/calibration.json"));
+    capture_config.reset(new configuration("../config/capture.json"));
+    reconstruction_config.reset(new configuration("../config/reconstruction.json"));
+    calibration_config.reset(new configuration("../config/calibration.json"));
 
-    parameters = std::make_shared<stargazer::parameters_t>("../config/parameters.json");
+    parameters = std::make_shared<parameters_t>("../config/parameters.json");
     parameters->load();
 
     init_gui();
@@ -819,14 +821,14 @@ class viewer_app : public window_base {
     multiview_point_reconstruction_pipeline_->run();
 
     {
-      const auto &scene = std::get<stargazer::scene_t>(parameters->at("scene"));
+      const auto &scene = std::get<scene_t>(parameters->at("scene"));
       multiview_point_reconstruction_pipeline_->set_axis(scene.axis);
     }
 
     for (const auto &device : reconstruction_config->get_node_infos()) {
       if (device.is_camera()) {
         const auto &params =
-            std::get<stargazer::camera_t>(parameters->at(device.get_param<std::string>("id")));
+            std::get<camera_t>(parameters->at(device.get_param<std::string>("id")));
         multiview_point_reconstruction_pipeline_->set_camera(device.name, params);
       }
     }
@@ -837,21 +839,21 @@ class viewer_app : public window_base {
         reconstruction_config->get_node_infos("static_pipeline"));
 
     {
-      const auto &scene = std::get<stargazer::scene_t>(parameters->at("scene"));
+      const auto &scene = std::get<scene_t>(parameters->at("scene"));
       multiview_image_reconstruction_pipeline_->set_axis(scene.axis);
     }
 
     for (const auto &device : reconstruction_config->get_node_infos()) {
       if (device.is_camera()) {
         const auto &params =
-            std::get<stargazer::camera_t>(parameters->at(device.get_param<std::string>("id")));
+            std::get<camera_t>(parameters->at(device.get_param<std::string>("id")));
         multiview_image_reconstruction_pipeline_->set_camera(device.name, params);
       }
     }
 
     calib = std::make_unique<calibration_pipeline>();
 
-    calib->add_calibrated([&](const std::unordered_map<std::string, stargazer::camera_t> &cameras) {
+    calib->add_calibrated([&](const std::unordered_map<std::string, camera_t> &cameras) {
       for (const auto &[name, camera] : cameras) {
         multiview_point_reconstruction_pipeline_->set_camera(name, camera);
       }
@@ -861,7 +863,7 @@ class viewer_app : public window_base {
       if (device.is_camera()) {
         if (parameters->contains(device.get_param<std::string>("id"))) {
           const auto &params =
-              std::get<stargazer::camera_t>(parameters->at(device.get_param<std::string>("id")));
+              std::get<camera_t>(parameters->at(device.get_param<std::string>("id")));
           calib->set_camera(device.name, params);
         } else {
           spdlog::error("No camera params found for device: {}", device.name);
@@ -882,7 +884,7 @@ class viewer_app : public window_base {
       if (device.is_camera()) {
         if (parameters->contains(device.get_param<std::string>("id"))) {
           const auto &params =
-              std::get<stargazer::camera_t>(parameters->at(device.get_param<std::string>("id")));
+              std::get<camera_t>(parameters->at(device.get_param<std::string>("id")));
           axis_calib->set_camera(device.name, params);
         } else {
           spdlog::error("No camera params found for device: {}", device.name);

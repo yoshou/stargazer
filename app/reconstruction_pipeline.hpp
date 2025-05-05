@@ -46,7 +46,7 @@ class multiview_image_reconstruction_pipeline {
   virtual ~multiview_image_reconstruction_pipeline();
 
   void push_frame(const frame_type &frame);
-  void run(const std::vector<node_info> &infos);
+  void run(const std::vector<stargazer::node_info> &infos);
   void stop();
 
   std::vector<glm::vec3> get_markers() const;

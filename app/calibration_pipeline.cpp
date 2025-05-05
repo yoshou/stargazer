@@ -17,10 +17,11 @@
 #include "triangulation.hpp"
 #include "utils.hpp"
 
+using namespace stargazer;
+
 class calibration_target {
  public:
-  virtual std::vector<glm::vec2> detect_points(
-      const std::vector<stargazer::point_data> &markers) = 0;
+  virtual std::vector<glm::vec2> detect_points(const std::vector<point_data> &markers) = 0;
   virtual ~calibration_target() = default;
 };
 
@@ -72,10 +73,9 @@ class three_point_bar_calibration_target : public calibration_target {
   }
 
  public:
-  virtual std::vector<glm::vec2> detect_points(
-      const std::vector<stargazer::point_data> &markers) override {
+  virtual std::vector<glm::vec2> detect_points(const std::vector<point_data> &markers) override {
     std::vector<glm::vec2> points;
-    combination(markers, 3, [&](const std::vector<stargazer::point_data> &target_markers) {
+    combination(markers, 3, [&](const std::vector<point_data> &target_markers) {
       auto x1 = target_markers[0].point.x;
       auto y1 = target_markers[0].point.y;
       auto x2 = target_markers[1].point.x;
@@ -113,15 +113,14 @@ class three_point_bar_calibration_target : public calibration_target {
 
 class pattern_board_calibration_target : public calibration_target {
   std::vector<cv::Point3f> object_points;
-  stargazer::camera_t camera;
+  camera_t camera;
 
  public:
   pattern_board_calibration_target(const std::vector<cv::Point3f> &object_points,
-                                   const stargazer::camera_t &camera)
+                                   const camera_t &camera)
       : object_points(object_points), camera(camera) {}
 
-  virtual std::vector<glm::vec2> detect_points(
-      const std::vector<stargazer::point_data> &markers) override {
+  virtual std::vector<glm::vec2> detect_points(const std::vector<point_data> &markers) override {
     if (markers.size() == object_points.size()) {
       std::vector<cv::Point2f> image_points;
 
@@ -132,7 +131,7 @@ class pattern_board_calibration_target : public calibration_target {
 
       cv::Mat camera_matrix;
       cv::Mat dist_coeffs;
-      stargazer::get_cv_intrinsic(camera.intrin, camera_matrix, dist_coeffs);
+      get_cv_intrinsic(camera.intrin, camera_matrix, dist_coeffs);
 
       cv::solvePnP(object_points, image_points, camera_matrix, dist_coeffs, rvec, tvec);
 
@@ -175,18 +174,18 @@ CEREAL_REGISTER_TYPE(frame_message<object_message>)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(coalsack::frame_message_base, frame_message<object_message>)
 
 class camera_message : public graph_message {
-  stargazer::camera_t camera;
+  camera_t camera;
 
  public:
   camera_message() : graph_message(), camera() {}
 
-  camera_message(const stargazer::camera_t &camera) : graph_message(), camera(camera) {}
+  camera_message(const camera_t &camera) : graph_message(), camera(camera) {}
 
   static std::string get_type() { return "camera"; }
 
-  stargazer::camera_t get_camera() const { return camera; }
+  camera_t get_camera() const { return camera; }
 
-  void set_camera(const stargazer::camera_t &value) { camera = value; }
+  void set_camera(const camera_t &value) { camera = value; }
 
   template <typename Archive>
   void serialize(Archive &archive) {
@@ -198,18 +197,18 @@ CEREAL_REGISTER_TYPE(camera_message)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_message, camera_message)
 
 class scene_message : public graph_message {
-  stargazer::scene_t scene;
+  scene_t scene;
 
  public:
   scene_message() : graph_message(), scene() {}
 
-  scene_message(const stargazer::scene_t &scene) : graph_message(), scene(scene) {}
+  scene_message(const scene_t &scene) : graph_message(), scene(scene) {}
 
   static std::string get_type() { return "scene"; }
 
-  stargazer::scene_t get_scene() const { return scene; }
+  scene_t get_scene() const { return scene; }
 
-  void set_scene(const stargazer::scene_t &value) { scene = value; }
+  void set_scene(const scene_t &value) { scene = value; }
 
   template <typename Archive>
   void serialize(Archive &archive) {
@@ -261,8 +260,7 @@ static float compute_diff_camera_angle(const glm::mat3 &r1, const glm::mat3 &r2)
 
 static glm::mat4 estimate_relative_pose(
     const std::vector<std::pair<glm::vec2, glm::vec2>> &corresponding_points,
-    const stargazer::camera_t &base_camera, const stargazer::camera_t &target_camera,
-    bool use_lmeds = false) {
+    const camera_t &base_camera, const camera_t &target_camera, bool use_lmeds = false) {
   std::vector<cv::Point2f> points1;
   std::vector<cv::Point2f> points2;
   for (const auto &[point1, point2] : corresponding_points) {
@@ -272,8 +270,8 @@ static glm::mat4 estimate_relative_pose(
 
   cv::Mat camera_matrix1, camera_matrix2;
   cv::Mat coeffs1, coeffs2;
-  stargazer::get_cv_intrinsic(base_camera.intrin, camera_matrix1, coeffs1);
-  stargazer::get_cv_intrinsic(target_camera.intrin, camera_matrix2, coeffs2);
+  get_cv_intrinsic(base_camera.intrin, camera_matrix1, coeffs1);
+  get_cv_intrinsic(target_camera.intrin, camera_matrix2, coeffs2);
 
   cv::Mat R, t;
   if (use_lmeds) {
@@ -293,8 +291,8 @@ static glm::mat4 estimate_relative_pose(
     cv::recoverPose(E, norm_points1, norm_points2, R, t, 1.0, cv::Point2d(0.0, 0.0), mask);
   }
 
-  const auto r_mat = stargazer::cv_to_glm_mat3x3(R);
-  const auto t_vec = stargazer::cv_to_glm_vec3(t);
+  const auto r_mat = cv_to_glm_mat3x3(R);
+  const auto t_vec = cv_to_glm_vec3(t);
 
   return glm::mat4(glm::vec4(r_mat[0], 0.f), glm::vec4(r_mat[1], 0.f), glm::vec4(r_mat[2], 0.f),
                    glm::vec4(t_vec, 1.f));
@@ -302,17 +300,16 @@ static glm::mat4 estimate_relative_pose(
 
 static glm::mat4 estimate_pose(
     const std::vector<std::tuple<glm::vec2, glm::vec2, glm::vec2>> &corresponding_points,
-    const stargazer::camera_t &base_camera1, const stargazer::camera_t &base_camera2,
-    const stargazer::camera_t &target_camera) {
+    const camera_t &base_camera1, const camera_t &base_camera2, const camera_t &target_camera) {
   std::vector<cv::Point2d> points1;
   std::vector<cv::Point2d> points2;
   std::vector<cv::Point2d> points3;
 
   cv::Mat camera_matrix1, camera_matrix2, camera_matrix3;
   cv::Mat coeffs1, coeffs2, coeffs3;
-  stargazer::get_cv_intrinsic(base_camera1.intrin, camera_matrix1, coeffs1);
-  stargazer::get_cv_intrinsic(base_camera2.intrin, camera_matrix2, coeffs2);
-  stargazer::get_cv_intrinsic(target_camera.intrin, camera_matrix3, coeffs3);
+  get_cv_intrinsic(base_camera1.intrin, camera_matrix1, coeffs1);
+  get_cv_intrinsic(base_camera2.intrin, camera_matrix2, coeffs2);
+  get_cv_intrinsic(target_camera.intrin, camera_matrix3, coeffs3);
 
   std::vector<cv::Point2d> norm_points1;
   std::vector<cv::Point2d> norm_points2;
@@ -327,9 +324,9 @@ static glm::mat4 estimate_pose(
   cv::undistortPoints(points3, norm_points3, camera_matrix3, coeffs3);
 
   cv::Mat point4d;
-  cv::triangulatePoints(stargazer::glm_to_cv_mat3x4(base_camera1.extrin.transform_matrix()),
-                        stargazer::glm_to_cv_mat3x4(base_camera2.extrin.transform_matrix()),
-                        norm_points1, norm_points2, point4d);
+  cv::triangulatePoints(glm_to_cv_mat3x4(base_camera1.extrin.transform_matrix()),
+                        glm_to_cv_mat3x4(base_camera2.extrin.transform_matrix()), norm_points1,
+                        norm_points2, point4d);
 
   std::vector<cv::Point3d> point3d;
   for (size_t i = 0; i < static_cast<size_t>(point4d.cols); i++) {
@@ -340,8 +337,8 @@ static glm::mat4 estimate_pose(
 
   // Check reprojection error
   {
-    const auto Rt1 = stargazer::glm_to_cv_mat3x4(base_camera1.extrin.transform_matrix());
-    const auto Rt2 = stargazer::glm_to_cv_mat3x4(base_camera2.extrin.transform_matrix());
+    const auto Rt1 = glm_to_cv_mat3x4(base_camera1.extrin.transform_matrix());
+    const auto Rt2 = glm_to_cv_mat3x4(base_camera2.extrin.transform_matrix());
 
     cv::Mat R1 = cv::Mat::eye(3, 3, CV_64F);
     cv::Mat tvec1 = cv::Mat::zeros(3, 1, CV_64F);
@@ -417,8 +414,8 @@ static glm::mat4 estimate_pose(
     spdlog::info("reprojection error3: {}", error3);
   }
 
-  const auto r_mat = stargazer::cv_to_glm_mat3x3(R);
-  const auto t_vec = stargazer::cv_to_glm_vec3(t);
+  const auto r_mat = cv_to_glm_mat3x3(R);
+  const auto t_vec = cv_to_glm_vec3(t);
 
   return glm::mat4(glm::vec4(r_mat[0], 0.f), glm::vec4(r_mat[1], 0.f), glm::vec4(r_mat[2], 0.f),
                    glm::vec4(t_vec, 1.f));
@@ -493,7 +490,7 @@ struct reprojection_error_functor {
 };
 
 class pattern_board_calibration_target_detector_node : public graph_node {
-  stargazer::camera_t camera;
+  camera_t camera;
   std::unique_ptr<pattern_board_calibration_target> detector;
   graph_edge_ptr output;
 
@@ -523,12 +520,12 @@ class pattern_board_calibration_target_detector_node : public graph_node {
     detector = std::make_unique<pattern_board_calibration_target>(get_object_points(), camera);
   }
 
-  void set_camera(const stargazer::camera_t &camera) { this->camera = camera; }
+  void set_camera(const camera_t &camera) { this->camera = camera; }
 
   virtual void process(std::string input_name, graph_message_ptr message) override {
     if (const auto frame_msg = std::dynamic_pointer_cast<float2_list_message>(message)) {
       if (detector) {
-        std::vector<stargazer::point_data> markers;
+        std::vector<point_data> markers;
         for (const auto &pt : frame_msg->get_data()) {
           markers.push_back({{pt.x, pt.y}, 0.0, 0.0});
         }
@@ -577,7 +574,7 @@ class three_point_bar_calibration_target_detector_node : public graph_node {
   virtual void process(std::string input_name, graph_message_ptr message) override {
     if (const auto frame_msg = std::dynamic_pointer_cast<float2_list_message>(message)) {
       if (detector) {
-        std::vector<stargazer::point_data> markers;
+        std::vector<point_data> markers;
         for (const auto &pt : frame_msg->get_data()) {
           markers.push_back({{pt.x, pt.y}, 0.0, 0.0});
         }
@@ -704,8 +701,8 @@ class calibration_node : public graph_node {
 
   mutable std::mutex cameras_mtx;
   std::vector<std::string> camera_names;
-  std::unordered_map<std::string, stargazer::camera_t> cameras;
-  std::unordered_map<std::string, stargazer::camera_t> calibrated_cameras;
+  std::unordered_map<std::string, camera_t> cameras;
+  std::unordered_map<std::string, camera_t> calibrated_cameras;
 
   graph_edge_ptr output;
 
@@ -720,7 +717,7 @@ class calibration_node : public graph_node {
 
   virtual std::string get_proc_name() const override { return "calibration_node"; }
 
-  void set_cameras(const std::unordered_map<std::string, stargazer::camera_t> &cameras) {
+  void set_cameras(const std::unordered_map<std::string, camera_t> &cameras) {
     this->cameras = cameras;
   }
 
@@ -831,7 +828,7 @@ class calibration_node : public graph_node {
     for (const auto &camera_name : camera_names) {
       const auto &camera = cameras[camera_name];
       cv::Mat rot_vec;
-      cv::Rodrigues(stargazer::glm_to_cv_mat3(camera.extrin.transform_matrix()), rot_vec);
+      cv::Rodrigues(glm_to_cv_mat3(camera.extrin.transform_matrix()), rot_vec);
       const auto trans_vec = camera.extrin.translation;
 
       std::vector<double> camera_params;
@@ -860,7 +857,7 @@ class calibration_node : public graph_node {
     {
       constexpr auto reproj_error_threshold = 2.0;
 
-      std::vector<stargazer::camera_t> camera_list;
+      std::vector<camera_t> camera_list;
       std::map<std::string, size_t> camera_name_to_index;
       for (size_t i = 0; i < camera_names.size(); i++) {
         camera_list.push_back(cameras.at(camera_names[i]));
@@ -886,7 +883,7 @@ class calibration_node : public graph_node {
           continue;
         }
 
-        std::vector<stargazer::camera_t> view_cameras;
+        std::vector<camera_t> view_cameras;
         for (const auto i : camera_idxs) {
           view_cameras.push_back(camera_list[i]);
         }
@@ -1220,20 +1217,19 @@ class calibration_pipeline::impl {
   std::shared_ptr<calibration_node> calib_node;
   std::shared_ptr<graph_node> input_node;
 
-  std::unordered_map<std::string, stargazer::camera_t> cameras;
-  std::unordered_map<std::string, stargazer::camera_t> calibrated_cameras;
+  std::unordered_map<std::string, camera_t> cameras;
+  std::unordered_map<std::string, camera_t> calibrated_cameras;
 
-  std::vector<std::function<void(const std::unordered_map<std::string, stargazer::camera_t> &)>>
-      calibrated;
+  std::vector<std::function<void(const std::unordered_map<std::string, camera_t> &)>> calibrated;
 
   void add_calibrated(
-      std::function<void(const std::unordered_map<std::string, stargazer::camera_t> &)> callback) {
+      std::function<void(const std::unordered_map<std::string, camera_t> &)> callback) {
     calibrated.push_back(callback);
   }
 
   void clear_calibrated() { calibrated.clear(); }
 
-  void push_frame(const std::map<std::string, std::vector<stargazer::point_data>> &frame) {
+  void push_frame(const std::map<std::string, std::vector<point_data>> &frame) {
     if (!running) {
       return;
     }
@@ -1254,7 +1250,7 @@ class calibration_pipeline::impl {
     }
   }
 
-  void calibrate(const std::unordered_map<std::string, stargazer::camera_t> &cameras) {
+  void calibrate(const std::unordered_map<std::string, camera_t> &cameras) {
     std::shared_ptr<object_message> msg(new object_message());
     for (const auto &[name, camera] : cameras) {
       std::shared_ptr<camera_message> camera_msg(new camera_message(camera));
@@ -1377,18 +1373,17 @@ calibration_pipeline::calibration_pipeline() : pimpl(std::make_unique<impl>()) {
 
 calibration_pipeline::~calibration_pipeline() = default;
 
-void calibration_pipeline::set_camera(const std::string &name, const stargazer::camera_t &camera) {
+void calibration_pipeline::set_camera(const std::string &name, const camera_t &camera) {
   pimpl->cameras[name] = camera;
 }
 
 size_t calibration_pipeline::get_camera_size() const { return pimpl->cameras.size(); }
 
-const std::unordered_map<std::string, stargazer::camera_t> &calibration_pipeline::get_cameras()
-    const {
+const std::unordered_map<std::string, camera_t> &calibration_pipeline::get_cameras() const {
   return pimpl->cameras;
 }
 
-std::unordered_map<std::string, stargazer::camera_t> &calibration_pipeline::get_cameras() {
+std::unordered_map<std::string, camera_t> &calibration_pipeline::get_cameras() {
   return pimpl->cameras;
 }
 
@@ -1397,7 +1392,7 @@ void calibration_pipeline::run(const std::vector<node_info> &infos) { pimpl->run
 void calibration_pipeline::stop() { pimpl->stop(); }
 
 void calibration_pipeline::add_calibrated(
-    std::function<void(const std::unordered_map<std::string, stargazer::camera_t> &)> callback) {
+    std::function<void(const std::unordered_map<std::string, camera_t> &)> callback) {
   pimpl->add_calibrated(callback);
 }
 
@@ -1412,13 +1407,12 @@ const std::vector<observed_points_t> calibration_pipeline::get_observed_points(
   return pimpl->get_observed_points(name);
 }
 
-const std::unordered_map<std::string, stargazer::camera_t> &
-calibration_pipeline::get_calibrated_cameras() const {
+const std::unordered_map<std::string, camera_t> &calibration_pipeline::get_calibrated_cameras()
+    const {
   return pimpl->calibrated_cameras;
 }
 
-void calibration_pipeline::push_frame(
-    const std::map<std::string, std::vector<stargazer::point_data>> &frame) {
+void calibration_pipeline::push_frame(const std::map<std::string, std::vector<point_data>> &frame) {
   pimpl->push_frame(frame);
 }
 
@@ -1523,16 +1517,16 @@ static std::vector<size_t> create_random_indices(size_t size) {
   return data;
 }
 
-void intrinsic_calibration_pipeline::add_frame(const std::vector<stargazer::point_data> &frame) {
+void intrinsic_calibration_pipeline::add_frame(const std::vector<point_data> &frame) {
   frames.push_back(frame);
 }
 
 void intrinsic_calibration_pipeline::add_frame(const cv::Mat &frame) {
   std::vector<cv::Point2f> board;
   if (detect_calibration_board(frame, board)) {
-    std::vector<stargazer::point_data> points;
+    std::vector<point_data> points;
     for (const auto &point : board) {
-      points.push_back(stargazer::point_data{glm::vec2(point.x, point.y), 0, 0});
+      points.push_back(point_data{glm::vec2(point.x, point.y), 0, 0});
     }
     add_frame(points);
   }
@@ -1589,10 +1583,10 @@ void intrinsic_calibration_pipeline::calibrate() {
 
 class axis_reconstruction {
   glm::mat4 axis;
-  std::map<std::string, stargazer::camera_t> cameras;
+  std::map<std::string, camera_t> cameras;
 
  public:
-  void set_camera(const std::string &name, const stargazer::camera_t &camera);
+  void set_camera(const std::string &name, const camera_t &camera);
 
   glm::mat4 get_axis() const { return axis; }
 
@@ -1604,10 +1598,10 @@ class axis_reconstruction {
 
   void push_frame(const std::map<std::string, cv::Mat> &frame);
 
-  void push_frame(const std::map<std::string, std::vector<stargazer::point_data>> &points);
+  void push_frame(const std::map<std::string, std::vector<point_data>> &points);
 };
 
-void axis_reconstruction::set_camera(const std::string &name, const stargazer::camera_t &camera) {
+void axis_reconstruction::set_camera(const std::string &name, const camera_t &camera) {
   cameras[name] = camera;
 }
 
@@ -1728,7 +1722,7 @@ static bool detect_aruco_marker(cv::Mat image, std::vector<cv::Point2f> &points,
 }
 
 void axis_reconstruction::push_frame(const std::map<std::string, cv::Mat> &frame) {
-  std::map<std::string, std::vector<stargazer::point_data>> points;
+  std::map<std::string, std::vector<point_data>> points;
 
   for (const auto &[name, image] : frame) {
     std::vector<int> marker_ids;
@@ -1739,7 +1733,7 @@ void axis_reconstruction::push_frame(const std::map<std::string, cv::Mat> &frame
       if (marker_ids[i] == 0) {
         auto &corner_points = points[name];
         for (size_t j = 0; j < 3; j++) {
-          stargazer::point_data point{};
+          point_data point{};
           point.point.x = marker_corners[i][j].x;
           point.point.y = marker_corners[i][j].y;
           corner_points.push_back(point);
@@ -1751,7 +1745,7 @@ void axis_reconstruction::push_frame(const std::map<std::string, cv::Mat> &frame
   std::vector<glm::vec3> markers;
   for (size_t j = 0; j < 3; j++) {
     std::vector<glm::vec2> pts;
-    std::vector<stargazer::camera_t> cams;
+    std::vector<camera_t> cams;
 
     for (const auto &[name, camera] : cameras) {
       pts.push_back(points[name][j].point);
@@ -1783,8 +1777,7 @@ void axis_reconstruction::push_frame(const std::map<std::string, cv::Mat> &frame
   // axis = basis * cv_to_gl * extrinsic_calib.axis;
 }
 
-void axis_reconstruction::push_frame(
-    const std::map<std::string, std::vector<stargazer::point_data>> &frame) {
+void axis_reconstruction::push_frame(const std::map<std::string, std::vector<point_data>> &frame) {
   const auto markers = stargazer::reconstruction::reconstruct(cameras, frame);
 
   glm::mat4 axis;
@@ -1808,7 +1801,7 @@ class axis_calibration_node : public graph_node {
 
   mutable std::mutex cameras_mtx;
   std::vector<std::string> camera_names;
-  std::unordered_map<std::string, stargazer::camera_t> cameras;
+  std::unordered_map<std::string, camera_t> cameras;
 
   axis_reconstruction reconstructor;
 
@@ -1821,7 +1814,7 @@ class axis_calibration_node : public graph_node {
 
   virtual std::string get_proc_name() const override { return "calibration_node"; }
 
-  void set_cameras(const std::unordered_map<std::string, stargazer::camera_t> &cameras) {
+  void set_cameras(const std::unordered_map<std::string, camera_t> &cameras) {
     this->cameras = cameras;
   }
 
@@ -1843,14 +1836,14 @@ class axis_calibration_node : public graph_node {
 
     {
       for (size_t f = 0; f < observed_frames.get_num_frames(); f++) {
-        std::map<std::string, std::vector<stargazer::point_data>> frame;
+        std::map<std::string, std::vector<point_data>> frame;
         for (const auto &camera_name : camera_names) {
-          std::vector<stargazer::point_data> point_data;
+          std::vector<point_data> points_data;
           const auto point = observed_frames.get_observed_point(camera_name, f);
           for (const auto &pt : point.points) {
-            point_data.push_back(stargazer::point_data{pt, 0, 0});
+            points_data.push_back(point_data{pt, 0, 0});
           }
-          frame[camera_name] = point_data;
+          frame[camera_name] = points_data;
         }
 
         reconstructor.push_frame(frame);
@@ -1873,7 +1866,7 @@ class axis_calibration_node : public graph_node {
       }
 
       calibrate();
-      stargazer::scene_t scene;
+      scene_t scene;
       scene.axis = reconstructor.get_axis();
 
       std::shared_ptr<scene_message> msg(new scene_message(scene));
@@ -1908,21 +1901,21 @@ class axis_calibration_pipeline::impl {
   std::shared_ptr<axis_calibration_node> calib_node;
   std::shared_ptr<graph_node> input_node;
 
-  using callback_func_type = std::function<void(const stargazer::scene_t &)>;
+  using callback_func_type = std::function<void(const scene_t &)>;
 
   std::vector<callback_func_type> calibrated;
 
   mutable std::mutex cameras_mtx;
   std::vector<std::string> camera_names;
-  std::unordered_map<std::string, stargazer::camera_t> cameras;
+  std::unordered_map<std::string, camera_t> cameras;
 
-  std::shared_ptr<stargazer::parameters_t> parameters;
+  std::shared_ptr<parameters_t> parameters;
 
   void add_calibrated(callback_func_type callback) { calibrated.push_back(callback); }
 
   void clear_calibrated() { calibrated.clear(); }
 
-  void push_frame(const std::map<std::string, std::vector<stargazer::point_data>> &frame) {
+  void push_frame(const std::map<std::string, std::vector<point_data>> &frame) {
     if (!running) {
       return;
     }
@@ -1995,7 +1988,7 @@ class axis_calibration_pipeline::impl {
                 f(scene_msg->get_scene());
               }
 
-              auto &scene = std::get<stargazer::scene_t>(parameters->at("scene"));
+              auto &scene = std::get<scene_t>(parameters->at("scene"));
               scene = scene_msg->get_scene();
               parameters->save();
             }
@@ -2030,27 +2023,24 @@ class axis_calibration_pipeline::impl {
   }
 };
 
-axis_calibration_pipeline::axis_calibration_pipeline(
-    std::shared_ptr<stargazer::parameters_t> parameters)
+axis_calibration_pipeline::axis_calibration_pipeline(std::shared_ptr<parameters_t> parameters)
     : pimpl(std::make_unique<impl>()) {
   pimpl->parameters = parameters;
 }
 
 axis_calibration_pipeline::~axis_calibration_pipeline() = default;
 
-void axis_calibration_pipeline::set_camera(const std::string &name,
-                                           const stargazer::camera_t &camera) {
+void axis_calibration_pipeline::set_camera(const std::string &name, const camera_t &camera) {
   pimpl->cameras[name] = camera;
 }
 
 size_t axis_calibration_pipeline::get_camera_size() const { return pimpl->cameras.size(); }
 
-const std::unordered_map<std::string, stargazer::camera_t> &axis_calibration_pipeline::get_cameras()
-    const {
+const std::unordered_map<std::string, camera_t> &axis_calibration_pipeline::get_cameras() const {
   return pimpl->cameras;
 }
 
-std::unordered_map<std::string, stargazer::camera_t> &axis_calibration_pipeline::get_cameras() {
+std::unordered_map<std::string, camera_t> &axis_calibration_pipeline::get_cameras() {
   return pimpl->cameras;
 }
 
@@ -2064,7 +2054,7 @@ const std::vector<observed_points_t> axis_calibration_pipeline::get_observed_poi
 }
 
 void axis_calibration_pipeline::push_frame(
-    const std::map<std::string, std::vector<stargazer::point_data>> &frame) {
+    const std::map<std::string, std::vector<point_data>> &frame) {
   pimpl->push_frame(frame);
 }
 
