@@ -31,13 +31,30 @@ using namespace stargazer;
     }                                                                                              \
   } while (0)
 
+namespace stargazer::voxelpose {
+class dnn_inference {
+ public:
+  virtual void inference(const float *input) = 0;
+  virtual const float *get_output_data() const = 0;
+};
+
+class dnn_inference_heatmap {
+ public:
+  virtual void process(const std::vector<cv::Mat> &images, std::vector<roi_data> &rois) = 0;
+  virtual void inference(size_t num_views) = 0;
+  virtual const float *get_heatmaps() const = 0;
+  virtual int get_heatmap_width() const = 0;
+  virtual int get_heatmap_height() const = 0;
+};
+}  // namespace stargazer::voxelpose
+
 #define ENABLE_ONNXRUNTIME
 
 #ifdef ENABLE_ONNXRUNTIME
 #include <onnxruntime_cxx_api.h>
 
 namespace stargazer::voxelpose {
-class dnn_inference {
+class ort_dnn_inference : public dnn_inference {
   std::vector<uint8_t> model_data;
 
   Ort::Env env{ORT_LOGGING_LEVEL_WARNING};
@@ -55,7 +72,8 @@ class dnn_inference {
   std::unordered_map<std::string, std::vector<int64_t>> output_node_dims;
 
  public:
-  dnn_inference(const std::vector<uint8_t> &model_data) : session(nullptr), io_binding(nullptr) {
+  ort_dnn_inference(const std::vector<uint8_t> &model_data)
+      : session(nullptr), io_binding(nullptr) {
     namespace fs = std::filesystem;
 
     // Create session
@@ -189,7 +207,7 @@ class dnn_inference {
   const float *get_output_data() const { return output_data; }
 };
 
-class dnn_inference_heatmap {
+class ort_dnn_inference_heatmap : public dnn_inference_heatmap {
   std::vector<uint8_t> model_data;
 
   Ort::Env env{ORT_LOGGING_LEVEL_WARNING};
@@ -215,7 +233,7 @@ class dnn_inference_heatmap {
   uint8_t *input_image_data = nullptr;
 
  public:
-  dnn_inference_heatmap(const std::vector<uint8_t> &model_data, size_t max_views)
+  ort_dnn_inference_heatmap(const std::vector<uint8_t> &model_data, size_t max_views)
       : session(nullptr), io_binding(nullptr) {
     namespace fs = std::filesystem;
 
@@ -282,7 +300,7 @@ class dnn_inference_heatmap {
                               max_input_image_width * max_input_image_height * 3 * max_views));
   }
 
-  ~dnn_inference_heatmap() {
+  ~ort_dnn_inference_heatmap() {
     CUDA_SAFE_CALL(cudaFree(input_data));
     CUDA_SAFE_CALL(cudaFree(output_data));
     CUDA_SAFE_CALL(cudaFree(input_image_data));
@@ -402,11 +420,12 @@ class dnn_inference_heatmap {
   int get_heatmap_height() const { return 128; }
 };
 }  // namespace stargazer::voxelpose
-#else
+#endif
+
 #include <opencv2/dnn/dnn.hpp>
 
 namespace stargazer::voxelpose {
-class dnn_inference {
+class cv_dnn_inference : public dnn_inference {
   cv::dnn::Net net;
 
   std::vector<std::string> input_node_names;
@@ -419,7 +438,7 @@ class dnn_inference {
   float *output_data = nullptr;
 
  public:
-  dnn_inference(const std::vector<uint8_t> &model_data) {
+  cv_dnn_inference(const std::vector<uint8_t> &model_data) {
     const auto backend = cv::dnn::getAvailableBackends();
     net = cv::dnn::readNetFromONNX(model_data);
 
@@ -461,7 +480,7 @@ class dnn_inference {
   const float *get_output_data() const { return output_data; }
 };
 
-class dnn_inference_heatmap {
+class cv_dnn_inference_heatmap : public dnn_inference_heatmap {
   cv::dnn::Net net;
 
   std::vector<std::string> input_node_names;
@@ -474,16 +493,16 @@ class dnn_inference_heatmap {
   float *output_data = nullptr;
   std::vector<float> input_data_cpu;
 
-  int input_image_width = 960;
-  int input_image_height = 540;
+  static const int max_input_image_width = 1920;
+  static const int max_input_image_height = 1080;
 
-  // int input_image_width = 1920;
-  // int input_image_height = 1080;
+  int image_width = 960;
+  int image_height = 512;
 
   uint8_t *input_image_data = nullptr;
 
  public:
-  dnn_inference_heatmap(const std::vector<uint8_t> &model_data, size_t max_views) {
+  cv_dnn_inference_heatmap(const std::vector<uint8_t> &model_data, size_t max_views) {
     const auto backends = cv::dnn::getAvailableBackends();
     net = cv::dnn::readNetFromONNX(model_data);
 
@@ -494,11 +513,11 @@ class dnn_inference_heatmap {
     const auto output_size = 240 * 128 * 15 * max_views;
     CUDA_SAFE_CALL(cudaMalloc(&output_data, output_size * sizeof(float)));
 
-    CUDA_SAFE_CALL(
-        cudaMalloc(&input_image_data, input_image_width * input_image_height * 3 * max_views));
+    CUDA_SAFE_CALL(cudaMalloc(&input_image_data,
+                              max_input_image_width * max_input_image_height * 3 * max_views));
   }
 
-  ~dnn_inference_heatmap() {}
+  ~cv_dnn_inference_heatmap() {}
 
   void process(const std::vector<cv::Mat> &images, std::vector<roi_data> &rois) {
     const auto &&image_size = cv::Size(960, 512);
@@ -519,8 +538,11 @@ class dnn_inference_heatmap {
         return cv::Size2f(w_pad / 200.0, h_pad / 200.0);
       };
 
-      assert(data.size().width == input_image_width);
-      assert(data.size().height == input_image_height);
+      const auto input_image_width = data.size().width;
+      const auto input_image_height = data.size().height;
+
+      assert(input_image_width <= max_input_image_width);
+      assert(input_image_height <= max_input_image_height);
 
       const auto scale = get_scale(data.size(), image_size);
       const auto center = cv::Point2f(data.size().width / 2.0, data.size().height / 2.0);
@@ -567,7 +589,6 @@ class dnn_inference_heatmap {
   int get_heatmap_height() const { return 128; }
 };
 }  // namespace stargazer::voxelpose
-#endif
 
 namespace stargazer::voxelpose {
 class get_proposal {
@@ -683,7 +704,11 @@ voxelpose::voxelpose()
     backbone_model_data = std::move(data);
   }
 
-  inference_heatmap.reset(new dnn_inference_heatmap(backbone_model_data, 5));
+#ifdef ENABLE_ONNXRUNTIME
+  inference_heatmap.reset(new ort_dnn_inference_heatmap(backbone_model_data, 5));
+#else
+  inference_heatmap.reset(new cv_dnn_inference_heatmap(backbone_model_data, 5));
+#endif
 
   std::vector<uint8_t> proposal_v2v_net_model_data;
   {
@@ -694,7 +719,11 @@ voxelpose::voxelpose()
     proposal_v2v_net_model_data = std::move(data);
   }
 
-  inference_proposal.reset(new dnn_inference(proposal_v2v_net_model_data));
+#ifdef ENABLE_ONNXRUNTIME
+  inference_proposal.reset(new ort_dnn_inference(proposal_v2v_net_model_data));
+#else
+  inference_proposal.reset(new cv_dnn_inference(proposal_v2v_net_model_data));
+#endif
 
   std::vector<uint8_t> pose_v2v_net_model_data;
   {
@@ -705,7 +734,11 @@ voxelpose::voxelpose()
     pose_v2v_net_model_data = std::move(data);
   }
 
-  inference_pose.reset(new dnn_inference(pose_v2v_net_model_data));
+#ifdef ENABLE_ONNXRUNTIME
+  inference_pose.reset(new ort_dnn_inference(pose_v2v_net_model_data));
+#else
+  inference_pose.reset(new cv_dnn_inference(pose_v2v_net_model_data));
+#endif
 }
 
 voxelpose::~voxelpose() = default;
