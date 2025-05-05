@@ -30,7 +30,7 @@
 #include <sstream>
 #include <vector>
 
-#include "node_info.hpp"
+#include "config.hpp"
 #include "viewer.hpp"
 
 static ImVec4 from_rgba(uint8_t r, uint8_t g, uint8_t b, uint8_t a, bool consistent_color = false) {
@@ -217,11 +217,11 @@ class capture_panel_view {
   struct node_info {
     std::string name;
     std::string address;
-    std::unordered_map<std::string, node_param_t> params;
+    std::unordered_map<std::string, stargazer::node_param_t> params;
     bool is_streaming = false;
 
     node_info(const std::string &name, const std::string &address,
-              const std::unordered_map<std::string, node_param_t> &params)
+              const std::unordered_map<std::string, stargazer::node_param_t> &params)
         : name(name), address(address), params(params) {}
   };
   std::vector<node_info> devices;
@@ -241,8 +241,8 @@ class capture_panel_view {
   int node_type_index;
 
  public:
-  std::vector<
-      std::function<void(const std::string &, node_type, const std::string &, const std::string &)>>
+  std::vector<std::function<void(const std::string &, stargazer::node_type, const std::string &,
+                                 const std::string &)>>
       on_add_device;
   std::vector<std::function<void(const std::string &)>> on_remove_device;
 
@@ -254,12 +254,12 @@ class calibration_panel_view {
   struct node_info {
     std::string name;
     std::string address;
-    std::unordered_map<std::string, node_param_t> params;
+    std::unordered_map<std::string, stargazer::node_param_t> params;
     bool is_streaming = true;
     size_t num_points = 0;
 
     node_info(const std::string &name, const std::string &address,
-              const std::unordered_map<std::string, node_param_t> &params)
+              const std::unordered_map<std::string, stargazer::node_param_t> &params)
         : name(name), address(address), params(params) {}
   };
   std::vector<node_info> devices;
