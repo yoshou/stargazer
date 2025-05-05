@@ -841,77 +841,14 @@ class reconstruction_panel_view {
   };
   std::vector<node_info> devices;
   bool is_streaming = false;
+  bool is_recording = false;
   int source = 0;
 
   std::vector<std::function<bool(const std::vector<node_info> &, bool)>> is_streaming_changed;
+  std::vector<std::function<bool(const std::vector<node_info> &, bool)>> is_recording_changed;
 
  private:
-  float draw_control_panel(view_context *context) {
-    const float device_panel_height = 60.0f;
-    auto panel_pos = ImGui::GetCursorPos();
-
-    ImGui::PushFont(context->large_font);
-    ImGui::PushStyleColor(ImGuiCol_Button, sensor_bg);
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, sensor_bg);
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive, sensor_bg);
-    ImGui::PushStyleColor(ImGuiCol_Text, light_grey);
-    ImGui::PushStyleColor(ImGuiCol_PopupBg, almost_white_bg);
-    ImGui::PushStyleColor(ImGuiCol_HeaderHovered, light_blue);
-    ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, light_grey);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(5, 5));
-
-    const auto id = "";
-    const float icons_width = 78.0f;
-    const ImVec2 device_panel_icons_size{icons_width, 25};
-    textual_icon button_icon = is_streaming ? textual_icons::stop : textual_icons::play;
-    std::string play_button_name = to_string() << button_icon << "##" << id;
-    auto play_button_color = is_streaming ? light_blue : light_grey;
-    {
-      ImGui::PushStyleColor(ImGuiCol_Text, play_button_color);
-      ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, play_button_color);
-      if (ImGui::Button(play_button_name.c_str(), device_panel_icons_size)) {
-        if (is_streaming) {
-          is_streaming = false;
-          for (const auto &f : is_streaming_changed) {
-            if (!f(devices, is_streaming)) {
-              is_streaming = true;
-              break;
-            }
-          }
-        } else {
-          is_streaming = true;
-          for (const auto &f : is_streaming_changed) {
-            if (!f(devices, is_streaming)) {
-              is_streaming = false;
-              break;
-            }
-          }
-        }
-      }
-      ImGui::PopStyleColor(2);
-    }
-
-    {
-      ImGui::SetCursorPos({panel_pos.x, ImGui::GetCursorPosY()});
-      // Using transparent-non-actionable buttons to have the same locations
-      ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
-      ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0, 0, 0, 0));
-      ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0, 0, 0, 0));
-      const ImVec2 device_panel_icons_text_size = {icons_width, 5};
-
-      ImGui::PushStyleColor(ImGuiCol_Text, play_button_color);
-      ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, play_button_color);
-      ImGui::Button(is_streaming ? "Stop" : "Start", device_panel_icons_size);
-      ImGui::PopStyleColor(2);
-      ImGui::PopStyleColor(3);
-    }
-
-    ImGui::PopStyleVar();
-    ImGui::PopStyleColor(7);
-    ImGui::PopFont();
-
-    return device_panel_height;
-  }
+  float draw_control_panel(view_context *context);
 
   void draw_controls(view_context *context, float panel_height) {
     std::vector<std::function<void()>> draw_later;
