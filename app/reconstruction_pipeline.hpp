@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 
-#include "config_file.hpp"
+#include "config.hpp"
 #include "parameters.hpp"
 #include "point_data.hpp"
 

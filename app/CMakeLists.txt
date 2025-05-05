@@ -12,7 +12,7 @@ add_executable(stargazer_viewer
     ${CMAKE_CURRENT_LIST_DIR}/capture_pipeline.cpp
     ${CMAKE_CURRENT_LIST_DIR}/calibration_pipeline.cpp
     ${CMAKE_CURRENT_LIST_DIR}/reconstruction_pipeline.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/config_file.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/config.cpp
     ${CMAKE_CURRENT_LIST_DIR}/viewer_app.cpp
 )
 
