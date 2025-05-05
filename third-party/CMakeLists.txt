@@ -1,6 +1,7 @@
 if(WIN32)
     set(CMAKE_PREFIX_PATH "${VCPKG_ROOT}/installed/x64-windows")
 else()
+    set(VCPKG_ROOT "/usr/local/vcpkg")
     set(CMAKE_PREFIX_PATH "${VCPKG_ROOT}/installed/x64-linux")
     set(Boost_INCLUDE_DIR "${VCPKG_ROOT}/installed/x64-linux/include")
 endif()
