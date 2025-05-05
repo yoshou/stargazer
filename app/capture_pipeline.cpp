@@ -16,6 +16,7 @@
 #include "graph_proc_cv.h"
 
 using namespace coalsack;
+using namespace stargazer;
 
 using encode_image_node = encode_jpeg_node;
 using decode_image_node = decode_jpeg_node;

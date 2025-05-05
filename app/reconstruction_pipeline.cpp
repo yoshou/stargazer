@@ -31,6 +31,7 @@
 #include "voxelpose.hpp"
 
 using namespace coalsack;
+using namespace stargazer;
 
 static std::string read_text_file(const std::string &filename) {
   std::ifstream ifs(filename.c_str());
@@ -85,16 +86,16 @@ CEREAL_REGISTER_POLYMORPHIC_RELATION(coalsack::frame_message_base, mat4_message)
 CEREAL_REGISTER_TYPE(se3_list_message)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(coalsack::frame_message_base, se3_list_message)
 
-class SensorServiceImpl final : public stargazer::Sensor::Service {
+class SensorServiceImpl final : public Sensor::Service {
   std::mutex mtx;
-  std::unordered_map<std::string, grpc::ServerWriter<stargazer::SphereMessage> *> writers;
+  std::unordered_map<std::string, grpc::ServerWriter<SphereMessage> *> writers;
   std::vector<std::function<void(const std::string &, int64_t, const std::vector<se3> &)>>
       se3_received;
 
  public:
   void notify_sphere(const std::string &name, int64_t timestamp,
                      const std::vector<glm::vec3> &spheres) {
-    stargazer::SphereMessage response;
+    SphereMessage response;
     response.set_name(name);
     response.set_timestamp(timestamp);
     const auto mutable_values = response.mutable_values();
@@ -117,9 +118,8 @@ class SensorServiceImpl final : public stargazer::Sensor::Service {
     se3_received.push_back(f);
   }
 
-  grpc::Status SubscribeSphere(grpc::ServerContext *context,
-                               const stargazer::SubscribeRequest *request,
-                               grpc::ServerWriter<stargazer::SphereMessage> *writer) override {
+  grpc::Status SubscribeSphere(grpc::ServerContext *context, const SubscribeRequest *request,
+                               grpc::ServerWriter<SphereMessage> *writer) override {
     {
       std::lock_guard<std::mutex> lock(mtx);
       writers.insert(std::make_pair(request->name(), writer));
@@ -136,10 +136,9 @@ class SensorServiceImpl final : public stargazer::Sensor::Service {
     return grpc::Status::OK;
   }
 
-  grpc::Status PublishSE3(grpc::ServerContext *context,
-                          grpc::ServerReader<stargazer::SE3Message> *reader,
+  grpc::Status PublishSE3(grpc::ServerContext *context, grpc::ServerReader<SE3Message> *reader,
                           google::protobuf::Empty *response) override {
-    stargazer::SE3Message data;
+    SE3Message data;
     while (reader->Read(&data)) {
       const auto name = data.name();
       const auto timestamp = data.timestamp();
@@ -349,16 +348,16 @@ CEREAL_REGISTER_TYPE(callback_node)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, callback_node)
 
 class camera_message : public graph_message {
-  stargazer::camera_t camera;
+  camera_t camera;
 
  public:
   camera_message() : graph_message(), camera() {}
 
-  camera_message(const stargazer::camera_t &camera) : graph_message(), camera(camera) {}
+  camera_message(const camera_t &camera) : graph_message(), camera(camera) {}
 
-  stargazer::camera_t get_camera() const { return camera; }
+  camera_t get_camera() const { return camera; }
 
-  void set_camera(const stargazer::camera_t &value) { camera = value; }
+  void set_camera(const camera_t &value) { camera = value; }
 
   template <typename Archive>
   void serialize(Archive &archive) {
@@ -371,7 +370,7 @@ CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_message, camera_message)
 
 class epipolar_reconstruct_node : public graph_node {
   mutable std::mutex cameras_mtx;
-  std::map<std::string, stargazer::camera_t> cameras;
+  std::map<std::string, camera_t> cameras;
   glm::mat4 axis;
   graph_edge_ptr output;
 
@@ -413,9 +412,9 @@ class epipolar_reconstruct_node : public graph_node {
       const auto obj_msg = frame_msg->get_data();
 
       std::vector<std::vector<glm::vec2>> camera_pts;
-      std::vector<stargazer::camera_t> camera_list;
+      std::vector<camera_t> camera_list;
 
-      std::map<std::string, stargazer::camera_t> cameras;
+      std::map<std::string, camera_t> cameras;
       {
         std::lock_guard lock(cameras_mtx);
         cameras = this->cameras;
@@ -706,7 +705,7 @@ class multiview_point_reconstruction_pipeline::impl {
   impl()
       : graph(), running(false), markers(), markers_received(), reconstruct_node(), input_node() {}
 
-  void set_camera(const std::string &name, const stargazer::camera_t &camera) {
+  void set_camera(const std::string &name, const camera_t &camera) {
     auto camera_msg = std::make_shared<camera_message>(camera);
     camera_msg->set_camera(camera);
 
@@ -727,7 +726,7 @@ class multiview_point_reconstruction_pipeline::impl {
     }
   }
 
-  using frame_type = std::map<std::string, std::vector<stargazer::point_data>>;
+  using frame_type = std::map<std::string, std::vector<point_data>>;
 
   void push_frame(const frame_type &frame) {
     if (!running) {
@@ -849,7 +848,7 @@ std::vector<glm::vec3> multiview_point_reconstruction_pipeline::get_markers() co
 }
 
 void multiview_point_reconstruction_pipeline::set_camera(const std::string &name,
-                                                         const stargazer::camera_t &camera) {
+                                                         const camera_t &camera) {
   cameras[name] = camera;
   pimpl->set_camera(name, camera);
 }
@@ -870,7 +869,7 @@ CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, image_reconstruct_node)
 
 class voxelpose_reconstruct_node : public image_reconstruct_node {
   mutable std::mutex cameras_mtx;
-  std::map<std::string, stargazer::camera_t> cameras;
+  std::map<std::string, camera_t> cameras;
   glm::mat4 axis;
   graph_edge_ptr output;
 
@@ -893,7 +892,7 @@ class voxelpose_reconstruct_node : public image_reconstruct_node {
     archive(cameras, axis);
   }
 
-  std::vector<glm::vec3> reconstruct(const std::map<std::string, stargazer::camera_t> &cameras,
+  std::vector<glm::vec3> reconstruct(const std::map<std::string, camera_t> &cameras,
                                      const std::map<std::string, cv::Mat> &frame,
                                      const glm::mat4 &axis) {
     using namespace stargazer::voxelpose;
@@ -998,7 +997,7 @@ class voxelpose_reconstruct_node : public image_reconstruct_node {
     if (auto frame_msg = std::dynamic_pointer_cast<frame_message<object_message>>(message)) {
       const auto obj_msg = frame_msg->get_data();
 
-      std::map<std::string, stargazer::camera_t> cameras;
+      std::map<std::string, camera_t> cameras;
       {
         std::lock_guard lock(cameras_mtx);
         cameras = this->cameras;
@@ -1071,7 +1070,7 @@ CEREAL_REGISTER_POLYMORPHIC_RELATION(image_reconstruct_node, voxelpose_reconstru
 
 class mvpose_reconstruct_node : public image_reconstruct_node {
   mutable std::mutex cameras_mtx;
-  std::map<std::string, stargazer::camera_t> cameras;
+  std::map<std::string, camera_t> cameras;
   glm::mat4 axis;
   graph_edge_ptr output;
 
@@ -1094,7 +1093,7 @@ class mvpose_reconstruct_node : public image_reconstruct_node {
     archive(cameras, axis);
   }
 
-  std::vector<glm::vec3> reconstruct(const std::map<std::string, stargazer::camera_t> &cameras,
+  std::vector<glm::vec3> reconstruct(const std::map<std::string, camera_t> &cameras,
                                      const std::map<std::string, cv::Mat> &frame,
                                      const glm::mat4 &axis) {
     using namespace stargazer::mvpose;
@@ -1102,7 +1101,7 @@ class mvpose_reconstruct_node : public image_reconstruct_node {
     std::vector<std::string> names;
     coalsack::tensor<float, 4> heatmaps;
     std::vector<cv::Mat> images_list;
-    std::vector<stargazer::camera_t> cameras_list;
+    std::vector<camera_t> cameras_list;
 
     if (frame.size() <= 1) {
       return std::vector<glm::vec3>();
@@ -1115,7 +1114,7 @@ class mvpose_reconstruct_node : public image_reconstruct_node {
     for (size_t i = 0; i < frame.size(); i++) {
       const auto name = names[i];
 
-      stargazer::camera_t camera;
+      camera_t camera;
 
       const auto &src_camera = cameras.at(name);
 
@@ -1177,7 +1176,7 @@ class mvpose_reconstruct_node : public image_reconstruct_node {
     if (auto frame_msg = std::dynamic_pointer_cast<frame_message<object_message>>(message)) {
       const auto obj_msg = frame_msg->get_data();
 
-      std::map<std::string, stargazer::camera_t> cameras;
+      std::map<std::string, camera_t> cameras;
       {
         std::lock_guard lock(cameras_mtx);
         cameras = this->cameras;
@@ -1486,7 +1485,7 @@ class multiview_image_reconstruction_pipeline::impl {
   impl()
       : graph(), running(false), markers(), markers_received(), reconstruct_node(), input_node() {}
 
-  void set_camera(const std::string &name, const stargazer::camera_t &camera) {
+  void set_camera(const std::string &name, const camera_t &camera) {
     auto camera_msg = std::make_shared<camera_message>(camera);
     camera_msg->set_camera(camera);
 
@@ -1690,7 +1689,7 @@ std::vector<glm::vec3> multiview_image_reconstruction_pipeline::get_markers() co
 }
 
 void multiview_image_reconstruction_pipeline::set_camera(const std::string &name,
-                                                         const stargazer::camera_t &camera) {
+                                                         const camera_t &camera) {
   pimpl->set_camera(name, camera);
 }
 

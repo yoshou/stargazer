@@ -7,7 +7,7 @@
 #include <random>
 
 #include "bundle_adjust_data.hpp"
-#include "node_info.hpp"
+#include "config.hpp"
 #include "parameters.hpp"
 #include "point_data.hpp"
 
@@ -42,7 +42,7 @@ class calibration_pipeline {
   const std::vector<observed_points_t> get_observed_points(std::string name) const;
 
   void push_frame(const std::map<std::string, std::vector<stargazer::point_data>> &frame);
-  void run(const std::vector<node_info> &infos);
+  void run(const std::vector<stargazer::node_info> &infos);
   void stop();
 
   void calibrate();
@@ -86,7 +86,7 @@ class axis_calibration_pipeline {
 
   void push_frame(const std::map<std::string, std::vector<stargazer::point_data>> &frame);
 
-  void run(const std::vector<node_info> &infos);
+  void run(const std::vector<stargazer::node_info> &infos);
   void stop();
 
   void calibrate();

@@ -5,7 +5,7 @@
 #include <opencv2/opencv.hpp>
 #include <string>
 
-#include "node_info.hpp"
+#include "config.hpp"
 
 struct marker_data {
   float x, y, r;
@@ -26,7 +26,7 @@ class capture_pipeline {
   capture_pipeline();
   virtual ~capture_pipeline();
 
-  void run(const node_info &info);
+  void run(const stargazer::node_info &info);
   void stop();
 
   void set_mask(cv::Mat mask);
@@ -50,7 +50,7 @@ class multiview_capture_pipeline {
   multiview_capture_pipeline(const std::map<std::string, cv::Mat> &masks);
   virtual ~multiview_capture_pipeline();
 
-  void run(const std::vector<node_info> &infos);
+  void run(const std::vector<stargazer::node_info> &infos);
   void stop();
 
   std::map<std::string, cv::Mat> get_frames() const;

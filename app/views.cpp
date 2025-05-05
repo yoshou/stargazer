@@ -1,5 +1,7 @@
 #include "views.hpp"
 
+using namespace stargazer;
+
 namespace {
 struct float3 {
   float x, y, z;
