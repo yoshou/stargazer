@@ -7,13 +7,13 @@
 #include "node_info.hpp"
 
 namespace stargazer {
-class configuration_file {
+class configuration {
   std::string path;
   std::unordered_map<std::string, std::vector<node_info>> pipeline_nodes;
   std::unordered_map<std::string, std::string> pipeline_names;
 
  public:
-  configuration_file(const std::string &path);
+  configuration(const std::string &path);
 
   void update();
 
