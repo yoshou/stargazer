@@ -103,6 +103,35 @@ configuration::configuration(const std::string &path) : path(path) {
   if (ifs) {
     const auto j = nlohmann::json::parse(ifs);
 
+    if (j.contains("nodes")) {
+      for (const auto &j_node : j["nodes"]) {
+        auto node = std::make_shared<node_info>();
+        for (const auto &[key, value] : j_node.items()) {
+          if (key == "type") {
+            node->type = get_node_type(value.get<std::string>());
+          } else if (key == "name") {
+            node->name = value.get<std::string>();
+          } else if (key == "inputs") {
+            node->inputs = value.get<std::unordered_map<std::string, std::string>>();
+          } else if (key == "extends") {
+            const auto extends = value.get<std::vector<std::string>>();
+            for (const auto &extend : extends) {
+              if (nodes.find(extend) == nodes.end()) {
+                throw std::runtime_error("Node not found: " + extend);
+              }
+              node->extends.push_back(nodes.at(extend));
+            }
+          } else {
+            node->params[key] = value.get<node_param_t>();
+          }
+        }
+        if (nodes.find(node->name) != nodes.end()) {
+          throw std::runtime_error("Duplicate node name");
+        }
+        nodes[node->name] = node;
+      }
+    }
+
     pipeline_names.insert(std::make_pair("pipeline", j["pipeline"].get<std::string>()));
     if (j.contains("static_pipeline")) {
       pipeline_names.insert(
@@ -122,6 +151,14 @@ configuration::configuration(const std::string &path) : path(path) {
             node.name = value.get<std::string>();
           } else if (key == "inputs") {
             node.inputs = value.get<std::unordered_map<std::string, std::string>>();
+          } else if (key == "extends") {
+            const auto extends = value.get<std::vector<std::string>>();
+            for (const auto &extend : extends) {
+              if (nodes.find(extend) == nodes.end()) {
+                throw std::runtime_error("Node not found: " + extend);
+              }
+              node.extends.push_back(nodes.at(extend));
+            }
           } else {
             node.params[key] = value.get<node_param_t>();
           }

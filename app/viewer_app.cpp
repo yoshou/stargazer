@@ -76,10 +76,10 @@ class viewer_app : public window_base {
     capture_panel_view_ = std::make_unique<capture_panel_view>();
     for (const auto &node_info : capture_config->get_node_infos()) {
       std::string path;
-      if (node_info.params.find("address") != node_info.params.end()) {
+      if (node_info.contains_param("address")) {
         path = node_info.get_param<std::string>("address");
       }
-      if (node_info.params.find("db_path") != node_info.params.end()) {
+      if (node_info.contains_param("db_path")) {
         path = node_info.get_param<std::string>("db_path");
       }
       capture_panel_view_->devices.push_back(
@@ -188,7 +188,7 @@ class viewer_app : public window_base {
                const std::string &gateway_address) {
           node_info new_device{};
           new_device.name = device_name;
-          new_device.type = node_type;
+          new_device.set_type(node_type);
           new_device.params["id"] = generate_new_id();
           new_device.params["address"] = ip_address;
           new_device.params["gateway"] = gateway_address;
@@ -226,10 +226,10 @@ class viewer_app : public window_base {
 
             for (const auto &node_info : node_infos) {
               std::string path;
-              if (node_info.params.find("address") != node_info.params.end()) {
+              if (node_info.contains_param("address")) {
                 path = node_info.get_param<std::string>("address");
               }
-              if (node_info.params.find("db_path") != node_info.params.end()) {
+              if (node_info.contains_param("db_path")) {
                 path = node_info.get_param<std::string>("db_path");
               }
               capture_panel_view_->devices.push_back(
@@ -249,10 +249,10 @@ class viewer_app : public window_base {
 
         for (const auto &node_info : node_infos) {
           std::string path;
-          if (node_info.params.find("address") != node_info.params.end()) {
+          if (node_info.contains_param("address")) {
             path = node_info.get_param<std::string>("address");
           }
-          if (node_info.params.find("db_path") != node_info.params.end()) {
+          if (node_info.contains_param("db_path")) {
             path = node_info.get_param<std::string>("db_path");
           }
           capture_panel_view_->devices.push_back(
@@ -267,10 +267,10 @@ class viewer_app : public window_base {
     calibration_panel_view_ = std::make_unique<calibration_panel_view>();
     for (const auto &node_info : calibration_config->get_node_infos()) {
       std::string path;
-      if (node_info.params.find("address") != node_info.params.end()) {
+      if (node_info.contains_param("address")) {
         path = node_info.get_param<std::string>("address");
       }
-      if (node_info.params.find("db_path") != node_info.params.end()) {
+      if (node_info.contains_param("db_path")) {
         path = node_info.get_param<std::string>("db_path");
       }
       calibration_panel_view_->devices.push_back(
@@ -574,10 +574,10 @@ class viewer_app : public window_base {
     reconstruction_panel_view_ = std::make_unique<reconstruction_panel_view>();
     for (const auto &node_info : reconstruction_config->get_node_infos()) {
       std::string path;
-      if (node_info.params.find("address") != node_info.params.end()) {
+      if (node_info.contains_param("address")) {
         path = node_info.get_param<std::string>("address");
       }
-      if (node_info.params.find("db_path") != node_info.params.end()) {
+      if (node_info.contains_param("db_path")) {
         path = node_info.get_param<std::string>("db_path");
       }
       reconstruction_panel_view_->devices.push_back(
@@ -1046,9 +1046,9 @@ class viewer_app : public window_base {
           }
 
           std::shared_ptr<image_tile_view::stream_info> stream;
-          const int width = static_cast<int>(std::round(std::get<float>(node.params.at("width"))));
+          const int width = static_cast<int>(std::round(node.get_param<float>("width")));
           const int height =
-              static_cast<int>(std::round(std::get<float>(node.params.at("height"))));
+              static_cast<int>(std::round(node.get_param<float>("height")));
 
           const auto found =
               std::find_if(contrail_tile_view_->streams.begin(), contrail_tile_view_->streams.end(),

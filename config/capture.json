@@ -1,91 +1,105 @@
 {
+  "nodes": [
+    {
+      "name": "raspi_color_base",
+      "gateway": "192.168.0.254",
+      "height": 540.0,
+      "width": 960.0,
+      "type": "raspi_color"
+    },
+    {
+      "name": "record_base",
+      "db_path": "../data/data_20250115_1/capture.db",
+      "type": "record"
+    }
+  ],
   "pipelines": {
     "capture_and_record_color": {
       "nodes": [
         {
           "name": "camera101",
+          "extends": [
+            "raspi_color_base"
+          ],
           "address": "192.168.0.26",
-          "gateway": "192.168.0.254",
-          "id": "000000000026",
-          "height": 540.0,
-          "width": 960.0,
-          "type": "raspi_color"
+          "id": "000000000026"
         },
         {
           "name": "camera102",
+          "extends": [
+            "raspi_color_base"
+          ],
           "address": "192.168.0.27",
-          "gateway": "192.168.0.254",
-          "id": "000000000027",
-          "height": 540.0,
-          "width": 960.0,
-          "type": "raspi_color"
+          "id": "000000000027"
         },
         {
           "name": "camera103",
+          "extends": [
+            "raspi_color_base"
+          ],
           "address": "192.168.0.28",
-          "gateway": "192.168.0.254",
-          "id": "000000000028",
-          "height": 540.0,
-          "width": 960.0,
-          "type": "raspi_color"
+          "id": "000000000028"
         },
         {
           "name": "camera104",
+          "extends": [
+            "raspi_color_base"
+          ],
           "address": "192.168.0.29",
-          "gateway": "192.168.0.254",
-          "id": "000000000029",
-          "height": 540.0,
-          "width": 960.0,
-          "type": "raspi_color"
+          "id": "000000000029"
         },
         {
           "name": "camera105",
+          "extends": [
+            "raspi_color_base"
+          ],
           "address": "192.168.0.30",
-          "gateway": "192.168.0.254",
-          "id": "000000000030",
-          "height": 540.0,
-          "width": 960.0,
-          "type": "raspi_color"
+          "id": "000000000030"
         },
         {
           "name": "record101",
+          "extends": [
+            "record_base"
+          ],
           "inputs": {
             "default": "camera101"
-          },
-          "db_path": "../data/data_20250115_1/capture.db",
-          "type": "record"
+          }
         },
         {
           "name": "record102",
+          "extends": [
+            "record_base"
+          ],
           "inputs": {
             "default": "camera102"
-          },
-          "db_path": "../data/data_20250115_1/capture.db",
-          "type": "record"
+          }
         },
         {
           "name": "record103",
+          "extends": [
+            "record_base"
+          ],
           "inputs": {
             "default": "camera103"
-          },
-          "db_path": "../data/data_20250115_1/capture.db",
-          "type": "record"
+          }
         },
         {
           "name": "record104",
+          "extends": [
+            "record_base"
+          ],
           "inputs": {
             "default": "camera104"
-          },
-          "db_path": "../data/data_20250115_1/capture.db",
-          "type": "record"
+          }
         },
         {
           "name": "record105",
           "inputs": {
             "default": "camera105"
           },
-          "db_path": "../data/data_20250115_1/capture.db",
-          "type": "record"
+          "extends": [
+            "record_base"
+          ]
         }
       ]
     },
@@ -505,48 +519,43 @@
       "nodes": [
         {
           "name": "camera101",
+          "extends": [
+            "raspi_color_base"
+          ],
           "address": "192.168.0.26",
-          "gateway": "192.168.0.254",
-          "id": "000000000026",
-          "height": 540.0,
-          "width": 960.0,
-          "type": "raspi_color"
+          "id": "000000000026"
         },
         {
           "name": "camera102",
+          "extends": [
+            "raspi_color_base"
+          ],
           "address": "192.168.0.27",
-          "gateway": "192.168.0.254",
-          "id": "000000000027",
-          "height": 540.0,
-          "width": 960.0,
-          "type": "raspi_color"
+          "id": "000000000027"
         },
         {
           "name": "camera103",
+          "extends": [
+            "raspi_color_base"
+          ],
           "address": "192.168.0.28",
-          "gateway": "192.168.0.254",
-          "id": "000000000028",
-          "height": 540.0,
-          "width": 960.0,
-          "type": "raspi_color"
+          "id": "000000000028"
         },
         {
           "name": "camera104",
+          "extends": [
+            "raspi_color_base"
+          ],
           "address": "192.168.0.29",
-          "gateway": "192.168.0.254",
-          "id": "000000000029",
-          "height": 540.0,
-          "width": 960.0,
-          "type": "raspi_color"
+          "id": "000000000029"
         },
         {
           "name": "camera105",
+          "extends": [
+            "raspi_color_base"
+          ],
           "address": "192.168.0.30",
-          "gateway": "192.168.0.254",
-          "id": "000000000030",
-          "height": 540.0,
-          "width": 960.0,
-          "type": "raspi_color"
+          "id": "000000000030"
         }
       ]
     },
@@ -1023,5 +1032,5 @@
       ]
     }
   },
-  "pipeline": "playback_color"
+  "pipeline": "capture_color"
 }
