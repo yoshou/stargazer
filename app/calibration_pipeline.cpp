@@ -388,7 +388,7 @@ static glm::mat4 estimate_pose(
   cv::Mat r, t;
   constexpr auto use_extrinsic_guess = false;
   constexpr auto iterations_count = 100;
-  constexpr auto reprojection_error = 4.0;
+  constexpr auto reprojection_error = 8.0;
   constexpr auto confidence = 0.99;
   std::vector<int> inliers;
   cv::solvePnPRansac(point3d, points3, camera_matrix3, coeffs3, r, t, use_extrinsic_guess,
