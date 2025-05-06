@@ -785,7 +785,7 @@ float capture_panel_view::draw_control_panel(view_context *context) {
     if (ImGui::Button(play_button_name.c_str(), device_panel_icons_size)) {
       if (is_streaming) {
         is_streaming = false;
-        for (const auto &f : is_streaming_changed2) {
+        for (const auto &f : is_all_streaming_changed) {
           if (!f(devices, is_streaming)) {
             is_streaming = true;
             break;
@@ -793,7 +793,7 @@ float capture_panel_view::draw_control_panel(view_context *context) {
         }
       } else {
         is_streaming = true;
-        for (const auto &f : is_streaming_changed2) {
+        for (const auto &f : is_all_streaming_changed) {
           if (!f(devices, is_streaming)) {
             is_streaming = false;
             break;
