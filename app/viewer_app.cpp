@@ -93,22 +93,22 @@ class viewer_app : public window_base {
             auto found = std::find_if(node_infos.begin(), node_infos.end(),
                                       [device](const auto &x) { return x.name == device.name; });
             if (found == node_infos.end()) {
+              spdlog::error("Device {} not found in capture config", device.name);
               return false;
             }
+            const auto &node_info = *found;
 
             const auto capture = std::make_shared<capture_pipeline>();
 
             try {
-              capture->run(*found);
+              capture->run(node_info);
             } catch (std::exception &e) {
-              std::cout << "Failed to start capture: " << e.what() << std::endl;
+              spdlog::error("Failed to start capture for {}: {}", device.name, e.what());
               return false;
             }
             captures.insert(std::make_pair(device.name, capture));
-            const int width =
-                static_cast<int>(std::round(std::get<float>(device.params.at("width"))));
-            const int height =
-                static_cast<int>(std::round(std::get<float>(device.params.at("height"))));
+            const auto width = static_cast<int>(std::round(node_info.get_param<float>("width")));
+            const auto height = static_cast<int>(std::round(node_info.get_param<float>("height")));
 
             const auto stream = std::make_shared<image_tile_view::stream_info>(
                 device.name, float2{(float)width, (float)height});
@@ -132,14 +132,14 @@ class viewer_app : public window_base {
           return true;
         });
 
-    capture_panel_view_->is_streaming_changed2.push_back(
+    capture_panel_view_->is_all_streaming_changed.push_back(
         [this](const std::vector<capture_panel_view::node_info> &devices, bool is_streaming) {
           if (is_streaming) {
             if (multiview_capture) {
               return false;
             }
 
-            const auto &devices = capture_config->get_node_infos();
+            const auto &node_infos = capture_config->get_node_infos();
 
             if (calibration_panel_view_->is_masking) {
               multiview_capture.reset(new multiview_capture_pipeline(masks));
@@ -147,18 +147,22 @@ class viewer_app : public window_base {
               multiview_capture.reset(new multiview_capture_pipeline());
             }
 
-            for (const auto &device : devices) {
-              if (device.is_camera()) {
-                multiview_capture->enable_marker_collecting(device.name);
+            for (const auto &node_info : node_infos) {
+              if (node_info.is_camera()) {
+                multiview_capture->enable_marker_collecting(node_info.name);
               }
             }
 
-            multiview_capture->run(devices);
+            multiview_capture->run(node_infos);
 
-            for (const auto &device : devices) {
-              if (device.is_camera()) {
+            for (const auto &node_info : node_infos) {
+              if (node_info.is_camera()) {
+                const auto width =
+                    static_cast<int>(std::round(node_info.get_param<float>("width")));
+                const auto height =
+                    static_cast<int>(std::round(node_info.get_param<float>("height")));
                 const auto stream = std::make_shared<image_tile_view::stream_info>(
-                    device.name, float2{(float)width, (float)height});
+                    node_info.name, float2{(float)width, (float)height});
                 image_tile_view_->streams.push_back(stream);
               }
             }
@@ -167,12 +171,12 @@ class viewer_app : public window_base {
               multiview_capture->stop();
               multiview_capture.reset();
 
-              const auto &devices = capture_config->get_node_infos();
+              const auto &node_infos = capture_config->get_node_infos();
 
-              for (const auto &device : devices) {
+              for (const auto &node_info : node_infos) {
                 const auto stream_it =
                     std::find_if(image_tile_view_->streams.begin(), image_tile_view_->streams.end(),
-                                 [&](const auto &x) { return x->name == device.name; });
+                                 [&](const auto &x) { return x->name == node_info.name; });
 
                 if (stream_it != image_tile_view_->streams.end()) {
                   image_tile_view_->streams.erase(stream_it);
@@ -223,6 +227,7 @@ class viewer_app : public window_base {
                                               [&](const auto &x) { return x.name == device_name; });
               found == node_infos.end()) {
             node_infos.push_back(new_device);
+            capture_panel_view_->devices.clear();
 
             for (const auto &node_info : node_infos) {
               std::string path;
@@ -284,9 +289,9 @@ class viewer_app : public window_base {
               return false;
             }
 
-            if (calibration_panel_view_->calibration_target_index == 0)  // Extrinsic calibration
-            {
-              const auto &devices = calibration_config->get_node_infos();
+            if (calibration_panel_view_->calibration_target_index == 0) {
+              // Extrinsic calibration
+              const auto &node_infos = calibration_config->get_node_infos();
 
               if (calibration_panel_view_->is_masking) {
                 multiview_capture.reset(new multiview_capture_pipeline(masks));
@@ -308,18 +313,21 @@ class viewer_app : public window_base {
                     calib->push_frame(frame);
                   });
 
-              multiview_capture->run(devices);
+              multiview_capture->run(node_infos);
 
-              for (const auto &device : devices) {
-                if (device.is_camera()) {
+              for (const auto &node_info : node_infos) {
+                if (node_info.is_camera()) {
+                  const auto width =
+                      static_cast<int>(std::round(node_info.get_param<float>("width")));
+                  const auto height =
+                      static_cast<int>(std::round(node_info.get_param<float>("height")));
                   const auto stream = std::make_shared<image_tile_view::stream_info>(
-                      device.name, float2{(float)width, (float)height});
+                      node_info.name, float2{(float)width, (float)height});
                   image_tile_view_->streams.push_back(stream);
                 }
               }
-            } else if (calibration_panel_view_->calibration_target_index ==
-                       1)  // Intrinsic calibration
-            {
+            } else if (calibration_panel_view_->calibration_target_index == 1) {
+              // Intrinsic calibration
               const auto &device =
                   devices[calibration_panel_view_->intrinsic_calibration_device_index];
 
@@ -329,33 +337,33 @@ class viewer_app : public window_base {
               if (found == node_infos.end()) {
                 return false;
               }
+              const auto &node_info = *found;
 
               const auto capture = std::make_shared<capture_pipeline>();
 
               capture->add_image_received([this](const cv::Mat &frame) {
                 if (!frame.empty() && calibration_panel_view_->is_marker_collecting) {
-                  intrinsic_calib->add_frame(frame);
+                  intrinsic_calib->push_frame(frame);
                 }
               });
 
               try {
-                capture->run(*found);
+                capture->run(node_info);
               } catch (std::exception &e) {
                 std::cout << "Failed to start capture: " << e.what() << std::endl;
                 return false;
               }
               captures.insert(std::make_pair(device.name, capture));
-              const int width =
-                  static_cast<int>(std::round(std::get<float>(device.params.at("width"))));
-              const int height =
-                  static_cast<int>(std::round(std::get<float>(device.params.at("height"))));
+              const auto width = static_cast<int>(std::round(node_info.get_param<float>("width")));
+              const auto height =
+                  static_cast<int>(std::round(node_info.get_param<float>("height")));
 
               const auto stream = std::make_shared<image_tile_view::stream_info>(
                   device.name, float2{(float)width, (float)height});
               image_tile_view_->streams.push_back(stream);
-            } else if (calibration_panel_view_->calibration_target_index == 2)  // Axis calibration
-            {
-              const auto &devices = calibration_config->get_node_infos();
+            } else if (calibration_panel_view_->calibration_target_index == 2) {
+              // Axis calibration
+              const auto &node_infos = calibration_config->get_node_infos();
 
               if (calibration_panel_view_->is_masking) {
                 multiview_capture.reset(new multiview_capture_pipeline(masks));
@@ -377,12 +385,16 @@ class viewer_app : public window_base {
                     axis_calib->push_frame(frame);
                   });
 
-              multiview_capture->run(devices);
+              multiview_capture->run(node_infos);
 
-              for (const auto &device : devices) {
-                if (device.is_camera()) {
+              for (const auto &node_info : node_infos) {
+                if (node_info.is_camera()) {
+                  const auto width =
+                      static_cast<int>(std::round(node_info.get_param<float>("width")));
+                  const auto height =
+                      static_cast<int>(std::round(node_info.get_param<float>("height")));
                   const auto stream = std::make_shared<image_tile_view::stream_info>(
-                      device.name, float2{(float)width, (float)height});
+                      node_info.name, float2{(float)width, (float)height});
                   image_tile_view_->streams.push_back(stream);
                 }
               }
@@ -392,12 +404,12 @@ class viewer_app : public window_base {
               multiview_capture->stop();
               multiview_capture.reset();
 
-              const auto &devices = calibration_config->get_node_infos();
+              const auto &node_infos = calibration_config->get_node_infos();
 
-              for (const auto &device : devices) {
+              for (const auto &node_info : node_infos) {
                 const auto stream_it =
                     std::find_if(image_tile_view_->streams.begin(), image_tile_view_->streams.end(),
-                                 [&](const auto &x) { return x->name == device.name; });
+                                 [&](const auto &x) { return x->name == node_info.name; });
 
                 if (stream_it != image_tile_view_->streams.end()) {
                   image_tile_view_->streams.erase(stream_it);
@@ -424,12 +436,12 @@ class viewer_app : public window_base {
               multiview_capture->stop();
               multiview_capture.reset();
 
-              const auto &devices = calibration_config->get_node_infos();
+              const auto &node_infos = calibration_config->get_node_infos();
 
-              for (const auto &device : devices) {
+              for (const auto &node_info : node_infos) {
                 const auto stream_it =
                     std::find_if(image_tile_view_->streams.begin(), image_tile_view_->streams.end(),
-                                 [&](const auto &x) { return x->name == device.name; });
+                                 [&](const auto &x) { return x->name == node_info.name; });
 
                 if (stream_it != image_tile_view_->streams.end()) {
                   image_tile_view_->streams.erase(stream_it);
@@ -477,8 +489,15 @@ class viewer_app : public window_base {
 
     calibration_panel_view_->on_intrinsic_calibration_device_changed.push_back(
         [this](const calibration_panel_view::node_info &device) {
+          const auto &node_infos = calibration_config->get_node_infos();
+          auto found = std::find_if(node_infos.begin(), node_infos.end(),
+                                    [&](const auto &x) { return x.name == device.name; });
+          if (found == node_infos.end()) {
+            return;
+          }
+          const auto &node_info = *found;
           const auto &params =
-              std::get<camera_t>(parameters->at(std::get<std::string>(device.params.at("id"))));
+              std::get<camera_t>(parameters->at(node_info.get_param<std::string>("id")));
           calibration_panel_view_->fx = params.intrin.fx;
           calibration_panel_view_->fy = params.intrin.fy;
           calibration_panel_view_->cx = params.intrin.cx;
@@ -500,9 +519,18 @@ class viewer_app : public window_base {
 
                 calib->calibrate();
 
+                const auto &node_infos = calibration_config->get_node_infos();
+
                 std::unordered_map<std::string, std::string> device_name_to_id;
                 for (const auto &device : devices) {
-                  device_name_to_id[device.name] = std::get<std::string>(device.params.at("id"));
+                  auto found = std::find_if(node_infos.begin(), node_infos.end(),
+                                            [&](const auto &x) { return x.name == device.name; });
+                  if (found == node_infos.end()) {
+                    spdlog::error("Device {} not found in calibration config", device.name);
+                    return false;
+                  }
+                  const auto &node_info = *found;
+                  device_name_to_id[device.name] = node_info.get_param<std::string>("id");
                 }
 
                 for (const auto &[camera_name, camera] : calib->get_calibrated_cameras()) {
@@ -525,10 +553,18 @@ class viewer_app : public window_base {
             const auto &device =
                 devices.at(calibration_panel_view_->intrinsic_calibration_device_index);
 
+            const auto &node_infos = calibration_config->get_node_infos();
+            auto found = std::find_if(node_infos.begin(), node_infos.end(),
+                                      [&](const auto &x) { return x.name == device.name; });
+            if (found == node_infos.end()) {
+              return false;
+            }
+            const auto &node_info = *found;
+
             intrinsic_calib->image_width =
-                static_cast<int>(std::round(std::get<float>(device.params.at("width"))));
+                static_cast<int>(std::round(node_info.get_param<float>("width")));
             intrinsic_calib->image_height =
-                static_cast<int>(std::round(std::get<float>(device.params.at("height"))));
+                static_cast<int>(std::round(node_info.get_param<float>("height")));
 
             intrinsic_calib->calibrate();
 
@@ -544,7 +580,7 @@ class viewer_app : public window_base {
             calibration_panel_view_->rms = intrinsic_calib->rms;
 
             auto &params =
-                std::get<camera_t>(parameters->at(std::get<std::string>(device.params.at("id"))));
+                std::get<camera_t>(parameters->at(node_info.get_param<std::string>("id")));
             params.intrin.fx = intrinsic_calib->calibrated_camera.intrin.fx;
             params.intrin.fy = intrinsic_calib->calibrated_camera.intrin.fy;
             params.intrin.cx = intrinsic_calib->calibrated_camera.intrin.cx;
@@ -593,7 +629,7 @@ class viewer_app : public window_base {
                 return false;
               }
 
-              const auto &devices = reconstruction_config->get_node_infos();
+              const auto &node_infos = reconstruction_config->get_node_infos();
 
               if (calibration_panel_view_->is_masking) {
                 multiview_capture.reset(new multiview_capture_pipeline(masks));
@@ -615,18 +651,22 @@ class viewer_app : public window_base {
                     multiview_point_reconstruction_pipeline_->push_frame(frame);
                   });
 
-              for (const auto &device : devices) {
-                if (device.is_camera()) {
-                  multiview_capture->enable_marker_collecting(device.name);
+              for (const auto &node_info : node_infos) {
+                if (node_info.is_camera()) {
+                  multiview_capture->enable_marker_collecting(node_info.name);
                 }
               }
 
-              multiview_capture->run(devices);
+              multiview_capture->run(node_infos);
 
-              for (const auto &device : devices) {
-                if (device.is_camera()) {
+              for (const auto &node_info : node_infos) {
+                if (node_info.is_camera()) {
+                  const auto width =
+                      static_cast<int>(std::round(node_info.get_param<float>("width")));
+                  const auto height =
+                      static_cast<int>(std::round(node_info.get_param<float>("height")));
                   const auto stream = std::make_shared<image_tile_view::stream_info>(
-                      device.name, float2{(float)width, (float)height});
+                      node_info.name, float2{(float)width, (float)height});
                   image_tile_view_->streams.push_back(stream);
                 }
               }
@@ -635,7 +675,7 @@ class viewer_app : public window_base {
                 return false;
               }
 
-              const auto &devices = reconstruction_config->get_node_infos();
+              const auto &node_infos = reconstruction_config->get_node_infos();
 
               if (calibration_panel_view_->is_masking) {
                 multiview_capture.reset(new multiview_capture_pipeline(masks));
@@ -654,12 +694,16 @@ class viewer_app : public window_base {
                     multiview_image_reconstruction_pipeline_->push_frame(color_image_frame);
                   });
 
-              multiview_capture->run(devices);
+              multiview_capture->run(node_infos);
 
-              for (const auto &device : devices) {
-                if (device.is_camera()) {
+              for (const auto &node_info : node_infos) {
+                if (node_info.is_camera()) {
+                  const auto width =
+                      static_cast<int>(std::round(node_info.get_param<float>("width")));
+                  const auto height =
+                      static_cast<int>(std::round(node_info.get_param<float>("height")));
                   const auto stream = std::make_shared<image_tile_view::stream_info>(
-                      device.name, float2{(float)width, (float)height});
+                      node_info.name, float2{(float)width, (float)height});
                   image_tile_view_->streams.push_back(stream);
                 }
               }
@@ -669,12 +713,12 @@ class viewer_app : public window_base {
               multiview_capture->stop();
               multiview_capture.reset();
 
-              const auto &devices = reconstruction_config->get_node_infos();
+              const auto &node_infos = reconstruction_config->get_node_infos();
 
-              for (const auto &device : devices) {
+              for (const auto &node_info : node_infos) {
                 const auto stream_it =
                     std::find_if(image_tile_view_->streams.begin(), image_tile_view_->streams.end(),
-                                 [&](const auto &x) { return x->name == device.name; });
+                                 [&](const auto &x) { return x->name == node_info.name; });
 
                 if (stream_it != image_tile_view_->streams.end()) {
                   image_tile_view_->streams.erase(stream_it);
@@ -1046,9 +1090,8 @@ class viewer_app : public window_base {
           }
 
           std::shared_ptr<image_tile_view::stream_info> stream;
-          const int width = static_cast<int>(std::round(node.get_param<float>("width")));
-          const int height =
-              static_cast<int>(std::round(node.get_param<float>("height")));
+          const auto width = static_cast<int>(std::round(node.get_param<float>("width")));
+          const auto height = static_cast<int>(std::round(node.get_param<float>("height")));
 
           const auto found =
               std::find_if(contrail_tile_view_->streams.begin(), contrail_tile_view_->streams.end(),

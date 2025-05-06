@@ -227,7 +227,7 @@ class capture_panel_view {
   std::vector<node_info> devices;
 
   bool is_streaming = false;
-  std::vector<std::function<bool(const std::vector<node_info> &, bool)>> is_streaming_changed2;
+  std::vector<std::function<bool(const std::vector<node_info> &, bool)>> is_all_streaming_changed;
   std::vector<std::function<bool(const node_info &)>> is_streaming_changed;
 
  private:
