@@ -561,37 +561,40 @@ class viewer_app : public window_base {
             }
             const auto &node_info = *found;
 
-            intrinsic_calib->image_width =
+            const auto image_width =
                 static_cast<int>(std::round(node_info.get_param<float>("width")));
-            intrinsic_calib->image_height =
+            const auto image_height =
                 static_cast<int>(std::round(node_info.get_param<float>("height")));
+
+            intrinsic_calib->set_image_size(image_width, image_height);
 
             intrinsic_calib->calibrate();
 
-            calibration_panel_view_->fx = intrinsic_calib->calibrated_camera.intrin.fx;
-            calibration_panel_view_->fy = intrinsic_calib->calibrated_camera.intrin.fy;
-            calibration_panel_view_->cx = intrinsic_calib->calibrated_camera.intrin.cx;
-            calibration_panel_view_->cy = intrinsic_calib->calibrated_camera.intrin.cy;
-            calibration_panel_view_->k0 = intrinsic_calib->calibrated_camera.intrin.coeffs[0];
-            calibration_panel_view_->k1 = intrinsic_calib->calibrated_camera.intrin.coeffs[1];
-            calibration_panel_view_->k2 = intrinsic_calib->calibrated_camera.intrin.coeffs[4];
-            calibration_panel_view_->p0 = intrinsic_calib->calibrated_camera.intrin.coeffs[2];
-            calibration_panel_view_->p1 = intrinsic_calib->calibrated_camera.intrin.coeffs[3];
-            calibration_panel_view_->rms = intrinsic_calib->rms;
+            const auto &calibrated_camera = intrinsic_calib->get_calibrated_camera();
 
+            calibration_panel_view_->fx = calibrated_camera.intrin.fx;
+            calibration_panel_view_->fy = calibrated_camera.intrin.fy;
+            calibration_panel_view_->cx = calibrated_camera.intrin.cx;
+            calibration_panel_view_->cy = calibrated_camera.intrin.cy;
+            calibration_panel_view_->k0 = calibrated_camera.intrin.coeffs[0];
+            calibration_panel_view_->k1 = calibrated_camera.intrin.coeffs[1];
+            calibration_panel_view_->k2 = calibrated_camera.intrin.coeffs[4];
+            calibration_panel_view_->p0 = calibrated_camera.intrin.coeffs[2];
+            calibration_panel_view_->p1 = calibrated_camera.intrin.coeffs[3];
+            calibration_panel_view_->rms = intrinsic_calib->get_rms();
             auto &params =
                 std::get<camera_t>(parameters->at(node_info.get_param<std::string>("id")));
-            params.intrin.fx = intrinsic_calib->calibrated_camera.intrin.fx;
-            params.intrin.fy = intrinsic_calib->calibrated_camera.intrin.fy;
-            params.intrin.cx = intrinsic_calib->calibrated_camera.intrin.cx;
-            params.intrin.cy = intrinsic_calib->calibrated_camera.intrin.cy;
-            params.intrin.coeffs[0] = intrinsic_calib->calibrated_camera.intrin.coeffs[0];
-            params.intrin.coeffs[1] = intrinsic_calib->calibrated_camera.intrin.coeffs[1];
-            params.intrin.coeffs[2] = intrinsic_calib->calibrated_camera.intrin.coeffs[2];
-            params.intrin.coeffs[3] = intrinsic_calib->calibrated_camera.intrin.coeffs[3];
-            params.intrin.coeffs[4] = intrinsic_calib->calibrated_camera.intrin.coeffs[4];
-            params.width = intrinsic_calib->calibrated_camera.width;
-            params.height = intrinsic_calib->calibrated_camera.height;
+            params.intrin.fx = calibrated_camera.intrin.fx;
+            params.intrin.fy = calibrated_camera.intrin.fy;
+            params.intrin.cx = calibrated_camera.intrin.cx;
+            params.intrin.cy = calibrated_camera.intrin.cy;
+            params.intrin.coeffs[0] = calibrated_camera.intrin.coeffs[0];
+            params.intrin.coeffs[1] = calibrated_camera.intrin.coeffs[1];
+            params.intrin.coeffs[2] = calibrated_camera.intrin.coeffs[2];
+            params.intrin.coeffs[3] = calibrated_camera.intrin.coeffs[3];
+            params.intrin.coeffs[4] = calibrated_camera.intrin.coeffs[4];
+            params.width = calibrated_camera.width;
+            params.height = calibrated_camera.height;
             parameters->save();
             return true;
           } else if (calibration_panel_view_->calibration_target_index == 2) {
