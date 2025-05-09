@@ -1517,18 +1517,18 @@ static std::vector<size_t> create_random_indices(size_t size) {
   return data;
 }
 
-void intrinsic_calibration_pipeline::add_frame(const std::vector<point_data> &frame) {
+void intrinsic_calibration_pipeline::push_frame(const std::vector<point_data> &frame) {
   frames.push_back(frame);
 }
 
-void intrinsic_calibration_pipeline::add_frame(const cv::Mat &frame) {
+void intrinsic_calibration_pipeline::push_frame(const cv::Mat &frame) {
   std::vector<cv::Point2f> board;
   if (detect_calibration_board(frame, board)) {
     std::vector<point_data> points;
     for (const auto &point : board) {
       points.push_back(point_data{glm::vec2(point.x, point.y), 0, 0});
     }
-    add_frame(points);
+    push_frame(points);
   }
 }
 
