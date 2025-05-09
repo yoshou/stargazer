@@ -1712,27 +1712,6 @@ static void detect_aruco_marker(cv::Mat image, std::vector<std::vector<cv::Point
   detector.detectMarkers(image, points, ids);
 }
 
-static bool detect_aruco_marker(cv::Mat image, std::vector<cv::Point2f> &points,
-                                std::vector<int> &ids) {
-  std::vector<int> marker_ids;
-  std::vector<std::vector<cv::Point2f>> marker_corners;
-  detect_aruco_marker(image, marker_corners, marker_ids);
-
-  for (size_t i = 0; i < marker_ids.size(); i++) {
-    const auto marker_id = marker_ids[i];
-    const auto &marker_corner = marker_corners[i];
-    if (marker_id == 0) {
-      for (size_t i = 0; i < 4; i++) {
-        points.push_back(marker_corner[i]);
-        ids.push_back(marker_id * 4 + i);
-      }
-      return true;
-    }
-  }
-
-  return false;
-}
-
 void axis_reconstruction::push_frame(const std::map<std::string, cv::Mat> &frame) {
   std::map<std::string, std::vector<point_data>> points;
 
