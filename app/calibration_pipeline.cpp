@@ -1184,6 +1184,16 @@ class object_map_node : public graph_node {
 CEREAL_REGISTER_TYPE(object_map_node)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, object_map_node)
 
+class sentinel_message : public graph_message {
+ public:
+  sentinel_message() {}
+
+  static std::string get_type() { return "sentinel"; }
+
+  template <typename Archive>
+  void serialize(Archive &archive) {}
+};
+
 class object_mux_node : public graph_node {
   graph_edge_ptr output;
 
@@ -1201,6 +1211,8 @@ class object_mux_node : public graph_node {
         msg->add_field(name, field);
         output->send(msg);
       }
+      auto msg = std::make_shared<sentinel_message>();
+      output->send(msg);
     }
   }
 };
