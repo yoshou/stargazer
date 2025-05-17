@@ -943,6 +943,8 @@ class viewer_app : public window_base {
 
     intrinsic_calib = std::make_unique<intrinsic_calibration_pipeline>();
 
+    intrinsic_calib->run(calibration_config->get_node_infos("static_pipeline"));
+
     window_base::initialize();
   }
 

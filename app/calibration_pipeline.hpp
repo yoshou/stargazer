@@ -49,26 +49,26 @@ class calibration_pipeline {
 };
 
 class intrinsic_calibration_pipeline {
-  std::vector<std::vector<stargazer::point_data>> frames;
-  stargazer::camera_t calibrated_camera;
-  double rms = 0.0;
-  int image_width = 0;
-  int image_height = 0;
+  class impl;
+  std::unique_ptr<impl> pimpl;
 
  public:
-  double get_rms() const { return rms; }
+  intrinsic_calibration_pipeline();
+  virtual ~intrinsic_calibration_pipeline();
 
-  void set_image_size(int width, int height) {
-    image_width = width;
-    image_height = height;
-  }
+  double get_rms() const;
 
-  const stargazer::camera_t &get_calibrated_camera() const { return calibrated_camera; }
+  void set_image_size(int width, int height);
 
-  size_t get_num_frames() const { return frames.size(); }
+  const stargazer::camera_t &get_calibrated_camera() const;
+
+  size_t get_num_frames() const;
 
   void push_frame(const std::vector<stargazer::point_data> &frame);
   void push_frame(const cv::Mat &frame);
+
+  void run(const std::vector<stargazer::node_info> &infos);
+  void stop();
 
   void calibrate();
 };
