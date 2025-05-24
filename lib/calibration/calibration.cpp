@@ -13,8 +13,7 @@
 #include "triangulation.hpp"
 #include "utils.hpp"
 
-using namespace stargazer;
-
+namespace stargazer::calibration {
 void zip_points(const std::vector<observed_points_t> &points1,
                 const std::vector<observed_points_t> &points2,
                 std::vector<std::pair<glm::vec2, glm::vec2>> &corresponding_points) {
@@ -505,3 +504,4 @@ void prepare_bundle_adjustment(const std::vector<std::string> &camera_names,
     }
   }
 }
+}  // namespace stargazer::calibration
