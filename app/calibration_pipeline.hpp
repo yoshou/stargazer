@@ -7,14 +7,10 @@
 #include <random>
 
 #include "bundle_adjust_data.hpp"
+#include "calibration.hpp"
 #include "config.hpp"
 #include "parameters.hpp"
 #include "point_data.hpp"
-
-struct observed_points_t {
-  size_t camera_idx;
-  std::vector<glm::vec2> points;
-};
 
 class calibration_pipeline {
   class impl;

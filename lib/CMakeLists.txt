@@ -97,6 +97,7 @@ add_library(stargazer
     ${CMAKE_CURRENT_LIST_DIR}/reconstruction/correspondance.cpp
     ${CMAKE_CURRENT_LIST_DIR}/reconstruction/reconstruction.cpp
     ${CMAKE_CURRENT_LIST_DIR}/calibration/bundle_adjust_data.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/calibration/calibration.cpp
 )
 
 target_compile_definitions(stargazer
