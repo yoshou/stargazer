@@ -19,6 +19,8 @@
 #include "utils.hpp"
 
 using namespace stargazer;
+using namespace stargazer::calibration;
+using namespace stargazer::reconstruction;
 
 class calibration_target {
  public:
@@ -381,7 +383,7 @@ class calibration_node : public graph_node {
       return;
     }
 
-    stargazer::calibration::bundle_adjust_data ba_data;
+    bundle_adjust_data ba_data;
 
     prepare_bundle_adjustment(camera_names, cameras, observed_frames, ba_data);
 
@@ -941,9 +943,9 @@ static std::vector<size_t> create_random_indices(size_t size) {
 class intrinsic_calibration_node : public graph_node {
   std::shared_ptr<graph_edge> output;
 
-  std::vector<std::vector<stargazer::point_data>> frames;
-  stargazer::camera_t initial_camera;
-  stargazer::camera_t calibrated_camera;
+  std::vector<std::vector<point_data>> frames;
+  camera_t initial_camera;
+  camera_t calibrated_camera;
   double rms = 0.0;
 
  public:
@@ -971,9 +973,9 @@ class intrinsic_calibration_node : public graph_node {
     }
 
     if (auto points_msg = std::dynamic_pointer_cast<float2_list_message>(message)) {
-      std::vector<stargazer::point_data> points;
+      std::vector<point_data> points;
       for (const auto &pt : points_msg->get_data()) {
-        points.push_back(stargazer::point_data{glm::vec2(pt.x, pt.y), 0, 0});
+        points.push_back(point_data{glm::vec2(pt.x, pt.y), 0, 0});
       }
       push_frame(points);
     }
@@ -988,13 +990,13 @@ class intrinsic_calibration_node : public graph_node {
 
   double get_rms() const { return rms; }
 
-  void set_initial_camera(const stargazer::camera_t &camera) { initial_camera = camera; }
+  void set_initial_camera(const camera_t &camera) { initial_camera = camera; }
 
-  const stargazer::camera_t &get_calibrated_camera() const { return calibrated_camera; }
+  const camera_t &get_calibrated_camera() const { return calibrated_camera; }
 
   size_t get_num_frames() const { return frames.size(); }
 
-  void push_frame(const std::vector<stargazer::point_data> &frame) { frames.push_back(frame); }
+  void push_frame(const std::vector<point_data> &frame) { frames.push_back(frame); }
 
   void push_frame(const cv::Mat &frame) {
     std::vector<cv::Point2f> board;
@@ -1141,18 +1143,18 @@ double intrinsic_calibration_pipeline::get_rms() const {
 
 void intrinsic_calibration_pipeline::set_image_size(int width, int height) {
   if (pimpl->calib_node) {
-    stargazer::camera_t initial_camera;
+    camera_t initial_camera;
     initial_camera.width = width;
     initial_camera.height = height;
     pimpl->calib_node->set_initial_camera(initial_camera);
   }
 }
 
-const stargazer::camera_t &intrinsic_calibration_pipeline::get_calibrated_camera() const {
+const camera_t &intrinsic_calibration_pipeline::get_calibrated_camera() const {
   if (pimpl->calib_node) {
     return pimpl->calib_node->get_calibrated_camera();
   }
-  static stargazer::camera_t empty_camera;
+  static camera_t empty_camera;
   return empty_camera;
 }
 
@@ -1163,7 +1165,7 @@ size_t intrinsic_calibration_pipeline::get_num_frames() const {
   return 0;
 }
 
-void intrinsic_calibration_pipeline::push_frame(const std::vector<stargazer::point_data> &frame) {
+void intrinsic_calibration_pipeline::push_frame(const std::vector<point_data> &frame) {
   if (pimpl->calib_node) {
     pimpl->calib_node->push_frame(frame);
   }
@@ -1329,7 +1331,7 @@ void axis_reconstruction::push_frame(const std::map<std::string, cv::Mat> &frame
       pts.push_back(points[name][j].point);
       cams.push_back(camera);
     }
-    const auto marker = stargazer::reconstruction::triangulate(pts, cams);
+    const auto marker = triangulate(pts, cams);
     markers.push_back(marker);
   }
 
@@ -1356,7 +1358,7 @@ void axis_reconstruction::push_frame(const std::map<std::string, cv::Mat> &frame
 }
 
 void axis_reconstruction::push_frame(const std::map<std::string, std::vector<point_data>> &frame) {
-  const auto markers = stargazer::reconstruction::reconstruct(cameras, frame);
+  const auto markers = reconstruct(cameras, frame);
 
   glm::mat4 axis;
   if (markers.size() == 3) {
