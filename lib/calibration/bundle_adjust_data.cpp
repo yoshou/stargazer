@@ -3,6 +3,7 @@
 #include <ceres/ceres.h>
 #include <ceres/rotation.h>
 
+#include <iostream>
 #include <nlohmann/json.hpp>
 
 namespace stargazer::calibration {
@@ -217,5 +218,120 @@ glm::mat4 bundle_adjust_data::get_camera_extrinsic(std::size_t i) {
   }
 
   return mat;
+}
+
+static constexpr auto num_parameters = bundle_adjust_data::num_camera_parameters;
+
+template <bool is_radial_distortion = false>
+struct reprojection_error_functor {
+  reprojection_error_functor(double observed_x, double observed_y)
+      : observed_x(observed_x), observed_y(observed_y) {}
+
+  template <typename T>
+  bool operator()(const T *const camera, const T *const point, T *residuals) const {
+    T p[3];
+    ceres::AngleAxisRotatePoint(camera, point, p);
+
+    p[0] += camera[3];
+    p[1] += camera[4];
+    p[2] += camera[5];
+
+    T xp = p[0] / p[2];
+    T yp = p[1] / p[2];
+
+    T predicted_x;
+    T predicted_y;
+
+    const T &fx = camera[6];
+    const T &fy = camera[7];
+    const T &cx = camera[8];
+    const T &cy = camera[9];
+    const T r2 = xp * xp + yp * yp;
+
+    const T &k1 = camera[10];
+    const T &k2 = camera[11];
+    const T &k3 = camera[12];
+    const T &p1 = camera[13];
+    const T &p2 = camera[14];
+
+    if constexpr (is_radial_distortion) {
+      const T &k4 = camera[15];
+      const T &k5 = camera[16];
+      const T &k6 = camera[17];
+
+      const T distortion =
+          (1.0 + (k1 + (k2 + k3 * r2) * r2) * r2) / (1.0 + (k4 + (k5 + k6 * r2) * r2) * r2);
+
+      predicted_x = fx * (distortion * xp + 2.0 * p1 * xp * yp + p2 * (r2 + 2.0 * xp * xp)) + cx;
+      predicted_y = fy * (distortion * yp + 2.0 * p2 * xp * yp + p1 * (r2 + 2.0 * yp * yp)) + cy;
+    } else {
+      const T distortion = (1.0 + (k1 + (k2 + k3 * r2) * r2) * r2);
+
+      predicted_x = fx * (distortion * xp + 2.0 * p1 * xp * yp + p2 * (r2 + 2.0 * xp * xp)) + cx;
+      predicted_y = fy * (distortion * yp + 2.0 * p2 * xp * yp + p1 * (r2 + 2.0 * yp * yp)) + cy;
+    }
+
+    const T err_x = predicted_x - observed_x;
+    const T err_y = predicted_y - observed_y;
+    residuals[0] = err_x;
+    residuals[1] = err_y;
+
+    return true;
+  }
+
+  static ceres::CostFunction *create(const double observed_x, const double observed_y) {
+    return (new ceres::AutoDiffCostFunction<reprojection_error_functor, 2, num_parameters, 3>(
+        new reprojection_error_functor(observed_x, observed_y)));
+  }
+
+  double observed_x;
+  double observed_y;
+};
+
+void bundle_adjustment(stargazer::calibration::bundle_adjust_data &ba_data, bool only_extrinsic,
+                       bool robust) {
+  const double *observations = ba_data.observations();
+  ceres::Problem problem;
+
+  ceres::SubsetManifold *constant_params_manifold = nullptr;
+  if (only_extrinsic) {
+    std::vector<int> constant_params;
+
+    for (int i = 6; i < num_parameters; i++) {
+      constant_params.push_back(i);
+    }
+
+    constant_params_manifold = new ceres::SubsetManifold(num_parameters, constant_params);
+  }
+
+  for (int i = 0; i < ba_data.num_observations(); ++i) {
+    ceres::LossFunction *loss_function = robust ? new ceres::HuberLoss(1.0) : nullptr;
+
+    ceres::CostFunction *cost_function =
+        reprojection_error_functor<false>::create(observations[2 * i + 0], observations[2 * i + 1]);
+    problem.AddResidualBlock(cost_function, loss_function,
+                             ba_data.mutable_camera_for_observation(i),
+                             ba_data.mutable_point_for_observation(i));
+
+    if (only_extrinsic) {
+      problem.SetManifold(ba_data.mutable_camera_for_observation(i), constant_params_manifold);
+    }
+  }
+
+  std::cout << "Num cameras: " << ba_data.num_cameras() << std::endl;
+  std::cout << "Num points: " << ba_data.num_points() << std::endl;
+  std::cout << "Num Observations: " << ba_data.num_observations() << std::endl;
+
+  ceres::Solver::Options options;
+  options.use_nonmonotonic_steps = true;
+  options.preconditioner_type = ceres::SCHUR_JACOBI;
+  options.linear_solver_type = ceres::DENSE_SCHUR;
+  options.use_inner_iterations = true;
+  options.max_num_iterations = 100;
+  options.minimizer_progress_to_stdout = true;
+
+  ceres::Solver::Summary summary;
+  ceres::Solve(options, &problem, &summary);
+  std::cout << summary.FullReport() << "\n";
 }
 }  // namespace stargazer::calibration

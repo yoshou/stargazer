@@ -7,9 +7,9 @@
 
 namespace stargazer::calibration {
 class bundle_adjust_data {
+ public:
   static constexpr auto num_camera_parameters = 18;
 
- public:
   bundle_adjust_data()
       : num_cameras_(0), num_points_(0), num_observations_(0), num_parameters_(0) {}
 
@@ -88,4 +88,7 @@ class bundle_adjust_data {
   std::vector<double> observations_;
   std::vector<double> parameters_;
 };
+
+void bundle_adjustment(stargazer::calibration::bundle_adjust_data &ba_data, bool only_extrinsic,
+                       bool robust);
 }  // namespace stargazer::calibration
