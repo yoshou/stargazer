@@ -1700,7 +1700,7 @@ class intrinsic_calibration_pipeline::impl {
     const auto callbacks = std::make_shared<callback_list>();
 
     callbacks->add(
-        [this](const callback_node *node, std::string input_name, graph_message_ptr message) {});
+        [](const callback_node *node, std::string input_name, graph_message_ptr message) {});
 
     graph.deploy(g);
     graph.get_resources()->add(callbacks);
