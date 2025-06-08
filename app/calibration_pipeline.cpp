@@ -1462,7 +1462,7 @@ class axis_calibration_node : public graph_node {
           for (const auto &pt : points_msg->get_data()) {
             points.emplace_back(pt.x, pt.y);
           }
-          observed_frames.add_frame_points(points_msg->get_timestamp(), name, points);
+          observed_frames.add_frame_points(points_msg->get_frame_number(), name, points);
         }
       }
     }
