@@ -1195,7 +1195,8 @@ class axis_reconstruction {
 
   static bool compute_axis(glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::mat4 &axis);
 
-  static bool detect_axis(glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::mat4 &axis);
+  static bool detect_axis(glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::mat4 &axis,
+                          float x_axis_length = 0.14f, float y_axis_length = 0.17f);
 
   void push_frame(const std::map<std::string, cv::Mat> &frame);
 
@@ -1237,7 +1238,8 @@ bool axis_reconstruction::compute_axis(glm::vec3 p0, glm::vec3 p1, glm::vec3 p2,
   return true;
 }
 
-bool axis_reconstruction::detect_axis(glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::mat4 &axis) {
+bool axis_reconstruction::detect_axis(glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::mat4 &axis,
+                                      float x_axis_length, float y_axis_length) {
   glm::vec3 origin;
   glm::vec3 e1, e2;
 
@@ -1270,8 +1272,6 @@ bool axis_reconstruction::detect_axis(glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, 
   auto z_axis = glm::cross(x_axis, y_axis);
   z_axis = glm::normalize(z_axis);
 
-  const auto x_axis_length = 0.14f;
-  const auto y_axis_length = 0.17f;
   const auto scale = x_axis_length / glm::length(x_axis);
   if ((std::abs(scale - y_axis_length / glm::length(y_axis)) / scale) > 0.05) {
     return false;
@@ -1372,6 +1372,70 @@ void axis_reconstruction::push_frame(const std::map<std::string, std::vector<poi
       axis = basis * axis;
 
       this->axis = axis;
+
+      return;
+    }
+  }
+
+  {
+    constexpr size_t grid_width = 2;
+    constexpr size_t grid_height = 9;
+    constexpr size_t num_points = grid_width * grid_height;
+
+    std::vector<std::vector<cv::Point2f>> image_points_nview;
+    std::vector<camera_t> cams;
+    for (const auto &[name, camera] : cameras) {
+      std::vector<cv::Point2f> image_points;
+      for (const auto &pt : frame.at(name)) {
+        image_points.push_back(cv::Point2f(pt.point.x, pt.point.y));
+      }
+      if (image_points.size() == num_points) {
+        image_points_nview.push_back(image_points);
+        cams.push_back(camera);
+      }
+    }
+
+    if (cams.size() < 2) {
+      return;
+    }
+
+    std::vector<glm::vec3> markers;
+    for (size_t i = 0; i < num_points; i++) {
+      std::vector<glm::vec2> pts;
+
+      for (size_t j = 0; j < cams.size(); j++) {
+        pts.push_back(glm::vec2(image_points_nview[j][i].x, image_points_nview[j][i].y));
+      }
+
+      const auto marker = triangulate(pts, cams);
+      markers.push_back(marker);
+    }
+
+    const auto grid_size_x = 0.01825f;
+    const auto grid_size_y = 0.01825f;
+    const auto x_axis_length = grid_size_x * 2.0f * (grid_width - 1);
+    const auto y_axis_length = grid_size_y * (grid_height - 1);
+
+    // Points are expected to be in the following order:
+    // 0 1
+    //  2 3
+    // 4 5
+    //  6 7
+    // ...
+
+    if (detect_axis(markers[num_points - grid_width], markers[num_points - 1], markers[0], axis,
+                    x_axis_length, y_axis_length)) {
+      glm::mat4 basis(1.f);
+      basis[0] = glm::vec4(-1.f, 0.f, 0.f, 0.f);
+      basis[1] = glm::vec4(0.f, 0.f, 1.f, 0.f);
+      basis[2] = glm::vec4(0.f, 1.f, 0.f, 0.f);
+
+      // z up -> opengl
+      axis = basis * axis;
+
+      this->axis = axis;
+
+      return;
     }
   }
 }
