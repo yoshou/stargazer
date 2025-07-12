@@ -503,43 +503,6 @@ class callback_node : public graph_node {
 CEREAL_REGISTER_TYPE(callback_node)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, callback_node)
 
-class frame_number_numbering_node : public graph_node {
-  uint64_t frame_number;
-  graph_edge_ptr output;
-
- public:
-  frame_number_numbering_node()
-      : graph_node(), frame_number(0), output(std::make_shared<graph_edge>(this)) {
-    set_output(output);
-  }
-
-  virtual std::string get_proc_name() const override { return "frame_number_numbering_node"; }
-
-  template <typename Archive>
-  void serialize(Archive &archive) {
-    archive(frame_number);
-  }
-
-  virtual void process(std::string input_name, graph_message_ptr message) override {
-    if (auto msg = std::dynamic_pointer_cast<frame_message_base>(message)) {
-      msg->set_frame_number(frame_number++);
-      output->send(msg);
-    }
-    if (auto msg = std::dynamic_pointer_cast<object_message>(message)) {
-      for (const auto &[name, field] : msg->get_fields()) {
-        if (auto frame_msg = std::dynamic_pointer_cast<frame_message_base>(field)) {
-          frame_msg->set_frame_number(frame_number);
-        }
-      }
-      frame_number++;
-      output->send(msg);
-    }
-  }
-};
-
-CEREAL_REGISTER_TYPE(frame_number_numbering_node)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, frame_number_numbering_node)
-
 class object_map_node : public graph_node {
  public:
   object_map_node() : graph_node() {}
