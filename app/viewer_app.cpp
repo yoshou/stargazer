@@ -530,7 +530,9 @@ class viewer_app : public window_base {
                     return false;
                   }
                   const auto &node_info = *found;
-                  device_name_to_id[device.name] = node_info.get_param<std::string>("id");
+                  if (node_info.is_camera()) {
+                    device_name_to_id[device.name] = node_info.get_param<std::string>("id");
+                  }
                 }
 
                 for (const auto &[camera_name, camera] : calib->get_calibrated_cameras()) {
