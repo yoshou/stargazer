@@ -1384,6 +1384,10 @@ class mvpose_matcher {
     }
     dim_group.push_back(points_set.size());
 
+    if (points_set.empty()) {
+      return {};
+    }
+
     const auto affinity_matrix =
         compute_geometry_affinity(points_set, dim_group, cameras_list, factor);
     const auto match_matrix = solve_svt(affinity_matrix, dim_group);
