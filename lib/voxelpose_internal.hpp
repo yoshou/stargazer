@@ -35,8 +35,6 @@ class joint_extractor {
 
   std::unique_ptr<cuda_data> cuda_data_;
 
-  int num_joints;
-
  public:
   joint_extractor(int num_joints = 15);
   ~joint_extractor();

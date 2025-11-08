@@ -23,12 +23,14 @@ using namespace stargazer;
 namespace stargazer::voxelpose {
 class dnn_inference {
  public:
+  virtual ~dnn_inference() = default;
   virtual void inference(const float *input) = 0;
   virtual const float *get_output_data() const = 0;
 };
 
 class dnn_inference_heatmap {
  public:
+  virtual ~dnn_inference_heatmap() = default;
   virtual void process(const std::vector<cv::Mat> &images, std::vector<roi_data> &rois) = 0;
   virtual void inference(size_t num_views) = 0;
   virtual const float *get_heatmaps() const = 0;
