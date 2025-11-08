@@ -6,7 +6,7 @@
 		"dockerfile": "Dockerfile"
 	},
 	"features": {
-		"ghcr.io/devcontainers-contrib/features/bash-command:1": {}
+		"ghcr.io/devcontainers-extra/features/bash-command:1": {}
 	},
 	"containerEnv": {
 		"DISPLAY": ":10.0"
