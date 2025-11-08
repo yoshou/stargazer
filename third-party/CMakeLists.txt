@@ -9,6 +9,7 @@ endif()
 set(GFLAGS_USE_TARGET_NAMESPACE ON)
 
 find_package(OpenCV REQUIRED)
+find_package(Eigen3 CONFIG REQUIRED)
 find_package(Ceres CONFIG REQUIRED)
 find_package(Boost REQUIRED COMPONENTS asio)
 find_package(nlohmann_json CONFIG REQUIRED)

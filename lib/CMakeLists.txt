@@ -1,8 +1,11 @@
 cmake_minimum_required(VERSION 3.18)
 
-enable_language(CUDA)
+set(ENABLE_CUDA ON TRUE CACHE BOOL "Enable CUDA support")
 
-find_package(CUDAToolkit)
+if (ENABLE_CUDA)
+    enable_language(CUDA)
+    find_package(CUDAToolkit)
+endif()
 
 add_library(stargazer_voxelpose SHARED
     ${CMAKE_CURRENT_LIST_DIR}/voxelpose_cuda.cu
@@ -16,29 +19,50 @@ target_include_directories(stargazer_voxelpose
     $<$<BOOL:${ENABLE_ONNXRUNTIME_EXT}>:${ONNXRUNTIME_INCLUDE_DIRS}>
 )
 
-set_target_properties(stargazer_voxelpose PROPERTIES
-    CXX_STANDARD 20
-    LINKER_LANGUAGE CUDA C CXX
-    CUDA_ARCHITECTURES OFF
-    CUDA_RESOLVE_DEVICE_SYMBOLS ON
-    CUDA_SEPARABLE_COMPILATION ON)
-
-target_link_libraries(stargazer_voxelpose
-    glm::glm
-    opencv_imgproc
-    opencv_highgui
-    opencv_features2d
-    opencv_calib3d
-    opencv_dnn
-    $<$<BOOL:${ENABLE_ONNXRUNTIME_EXT}>:${ONNXRUNTIME_LIBS}>
-    $<$<BOOL:${MSVC}>:${CUDAToolkit_LIBRARY_DIR}/cudnn.lib>
-    $<$<NOT:$<BOOL:${MSVC}>>:cudnn>
-    CUDA::cublas
-    CUDA::cudart
-    CUDA::cuda_driver
-    spdlog::spdlog_header_only
-    cereal::cereal
+target_compile_definitions(stargazer_voxelpose
+    PUBLIC
+    $<$<BOOL:${ENABLE_CUDA}>:USE_CUDA>
 )
+
+if (ENABLE_CUDA)
+    set_target_properties(stargazer_voxelpose PROPERTIES
+        CXX_STANDARD 20
+        LINKER_LANGUAGE CUDA C CXX
+        CUDA_ARCHITECTURES OFF
+        CUDA_RESOLVE_DEVICE_SYMBOLS ON
+        CUDA_SEPARABLE_COMPILATION ON)
+
+    target_link_libraries(stargazer_voxelpose
+        glm::glm
+        opencv_imgproc
+        opencv_highgui
+        opencv_features2d
+        opencv_calib3d
+        opencv_dnn
+        $<$<BOOL:${ENABLE_ONNXRUNTIME_EXT}>:${ONNXRUNTIME_LIBS}>
+        $<$<BOOL:${MSVC}>:${CUDAToolkit_LIBRARY_DIR}/cudnn.lib>
+        $<$<NOT:$<BOOL:${MSVC}>>:cudnn>
+        CUDA::cublas
+        CUDA::cudart
+        CUDA::cuda_driver
+        spdlog::spdlog_header_only
+        cereal::cereal
+)
+else()
+    set_target_properties(stargazer_voxelpose PROPERTIES
+        CXX_STANDARD 20)
+
+    target_link_libraries(stargazer_voxelpose
+        glm::glm
+        opencv_imgproc
+        opencv_highgui
+        opencv_features2d
+        opencv_calib3d
+        opencv_dnn
+        spdlog::spdlog_header_only
+        cereal::cereal
+    )
+endif()
 
 add_library(stargazer_preprocess SHARED
     ${CMAKE_CURRENT_LIST_DIR}/preprocess.cu
@@ -49,27 +73,50 @@ target_include_directories(stargazer_preprocess
     $<$<BOOL:${ENABLE_ONNXRUNTIME_EXT}>:${ONNXRUNTIME_INCLUDE_DIRS}>
 )
 
-set_target_properties(stargazer_preprocess PROPERTIES
-    CXX_STANDARD 20
-    LINKER_LANGUAGE CUDA C CXX
-    CUDA_ARCHITECTURES OFF
-    CUDA_RESOLVE_DEVICE_SYMBOLS ON
-    CUDA_SEPARABLE_COMPILATION ON)
-
-target_link_libraries(stargazer_preprocess
-    nvinfer
-    opencv_imgproc
-    opencv_highgui
-    opencv_features2d
-    opencv_calib3d
-    glm::glm
-    unofficial::sqlite3::sqlite3
-    $<$<BOOL:${ENABLE_ONNXRUNTIME_EXT}>:${ONNXRUNTIME_LIBS}>
-    CUDA::cudart
-    CUDA::cuda_driver
-    spdlog::spdlog_header_only
-    cereal::cereal
+target_compile_definitions(stargazer_preprocess
+    PUBLIC
+    $<$<BOOL:${ENABLE_CUDA}>:USE_CUDA>
 )
+
+if (ENABLE_CUDA)
+    set_target_properties(stargazer_preprocess PROPERTIES
+        CXX_STANDARD 20
+        LINKER_LANGUAGE CUDA C CXX
+        CUDA_ARCHITECTURES OFF
+        CUDA_RESOLVE_DEVICE_SYMBOLS ON
+        CUDA_SEPARABLE_COMPILATION ON)
+
+    target_link_libraries(stargazer_preprocess
+        opencv_imgproc
+        opencv_highgui
+        opencv_features2d
+        opencv_calib3d
+        glm::glm
+        unofficial::sqlite3::sqlite3
+        $<$<BOOL:${ENABLE_ONNXRUNTIME_EXT}>:${ONNXRUNTIME_LIBS}>
+        CUDA::cudart
+        CUDA::cuda_driver
+        Eigen3::Eigen
+        spdlog::spdlog_header_only
+        cereal::cereal
+    )
+else()
+    set_target_properties(stargazer_preprocess PROPERTIES
+        CXX_STANDARD 20)
+
+    target_link_libraries(stargazer_preprocess
+        opencv_imgproc
+        opencv_highgui
+        opencv_features2d
+        opencv_calib3d
+        glm::glm
+        unofficial::sqlite3::sqlite3
+        $<$<BOOL:${ENABLE_ONNXRUNTIME_EXT}>:${ONNXRUNTIME_LIBS}>
+        Eigen3::Eigen
+        spdlog::spdlog_header_only
+        cereal::cereal
+    )
+endif()
 
 add_library(stargazer_mvpose
     ${CMAKE_CURRENT_LIST_DIR}/mvpose.cpp
@@ -80,13 +127,28 @@ target_include_directories(stargazer_mvpose
     $<$<BOOL:${ENABLE_ONNXRUNTIME_EXT}>:${ONNXRUNTIME_INCLUDE_DIRS}>
 )
 
-target_link_libraries(stargazer_mvpose
-    glm::glm
-    opencv_imgproc
-    $<$<BOOL:${ENABLE_ONNXRUNTIME_EXT}>:${ONNXRUNTIME_LIBS}>
-    CUDA::cudart
-    CUDA::cuda_driver
+target_compile_definitions(stargazer_mvpose
+    PUBLIC
+    $<$<BOOL:${ENABLE_CUDA}>:USE_CUDA>
 )
+
+if (ENABLE_CUDA)
+    target_link_libraries(stargazer_mvpose
+        glm::glm
+        Eigen3::Eigen
+        opencv_imgproc
+        $<$<BOOL:${ENABLE_ONNXRUNTIME_EXT}>:${ONNXRUNTIME_LIBS}>
+        CUDA::cudart
+        CUDA::cuda_driver
+    )
+else()
+    target_link_libraries(stargazer_mvpose
+        glm::glm
+        Eigen3::Eigen
+        opencv_imgproc
+    )
+endif()
+
 
 set_target_properties(stargazer_mvpose PROPERTIES
     CXX_STANDARD 20)
@@ -115,6 +177,7 @@ target_include_directories(stargazer
 
 target_link_libraries(stargazer
     glm::glm
+    Eigen3::Eigen
     opencv_imgproc
     $<$<NOT:$<BOOL:${MSVC}>>:pthread>
     $<$<NOT:$<BOOL:${MSVC}>>:stdc++fs>

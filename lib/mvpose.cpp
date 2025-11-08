@@ -1,8 +1,5 @@
 #include "mvpose.hpp"
 
-#include <NvInfer.h>
-#include <cuda_runtime.h>
-#include <dlfcn.h>
 #include <spdlog/spdlog.h>
 
 #include <filesystem>
@@ -13,9 +10,19 @@
 #include <opencv2/calib3d/calib3d.hpp>
 #include <opencv2/imgcodecs/imgcodecs.hpp>
 
+#include <Eigen/Core>
+#include <Eigen/Dense>
+
+#include <dlfcn.h>
+
 #include "preprocess.hpp"
 
 using namespace stargazer;
+
+#ifdef USE_CUDA
+
+#include <NvInfer.h>
+#include <cuda_runtime.h>
 
 class Logger : public nvinfer1::ILogger {
  public:
@@ -926,8 +933,84 @@ class dnn_inference_det_trt {
 #else
 #endif
 
-#include <Eigen/Core>
-#include <Eigen/Dense>
+#else
+
+namespace stargazer::mvpose {
+class dnn_inference_pose {
+ public:
+  static const auto num_joints = 133;
+
+  dnn_inference_pose(const std::vector<uint8_t>& model_data, size_t max_batch_size) {}
+
+  ~dnn_inference_pose() {}
+
+  void process(const cv::Mat& image, const cv::Rect2f& rect, roi_data& roi) {}
+
+  void inference() {}
+
+  void copy_simcc_x_to_cpu(float* simcc_x) const {}
+
+  void copy_simcc_y_to_cpu(float* simcc_y) const {}
+
+  const float* get_simcc_x() const { return nullptr; }
+
+  const float* get_simcc_y() const { return nullptr; }
+};
+
+class dnn_inference_pose_trt {
+ public:
+  dnn_inference_pose_trt(const std::vector<uint8_t>& model_data, size_t max_num_people) {}
+
+  ~dnn_inference_pose_trt() {}
+
+  void process(const std::vector<cv::Mat>& images,
+               const std::vector<std::vector<cv::Rect2f>>& rects,
+               std::vector<std::vector<roi_data>>& rois) {}
+
+  void inference(size_t num_batch) {}
+
+  void copy_simcc_x_to_cpu(float* simcc_x, size_t i) const {}
+
+  void copy_simcc_y_to_cpu(float* simcc_y, size_t i) const {}
+};
+
+class dnn_inference_det {
+ public:
+  static constexpr auto num_people = 100;
+
+  dnn_inference_det(const std::vector<uint8_t>& model_data) {}
+
+  ~dnn_inference_det() {}
+
+  void process(const cv::Mat& image, roi_data& roi) {}
+
+  void inference() {}
+
+  void copy_labels_to_cpu(int64_t* labels) const {}
+
+  void copy_dets_to_cpu(float* dets) const {}
+
+  const int64_t* get_labels() const { return nullptr; }
+
+  const float* get_dets() const { return nullptr; }
+};
+
+class dnn_inference_det_trt {
+ public:
+  dnn_inference_det_trt(const std::vector<uint8_t>& model_data, size_t max_views) {}
+
+  ~dnn_inference_det_trt() {}
+
+  void process(const std::vector<cv::Mat>& images, std::vector<roi_data>& rois) {}
+
+  void inference(size_t num_views) {}
+
+  void copy_labels_to_cpu(int64_t* labels, size_t i) const {}
+
+  void copy_dets_to_cpu(float* dets, size_t i) const {}
+};
+}  // namespace stargazer::mvpose
+#endif
 
 namespace stargazer::mvpose {
 static cv::Point2f operator*(cv::Mat M, const cv::Point2f &p) {
@@ -1224,7 +1307,7 @@ class mvpose_matcher {
   */
 
   static Eigen::VectorXf proj2pav(Eigen::VectorXf y) {
-    y = y.array().max(0);
+    y = y.array().max(0.0f);
     Eigen::VectorXf x = Eigen::VectorXf::Zero(y.size());
     if (y.array().sum() < 1) {
       x.array() += y.array();
@@ -1243,7 +1326,7 @@ class mvpose_matcher {
       }
       assert(rho >= 0);
       const auto theta = std::max(0.0f, (sv(rho) - 1) / (rho + 1));
-      x.array() += (y.array() - theta).max(0);
+      x.array() += (y.array() - theta).max(0.0f);
     }
     return x;
   }

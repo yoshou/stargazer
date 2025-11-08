@@ -35,6 +35,11 @@ target_compile_definitions(stargazer_viewer
     $<$<BOOL:${MSVC}>:GLOG_NO_ABBREVIATED_SEVERITIES>
 )
 
+target_link_directories(stargazer_viewer
+    PRIVATE
+    ${VCPKG_ROOT}/installed/x64-linux/lib/
+)
+
 target_link_libraries(stargazer_viewer
     PRIVATE
     stargazer

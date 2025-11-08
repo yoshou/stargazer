@@ -8,7 +8,7 @@
 
 #include "device_launch_parameters.h"
 #include "preprocess.hpp"
-#include "voxelpose_cuda.hpp"
+#include "voxelpose_internal.hpp"
 
 #define CUDA_SAFE_CALL(func)                                                                       \
   do {                                                                                             \
