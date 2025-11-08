@@ -12,34 +12,6 @@ struct float3 {
     return (length() > 0) ? float3{x / length(), y / length(), z / length()} : *this;
   }
 };
-
-inline float3 cross(const float3 &a, const float3 &b) {
-  return {a.y * b.z - b.y * a.z, a.x * b.z - b.x * a.z, a.x * b.y - a.y * b.x};
-}
-
-inline float3 operator*(const float3 &a, float t) { return {a.x * t, a.y * t, a.z * t}; }
-
-inline float3 operator/(const float3 &a, float t) { return {a.x / t, a.y / t, a.z / t}; }
-
-inline float3 operator+(const float3 &a, const float3 &b) {
-  return {a.x + b.x, a.y + b.y, a.z + b.z};
-}
-
-inline float3 operator-(const float3 &a, const float3 &b) {
-  return {a.x - b.x, a.y - b.y, a.z - b.z};
-}
-
-inline float3 lerp(const float3 &a, const float3 &b, float t) { return b * t + a * (1 - t); }
-
-inline float3 lerp(const std::array<float3, 4> &rect, const float2 &p) {
-  auto v1 = lerp(rect[0], rect[1], p.x);
-  auto v2 = lerp(rect[3], rect[2], p.x);
-  return lerp(v1, v2, p.y);
-}
-
-inline float operator*(const float3 &a, const float3 &b) {
-  return a.x * b.x + a.y * b.y + a.z * b.z;
-}
 }  // namespace
 
 struct matrix4 {
@@ -122,57 +94,15 @@ struct textual_icon {
 
 namespace textual_icons {
 // A note to a maintainer - preserve order when adding values to avoid duplicates
-static const textual_icon file_movie{u8"\uf008"};
 static const textual_icon times{u8"\uf00d"};
-static const textual_icon download{u8"\uf019"};
 static const textual_icon refresh{u8"\uf021"};
-static const textual_icon lock{u8"\uf023"};
-static const textual_icon camera{u8"\uf030"};
-static const textual_icon video_camera{u8"\uf03d"};
 static const textual_icon edit{u8"\uf044"};
-static const textual_icon step_backward{u8"\uf048"};
 static const textual_icon play{u8"\uf04b"};
-static const textual_icon pause{u8"\uf04c"};
 static const textual_icon stop{u8"\uf04d"};
-static const textual_icon step_forward{u8"\uf051"};
 static const textual_icon plus_circle{u8"\uf055"};
-static const textual_icon question_mark{u8"\uf059"};
-static const textual_icon info_circle{u8"\uf05a"};
-static const textual_icon fix_up{u8"\uf062"};
-static const textual_icon minus{u8"\uf068"};
-static const textual_icon exclamation_triangle{u8"\uf071"};
-static const textual_icon shopping_cart{u8"\uf07a"};
-static const textual_icon bar_chart{u8"\uf080"};
-static const textual_icon upload{u8"\uf093"};
-static const textual_icon square_o{u8"\uf096"};
-static const textual_icon unlock{u8"\uf09c"};
-static const textual_icon floppy{u8"\uf0c7"};
-static const textual_icon square{u8"\uf0c8"};
-static const textual_icon bars{u8"\uf0c9"};
-static const textual_icon caret_down{u8"\uf0d7"};
-static const textual_icon repeat{u8"\uf0e2"};
 static const textual_icon circle{u8"\uf111"};
-static const textual_icon check_square_o{u8"\uf14a"};
-static const textual_icon cubes{u8"\uf1b3"};
 static const textual_icon toggle_off{u8"\uf204"};
 static const textual_icon toggle_on{u8"\uf205"};
-static const textual_icon connectdevelop{u8"\uf20e"};
-static const textual_icon usb_type{u8"\uf287"};
-static const textual_icon braille{u8"\uf2a1"};
-static const textual_icon window_maximize{u8"\uf2d0"};
-static const textual_icon window_restore{u8"\uf2d2"};
-static const textual_icon grid{u8"\uf1cb"};
-static const textual_icon exit{u8"\uf011"};
-static const textual_icon see_less{u8"\uf070"};
-static const textual_icon dotdotdot{u8"\uf141"};
-static const textual_icon link{u8"\uf08e"};
-static const textual_icon throphy{u8"\uF091"};
-static const textual_icon metadata{u8"\uF0AE"};
-static const textual_icon check{u8"\uF00C"};
-static const textual_icon mail{u8"\uF01C"};
-static const textual_icon cube{u8"\uf1b2"};
-static const textual_icon measure{u8"\uf545"};
-static const textual_icon wifi{u8"\uf1eb"};
 }  // namespace textual_icons
 
 void azimuth_elevation::update(mouse_state mouse) {
@@ -248,7 +178,6 @@ void top_bar_view::render(view_context *context) {
 
   {
     ImGui::SetCursorPosX(button_width);
-    auto pos1 = ImGui::GetCursorScreenPos();
 
     ImGui::PushStyleColor(ImGuiCol_Text,
                           (view_mode != Mode::Calibration) ? light_grey : light_blue);
@@ -265,7 +194,6 @@ void top_bar_view::render(view_context *context) {
 
   {
     ImGui::SetCursorPosX(button_width * 2);
-    auto pos1 = ImGui::GetCursorScreenPos();
 
     ImGui::PushStyleColor(ImGuiCol_Text,
                           (view_mode != Mode::Reconstruction) ? light_grey : light_blue);
@@ -480,9 +408,6 @@ void capture_panel_view::draw_controls(view_context *context, float panel_height
 
     ImGui::SetCursorPos({0, pos.y + info_control_panel_height});
     ImGui::PopStyleColor(2);
-
-    auto sensor_top_y = ImGui::GetCursorPosY();
-    // ImGui::SetContentRegionWidth(windows_width - 36);
 
     ImGui::PushStyleColor(ImGuiCol_HeaderHovered, sensor_bg);
     ImGui::PushStyleColor(ImGuiCol_Text, light_grey);
@@ -810,7 +735,6 @@ float capture_panel_view::draw_control_panel(view_context *context) {
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0, 0, 0, 0));
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0, 0, 0, 0));
-    const ImVec2 device_panel_icons_text_size = {icons_width, 5};
 
     ImGui::PushStyleColor(ImGuiCol_Text, play_button_color);
     ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, play_button_color);
@@ -923,7 +847,6 @@ float calibration_panel_view::draw_control_panel(view_context *context) {
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0, 0, 0, 0));
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0, 0, 0, 0));
-    const ImVec2 device_panel_icons_text_size = {icons_width, 5};
 
     ImGui::PushStyleColor(ImGuiCol_Text, play_button_color);
     ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, play_button_color);
@@ -958,9 +881,6 @@ void calibration_panel_view::draw_extrinsic_calibration_control_panel(view_conte
   {
     auto pos = ImGui::GetCursorPos();
     auto windows_width = ImGui::GetContentRegionMax().x;
-
-    auto sensor_top_y = ImGui::GetCursorPosY();
-    // ImGui::SetContentRegionWidth(windows_width - 36);
 
     ImGui::PushStyleColor(ImGuiCol_HeaderHovered, sensor_bg);
     ImGui::PushStyleColor(ImGuiCol_Text, light_grey);
@@ -1027,20 +947,15 @@ void calibration_panel_view::draw_extrinsic_calibration_control_panel(view_conte
       // if (show_depth_only) flags = ImGuiTreeNodeFlags_DefaultOpen;
       if (ImGui::TreeNodeEx(label.c_str(), flags | ImGuiTreeNodeFlags_FramePadding)) {
         for (auto &device : devices) {
-          ImVec2 initial_screen_pos = ImGui::GetCursorScreenPos();
-
           auto pos = ImGui::GetCursorPos();
           auto windows_width = ImGui::GetContentRegionMax().x;
-
-          auto sensor_top_y = ImGui::GetCursorPosY();
-          // ImGui::SetContentRegionWidth(windows_width - 36);
 
           ImGui::PopStyleVar();
           ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{2, 2});
 
           // draw streaming
           {
-            draw_later.push_back([pos, windows_width, this, context, &device]() {
+            draw_later.push_back([pos, windows_width, context, &device]() {
               const auto id = device.name;
 
               ImGui::SetCursorPos({windows_width - 35, pos.y + 3});
@@ -1074,7 +989,7 @@ void calibration_panel_view::draw_extrinsic_calibration_control_panel(view_conte
               }
             });
 
-            ImGui::Text(device.name.c_str());
+            ImGui::Text("%s", device.name.c_str());
 
             ImGui::SameLine();
             ImGui::SetCursorPosX(220);
@@ -1085,7 +1000,7 @@ void calibration_panel_view::draw_extrinsic_calibration_control_panel(view_conte
             ImGui::GetWindowDrawList()->AddRectFilled({200, screen_pos.y}, {300, screen_pos.y + 20},
                                                       c);
 
-            ImGui::Text(std::to_string(device.num_points).c_str());
+            ImGui::Text("%s", std::to_string(device.num_points).c_str());
 
             ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 2);
           }
@@ -1141,11 +1056,6 @@ void calibration_panel_view::draw_intrinsic_calibration_control_panel(view_conte
   {
     auto &device = devices[intrinsic_calibration_device_index];
 
-    auto pos = ImGui::GetCursorPos();
-    auto windows_width = ImGui::GetContentRegionMax().x;
-
-    auto sensor_top_y = ImGui::GetCursorPosY();
-
     ImGui::PushStyleColor(ImGuiCol_HeaderHovered, sensor_bg);
     ImGui::PushStyleColor(ImGuiCol_Text, light_grey);
     ImGui::PushFont(context->large_font);
@@ -1163,13 +1073,8 @@ void calibration_panel_view::draw_intrinsic_calibration_control_panel(view_conte
       ImGui::PushStyleVar(ImGuiStyleVar_ItemInnerSpacing, {0, 0});
 
       {
-        ImVec2 initial_screen_pos = ImGui::GetCursorScreenPos();
-
         auto pos = ImGui::GetCursorPos();
         auto windows_width = ImGui::GetContentRegionMax().x;
-
-        auto sensor_top_y = ImGui::GetCursorPosY();
-        // ImGui::SetContentRegionWidth(windows_width - 36);
 
         ImGui::PopStyleVar();
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{2, 2});
@@ -1224,7 +1129,7 @@ void calibration_panel_view::draw_intrinsic_calibration_control_panel(view_conte
             ImGui::GetWindowDrawList()->AddRectFilled({200, screen_pos.y}, {300, screen_pos.y + 20},
                                                       c);
 
-            ImGui::Text(std::to_string(device.num_points).c_str());
+            ImGui::Text("%s", std::to_string(device.num_points).c_str());
 
             ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 2);
           }
@@ -1232,7 +1137,7 @@ void calibration_panel_view::draw_intrinsic_calibration_control_panel(view_conte
           const auto draw_param = [&](const std::string &name, float value) {
             ImGui::SetCursorPosX(20);
 
-            ImGui::Text(name.c_str());
+            ImGui::Text("%s", name.c_str());
 
             ImGui::SameLine();
             ImGui::SetCursorPosX(220);
@@ -1243,7 +1148,7 @@ void calibration_panel_view::draw_intrinsic_calibration_control_panel(view_conte
             ImGui::GetWindowDrawList()->AddRectFilled({200, screen_pos.y}, {300, screen_pos.y + 20},
                                                       c);
 
-            ImGui::Text(fmt::format("{:6.3f}", value).c_str());
+            ImGui::Text("%s", fmt::format("{:6.3f}", value).c_str());
 
             ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 2);
           };
@@ -1277,12 +1182,6 @@ void calibration_panel_view::draw_intrinsic_calibration_control_panel(view_conte
 
 void calibration_panel_view::draw_controls(view_context *context, float panel_height) {
   const auto panel_width = 350;
-  auto header_h = panel_height;
-  const ImColor device_header_background_color = title_color;
-  const float left_space = 3.f;
-  const float upper_space = 3.f;
-
-  header_h += 32;
 
   // draw controls
   {
@@ -1434,7 +1333,6 @@ float reconstruction_panel_view::draw_control_panel(view_context *context) {
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0, 0, 0, 0));
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0, 0, 0, 0));
-    const ImVec2 device_panel_icons_text_size = {icons_width, 5};
 
     ImGui::PushStyleColor(ImGuiCol_Text, play_button_color);
     ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, play_button_color);
@@ -1461,13 +1359,6 @@ void reconstruction_panel_view::draw_controls(view_context *context, float panel
   std::vector<std::function<void()>> draw_later;
 
   auto panel_width = 350;
-  auto header_h = panel_height;
-  ImColor device_header_background_color = title_color;
-  const float left_space = 3.f;
-  const float upper_space = 3.f;
-
-  // if (is_ip_device)
-  header_h += 32;
 
   // draw controls
   {
@@ -1482,12 +1373,6 @@ void reconstruction_panel_view::draw_controls(view_context *context, float panel
   }
 
   {
-    auto pos = ImGui::GetCursorPos();
-    auto windows_width = ImGui::GetContentRegionMax().x;
-
-    auto sensor_top_y = ImGui::GetCursorPosY();
-    // ImGui::SetContentRegionWidth(windows_width - 36);
-
     ImGui::PushStyleColor(ImGuiCol_HeaderHovered, sensor_bg);
     ImGui::PushStyleColor(ImGuiCol_Text, light_grey);
     ImGui::PushFont(context->large_font);
@@ -1857,7 +1742,6 @@ void image_tile_view::render(view_context *context) {
     auto &&view_rect = kvp.second;
     auto stream = kvp.first;
     auto &&stream_mv = streams[stream];
-    auto &&stream_size = stream_mv->size;
 
     draw_stream_header(context, view_rect);
 
