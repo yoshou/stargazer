@@ -1,6 +1,5 @@
 #include "voxelpose.hpp"
 
-#include <cuda_runtime.h>
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
@@ -17,19 +16,9 @@
 #include "graph_proc_img.h"
 #include "graph_proc_tensor.h"
 #include "preprocess.hpp"
-#include "voxelpose_cuda.hpp"
+#include "voxelpose_internal.hpp"
 
 using namespace stargazer;
-
-#define CUDA_SAFE_CALL(func)                                                                       \
-  do {                                                                                             \
-    cudaError_t err = (func);                                                                      \
-    if (err != cudaSuccess) {                                                                      \
-      fprintf(stderr, "[Error] %s (error code: %d) at %s line %d\n", cudaGetErrorString(err), err, \
-              __FILE__, __LINE__);                                                                 \
-      exit(err);                                                                                   \
-    }                                                                                              \
-  } while (0)
 
 namespace stargazer::voxelpose {
 class dnn_inference {
@@ -47,6 +36,20 @@ class dnn_inference_heatmap {
   virtual int get_heatmap_height() const = 0;
 };
 }  // namespace stargazer::voxelpose
+
+#ifdef USE_CUDA
+
+#include <cuda_runtime.h>
+
+#define CUDA_SAFE_CALL(func)                                                                       \
+  do {                                                                                             \
+    cudaError_t err = (func);                                                                      \
+    if (err != cudaSuccess) {                                                                      \
+      fprintf(stderr, "[Error] %s (error code: %d) at %s line %d\n", cudaGetErrorString(err), err, \
+              __FILE__, __LINE__);                                                                 \
+      exit(err);                                                                                   \
+    }                                                                                              \
+  } while (0)
 
 #define ENABLE_ONNXRUNTIME
 
@@ -590,6 +593,50 @@ class cv_dnn_inference_heatmap : public dnn_inference_heatmap {
 };
 }  // namespace stargazer::voxelpose
 
+#else
+
+namespace stargazer::voxelpose {
+class ort_dnn_inference : public dnn_inference {
+ public:
+  ort_dnn_inference(const std::vector<uint8_t>& model_data) {}
+  void inference(const float* input) {}
+  const float* get_output_data() const { return nullptr; }
+};
+
+class ort_dnn_inference_heatmap : public dnn_inference_heatmap {
+ public:
+  ort_dnn_inference_heatmap(const std::vector<uint8_t>& model_data, size_t max_views) {}
+  ~ort_dnn_inference_heatmap() {}
+  void process(const std::vector<cv::Mat>& images, std::vector<roi_data>& rois) {}
+  void inference(size_t num_views) {}
+  const float* get_heatmaps() const { return nullptr; }
+  int get_heatmap_width() const { return 0; }
+  int get_heatmap_height() const { return 0; }
+};
+}  // namespace stargazer::voxelpose
+
+namespace stargazer::voxelpose {
+class cv_dnn_inference : public dnn_inference {
+ public:
+  cv_dnn_inference(const std::vector<uint8_t>& model_data) {}
+  void inference(const float* input) {}
+  const float* get_output_data() const { return nullptr; }
+};
+
+class cv_dnn_inference_heatmap : public dnn_inference_heatmap {
+ public:
+  cv_dnn_inference_heatmap(const std::vector<uint8_t>& model_data, size_t max_views) {}
+  ~cv_dnn_inference_heatmap() {}
+  void process(const std::vector<cv::Mat>& images, std::vector<roi_data>& rois) {}
+  void inference(size_t num_views) {}
+  const float* get_heatmaps() const { return nullptr; }
+  int get_heatmap_width() const { return 0; }
+  int get_heatmap_height() const { return 0; }
+};
+}  // namespace stargazer::voxelpose
+
+#endif
+
 namespace stargazer::voxelpose {
 class get_proposal {
   uint32_t max_num;
@@ -769,8 +816,10 @@ std::vector<glm::vec3> voxelpose::inference(const std::vector<cv::Mat> &images_l
   inference_proposal->inference(global_proj->get_cubes());
 
   coalsack::tensor<float, 5> proposal({20, 80, 80, 1, 1});
+#ifdef USE_CUDA
   CUDA_SAFE_CALL(cudaMemcpy(proposal.get_data(), inference_proposal->get_output_data(),
                             proposal.get_size() * sizeof(float), cudaMemcpyDeviceToHost));
+#endif
 
   prop->set_max_num(10);
   prop->set_threshold(0.3f);
@@ -806,8 +855,10 @@ std::vector<glm::vec3> voxelpose::inference(const std::vector<cv::Mat> &images_l
 
       std::vector<glm::vec3> joints(15);
 
+#ifdef USE_CUDA
       CUDA_SAFE_CALL(cudaMemcpy(&joints[0][0], joint_extract->get_joints(), 3 * 15 * sizeof(float),
                                 cudaMemcpyDeviceToHost));
+#endif
 
       glm::mat4 basis(1.f);
       basis[0] = glm::vec4(1.f, 0.f, 0.f, 0.f);
@@ -826,12 +877,37 @@ std::vector<glm::vec3> voxelpose::inference(const std::vector<cv::Mat> &images_l
 const float *voxelpose::get_heatmaps() const { return inference_heatmap->get_heatmaps(); }
 
 void voxelpose::copy_heatmap_to(size_t num_views, float *data) const {
+#ifdef USE_CUDA
   const auto heatmap_size =
       get_heatmap_width() * get_heatmap_height() * get_num_joints() * num_views;
   CUDA_SAFE_CALL(
       cudaMemcpy(data, get_heatmaps(), heatmap_size * sizeof(float), cudaMemcpyDeviceToHost));
+#endif
 }
 uint32_t voxelpose::get_heatmap_width() const { return inference_heatmap->get_heatmap_width(); }
 uint32_t voxelpose::get_heatmap_height() const { return inference_heatmap->get_heatmap_height(); }
 uint32_t voxelpose::get_num_joints() const { return 15; }
 }  // namespace stargazer::voxelpose
+
+#ifndef USE_CUDA
+namespace stargazer::voxelpose {
+struct voxel_projector::cuda_data {};
+voxel_projector::voxel_projector() {}
+voxel_projector::~voxel_projector() {}
+void voxel_projector::get_voxel(const float* heatmaps, int num_cameras, int heatmap_width,
+                                int heatmap_height, const std::vector<camera_data>& cameras,
+                                const std::vector<roi_data>& rois,
+                                const std::array<float, 3>& grid_center) {}
+const float* voxel_projector::get_cubes() const { return nullptr; }
+
+struct joint_extractor::cuda_data {};
+
+joint_extractor::joint_extractor(int num_joints) {}
+joint_extractor::~joint_extractor() {}
+void joint_extractor::soft_argmax(const float* src_data, float beta,
+                                  const std::array<float, 3>& grid_size,
+                                  const std::array<int32_t, 3>& cube_size,
+                                  const std::array<float, 3>& grid_center) {}
+const float* joint_extractor::get_joints() const { return nullptr; }
+}  // namespace stargazer::voxelpose
+#endif
