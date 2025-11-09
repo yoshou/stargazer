@@ -1099,7 +1099,7 @@ class load_blob_node : public graph_node {
       : graph_node(),
         stream(stream_type::COLOR),
         format(stream_format::BGR8),
-        fps(90),
+        fps(30),
         timestamps(),
         output(std::make_shared<graph_edge>(this)),
         start_timestamp(0) {
@@ -1260,7 +1260,7 @@ class load_marker_node : public graph_node {
       : graph_node(),
         stream(stream_type::ANY),
         format(stream_format::ANY),
-        fps(90),
+        fps(30),
         output(std::make_shared<graph_edge>(this)),
         start_timestamp(0) {
     set_output(output);
@@ -1579,7 +1579,7 @@ static void genenerate_common_nodes(
       cluster = std::make_unique<remote_cluster_rs_d435_color>(fps);
       clusters.emplace_back(cluster);
     } else if (node_infos[i].get_type() == node_type::raspi_playback) {
-      constexpr int fps = 90;
+      constexpr int fps = 30;
       sync_fps = std::min(sync_fps, fps);
       clusters.push_back(nullptr);
     } else if (node_infos[i].get_type() == node_type::panoptic) {
