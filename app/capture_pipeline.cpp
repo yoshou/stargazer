@@ -91,6 +91,8 @@ class remote_cluster_raspi : public remote_cluster {
       n13->set_input(n12->get_output(), "ref");
       n13->set_gain(0.1);
       n13->set_interval(1000.0 / fps);
+      n13->set_max_interval(1000.0 / (fps - 10));
+      n13->set_min_interval(1000.0 / (fps + 10));
       g->add_node(n13);
     }
 
@@ -235,6 +237,8 @@ class remote_cluster_raspi_color_v2 : public remote_cluster {
       n13->set_input(n12->get_output(), "ref");
       n13->set_gain(0.1);
       n13->set_interval(1000.0 / fps);
+      n13->set_max_interval(1000.0 / (fps - 10));
+      n13->set_min_interval(1000.0 / (fps + 10));
       g->add_node(n13);
     }
 
@@ -293,7 +297,7 @@ class remote_cluster_raspi_color_v3 : public remote_cluster {
   explicit remote_cluster_raspi_color_v3(int fps, bool is_master = false) {
     constexpr bool with_image = true;
     constexpr bool with_marker = true;
-    constexpr bool use_feedback = false;
+    constexpr bool use_feedback = true;
 
     g.reset(new subgraph());
 
@@ -344,8 +348,10 @@ class remote_cluster_raspi_color_v3 : public remote_cluster {
 
         n13->set_input(n11->get_output());
         n13->set_input(n12->get_output(), "ref");
-        n13->set_gain(0.1);
+        n13->set_gain(0.05);
         n13->set_interval(1000.0 / fps);
+        n13->set_max_interval(1000.0 / (fps - 10));
+        n13->set_min_interval(1000.0 / (fps + 10));
         g->add_node(n13);
       }
     }
