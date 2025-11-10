@@ -890,26 +890,3 @@ uint32_t voxelpose::get_heatmap_width() const { return inference_heatmap->get_he
 uint32_t voxelpose::get_heatmap_height() const { return inference_heatmap->get_heatmap_height(); }
 uint32_t voxelpose::get_num_joints() const { return 15; }
 }  // namespace stargazer::voxelpose
-
-#ifndef USE_CUDA
-namespace stargazer::voxelpose {
-struct voxel_projector::cuda_data {};
-voxel_projector::voxel_projector() {}
-voxel_projector::~voxel_projector() {}
-void voxel_projector::get_voxel(const float* heatmaps, int num_cameras, int heatmap_width,
-                                int heatmap_height, const std::vector<camera_data>& cameras,
-                                const std::vector<roi_data>& rois,
-                                const std::array<float, 3>& grid_center) {}
-const float* voxel_projector::get_cubes() const { return nullptr; }
-
-struct joint_extractor::cuda_data {};
-
-joint_extractor::joint_extractor(int num_joints) {}
-joint_extractor::~joint_extractor() {}
-void joint_extractor::soft_argmax(const float* src_data, float beta,
-                                  const std::array<float, 3>& grid_size,
-                                  const std::array<int32_t, 3>& cube_size,
-                                  const std::array<float, 3>& grid_center) {}
-const float* joint_extractor::get_joints() const { return nullptr; }
-}  // namespace stargazer::voxelpose
-#endif

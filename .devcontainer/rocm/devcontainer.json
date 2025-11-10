@@ -7,13 +7,16 @@
 	},
 
 	"runArgs": [
-		"--privileged",
 		"--ipc=host",
 		"--network=host",
 		"--device=/dev/kfd",
 		"--device=/dev/dri",
 		"--security-opt",
-		"seccomp=unconfined"
+		"seccomp=unconfined",
+		"--group-add",
+		"video",
+		"--group-add",
+		"110"
 	],
 
 	"appPort": [
