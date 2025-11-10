@@ -5,10 +5,18 @@ set(ENABLE_CUDA ON TRUE CACHE BOOL "Enable CUDA support")
 if (ENABLE_CUDA)
     enable_language(CUDA)
     find_package(CUDAToolkit)
+else()
+    set(CMAKE_PREFIX_PATH /opt/rocm)
+
+    enable_language(HIP)
+    find_package(hip REQUIRED)
+    find_package(hipblas REQUIRED)
+    find_package(miopen REQUIRED)
 endif()
 
 add_library(stargazer_voxelpose SHARED
-    ${CMAKE_CURRENT_LIST_DIR}/voxelpose_cuda.cu
+    $<$<BOOL:${ENABLE_CUDA}>:${CMAKE_CURRENT_LIST_DIR}/voxelpose_cuda.cudas>
+    $<$<NOT:$<BOOL:${ENABLE_CUDA}>>:${CMAKE_CURRENT_LIST_DIR}/voxelpose_hip.hip>
     ${CMAKE_CURRENT_LIST_DIR}/voxelpose.cpp
 )
 
@@ -50,7 +58,8 @@ if (ENABLE_CUDA)
 )
 else()
     set_target_properties(stargazer_voxelpose PROPERTIES
-        CXX_STANDARD 20)
+        CXX_STANDARD 20
+        LINKER_LANGUAGE HIP C CXX)
 
     target_link_libraries(stargazer_voxelpose
         glm::glm
@@ -59,6 +68,9 @@ else()
         opencv_features2d
         opencv_calib3d
         opencv_dnn
+        hip
+        roc::hipblas
+        MIOpen
         spdlog::spdlog_header_only
         cereal::cereal
     )
