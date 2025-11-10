@@ -65,7 +65,7 @@ class ort_dnn_inference : public dnn_inference {
   Ort::Env env{ORT_LOGGING_LEVEL_WARNING};
   Ort::Session session;
   Ort::IoBinding io_binding;
-  Ort::MemoryInfo info_cuda{"Cuda", OrtDeviceAllocator, 0, OrtMemTypeDefault};
+  Ort::MemoryInfo device_mem_info{"Cuda", OrtDeviceAllocator, 0, OrtMemTypeDefault};
 
   float *input_data = nullptr;
   float *output_data = nullptr;
@@ -180,7 +180,7 @@ class ort_dnn_inference : public dnn_inference {
       CUDA_SAFE_CALL(
           cudaMemcpy(input_data, input, input_size * sizeof(float), cudaMemcpyDeviceToDevice));
 
-      Ort::Value input_tensor = Ort::Value::CreateTensor<float>(info_cuda, input_data, input_size,
+      Ort::Value input_tensor = Ort::Value::CreateTensor<float>(device_mem_info, input_data, input_size,
                                                                 dims.data(), dims.size());
 
       io_binding.BindInput(input_node_names[0], input_tensor);
@@ -195,7 +195,7 @@ class ort_dnn_inference : public dnn_inference {
           std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<int64_t>());
 
       Ort::Value output_tensor =
-          Ort::Value::CreateTensor(info_cuda, output_data, output_size, dims.data(), dims.size());
+          Ort::Value::CreateTensor(device_mem_info, output_data, output_size, dims.data(), dims.size());
 
       io_binding.BindOutput(output_node_names[0], output_tensor);
 
@@ -218,7 +218,7 @@ class ort_dnn_inference_heatmap : public dnn_inference_heatmap {
   Ort::Env env{ORT_LOGGING_LEVEL_WARNING};
   Ort::Session session;
   Ort::IoBinding io_binding;
-  Ort::MemoryInfo info_cuda{"Cuda", OrtDeviceAllocator, 0, OrtMemTypeDefault};
+  Ort::MemoryInfo device_mem_info{"Cuda", OrtDeviceAllocator, 0, OrtMemTypeDefault};
 
   float *input_data = nullptr;
   float *output_data = nullptr;
@@ -388,7 +388,7 @@ class ort_dnn_inference_heatmap : public dnn_inference_heatmap {
       const auto input_size =
           std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<int64_t>());
 
-      Ort::Value input_tensor = Ort::Value::CreateTensor<float>(info_cuda, input_data, input_size,
+      Ort::Value input_tensor = Ort::Value::CreateTensor<float>(device_mem_info, input_data, input_size,
                                                                 dims.data(), dims.size());
 
       io_binding.BindInput(input_node_names[0], input_tensor);
@@ -404,7 +404,7 @@ class ort_dnn_inference_heatmap : public dnn_inference_heatmap {
           std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<int64_t>());
 
       Ort::Value output_tensor =
-          Ort::Value::CreateTensor(info_cuda, output_data, output_size, dims.data(), dims.size());
+          Ort::Value::CreateTensor(device_mem_info, output_data, output_size, dims.data(), dims.size());
 
       io_binding.BindOutput(output_node_names[0], output_tensor);
 
@@ -427,9 +427,56 @@ class ort_dnn_inference_heatmap : public dnn_inference_heatmap {
 }  // namespace stargazer::voxelpose
 #endif
 
+#else
+
 #include <opencv2/dnn/dnn.hpp>
 
 namespace stargazer::voxelpose {
+#ifdef USE_CUDA
+template <typename T>
+static void malloc_device(T **device_ptr, size_t size) {
+  CUDA_SAFE_CALL(cudaMalloc(device_ptr, size * sizeof(T)));
+}
+static void free_device(void *device_ptr) {
+  CUDA_SAFE_CALL(cudaFree(device_ptr));
+}
+static void memcpy_dtoh(void *dst, const void *src, size_t size) {
+  CUDA_SAFE_CALL(cudaMemcpy(dst, src, size, cudaMemcpyDeviceToHost));
+}
+static void memcpy_htod(void *dst, const void *src, size_t size) {
+  CUDA_SAFE_CALL(cudaMemcpy(dst, src, size, cudaMemcpyHostToDevice));
+}
+static void memcpy2d_htod(void *dst, size_t dpitch, const void *src, size_t spitch,
+                           size_t width, size_t height) {
+  CUDA_SAFE_CALL(cudaMemcpy2D(dst, dpitch, src, spitch, width, height, cudaMemcpyHostToDevice));
+}
+static void synchronize_device() {
+  CUDA_SAFE_CALL(cudaDeviceSynchronize());
+}
+#else
+template <typename T>
+static void malloc_device(T **device_ptr, size_t size) {
+  *device_ptr = new T[size];
+}
+static void free_device(void *device_ptr) {
+  delete[] static_cast<float *>(device_ptr);
+}
+static void memcpy_dtoh(void *dst, const void *src, size_t size) {
+  std::memcpy(dst, src, size);
+}
+static void memcpy_htod(void *dst, const void *src, size_t size) {
+  std::memcpy(dst, src, size);
+}
+static void memcpy2d_htod(void *dst, size_t dpitch, const void *src, size_t spitch,
+                           size_t width, size_t height) {
+  for (size_t i = 0; i < height; i++) {
+    std::memcpy(static_cast<uint8_t *>(dst) + i * dpitch,
+                static_cast<const uint8_t *>(src) + i * spitch, width);
+  }
+}
+static void synchronize_device() {}
+#endif
+  
 class cv_dnn_inference : public dnn_inference {
   cv::dnn::Net net;
 
@@ -461,7 +508,7 @@ class cv_dnn_inference : public dnn_inference {
     const auto output_size =
         std::accumulate(output_layer_shapes[0].begin(), output_layer_shapes[0].end(), 1,
                         std::multiplies<int64_t>());
-    CUDA_SAFE_CALL(cudaMalloc(&output_data, output_size * sizeof(float)));
+    malloc_device(&output_data, output_size);
   }
 
   void inference(const float *input) {
@@ -472,14 +519,13 @@ class cv_dnn_inference : public dnn_inference {
     assert(input_layer_shapes.size() == 1);
     assert(output_layer_shapes.size() == 1);
 
-    CUDA_SAFE_CALL(cudaMemcpy(input_data.data(), input, input_data.size(), cudaMemcpyDeviceToHost));
+    memcpy_dtoh(input_data.data(), input, input_data.size() * sizeof(float));
 
     cv::Mat input_mat(input_layer_shapes[0], CV_32FC1, (void *)input_data.data());
     net.setInput(input_mat);
     const auto output_mat = net.forward();
 
-    CUDA_SAFE_CALL(cudaMemcpy(output_data, output_mat.data, output_mat.total() * sizeof(float),
-                              cudaMemcpyHostToDevice));
+    memcpy_htod(output_data, output_mat.data, output_mat.total() * sizeof(float));
   }
 
   const float *get_output_data() const { return output_data; }
@@ -512,14 +558,13 @@ class cv_dnn_inference_heatmap : public dnn_inference_heatmap {
     net = cv::dnn::readNetFromONNX(model_data);
 
     const auto input_size = 960 * 512 * 3 * max_views;
-    CUDA_SAFE_CALL(cudaMalloc(&input_data, input_size * sizeof(float)));
+    malloc_device(&input_data, input_size);
     input_data_cpu.resize(input_size);
 
     const auto output_size = 240 * 128 * 15 * max_views;
-    CUDA_SAFE_CALL(cudaMalloc(&output_data, output_size * sizeof(float)));
+    malloc_device(&output_data, output_size);
 
-    CUDA_SAFE_CALL(cudaMalloc(&input_image_data,
-                              max_input_image_width * max_input_image_height * 3 * max_views));
+    malloc_device(&input_image_data, max_input_image_width * max_input_image_height * 3 * max_views);
   }
 
   ~cv_dnn_inference_heatmap() {}
@@ -559,23 +604,24 @@ class cv_dnn_inference_heatmap : public dnn_inference_heatmap {
       const std::array<float, 3> mean = {0.485, 0.456, 0.406};
       const std::array<float, 3> std = {0.229, 0.224, 0.225};
 
-      CUDA_SAFE_CALL(cudaMemcpy2D(input_image_data + i * input_image_width * 3 * input_image_height,
-                                  input_image_width * 3, data.data, data.step, data.cols * 3,
-                                  data.rows, cudaMemcpyHostToDevice));
+      memcpy2d_htod(input_image_data + i * input_image_width * 3 * input_image_height,
+                    input_image_width * 3,
+                    data.data, data.step,
+                    data.cols * 3, data.rows);
 
       preprocess_cuda(input_image_data + i * input_image_width * 3 * input_image_height,
                       input_image_width, input_image_height, input_image_width * 3,
                       input_data + i * 960 * 512 * 3, 960, 512, 960, mean, std);
     }
 
-    CUDA_SAFE_CALL(cudaDeviceSynchronize());
+    synchronize_device();
 
     inference(images.size());
   }
 
   void inference(size_t num_views) {
-    CUDA_SAFE_CALL(cudaMemcpy(input_data_cpu.data(), input_data, num_views * 960 * 512 * 3,
-                              cudaMemcpyDeviceToHost));
+    memcpy_dtoh(input_data_cpu.data(), input_data,
+                   num_views * 960 * 512 * 3 * sizeof(float));
 
     const cv::dnn::MatShape input_shape = {static_cast<int>(num_views), 3, 512, 960};
 
@@ -583,8 +629,7 @@ class cv_dnn_inference_heatmap : public dnn_inference_heatmap {
     net.setInput(input_mat);
     const auto output_mat = net.forward();
 
-    CUDA_SAFE_CALL(cudaMemcpy(output_data, output_mat.data, output_mat.total() * sizeof(float),
-                              cudaMemcpyHostToDevice));
+    memcpy_htod(output_data, output_mat.data, output_mat.total() * sizeof(float));
   }
 
   const float *get_heatmaps() const { return output_data; }
@@ -594,8 +639,6 @@ class cv_dnn_inference_heatmap : public dnn_inference_heatmap {
   int get_heatmap_height() const { return 128; }
 };
 }  // namespace stargazer::voxelpose
-
-#else
 
 namespace stargazer::voxelpose {
 class ort_dnn_inference : public dnn_inference {
@@ -609,26 +652,6 @@ class ort_dnn_inference_heatmap : public dnn_inference_heatmap {
  public:
   ort_dnn_inference_heatmap(const std::vector<uint8_t>& model_data, size_t max_views) {}
   ~ort_dnn_inference_heatmap() {}
-  void process(const std::vector<cv::Mat>& images, std::vector<roi_data>& rois) {}
-  void inference(size_t num_views) {}
-  const float* get_heatmaps() const { return nullptr; }
-  int get_heatmap_width() const { return 0; }
-  int get_heatmap_height() const { return 0; }
-};
-}  // namespace stargazer::voxelpose
-
-namespace stargazer::voxelpose {
-class cv_dnn_inference : public dnn_inference {
- public:
-  cv_dnn_inference(const std::vector<uint8_t>& model_data) {}
-  void inference(const float* input) {}
-  const float* get_output_data() const { return nullptr; }
-};
-
-class cv_dnn_inference_heatmap : public dnn_inference_heatmap {
- public:
-  cv_dnn_inference_heatmap(const std::vector<uint8_t>& model_data, size_t max_views) {}
-  ~cv_dnn_inference_heatmap() {}
   void process(const std::vector<cv::Mat>& images, std::vector<roi_data>& rois) {}
   void inference(size_t num_views) {}
   const float* get_heatmaps() const { return nullptr; }
