@@ -15,8 +15,8 @@ else()
 endif()
 
 add_library(stargazer_voxelpose SHARED
-    $<$<BOOL:${ENABLE_CUDA}>:${CMAKE_CURRENT_LIST_DIR}/voxelpose_cuda.cudas>
-    $<$<NOT:$<BOOL:${ENABLE_CUDA}>>:${CMAKE_CURRENT_LIST_DIR}/voxelpose_hip.hip>
+    $<$<BOOL:${ENABLE_CUDA}>:${CMAKE_CURRENT_LIST_DIR}/voxelpose.cu>
+    $<$<NOT:$<BOOL:${ENABLE_CUDA}>>:${CMAKE_CURRENT_LIST_DIR}/voxelpose.hip>
     ${CMAKE_CURRENT_LIST_DIR}/voxelpose.cpp
 )
 
@@ -77,7 +77,9 @@ else()
 endif()
 
 add_library(stargazer_preprocess SHARED
-    ${CMAKE_CURRENT_LIST_DIR}/preprocess.cu
+    $<$<BOOL:${ENABLE_CUDA}>:${CMAKE_CURRENT_LIST_DIR}/preprocess.cu>
+    $<$<NOT:$<BOOL:${ENABLE_CUDA}>>:${CMAKE_CURRENT_LIST_DIR}/preprocess.hip>
+    
 )
 
 target_include_directories(stargazer_preprocess
@@ -113,14 +115,18 @@ if (ENABLE_CUDA)
         cereal::cereal
     )
 else()
-    set_target_properties(stargazer_preprocess PROPERTIES
-        CXX_STANDARD 20)
+    set_target_properties(stargazer_voxelpose PROPERTIES
+        CXX_STANDARD 20
+        LINKER_LANGUAGE HIP C CXX)
 
     target_link_libraries(stargazer_preprocess
         opencv_imgproc
         opencv_highgui
         opencv_features2d
         opencv_calib3d
+        hip
+        roc::hipblas
+        MIOpen
         glm::glm
         unofficial::sqlite3::sqlite3
         $<$<BOOL:${ENABLE_ONNXRUNTIME_EXT}>:${ONNXRUNTIME_LIBS}>
