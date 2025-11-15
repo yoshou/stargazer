@@ -8,9 +8,6 @@
 	"features": {
 		"ghcr.io/devcontainers-extra/features/bash-command:1": {}
 	},
-	"containerEnv": {
-		"DISPLAY": ":10.0"
-	},
 
 	"workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
 	"workspaceFolder": "/workspace",
