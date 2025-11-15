@@ -160,6 +160,7 @@ if (ENABLE_CUDA)
         $<$<BOOL:${ENABLE_ONNXRUNTIME_EXT}>:${ONNXRUNTIME_LIBS}>
         CUDA::cudart
         CUDA::cuda_driver
+        nvinfer
     )
 else()
     target_link_libraries(stargazer_mvpose
