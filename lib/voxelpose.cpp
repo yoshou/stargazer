@@ -18,6 +18,9 @@
 #include "preprocess.hpp"
 #include "voxelpose_internal.hpp"
 
+#include <opencv2/core.hpp>
+#include <opencv2/dnn/dnn.hpp>
+
 using namespace stargazer;
 
 namespace stargazer::voxelpose {
@@ -53,6 +56,68 @@ class dnn_inference_heatmap {
     }                                                                                              \
   } while (0)
 
+template <typename T>
+static void malloc_device(T **device_ptr, size_t size) {
+  CUDA_SAFE_CALL(cudaMalloc(device_ptr, size * sizeof(T)));
+}
+static void free_device(void *device_ptr) {
+  CUDA_SAFE_CALL(cudaFree(device_ptr));
+}
+static void memcpy_dtoh(void *dst, const void *src, size_t size) {
+  CUDA_SAFE_CALL(cudaMemcpy(dst, src, size, cudaMemcpyDeviceToHost));
+}
+static void memcpy_htod(void *dst, const void *src, size_t size) {
+  CUDA_SAFE_CALL(cudaMemcpy(dst, src, size, cudaMemcpyHostToDevice));
+}
+static void memcpy_dtod(void *dst, const void *src, size_t size) {
+  CUDA_SAFE_CALL(cudaMemcpy(dst, src, size, cudaMemcpyDeviceToDevice));
+}
+static void memcpy2d_htod(void *dst, size_t dpitch, const void *src, size_t spitch,
+                           size_t width, size_t height) {
+  CUDA_SAFE_CALL(cudaMemcpy2D(dst, dpitch, src, spitch, width, height, cudaMemcpyHostToDevice));
+}
+static void synchronize_device() {
+  CUDA_SAFE_CALL(cudaDeviceSynchronize());
+}
+#else
+
+#include <hip/hip_runtime.h>
+
+#define HIP_SAFE_CALL(func)                                                                       \
+  do {                                                                                             \
+    hipError_t err = (func);                                                                      \
+    if (err != hipSuccess) {                                                                      \
+      fprintf(stderr, "[Error] %s (error code: %d) at %s line %d\n", hipGetErrorString(err), err, \
+              __FILE__, __LINE__);                                                                 \
+      exit(err);                                                                                   \
+    }                                                                                              \
+  } while (0)
+
+template <typename T>
+static void malloc_device(T **device_ptr, size_t size) {
+  HIP_SAFE_CALL(hipMalloc(device_ptr, size * sizeof(T)));
+}
+static void free_device(void *device_ptr) {
+  HIP_SAFE_CALL(hipFree(device_ptr));
+}
+static void memcpy_dtoh(void *dst, const void *src, size_t size) {
+  HIP_SAFE_CALL(hipMemcpy(dst, src, size, hipMemcpyDeviceToHost));
+}
+static void memcpy_htod(void *dst, const void *src, size_t size) {
+  HIP_SAFE_CALL(hipMemcpy(dst, src, size, hipMemcpyHostToDevice));
+}
+static void memcpy_dtod(void *dst, const void *src, size_t size) {
+  HIP_SAFE_CALL(hipMemcpy(dst, src, size, hipMemcpyDeviceToDevice));
+}
+static void memcpy2d_htod(void *dst, size_t dpitch, const void *src, size_t spitch,
+                           size_t width, size_t height) {
+  HIP_SAFE_CALL(hipMemcpy2D(dst, dpitch, src, spitch, width, height, hipMemcpyHostToDevice));
+}
+static void synchronize_device() {
+  HIP_SAFE_CALL(hipDeviceSynchronize());
+}
+#endif
+
 #define ENABLE_ONNXRUNTIME
 
 #ifdef ENABLE_ONNXRUNTIME
@@ -65,7 +130,11 @@ class ort_dnn_inference : public dnn_inference {
   Ort::Env env{ORT_LOGGING_LEVEL_WARNING};
   Ort::Session session;
   Ort::IoBinding io_binding;
+#if USE_CUDA
   Ort::MemoryInfo device_mem_info{"Cuda", OrtDeviceAllocator, 0, OrtMemTypeDefault};
+#else
+  Ort::MemoryInfo device_mem_info{"Hip", OrtDeviceAllocator, 0, OrtMemTypeDefault};
+#endif
 
   float *input_data = nullptr;
   float *output_data = nullptr;
@@ -86,6 +155,7 @@ class ort_dnn_inference : public dnn_inference {
     session_options.SetIntraOpNumThreads(4);
     session_options.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_EXTENDED);
 
+#if USE_CUDA
     try {
       OrtCUDAProviderOptions cuda_options{};
 
@@ -99,6 +169,17 @@ class ort_dnn_inference : public dnn_inference {
     } catch (const Ort::Exception &e) {
       spdlog::info(e.what());
     }
+#else
+    try {
+      OrtMIGraphXProviderOptions migraphx_options{};
+
+      migraphx_options.device_id = 0;
+
+      session_options.AppendExecutionProvider_MIGraphX(migraphx_options);
+    } catch (const Ort::Exception &e) {
+      spdlog::info(e.what());
+    }
+#endif
 
     session = Ort::Session(env, model_data.data(), model_data.size(), session_options);
     io_binding = Ort::IoBinding(session);
@@ -139,7 +220,7 @@ class ort_dnn_inference : public dnn_inference {
       const auto input_size =
           std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<int64_t>());
 
-      CUDA_SAFE_CALL(cudaMalloc(&input_data, input_size * sizeof(float)));
+      malloc_device(&input_data, input_size);
     }
 
     {
@@ -147,7 +228,7 @@ class ort_dnn_inference : public dnn_inference {
       const auto output_size =
           std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<int64_t>());
 
-      CUDA_SAFE_CALL(cudaMalloc(&output_data, output_size * sizeof(float)));
+      malloc_device(&output_data, output_size);
     }
   }
 
@@ -177,8 +258,7 @@ class ort_dnn_inference : public dnn_inference {
       const auto input_size =
           std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<int64_t>());
 
-      CUDA_SAFE_CALL(
-          cudaMemcpy(input_data, input, input_size * sizeof(float), cudaMemcpyDeviceToDevice));
+      memcpy_dtod(input_data, input, input_size * sizeof(float));
 
       Ort::Value input_tensor = Ort::Value::CreateTensor<float>(device_mem_info, input_data, input_size,
                                                                 dims.data(), dims.size());
@@ -218,7 +298,11 @@ class ort_dnn_inference_heatmap : public dnn_inference_heatmap {
   Ort::Env env{ORT_LOGGING_LEVEL_WARNING};
   Ort::Session session;
   Ort::IoBinding io_binding;
+#if USE_CUDA
   Ort::MemoryInfo device_mem_info{"Cuda", OrtDeviceAllocator, 0, OrtMemTypeDefault};
+#else
+  Ort::MemoryInfo device_mem_info{"Hip", OrtDeviceAllocator, 0, OrtMemTypeDefault};
+#endif
 
   float *input_data = nullptr;
   float *output_data = nullptr;
@@ -247,6 +331,7 @@ class ort_dnn_inference_heatmap : public dnn_inference_heatmap {
     session_options.SetIntraOpNumThreads(4);
     session_options.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_EXTENDED);
 
+#if USE_CUDA
     try {
       OrtCUDAProviderOptions cuda_options{};
 
@@ -260,8 +345,24 @@ class ort_dnn_inference_heatmap : public dnn_inference_heatmap {
     } catch (const Ort::Exception &e) {
       spdlog::info(e.what());
     }
+#else
+    try {
+      OrtMIGraphXProviderOptions migraphx_options{};
 
-    session = Ort::Session(env, model_data.data(), model_data.size(), session_options);
+      migraphx_options.device_id = 0;
+      migraphx_options.migraphx_arena_extend_strategy = 1;
+      migraphx_options.migraphx_mem_limit = 2ULL * 1024 * 1024 * 1024;
+
+      session_options.AppendExecutionProvider_MIGraphX(migraphx_options);
+    } catch (const Ort::Exception &e) {
+      spdlog::info(e.what());
+    }
+#endif
+    try {
+      session = Ort::Session(env, model_data.data(), model_data.size(), session_options);
+    } catch (const Ort::Exception &e) {
+      spdlog::info(e.what());
+    }
     io_binding = Ort::IoBinding(session);
 
     Ort::AllocatorWithDefaultOptions allocator;
@@ -296,19 +397,19 @@ class ort_dnn_inference_heatmap : public dnn_inference_heatmap {
     assert(output_node_names[0] == "output");
 
     const auto input_size = 960 * 512 * 3 * max_views;
-    CUDA_SAFE_CALL(cudaMalloc(&input_data, input_size * sizeof(float)));
+    malloc_device(&input_data, input_size);
 
     const auto output_size = 240 * 128 * 15 * max_views;
-    CUDA_SAFE_CALL(cudaMalloc(&output_data, output_size * sizeof(float)));
+    malloc_device(&output_data, output_size);
 
-    CUDA_SAFE_CALL(cudaMalloc(&input_image_data,
-                              max_input_image_width * max_input_image_height * 3 * max_views));
+    malloc_device(&input_image_data,
+                      max_input_image_width * max_input_image_height * 3 * max_views);
   }
 
   ~ort_dnn_inference_heatmap() {
-    CUDA_SAFE_CALL(cudaFree(input_data));
-    CUDA_SAFE_CALL(cudaFree(output_data));
-    CUDA_SAFE_CALL(cudaFree(input_image_data));
+    free_device(input_data);
+    free_device(output_data);
+    free_device(input_image_data);
   }
 
   void process(const std::vector<cv::Mat> &images, std::vector<roi_data> &rois) {
@@ -346,16 +447,15 @@ class ort_dnn_inference_heatmap : public dnn_inference_heatmap {
       const std::array<float, 3> mean = {0.485, 0.456, 0.406};
       const std::array<float, 3> std = {0.229, 0.224, 0.225};
 
-      CUDA_SAFE_CALL(cudaMemcpy2D(input_image_data + i * input_image_width * 3 * input_image_height,
-                                  input_image_width * 3, data.data, data.step, data.cols * 3,
-                                  data.rows, cudaMemcpyHostToDevice));
+      memcpy2d_htod(input_image_data + i * input_image_width * 3 * input_image_height,
+                      input_image_width * 3, data.data, data.step, data.cols * 3, data.rows);
 
       preprocess_cuda(input_image_data + i * input_image_width * 3 * input_image_height,
                       input_image_width, input_image_height, input_image_width * 3,
                       input_data + i * 960 * 512 * 3, 960, 512, 960, mean, std);
     }
 
-    CUDA_SAFE_CALL(cudaDeviceSynchronize());
+    synchronize_device();
 
     inference(images.size());
   }
@@ -427,56 +527,7 @@ class ort_dnn_inference_heatmap : public dnn_inference_heatmap {
 }  // namespace stargazer::voxelpose
 #endif
 
-#else
-
-#include <opencv2/dnn/dnn.hpp>
-
 namespace stargazer::voxelpose {
-#ifdef USE_CUDA
-template <typename T>
-static void malloc_device(T **device_ptr, size_t size) {
-  CUDA_SAFE_CALL(cudaMalloc(device_ptr, size * sizeof(T)));
-}
-static void free_device(void *device_ptr) {
-  CUDA_SAFE_CALL(cudaFree(device_ptr));
-}
-static void memcpy_dtoh(void *dst, const void *src, size_t size) {
-  CUDA_SAFE_CALL(cudaMemcpy(dst, src, size, cudaMemcpyDeviceToHost));
-}
-static void memcpy_htod(void *dst, const void *src, size_t size) {
-  CUDA_SAFE_CALL(cudaMemcpy(dst, src, size, cudaMemcpyHostToDevice));
-}
-static void memcpy2d_htod(void *dst, size_t dpitch, const void *src, size_t spitch,
-                           size_t width, size_t height) {
-  CUDA_SAFE_CALL(cudaMemcpy2D(dst, dpitch, src, spitch, width, height, cudaMemcpyHostToDevice));
-}
-static void synchronize_device() {
-  CUDA_SAFE_CALL(cudaDeviceSynchronize());
-}
-#else
-template <typename T>
-static void malloc_device(T **device_ptr, size_t size) {
-  *device_ptr = new T[size];
-}
-static void free_device(void *device_ptr) {
-  delete[] static_cast<float *>(device_ptr);
-}
-static void memcpy_dtoh(void *dst, const void *src, size_t size) {
-  std::memcpy(dst, src, size);
-}
-static void memcpy_htod(void *dst, const void *src, size_t size) {
-  std::memcpy(dst, src, size);
-}
-static void memcpy2d_htod(void *dst, size_t dpitch, const void *src, size_t spitch,
-                           size_t width, size_t height) {
-  for (size_t i = 0; i < height; i++) {
-    std::memcpy(static_cast<uint8_t *>(dst) + i * dpitch,
-                static_cast<const uint8_t *>(src) + i * spitch, width);
-  }
-}
-static void synchronize_device() {}
-#endif
-  
 class cv_dnn_inference : public dnn_inference {
   cv::dnn::Net net;
 
@@ -639,28 +690,6 @@ class cv_dnn_inference_heatmap : public dnn_inference_heatmap {
   int get_heatmap_height() const { return 128; }
 };
 }  // namespace stargazer::voxelpose
-
-namespace stargazer::voxelpose {
-class ort_dnn_inference : public dnn_inference {
- public:
-  ort_dnn_inference(const std::vector<uint8_t>& model_data) {}
-  void inference(const float* input) {}
-  const float* get_output_data() const { return nullptr; }
-};
-
-class ort_dnn_inference_heatmap : public dnn_inference_heatmap {
- public:
-  ort_dnn_inference_heatmap(const std::vector<uint8_t>& model_data, size_t max_views) {}
-  ~ort_dnn_inference_heatmap() {}
-  void process(const std::vector<cv::Mat>& images, std::vector<roi_data>& rois) {}
-  void inference(size_t num_views) {}
-  const float* get_heatmaps() const { return nullptr; }
-  int get_heatmap_width() const { return 0; }
-  int get_heatmap_height() const { return 0; }
-};
-}  // namespace stargazer::voxelpose
-
-#endif
 
 namespace stargazer::voxelpose {
 class get_proposal {
