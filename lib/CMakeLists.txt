@@ -12,6 +12,7 @@ else()
     find_package(hip REQUIRED)
     find_package(hipblas REQUIRED)
     find_package(miopen REQUIRED)
+    find_package(migraphx REQUIRED)
 endif()
 
 add_library(stargazer_voxelpose SHARED
@@ -71,6 +72,7 @@ else()
         hip
         roc::hipblas
         MIOpen
+        migraphx::c
         spdlog::spdlog_header_only
         cereal::cereal
     )
