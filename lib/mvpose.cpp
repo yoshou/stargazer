@@ -100,7 +100,7 @@ class dnn_inference_pose {
       spdlog::info(e.what());
     }
 
-    OrtSessionOptionsAppendExecutionProvider_CPU(session_options, 0);
+    Ort::ThrowOnError(OrtSessionOptionsAppendExecutionProvider_CPU(session_options, 0));
 
     session = Ort::Session(env, model_data.data(), model_data.size(), session_options);
     io_binding = Ort::IoBinding(session);
@@ -563,7 +563,7 @@ class dnn_inference_det {
       spdlog::info(e.what());
     }
 
-    OrtSessionOptionsAppendExecutionProvider_CPU(session_options, 0);
+    Ort::ThrowOnError(OrtSessionOptionsAppendExecutionProvider_CPU(session_options, 0));
 
     session = Ort::Session(env, model_data.data(), model_data.size(), session_options);
     io_binding = Ort::IoBinding(session);
@@ -1631,7 +1631,6 @@ std::vector<glm::vec3> mvpose::inference(const std::vector<cv::Mat>& images_list
 
   const auto matched_list = matcher->compute_matches(pose_joints_list, cameras_list);
 
-  glm::mat4 axis(1.0f);
   std::vector<glm::vec3> markers;
   for (const auto& matched : matched_list) {
     for (size_t j = 5; j < 17; j++) {
