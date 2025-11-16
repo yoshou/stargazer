@@ -13,7 +13,6 @@
 
 #include "parameters.hpp"
 #include "triangulation.hpp"
-#include "tuple_hash.hpp"
 #include "utils.hpp"
 
 namespace stargazer::reconstruction {
@@ -43,21 +42,9 @@ static glm::mat3 calculate_fundametal_matrix(const camera_t &camera1, const came
                                      camera2.extrin.transform_matrix());
 }
 
-static glm::vec3 normalize_line(const glm::vec3 &v) {
-  const auto c = std::sqrt(v.x * v.x + v.y * v.y);
-  return v / c;
-}
-
 static glm::vec3 compute_correspond_epiline(const glm::mat3 &F, const glm::vec2 &p) {
   const auto l = F * glm::vec3(p, 1.f);
-  // return normalize_line(l);
   return l;
-}
-
-static glm::vec3 compute_correspond_epiline(const camera_t &camera1, const camera_t &camera2,
-                                            const glm::vec2 &p) {
-  const auto F = calculate_fundametal_matrix(camera1, camera2);
-  return compute_correspond_epiline(F, p);
 }
 
 static size_t find_nearest_point(const glm::vec2 &pt, const std::vector<glm::vec2> &pts,
@@ -226,8 +213,7 @@ void remove_ambiguous_observations(const std::vector<node_t> &nodes, adj_list_t 
   }
 }
 
-void compute_hard_correspondance(const std::vector<node_t> &nodes, adj_list_t &adj,
-                                 const std::vector<camera_t> &cameras) {
+void compute_hard_correspondance(const std::vector<node_t> &nodes, adj_list_t &adj) {
   std::vector<size_t> id(nodes.size(), -1);
   std::vector<std::unordered_set<size_t>> camera_list;
 
@@ -255,8 +241,8 @@ void compute_hard_correspondance(const std::vector<node_t> &nodes, adj_list_t &a
   adj_list_t new_adj(adj.size());
   for (std::size_t v = 0; v < adj.size(); v++) {
     for (std::size_t u : adj[v]) {
-      assert(id[u] != -1);
-      assert(id[v] != -1);
+      assert(id[u] != static_cast<size_t>(-1));
+      assert(id[v] != static_cast<size_t>(-1));
       if (id[u] == id[v]) {
         new_adj[v].push_back(u);
         new_adj[u].push_back(v);
@@ -274,12 +260,6 @@ static cv::Mat glm2cv_mat3(const glm::mat4 &m) {
       ret.at<float>(i, j) = m[j][i];
     }
   }
-  return ret;
-}
-
-static cv::Mat glm2cv_mat4(const glm::mat4 &m) {
-  cv::Mat ret(4, 4, CV_32F);
-  memcpy(ret.data, glm::value_ptr(m), 16 * sizeof(float));
   return ret;
 }
 
@@ -388,7 +368,6 @@ static glm::vec2 epipoloar_transfer(const camera_t &c3, const glm::mat3 &f1, con
 void find_correspondance(const std::vector<std::vector<glm::vec2>> &pts,
                          const std::vector<camera_t> &cameras, std::vector<node_t> &nodes,
                          adj_list_t &adj, double screen_thresh) {
-  const auto start = std::chrono::system_clock::now();
   std::vector<std::pair<std::size_t, std::size_t>> camera_pairs;
 
   std::vector<std::vector<glm::vec2>> undist_pts(pts.size());
@@ -415,8 +394,6 @@ void find_correspondance(const std::vector<std::vector<glm::vec2>> &pts,
             clouds.push_back(cloud);
         }
 #endif
-
-  const auto num_cameras = cameras.size();
 
   for (std::size_t c1 = 0; c1 < cameras.size(); c1++) {
     for (std::size_t c2 = c1 + 1; c2 < cameras.size(); c2++) {
