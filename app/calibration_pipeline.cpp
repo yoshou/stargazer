@@ -241,7 +241,7 @@ class pattern_board_calibration_target_detector_node : public graph_node {
   }
 
   virtual std::string get_proc_name() const override {
-    return "pattern_board_calibration_target_detector_node";
+    return "pattern_board_calibration_target_detector";
   }
 
   template <typename Archive>
@@ -296,7 +296,7 @@ class three_point_bar_calibration_target_detector_node : public graph_node {
   }
 
   virtual std::string get_proc_name() const override {
-    return "three_point_bar_calibration_target_detector_node";
+    return "three_point_bar_calibration_target_detector";
   }
 
   template <typename Archive>
@@ -356,7 +356,7 @@ class calibration_node : public graph_node {
     set_output(output);
   }
 
-  virtual std::string get_proc_name() const override { return "calibration_node"; }
+  virtual std::string get_proc_name() const override { return "calibration"; }
 
   void set_cameras(const std::unordered_map<std::string, camera_t> &cameras) {
     this->cameras = cameras;
@@ -481,7 +481,7 @@ class callback_node : public graph_node {
  public:
   callback_node() : graph_node() {}
 
-  virtual std::string get_proc_name() const override { return "callback_node"; }
+  virtual std::string get_proc_name() const override { return "callback"; }
 
   void set_name(const std::string &value) { name = value; }
   std::string get_name() const { return name; }
@@ -507,7 +507,7 @@ class object_map_node : public graph_node {
  public:
   object_map_node() : graph_node() {}
 
-  virtual std::string get_proc_name() const override { return "object_map_node"; }
+  virtual std::string get_proc_name() const override { return "object_map"; }
 
   template <typename Archive>
   void save(Archive &archive) const {
@@ -576,7 +576,7 @@ class object_mux_node : public graph_node {
     set_output(output);
   }
 
-  virtual std::string get_proc_name() const override { return "object_mux_node"; }
+  virtual std::string get_proc_name() const override { return "object_mux"; }
 
   virtual void process(std::string input_name, graph_message_ptr message) override {
     if (auto obj_msg = std::dynamic_pointer_cast<object_message>(message)) {
@@ -916,7 +916,7 @@ class intrinsic_calibration_node : public graph_node {
     set_output(output);
   }
 
-  virtual std::string get_proc_name() const override { return "intrinsic_calibration_node"; }
+  virtual std::string get_proc_name() const override { return "intrinsic_calibration"; }
 
   template <typename Archive>
   void serialize(Archive &archive) {
@@ -1419,7 +1419,7 @@ class axis_calibration_node : public graph_node {
     set_output(output);
   }
 
-  virtual std::string get_proc_name() const override { return "calibration_node"; }
+  virtual std::string get_proc_name() const override { return "calibration"; }
 
   void set_cameras(const std::unordered_map<std::string, camera_t> &cameras) {
     this->cameras = cameras;

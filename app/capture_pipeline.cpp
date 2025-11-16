@@ -658,7 +658,7 @@ class callback_node : public graph_node {
  public:
   callback_node() : graph_node() {}
 
-  virtual std::string get_proc_name() const override { return "callback_node"; }
+  virtual std::string get_proc_name() const override { return "callback"; }
 
   void set_name(const std::string &value) { name = value; }
   std::string get_name() const { return name; }
@@ -697,7 +697,7 @@ class dump_blob_node : public graph_node {
 
   void set_name(std::string value) { name = value; }
 
-  virtual std::string get_proc_name() const override { return "dump_blob_node"; }
+  virtual std::string get_proc_name() const override { return "dump_blob"; }
 
   template <typename Archive>
   void serialize(Archive &archive) {
@@ -888,7 +888,7 @@ class dump_keypoint_node : public graph_node {
 
   void set_name(std::string value) { name = value; }
 
-  virtual std::string get_proc_name() const override { return "dump_keypoint_node"; }
+  virtual std::string get_proc_name() const override { return "dump_keypoint"; }
 
   template <typename Archive>
   void serialize(Archive &archive) {
@@ -1116,7 +1116,7 @@ class load_blob_node : public graph_node {
 
   void set_fps(int value) { fps = value; }
 
-  virtual std::string get_proc_name() const override { return "load_blob_node"; }
+  virtual std::string get_proc_name() const override { return "load_blob"; }
 
   template <typename Archive>
   void serialize(Archive &archive) {
@@ -1276,7 +1276,7 @@ class load_marker_node : public graph_node {
 
   void set_fps(int value) { fps = value; }
 
-  virtual std::string get_proc_name() const override { return "load_marker_node"; }
+  virtual std::string get_proc_name() const override { return "load_marker"; }
 
   template <typename Archive>
   void serialize(Archive &archive) {
@@ -1446,7 +1446,7 @@ class load_panoptic_node : public graph_node {
 
   void set_fps(int value) { fps = value; }
 
-  virtual std::string get_proc_name() const override { return "load_panoptic_node"; }
+  virtual std::string get_proc_name() const override { return "load_panoptic"; }
 
   template <typename Archive>
   void serialize(Archive &archive) {
