@@ -10,7 +10,7 @@
 #include "glm_json.hpp"
 
 namespace stargazer {
-void get_cv_intrinsic(const camera_intrin_t &intrin, cv::Mat &camera_matrix, cv::Mat &dist_coeffs) {
+void get_cv_intrinsic(const camera_intrin_t& intrin, cv::Mat& camera_matrix, cv::Mat& dist_coeffs) {
   camera_matrix = cv::Mat::eye(3, 3, CV_64F);
   camera_matrix.at<double>(0, 0) = intrin.fx;
   camera_matrix.at<double>(1, 1) = intrin.fy;
@@ -31,7 +31,7 @@ void parameters_t::load() {
 
   const auto j = nlohmann::json::parse(ifs);
 
-  for (const auto &[name, item] : j.items()) {
+  for (const auto& [name, item] : j.items()) {
     if (item["type"] == "camera") {
       auto camera = item.get<camera_t>();
       parameters[name] = camera;
@@ -48,7 +48,7 @@ void parameters_t::save() const {
 
   nlohmann::json j;
 
-  for (const auto &[name, param] : parameters) {
+  for (const auto& [name, param] : parameters) {
     nlohmann::json j_param;
 
     if (std::holds_alternative<camera_t>(param)) {

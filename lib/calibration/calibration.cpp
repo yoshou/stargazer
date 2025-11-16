@@ -14,9 +14,9 @@
 #include "utils.hpp"
 
 namespace stargazer::calibration {
-void zip_points(const std::vector<observed_points_t> &points1,
-                const std::vector<observed_points_t> &points2,
-                std::vector<std::pair<glm::vec2, glm::vec2>> &corresponding_points) {
+void zip_points(const std::vector<observed_points_t>& points1,
+                const std::vector<observed_points_t>& points2,
+                std::vector<std::pair<glm::vec2, glm::vec2>>& corresponding_points) {
   const auto size = std::min(points1.size(), points2.size());
   for (size_t i = 0; i < size; i++) {
     if (points1[i].points.size() != points2[i].points.size()) {
@@ -28,10 +28,10 @@ void zip_points(const std::vector<observed_points_t> &points1,
   }
 }
 
-void zip_points(const std::vector<observed_points_t> &points1,
-                const std::vector<observed_points_t> &points2,
-                const std::vector<observed_points_t> &points3,
-                std::vector<std::tuple<glm::vec2, glm::vec2, glm::vec2>> &corresponding_points) {
+void zip_points(const std::vector<observed_points_t>& points1,
+                const std::vector<observed_points_t>& points2,
+                const std::vector<observed_points_t>& points3,
+                std::vector<std::tuple<glm::vec2, glm::vec2, glm::vec2>>& corresponding_points) {
   const auto size = std::min(points1.size(), std::min(points2.size(), points3.size()));
   for (size_t i = 0; i < size; i++) {
     if (points1[i].points.size() == 0 || points2[i].points.size() == 0 ||
@@ -47,18 +47,18 @@ void zip_points(const std::vector<observed_points_t> &points1,
   }
 }
 
-float compute_diff_camera_angle(const glm::mat3 &r1, const glm::mat3 &r2) {
+float compute_diff_camera_angle(const glm::mat3& r1, const glm::mat3& r2) {
   const auto r = glm::transpose(r1) * r2;
   const auto r_quat = glm::quat_cast(r);
   return glm::angle(r_quat);
 }
 
 glm::mat4 estimate_relative_pose(
-    const std::vector<std::pair<glm::vec2, glm::vec2>> &corresponding_points,
-    const camera_t &base_camera, const camera_t &target_camera, bool use_lmeds) {
+    const std::vector<std::pair<glm::vec2, glm::vec2>>& corresponding_points,
+    const camera_t& base_camera, const camera_t& target_camera, bool use_lmeds) {
   std::vector<cv::Point2f> points1;
   std::vector<cv::Point2f> points2;
-  for (const auto &[point1, point2] : corresponding_points) {
+  for (const auto& [point1, point2] : corresponding_points) {
     points1.emplace_back(point1.x, point1.y);
     points2.emplace_back(point2.x, point2.y);
   }
@@ -94,8 +94,8 @@ glm::mat4 estimate_relative_pose(
 }
 
 glm::mat4 estimate_pose(
-    const std::vector<std::tuple<glm::vec2, glm::vec2, glm::vec2>> &corresponding_points,
-    const camera_t &base_camera1, const camera_t &base_camera2, const camera_t &target_camera) {
+    const std::vector<std::tuple<glm::vec2, glm::vec2, glm::vec2>>& corresponding_points,
+    const camera_t& base_camera1, const camera_t& base_camera2, const camera_t& target_camera) {
   std::vector<cv::Point2d> points1;
   std::vector<cv::Point2d> points2;
   std::vector<cv::Point2d> points3;
@@ -109,7 +109,7 @@ glm::mat4 estimate_pose(
   std::vector<cv::Point2d> norm_points1;
   std::vector<cv::Point2d> norm_points2;
   std::vector<cv::Point2d> norm_points3;
-  for (const auto &[point1, point2, point3] : corresponding_points) {
+  for (const auto& [point1, point2, point3] : corresponding_points) {
     points1.emplace_back(point1.x, point1.y);
     points2.emplace_back(point2.x, point2.y);
     points3.emplace_back(point3.x, point3.y);
@@ -253,7 +253,7 @@ size_t observed_points_frames::get_num_points(std::string name) const {
 }
 
 void observed_points_frames::add_frame_points(uint32_t timestamp, std::string name,
-                                              const std::vector<glm::vec2> &points) {
+                                              const std::vector<glm::vec2>& points) {
   if (timestamp_to_index.find(timestamp) == timestamp_to_index.end()) {
     timestamp_to_index.insert(std::make_pair(timestamp, timestamp_to_index.size()));
   }
@@ -281,13 +281,13 @@ void observed_points_frames::add_frame_points(uint32_t timestamp, std::string na
     }
   }
 
-  for (auto &[name, observed_points] : observed_frames) {
+  for (auto& [name, observed_points] : observed_frames) {
     observed_points.resize(timestamp_to_index.size());
   }
 
   observed_points_t obs = {};
   obs.camera_idx = camera_name_to_index.at(name);
-  for (const auto &pt : points) {
+  for (const auto& pt : points) {
     obs.points.emplace_back(pt);
   }
 
@@ -301,9 +301,9 @@ void observed_points_frames::add_frame_points(uint32_t timestamp, std::string na
   }
 }
 
-bool initialize_cameras(std::unordered_map<std::string, camera_t> &cameras,
-                        const std::vector<std::string> &camera_names,
-                        const observed_points_frames &observed_frames) {
+bool initialize_cameras(std::unordered_map<std::string, camera_t>& cameras,
+                        const std::vector<std::string>& camera_names,
+                        const observed_points_frames& observed_frames) {
   std::string base_camera_name1;
   std::string base_camera_name2;
   glm::mat4 base_camera_pose1(1.0f);
@@ -312,11 +312,11 @@ bool initialize_cameras(std::unordered_map<std::string, camera_t> &cameras,
   bool found_base_pair = false;
   const float min_base_angle = 15.0f;
 
-  for (const auto &camera_name1 : camera_names) {
+  for (const auto& camera_name1 : camera_names) {
     if (found_base_pair) {
       break;
     }
-    for (const auto &camera_name2 : camera_names) {
+    for (const auto& camera_name2 : camera_names) {
       if (camera_name1 == camera_name2) {
         continue;
       }
@@ -356,7 +356,7 @@ bool initialize_cameras(std::unordered_map<std::string, camera_t> &cameras,
   cameras[base_camera_name2].extrin.translation = glm::vec3(base_camera_pose2[3]);
 
   std::vector<std::string> processed_cameras = {base_camera_name1, base_camera_name2};
-  for (const auto &camera_name : camera_names) {
+  for (const auto& camera_name : camera_names) {
     if (camera_name == base_camera_name1) {
       continue;
     }
@@ -391,12 +391,12 @@ bool initialize_cameras(std::unordered_map<std::string, camera_t> &cameras,
   return true;
 }
 
-void prepare_bundle_adjustment(const std::vector<std::string> &camera_names,
-                               const std::unordered_map<std::string, camera_t> &cameras,
-                               const observed_points_frames &observed_frames,
-                               stargazer::calibration::bundle_adjust_data &ba_data) {
-  for (const auto &camera_name : camera_names) {
-    const auto &camera = cameras.at(camera_name);
+void prepare_bundle_adjustment(const std::vector<std::string>& camera_names,
+                               const std::unordered_map<std::string, camera_t>& cameras,
+                               const observed_points_frames& observed_frames,
+                               stargazer::calibration::bundle_adjust_data& ba_data) {
+  for (const auto& camera_name : camera_names) {
+    const auto& camera = cameras.at(camera_name);
     cv::Mat rot_vec;
     cv::Rodrigues(glm_to_cv_mat3(camera.extrin.transform_matrix()), rot_vec);
     const auto trans_vec = camera.extrin.translation;
@@ -437,7 +437,7 @@ void prepare_bundle_adjustment(const std::vector<std::string> &camera_names,
     for (size_t f = 0; f < observed_frames.get_num_frames(); f++) {
       std::vector<std::vector<glm::vec2>> pts;
       std::vector<size_t> camera_idxs;
-      for (const auto &camera_name : camera_names) {
+      for (const auto& camera_name : camera_names) {
         const auto point = observed_frames.get_observed_point(camera_name, f);
         if (point.points.size() == 0) {
           continue;
@@ -459,7 +459,7 @@ void prepare_bundle_adjustment(const std::vector<std::string> &camera_names,
       }
 
       const auto num_points =
-          std::min_element(pts.begin(), pts.end(), [](const auto &a, const auto &b) {
+          std::min_element(pts.begin(), pts.end(), [](const auto& a, const auto& b) {
             return a.size() < b.size();
           })->size();
 
@@ -475,7 +475,7 @@ void prepare_bundle_adjustment(const std::vector<std::string> &camera_names,
         point3ds[i] = point3d;
       }
 
-      for (const auto &point3d : point3ds) {
+      for (const auto& point3d : point3ds) {
         std::vector<double> point_params;
         for (size_t i = 0; i < 3; i++) {
           point_params.push_back(point3d[i]);
@@ -485,7 +485,7 @@ void prepare_bundle_adjustment(const std::vector<std::string> &camera_names,
 
       for (size_t i = 0; i < pts.size(); i++) {
         for (size_t j = 0; j < pts[i].size(); j++) {
-          const auto &pt = pts[i][j];
+          const auto& pt = pts[i][j];
           const auto proj_pt = project(camera_list[camera_idxs[i]], point3ds[j]);
 
           if (glm::distance(pt, proj_pt) > reproj_error_threshold) {

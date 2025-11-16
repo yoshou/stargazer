@@ -6,15 +6,15 @@
 #include <opencv2/imgproc.hpp>
 
 namespace stargazer {
-inline cv::Mat get_transform(const cv::Point2f &center, const cv::Size2f &scale,
-                             const cv::Size2f &output_size) {
-  const auto get_tri_3rd_point = [](const cv::Point2f &a, const cv::Point2f &b) {
+inline cv::Mat get_transform(const cv::Point2f& center, const cv::Size2f& scale,
+                             const cv::Size2f& output_size) {
+  const auto get_tri_3rd_point = [](const cv::Point2f& a, const cv::Point2f& b) {
     const auto direct = a - b;
     return b + cv::Point2f(-direct.y, direct.x);
   };
 
-  const auto get_affine_transform = [&](const cv::Point2f &center, const cv::Size2f &scale,
-                                        const cv::Size2f &output_size) {
+  const auto get_affine_transform = [&](const cv::Point2f& center, const cv::Size2f& scale,
+                                        const cv::Size2f& output_size) {
     const auto src_w = scale.width * 200.0;
     const auto src_h = scale.height * 200.0;
     const auto dst_w = output_size.width;
@@ -46,10 +46,10 @@ inline cv::Mat get_transform(const cv::Point2f &center, const cv::Size2f &scale,
   return get_affine_transform(center, scale, output_size);
 }
 
-void preprocess_cuda(const uint8_t *src_data, int src_width, int src_height, int src_step,
-                     float *dst_data, int dst_width, int dst_height, int dst_step, cv::Mat trans,
-                     const std::array<float, 3> &mean, const std::array<float, 3> &std);
-void preprocess_cuda(const uint8_t *src_data, int src_width, int src_height, int src_step,
-                     float *dst_data, int dst_width, int dst_height, int dst_step,
-                     const std::array<float, 3> &mean, const std::array<float, 3> &std);
+void preprocess_cuda(const uint8_t* src_data, int src_width, int src_height, int src_step,
+                     float* dst_data, int dst_width, int dst_height, int dst_step, cv::Mat trans,
+                     const std::array<float, 3>& mean, const std::array<float, 3>& std);
+void preprocess_cuda(const uint8_t* src_data, int src_width, int src_height, int src_step,
+                     float* dst_data, int dst_width, int dst_height, int dst_step,
+                     const std::array<float, 3>& mean, const std::array<float, 3>& std);
 }  // namespace stargazer

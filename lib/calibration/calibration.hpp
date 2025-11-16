@@ -28,34 +28,34 @@ class observed_points_frames {
 
   size_t get_num_points(std::string name) const;
 
-  void add_frame_points(uint32_t timestamp, std::string name, const std::vector<glm::vec2> &points);
+  void add_frame_points(uint32_t timestamp, std::string name, const std::vector<glm::vec2>& points);
 };
 
-void zip_points(const std::vector<observed_points_t> &points1,
-                const std::vector<observed_points_t> &points2,
-                std::vector<std::pair<glm::vec2, glm::vec2>> &corresponding_points);
+void zip_points(const std::vector<observed_points_t>& points1,
+                const std::vector<observed_points_t>& points2,
+                std::vector<std::pair<glm::vec2, glm::vec2>>& corresponding_points);
 
-void zip_points(const std::vector<observed_points_t> &points1,
-                const std::vector<observed_points_t> &points2,
-                const std::vector<observed_points_t> &points3,
-                std::vector<std::tuple<glm::vec2, glm::vec2, glm::vec2>> &corresponding_points);
+void zip_points(const std::vector<observed_points_t>& points1,
+                const std::vector<observed_points_t>& points2,
+                const std::vector<observed_points_t>& points3,
+                std::vector<std::tuple<glm::vec2, glm::vec2, glm::vec2>>& corresponding_points);
 
-float compute_diff_camera_angle(const glm::mat3 &r1, const glm::mat3 &r2);
+float compute_diff_camera_angle(const glm::mat3& r1, const glm::mat3& r2);
 
 glm::mat4 estimate_relative_pose(
-    const std::vector<std::pair<glm::vec2, glm::vec2>> &corresponding_points,
-    const camera_t &base_camera, const camera_t &target_camera, bool use_lmeds = false);
+    const std::vector<std::pair<glm::vec2, glm::vec2>>& corresponding_points,
+    const camera_t& base_camera, const camera_t& target_camera, bool use_lmeds = false);
 
 glm::mat4 estimate_pose(
-    const std::vector<std::tuple<glm::vec2, glm::vec2, glm::vec2>> &corresponding_points,
-    const camera_t &base_camera1, const camera_t &base_camera2, const camera_t &target_camera);
+    const std::vector<std::tuple<glm::vec2, glm::vec2, glm::vec2>>& corresponding_points,
+    const camera_t& base_camera1, const camera_t& base_camera2, const camera_t& target_camera);
 
-bool initialize_cameras(std::unordered_map<std::string, camera_t> &cameras,
-                        const std::vector<std::string> &camera_names,
-                        const observed_points_frames &observed_frames);
+bool initialize_cameras(std::unordered_map<std::string, camera_t>& cameras,
+                        const std::vector<std::string>& camera_names,
+                        const observed_points_frames& observed_frames);
 
-void prepare_bundle_adjustment(const std::vector<std::string> &camera_names,
-                               const std::unordered_map<std::string, camera_t> &cameras,
-                               const observed_points_frames &observed_frames,
-                               bundle_adjust_data &ba_data);
+void prepare_bundle_adjustment(const std::vector<std::string>& camera_names,
+                               const std::unordered_map<std::string, camera_t>& cameras,
+                               const observed_points_frames& observed_frames,
+                               bundle_adjust_data& ba_data);
 };  // namespace stargazer::calibration
