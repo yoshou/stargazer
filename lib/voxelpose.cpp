@@ -1067,7 +1067,7 @@ class get_proposal {
 
   coalsack::tensor<float, 2> get_real_loc(const coalsack::tensor<uint64_t, 2>& index) {
     const auto loc =
-        index.cast<float>().transform([this](const float value, const size_t i, const size_t j) {
+        index.cast<float>().transform([this](const float value, const size_t i, auto...) {
           return value / (cube_size[i] - 1) * grid_size[i] + grid_center[i] - grid_size[i] / 2.0f;
         });
     return loc;
