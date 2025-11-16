@@ -5,12 +5,6 @@
 	"build": {
 		"dockerfile": "Dockerfile"
 	},
-	"features": {
-		"ghcr.io/devcontainers-extra/features/bash-command:1": {}
-	},
-
-	"workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
-	"workspaceFolder": "/workspace",
 
 	"mounts": [
 		"source=/tmp/.X11-unix,target=/tmp/.X11-unix,type=bind,consistency=cached"

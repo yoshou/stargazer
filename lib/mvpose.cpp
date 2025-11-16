@@ -332,7 +332,7 @@ class dnn_inference_pose_trt {
 
   dnn_inference_pose_trt(const std::vector<uint8_t> &model_data, size_t max_num_people)
       : max_num_people(max_num_people) {
-    plugin_handler = dlopen("libmmdeploy_tensorrt_ops.so", RTLD_NOW);
+    plugin_handler = dlopen("../data/mvpose/libmmdeploy_tensorrt_ops.so", RTLD_NOW);
     if (!plugin_handler) {
       throw std::runtime_error(dlerror());
     }
@@ -1680,7 +1680,7 @@ static void load_model(std::string model_path, std::vector<uint8_t> &data) {
 mvpose::mvpose() {
   std::vector<uint8_t> det_model_data;
   {
-    const auto model_path = "../data/mvpose/rtmdet_m_640-8xb32_coco-person-fp16.engine";
+    const auto model_path = "../data/mvpose/rtmdet_m_640-8xb32_coco-person-fp16.trt";
     std::vector<uint8_t> data;
     load_model(model_path, data);
 
@@ -1692,7 +1692,7 @@ mvpose::mvpose() {
   std::vector<uint8_t> pose_model_data;
   {
     const auto model_path =
-        "../data/mvpose/rtmpose-l_8xb32-270e_coco-wholebody-384x288-fp16.engine";
+        "../data/mvpose/rtmpose-l_8xb32-270e_coco-wholebody-384x288-fp16.trt";
     std::vector<uint8_t> data;
     load_model(model_path, data);
 
