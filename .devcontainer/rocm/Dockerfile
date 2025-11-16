@@ -10,11 +10,7 @@ RUN if [ "${REINSTALL_CMAKE_VERSION_FROM_SOURCE}" != "none" ]; then \
     fi \
     && rm -f /tmp/reinstall-cmake.sh
 
-# Install dependencies
-RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
-    && apt-get -y install --no-install-recommends gfortran bison python3 python3-setuptools libarchive-dev libblas-dev liblapack-dev \
-    libxinerama-dev libxcursor-dev xorg-dev libglu1-mesa-dev pkg-config
-
+# Install ROCm
 RUN wget https://repo.radeon.com/rocm/rocm.gpg.key -O - | \
     gpg --dearmor | tee /etc/apt/keyrings/rocm.gpg > /dev/null
 
@@ -31,6 +27,11 @@ EOF
 
 RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
     && apt-get -y install --no-install-recommends rocm
+
+# Install dependencies
+RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
+    && apt-get -y install --no-install-recommends gfortran bison python3 python3-setuptools libarchive-dev libblas-dev liblapack-dev \
+    libxinerama-dev libxcursor-dev xorg-dev libglu1-mesa-dev pkg-config
 
 RUN update-alternatives --set c++ /usr/bin/clang++ \
     && update-alternatives --set cc /usr/bin/clang
