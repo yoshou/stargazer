@@ -527,6 +527,349 @@ class ort_dnn_inference_heatmap : public dnn_inference_heatmap {
 }  // namespace stargazer::voxelpose
 #endif
 
+#define USE_TENSORRT
+
+#ifdef USE_TENSORRT
+
+#include <NvInfer.h>
+#include <dlfcn.h>
+
+namespace stargazer::voxelpose {
+class logger : public nvinfer1::ILogger {
+ public:
+  void log(ILogger::Severity severity, const char *msg) noexcept override {
+    if (severity == nvinfer1::ILogger::Severity::kINFO) {
+      spdlog::info(msg);
+    } else if (severity == nvinfer1::ILogger::Severity::kERROR) {
+      spdlog::error(msg);
+    }
+  }
+};
+
+class trt_dnn_inference : public dnn_inference {
+  std::vector<uint8_t> model_data;
+
+  void *plugin_handler;
+  logger logger;
+  nvinfer1::IRuntime *infer;
+  nvinfer1::ICudaEngine *engine;
+  nvinfer1::IExecutionContext *context;
+
+  cudaStream_t stream;
+
+  float *input_data = nullptr;
+  float* output_data = nullptr;
+
+  std::vector<std::string> input_node_names;
+  std::vector<std::string> output_node_names;
+
+  std::unordered_map<std::string, std::vector<int64_t>> input_node_dims;
+  std::unordered_map<std::string, std::vector<int64_t>> output_node_dims;
+
+ public:
+
+  static const auto num_joints = 15;
+
+  size_t max_batch_size = 4;
+  size_t max_num_people;
+
+  trt_dnn_inference(const std::vector<uint8_t> &model_data, size_t max_num_people)
+      : max_num_people(max_num_people) {
+    plugin_handler = dlopen("../data/mvpose/libmmdeploy_tensorrt_ops.so", RTLD_NOW);
+    if (!plugin_handler) {
+      throw std::runtime_error(dlerror());
+    }
+
+    infer = nvinfer1::createInferRuntime(logger);
+    engine = infer->deserializeCudaEngine(model_data.data(), model_data.size());
+    context = engine->createExecutionContext();
+
+    const auto num_io_tensors = engine->getNbIOTensors();
+    for (int i = 0; i < num_io_tensors; i++) {
+      const auto name = engine->getIOTensorName(i);
+      const auto shape = engine->getTensorShape(name);
+      if (engine->getTensorIOMode(name) == nvinfer1::TensorIOMode::kINPUT) {
+        input_node_names.push_back(name);
+
+        std::vector<int64_t> dims;
+        for (int j = 0; j < shape.nbDims; j++) {
+          dims.push_back(shape.d[j]);
+        }
+        input_node_dims[name] = dims;
+      } else {
+        output_node_names.push_back(name);
+
+        std::vector<int64_t> dims;
+        for (int j = 0; j < shape.nbDims; j++) {
+          dims.push_back(shape.d[j]);
+        }
+        output_node_dims[name] = dims;
+      }
+    }
+    
+    assert(input_node_names.size() == 1);
+    assert(input_node_names[0] == "input");
+
+    assert(output_node_names.size() == 1);
+    assert(output_node_names[0] == "output");
+
+    {
+      auto dims = input_node_dims.at(input_node_names[0]);
+      dims[0] = max_batch_size;
+      const auto input_size =
+          std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<int64_t>());
+
+      malloc_device(&input_data, input_size);
+    }
+
+    {
+      auto dims = output_node_dims.at(output_node_names[0]);
+      dims[0] = max_batch_size;
+      const auto output_size =
+          std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<int64_t>());
+
+      malloc_device(&output_data, output_size);
+    }
+
+    CUDA_SAFE_CALL(cudaStreamCreate(&stream));
+  }
+
+  ~trt_dnn_inference() {
+    delete context;
+    delete engine;
+    delete infer;
+
+    dlclose(plugin_handler);
+
+    CUDA_SAFE_CALL(cudaStreamDestroy(stream));
+
+    CUDA_SAFE_CALL(cudaFree(input_data));
+    CUDA_SAFE_CALL(cudaFree(output_data));
+  }
+
+  void inference(const float *input) {
+    size_t num_batch = 1;
+
+    {
+      auto dims = input_node_dims.at(input_node_names[0]);
+      dims[0] = num_batch;
+      const auto input_size =
+          std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<int64_t>());
+
+      memcpy_dtod(input_data, input, input_size * sizeof(float));
+    }
+
+    for (size_t k = 0; k < num_batch; k += max_batch_size) {
+      const auto num_input_outputs = engine->getNbIOTensors();
+      for (int i = 0; i < num_input_outputs; i++) {
+        const auto name = engine->getIOTensorName(i);
+        const auto tensor = engine->getTensorShape(name);
+
+        if (engine->getTensorIOMode(name) == nvinfer1::TensorIOMode::kINPUT) {
+          nvinfer1::Dims input_dims = tensor;
+
+          if (std::string(name) == "input") {
+            input_dims.d[0] = std::min(num_batch - k, max_batch_size);
+          }
+
+          context->setInputShape(name, input_dims);
+        }
+      }
+
+      if (context->inferShapes(0, nullptr) != 0) {
+        spdlog::error("Failed to infer shapes");
+      }
+
+      if (!context->allInputDimensionsSpecified()) {
+        spdlog::error("Failed to specify all input dimensions");
+      }
+
+      std::unordered_map<std::string, void *> buffers;
+      buffers["input"] = input_data;
+      buffers["output"] = output_data;
+
+      for (const auto &[name, buffer] : buffers) {
+        if (!context->setTensorAddress(name.c_str(), buffer)) {
+          spdlog::error("Failed to set tensor address");
+        }
+      }
+
+      if (!context->enqueueV3(stream)) {
+        spdlog::error("Failed to enqueue");
+      }
+    }
+
+    CUDA_SAFE_CALL(cudaStreamSynchronize(stream));
+  }
+
+  const float *get_output_data() const { return output_data; }
+};
+
+class trt_dnn_inference_heatmap : public dnn_inference_heatmap {
+  std::vector<uint8_t> model_data;
+
+  void *plugin_handler;
+  logger logger;
+  nvinfer1::IRuntime *infer;
+  nvinfer1::ICudaEngine *engine;
+  nvinfer1::IExecutionContext *context;
+
+  cudaStream_t stream;
+
+  float *input_data = nullptr;
+  float *output_data = nullptr;
+
+  static const int max_input_image_width = 1920;
+  static const int max_input_image_height = 1080;
+
+  int image_width = 960;
+  int image_height = 512;
+
+  uint8_t *input_image_data = nullptr;
+
+ public:
+
+  trt_dnn_inference_heatmap(const std::vector<uint8_t> &model_data, size_t max_views) {
+    plugin_handler = dlopen("../data/mvpose/libmmdeploy_tensorrt_ops.so", RTLD_NOW);
+    if (!plugin_handler) {
+      throw std::runtime_error(dlerror());
+    }
+
+    infer = nvinfer1::createInferRuntime(logger);
+    engine = infer->deserializeCudaEngine(model_data.data(), model_data.size());
+    context = engine->createExecutionContext();
+
+    const auto &&image_size = cv::Size(image_width, image_height);
+
+    const auto input_size = image_size.width * image_size.height * 3 * max_views;
+    CUDA_SAFE_CALL(cudaMalloc(&input_data, input_size * sizeof(float)));
+
+    const auto output_size = 15 * 128 * 240 * max_views;
+    CUDA_SAFE_CALL(cudaMalloc(&output_data, output_size * sizeof(float)));
+
+    CUDA_SAFE_CALL(cudaMalloc(&input_image_data,
+                              max_input_image_width * max_input_image_height * 3 * max_views));
+
+    std::unordered_map<std::string, void *> buffers;
+    buffers["input"] = input_data;
+    buffers["output"] = output_data;
+
+    for (const auto &[name, buffer] : buffers) {
+      if (!context->setTensorAddress(name.c_str(), buffer)) {
+        spdlog::error("Failed to set tensor address");
+      }
+    }
+
+    CUDA_SAFE_CALL(cudaStreamCreate(&stream));
+  }
+
+  ~trt_dnn_inference_heatmap() {
+    delete context;
+    delete engine;
+    delete infer;
+
+    dlclose(plugin_handler);
+
+    CUDA_SAFE_CALL(cudaStreamDestroy(stream));
+
+    CUDA_SAFE_CALL(cudaFree(input_data));
+    CUDA_SAFE_CALL(cudaFree(input_image_data));
+    CUDA_SAFE_CALL(cudaFree(output_data));
+  }
+
+  void process(const std::vector<cv::Mat> &images, std::vector<roi_data> &rois) {
+    const auto &&image_size = cv::Size(image_width, image_height);
+
+    for (size_t i = 0; i < images.size(); i++) {
+      const auto &data = images.at(i);
+
+      const auto get_scale = [](const cv::Size2f &image_size, const cv::Size2f &resized_size) {
+        float w_pad, h_pad;
+        if (image_size.width / resized_size.width < image_size.height / resized_size.height) {
+          w_pad = image_size.height / resized_size.height * resized_size.width;
+          h_pad = image_size.height;
+        } else {
+          w_pad = image_size.width;
+          h_pad = image_size.width / resized_size.width * resized_size.height;
+        }
+
+        return cv::Size2f(w_pad / 200.0, h_pad / 200.0);
+      };
+
+      const auto input_image_width = data.size().width;
+      const auto input_image_height = data.size().height;
+
+      assert(input_image_width <= max_input_image_width);
+      assert(input_image_height <= max_input_image_height);
+
+      const auto scale = get_scale(data.size(), image_size);
+      const auto center = cv::Point2f(data.size().width / 2.0, data.size().height / 2.0);
+      const auto rotation = 0.0;
+
+      const roi_data roi = {{scale.width, scale.height}, rotation, {center.x, center.y}};
+      rois.push_back(roi);
+
+      const std::array<float, 3> mean = {0.485, 0.456, 0.406};
+      const std::array<float, 3> std = {0.229, 0.224, 0.225};
+
+      CUDA_SAFE_CALL(cudaMemcpy2D(input_image_data + i * input_image_width * 3 * input_image_height,
+                                  input_image_width * 3, data.data, data.step, data.cols * 3,
+                                  data.rows, cudaMemcpyHostToDevice));
+
+      preprocess_cuda(input_image_data + i * input_image_width * 3 * input_image_height,
+                      input_image_width, input_image_height, input_image_width * 3,
+                      input_data + i * image_width * image_height * 3, image_width, image_height,
+                      image_width, mean, std);
+    }
+
+    CUDA_SAFE_CALL(cudaDeviceSynchronize());
+
+    inference(images.size());
+  }
+
+  void inference(size_t num_views) {
+    const auto num_input_outputs = engine->getNbIOTensors();
+    for (int i = 0; i < num_input_outputs; i++) {
+      const auto name = engine->getIOTensorName(i);
+      const auto tensor = engine->getTensorShape(name);
+
+      if (engine->getTensorIOMode(name) == nvinfer1::TensorIOMode::kINPUT) {
+        nvinfer1::Dims4 input_dims = {tensor.d[0], tensor.d[1], tensor.d[2], tensor.d[3]};
+
+        if (std::string(name) == "input") {
+          input_dims.d[0] = num_views;
+          input_dims.d[2] = image_height;
+          input_dims.d[3] = image_width;
+        }
+
+        context->setInputShape(name, input_dims);
+      }
+    }
+
+    if (context->inferShapes(0, nullptr) != 0) {
+      spdlog::error("Failed to infer shapes");
+    }
+
+    if (!context->allInputDimensionsSpecified()) {
+      spdlog::error("Failed to specify all input dimensions");
+    }
+
+    if (!context->enqueueV3(stream)) {
+      spdlog::error("Failed to enqueue");
+    }
+
+    CUDA_SAFE_CALL(cudaStreamSynchronize(stream));
+  }
+
+  const float *get_heatmaps() const { return output_data; }
+
+  int get_heatmap_width() const { return 240; }
+
+  int get_heatmap_height() const { return 128; }
+};
+} // namespace stargazer::voxelpose
+#endif
+
 namespace stargazer::voxelpose {
 class cv_dnn_inference : public dnn_inference {
   cv::dnn::Net net;
@@ -796,6 +1139,18 @@ voxelpose::voxelpose()
       joint_extract(new joint_extractor()),
       grid_center({0.0, 0.0, 0.0}),
       grid_size({8000.0, 8000.0, 2000.0}) {
+#ifdef USE_TENSORRT
+  std::vector<uint8_t> backbone_model_data;
+  {
+    const auto model_path = "../data/voxelpose/backbone-fp16.trt";
+    std::vector<uint8_t> data;
+    load_model(model_path, data);
+
+    backbone_model_data = std::move(data);
+  }
+
+  inference_heatmap.reset(new trt_dnn_inference_heatmap(backbone_model_data, 5));
+#elif defined(ENABLE_ONNXRUNTIME)
   std::vector<uint8_t> backbone_model_data;
   {
     const auto model_path = "../data/voxelpose/backbone.onnx";
@@ -805,12 +1160,32 @@ voxelpose::voxelpose()
     backbone_model_data = std::move(data);
   }
 
-#ifdef ENABLE_ONNXRUNTIME
   inference_heatmap.reset(new ort_dnn_inference_heatmap(backbone_model_data, 5));
 #else
+  std::vector<uint8_t> backbone_model_data;
+  {
+    const auto model_path = "../data/voxelpose/backbone.onnx";
+    std::vector<uint8_t> data;
+    load_model(model_path, data);
+
+    backbone_model_data = std::move(data);
+  }
+
   inference_heatmap.reset(new cv_dnn_inference_heatmap(backbone_model_data, 5));
 #endif
 
+#ifdef USE_TENSORRT
+  std::vector<uint8_t> proposal_v2v_net_model_data;
+  {
+    const auto model_path = "../data/voxelpose/proposal_v2v_net-fp16.trt";
+    std::vector<uint8_t> data;
+    load_model(model_path, data);
+
+    proposal_v2v_net_model_data = std::move(data);
+  }
+  
+  inference_proposal.reset(new trt_dnn_inference(proposal_v2v_net_model_data, 1));
+#elif defined(ENABLE_ONNXRUNTIME)
   std::vector<uint8_t> proposal_v2v_net_model_data;
   {
     const auto model_path = "../data/voxelpose/proposal_v2v_net.onnx";
@@ -820,12 +1195,32 @@ voxelpose::voxelpose()
     proposal_v2v_net_model_data = std::move(data);
   }
 
-#ifdef ENABLE_ONNXRUNTIME
   inference_proposal.reset(new ort_dnn_inference(proposal_v2v_net_model_data));
 #else
+  std::vector<uint8_t> proposal_v2v_net_model_data;
+  {
+    const auto model_path = "../data/voxelpose/proposal_v2v_net.onnx";
+    std::vector<uint8_t> data;
+    load_model(model_path, data);
+
+    proposal_v2v_net_model_data = std::move(data);
+  }
+
   inference_proposal.reset(new cv_dnn_inference(proposal_v2v_net_model_data));
 #endif
 
+#ifdef USE_TENSORRT
+  std::vector<uint8_t> pose_v2v_net_model_data;
+  {
+    const auto model_path = "../data/voxelpose/pose_v2v_net-fp16.trt";
+    std::vector<uint8_t> data;
+    load_model(model_path, data);
+
+    pose_v2v_net_model_data = std::move(data);
+  }
+  
+  inference_pose.reset(new trt_dnn_inference(pose_v2v_net_model_data, 1));
+#elif defined(ENABLE_ONNXRUNTIME)
   std::vector<uint8_t> pose_v2v_net_model_data;
   {
     const auto model_path = "../data/voxelpose/pose_v2v_net.onnx";
@@ -835,9 +1230,17 @@ voxelpose::voxelpose()
     pose_v2v_net_model_data = std::move(data);
   }
 
-#ifdef ENABLE_ONNXRUNTIME
   inference_pose.reset(new ort_dnn_inference(pose_v2v_net_model_data));
 #else
+  std::vector<uint8_t> pose_v2v_net_model_data;
+  {
+    const auto model_path = "../data/voxelpose/pose_v2v_net.onnx";
+    std::vector<uint8_t> data;
+    load_model(model_path, data);
+
+    pose_v2v_net_model_data = std::move(data);
+  }
+
   inference_pose.reset(new cv_dnn_inference(pose_v2v_net_model_data));
 #endif
 }
