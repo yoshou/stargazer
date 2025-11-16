@@ -20,8 +20,7 @@ void compute_observations(const adj_list_t &adj, std::vector<node_index_list_t> 
 
 bool has_soft_correspondance(const std::vector<node_t> &nodes, const node_index_list_t &graph);
 
-void compute_hard_correspondance(const std::vector<node_t> &nodes, adj_list_t &adj,
-                                 const std::vector<camera_t> &cameras);
+void compute_hard_correspondance(const std::vector<node_t> &nodes, adj_list_t &adj);
 
 void remove_ambiguous_observations(const std::vector<node_t> &nodes, adj_list_t &adj,
                                    const std::vector<camera_t> &cameras,

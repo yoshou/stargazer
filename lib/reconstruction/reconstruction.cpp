@@ -21,7 +21,7 @@ std::vector<glm::vec3> reconstruct(const std::vector<stargazer::camera_t> &camer
   stargazer::reconstruction::find_correspondance(camera_pts, camera_list, nodes, adj, thresh);
 
 #if 0
-  stargazer::reconstruction::compute_hard_correspondance(nodes, adj, camera_list);
+  stargazer::reconstruction::compute_hard_correspondance(nodes, adj);
 
   std::vector<std::vector<std::size_t>> connected_components;
   stargazer::reconstruction::compute_observations(adj, connected_components);
