@@ -53,8 +53,8 @@ inline short saturate_cast<short>(float v) {
   return saturate_cast<short>(iv);
 }
 
-__global__ void preprocess_kernel(const uint8_t *src_data, int src_width, int src_height,
-                                  int src_step, float *dst_data, int dst_width, int dst_height,
+__global__ void preprocess_kernel(const uint8_t* src_data, int src_width, int src_height,
+                                  int src_step, float* dst_data, int dst_width, int dst_height,
                                   int dst_step, float3 m0, float3 m1, float3 mean, float3 std) {
   const int x = blockDim.x * blockIdx.x + threadIdx.x;
   const int y = blockDim.y * blockIdx.y + threadIdx.y;
@@ -132,18 +132,18 @@ __global__ void preprocess_kernel(const uint8_t *src_data, int src_width, int sr
   const int dst_b = saturate_cast<uint8_t>(
       (sv_b.x * w.x + sv_b.y * w.y + sv_b.z * w.z + sv_b.w * w.w + delta) >> shift);
 
-  float *dst_data_r = dst_data;
-  float *dst_data_g = dst_data + dst_step * dst_height;
-  float *dst_data_b = dst_data + dst_step * dst_height * 2;
+  float* dst_data_r = dst_data;
+  float* dst_data_g = dst_data + dst_step * dst_height;
+  float* dst_data_b = dst_data + dst_step * dst_height * 2;
 
   dst_data_r[y * dst_step + x] = (dst_r / 255.0f - mean.x) / std.x;
   dst_data_g[y * dst_step + x] = (dst_g / 255.0f - mean.y) / std.y;
   dst_data_b[y * dst_step + x] = (dst_b / 255.0f - mean.z) / std.z;
 }
 
-void preprocess_cuda(const uint8_t *src_data, int src_width, int src_height, int src_step,
-                     float *dst_data, int dst_width, int dst_height, int dst_step, cv::Mat trans,
-                     const std::array<float, 3> &mean, const std::array<float, 3> &std) {
+void preprocess_cuda(const uint8_t* src_data, int src_width, int src_height, int src_step,
+                     float* dst_data, int dst_width, int dst_height, int dst_step, cv::Mat trans,
+                     const std::array<float, 3>& mean, const std::array<float, 3>& std) {
   double M[6] = {0};
   cv::Mat matM(2, 3, CV_64F, M);
   trans.convertTo(matM, matM.type());
@@ -172,13 +172,13 @@ void preprocess_cuda(const uint8_t *src_data, int src_width, int src_height, int
   }
 }
 
-void preprocess_cuda(const uint8_t *src_data, int src_width, int src_height, int src_step,
-                     float *dst_data, int dst_width, int dst_height, int dst_step,
-                     const std::array<float, 3> &mean, const std::array<float, 3> &std) {
-  const auto &&image_size = cv::Size2f(src_width, src_height);
-  const auto &&resized_size = cv::Size2f(dst_width, dst_height);
+void preprocess_cuda(const uint8_t* src_data, int src_width, int src_height, int src_step,
+                     float* dst_data, int dst_width, int dst_height, int dst_step,
+                     const std::array<float, 3>& mean, const std::array<float, 3>& std) {
+  const auto&& image_size = cv::Size2f(src_width, src_height);
+  const auto&& resized_size = cv::Size2f(dst_width, dst_height);
 
-  const auto get_scale = [](const cv::Size2f &image_size, const cv::Size2f &resized_size) {
+  const auto get_scale = [](const cv::Size2f& image_size, const cv::Size2f& resized_size) {
     float w_pad, h_pad;
     if (image_size.width / resized_size.width < image_size.height / resized_size.height) {
       w_pad = image_size.height / resized_size.height * resized_size.width;

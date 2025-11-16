@@ -8,8 +8,8 @@
 #include "utils.hpp"
 
 namespace stargazer::reconstruction {
-glm::vec3 triangulate(const glm::vec2 pt1, const glm::vec2 pt2, const camera_t &cm1,
-                      const camera_t &cm2) {
+glm::vec3 triangulate(const glm::vec2 pt1, const glm::vec2 pt2, const camera_t& cm1,
+                      const camera_t& cm2) {
   cv::Mat camera_mat1, camera_mat2;
   cv::Mat dist_coeffs1, dist_coeffs2;
   get_cv_intrinsic(cm1.intrin, camera_mat1, dist_coeffs1);
@@ -34,8 +34,8 @@ glm::vec3 triangulate(const glm::vec2 pt1, const glm::vec2 pt2, const camera_t &
                    output.at<double>(2, 0) / output.at<double>(3, 0));
 }
 
-glm::vec3 triangulate_undistorted(const glm::vec2 pt1, const glm::vec2 pt2, const camera_t &cm1,
-                                  const camera_t &cm2) {
+glm::vec3 triangulate_undistorted(const glm::vec2 pt1, const glm::vec2 pt2, const camera_t& cm1,
+                                  const camera_t& cm2) {
   cv::Mat camera_mat1, camera_mat2;
   cv::Mat dist_coeffs1, dist_coeffs2;
   get_cv_intrinsic(cm1.intrin, camera_mat1, dist_coeffs1);
@@ -56,7 +56,7 @@ glm::vec3 triangulate_undistorted(const glm::vec2 pt1, const glm::vec2 pt2, cons
                    output.at<double>(2, 0) / output.at<double>(3, 0));
 }
 
-glm::vec3 triangulate(const std::vector<glm::vec2> &points, const std::vector<camera_t> &cameras) {
+glm::vec3 triangulate(const std::vector<glm::vec2>& points, const std::vector<camera_t>& cameras) {
   assert(points.size() == cameras.size());
 
   const auto nviews = points.size();
@@ -70,7 +70,7 @@ glm::vec3 triangulate(const std::vector<glm::vec2> &points, const std::vector<ca
     std::vector<cv::Point2d> undistort_pt;
     cv::undistortPoints(pt, undistort_pt, camera_mat, dist_coeffs);
 
-    const auto &proj = cameras[i].extrin.transform_matrix();
+    const auto& proj = cameras[i].extrin.transform_matrix();
 
     for (size_t m = 0; m < 3; ++m) {
       for (size_t n = 0; n < 4; ++n) {

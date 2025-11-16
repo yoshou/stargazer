@@ -16,10 +16,10 @@
 #include "utils.hpp"
 
 namespace stargazer::reconstruction {
-static glm::mat3 calculate_fundametal_matrix(const glm::mat3 &camera_mat1,
-                                             const glm::mat3 &camera_mat2,
-                                             const glm::mat4 &camera_pose1,
-                                             const glm::mat4 &camera_pose2) {
+static glm::mat3 calculate_fundametal_matrix(const glm::mat3& camera_mat1,
+                                             const glm::mat3& camera_mat2,
+                                             const glm::mat4& camera_pose1,
+                                             const glm::mat4& camera_pose2) {
   const auto pose = camera_pose2 * glm::inverse(camera_pose1);
 
   const auto R = glm::mat3(pose);
@@ -34,7 +34,7 @@ static glm::mat3 calculate_fundametal_matrix(const glm::mat3 &camera_mat1,
   return F;
 }
 
-static glm::mat3 calculate_fundametal_matrix(const camera_t &camera1, const camera_t &camera2) {
+static glm::mat3 calculate_fundametal_matrix(const camera_t& camera1, const camera_t& camera2) {
   const auto camera_mat1 = camera1.intrin.get_matrix();
   const auto camera_mat2 = camera2.intrin.get_matrix();
 
@@ -42,13 +42,13 @@ static glm::mat3 calculate_fundametal_matrix(const camera_t &camera1, const came
                                      camera2.extrin.transform_matrix());
 }
 
-static glm::vec3 compute_correspond_epiline(const glm::mat3 &F, const glm::vec2 &p) {
+static glm::vec3 compute_correspond_epiline(const glm::mat3& F, const glm::vec2& p) {
   const auto l = F * glm::vec3(p, 1.f);
   return l;
 }
 
-static size_t find_nearest_point(const glm::vec2 &pt, const std::vector<glm::vec2> &pts,
-                                 double thresh, float &dist) {
+static size_t find_nearest_point(const glm::vec2& pt, const std::vector<glm::vec2>& pts,
+                                 double thresh, float& dist) {
   size_t idx = pts.size();
   auto min_dist = std::numeric_limits<float>::max();
   for (size_t i = 0; i < pts.size(); i++) {
@@ -77,7 +77,7 @@ struct edge_t {
 };
 
 template <typename F>
-static void dfs(const adj_list_t &adj, std::size_t v, std::vector<std::uint32_t> &visited, F pred) {
+static void dfs(const adj_list_t& adj, std::size_t v, std::vector<std::uint32_t>& visited, F pred) {
   visited[v] = 1;
   pred(v);
 
@@ -89,7 +89,7 @@ static void dfs(const adj_list_t &adj, std::size_t v, std::vector<std::uint32_t>
 }
 
 template <typename V, typename F>
-static void dfs(const adj_list_t &adj, std::size_t v, std::vector<std::uint32_t> &visited, V visit,
+static void dfs(const adj_list_t& adj, std::size_t v, std::vector<std::uint32_t>& visited, V visit,
                 F pred) {
   if (!visit(v)) {
     return;
@@ -106,8 +106,8 @@ static void dfs(const adj_list_t &adj, std::size_t v, std::vector<std::uint32_t>
   }
 }
 
-void compute_observations(const adj_list_t &adj,
-                          std::vector<std::vector<std::size_t>> &connected_graphs) {
+void compute_observations(const adj_list_t& adj,
+                          std::vector<std::vector<std::size_t>>& connected_graphs) {
   const auto n = adj.size();
   std::vector<std::uint32_t> visited(n, 0);
 
@@ -123,7 +123,7 @@ void compute_observations(const adj_list_t &adj,
   }
 }
 
-bool has_soft_correspondance(const std::vector<node_t> &nodes, const node_index_list_t &graph) {
+bool has_soft_correspondance(const std::vector<node_t>& nodes, const node_index_list_t& graph) {
   std::unordered_set<size_t> groups;
 
   for (const auto v : graph) {
@@ -137,7 +137,7 @@ bool has_soft_correspondance(const std::vector<node_t> &nodes, const node_index_
   return false;
 }
 
-static float compute_diff_camera_angle(const camera_t &camera1, const camera_t &camera2) {
+static float compute_diff_camera_angle(const camera_t& camera1, const camera_t& camera2) {
   const auto r1 = glm::mat3(camera1.extrin.transform_matrix());
   const auto r2 = glm::mat3(camera2.extrin.transform_matrix());
 
@@ -146,15 +146,15 @@ static float compute_diff_camera_angle(const camera_t &camera1, const camera_t &
   return glm::angle(r_quat);
 }
 
-void remove_ambiguous_observations(const std::vector<node_t> &nodes, adj_list_t &adj,
-                                   const std::vector<camera_t> &cameras, double world_thresh) {
+void remove_ambiguous_observations(const std::vector<node_t>& nodes, adj_list_t& adj,
+                                   const std::vector<camera_t>& cameras, double world_thresh) {
   std::vector<std::vector<std::size_t>> connected_graphs;
   compute_observations(adj, connected_graphs);
 
   // Remove ambiguous edges
   // If there is a path between the points of inconsitency, there is a combination of edges
   // with a large 3D point distance from the 2D point pair in the edge connecting to a node.
-  for (const auto &g : connected_graphs) {
+  for (const auto& g : connected_graphs) {
     if (!has_soft_correspondance(nodes, g)) {
       continue;
     }
@@ -196,7 +196,7 @@ void remove_ambiguous_observations(const std::vector<node_t> &nodes, adj_list_t 
       }
     }
 
-    for (const auto &e : remove_edges) {
+    for (const auto& e : remove_edges) {
       const auto u = e.first;
       const auto v = e.second;
       {
@@ -213,7 +213,7 @@ void remove_ambiguous_observations(const std::vector<node_t> &nodes, adj_list_t 
   }
 }
 
-void compute_hard_correspondance(const std::vector<node_t> &nodes, adj_list_t &adj) {
+void compute_hard_correspondance(const std::vector<node_t>& nodes, adj_list_t& adj) {
   std::vector<size_t> id(nodes.size(), -1);
   std::vector<std::unordered_set<size_t>> camera_list;
 
@@ -253,7 +253,7 @@ void compute_hard_correspondance(const std::vector<node_t> &nodes, adj_list_t &a
   adj = new_adj;
 }
 
-static cv::Mat glm2cv_mat3(const glm::mat4 &m) {
+static cv::Mat glm2cv_mat3(const glm::mat4& m) {
   cv::Mat ret(3, 3, CV_32F);
   for (std::size_t i = 0; i < 3; i++) {
     for (std::size_t j = 0; j < 3; j++) {
@@ -263,7 +263,7 @@ static cv::Mat glm2cv_mat3(const glm::mat4 &m) {
   return ret;
 }
 
-static glm::vec2 undistort(const glm::vec2 &pt, const camera_t &camera) {
+static glm::vec2 undistort(const glm::vec2& pt, const camera_t& camera) {
   auto pts = std::vector<cv::Point2f>{cv::Point2f(pt.x, pt.y)};
   cv::Mat m = glm2cv_mat3(camera.intrin.get_matrix());
   cv::Mat coeffs(5, 1, CV_32F);
@@ -277,7 +277,7 @@ static glm::vec2 undistort(const glm::vec2 &pt, const camera_t &camera) {
   return glm::vec2(norm_pts[0].x, norm_pts[0].y);
 }
 
-static glm::vec2 project_undistorted(const glm::vec2 &pt, const camera_t &camera) {
+static glm::vec2 project_undistorted(const glm::vec2& pt, const camera_t& camera) {
   const auto p = camera.intrin.get_matrix() * glm::vec3(pt.x, pt.y, 1.0f);
   return glm::vec2(p.x / p.z, p.y / p.z);
 }
@@ -305,12 +305,12 @@ struct point_cloud_2d {
   }
 
   template <class BoundingBox>
-  inline bool kdtree_get_bbox(BoundingBox & /* bb */) const {
+  inline bool kdtree_get_bbox(BoundingBox& /* bb */) const {
     return false;
   }
 
   point_cloud_2d() {}
-  explicit point_cloud_2d(const std::vector<point_type> &points) : points(points) {
+  explicit point_cloud_2d(const std::vector<point_type>& points) : points(points) {
     index = std::make_unique<kd_tree_t>(
         2 /*dim*/, *this, nanoflann::KDTreeSingleIndexAdaptorParams(1024 /* max leaf */));
   }
@@ -321,13 +321,13 @@ struct point_cloud_2d {
 
   inline std::size_t size() const { return points.size(); }
 
-  std::size_t knn_search(const point_type &query_pt, std::size_t num_points,
-                         index_type *result_index, float *result_distsq) const {
+  std::size_t knn_search(const point_type& query_pt, std::size_t num_points,
+                         index_type* result_index, float* result_distsq) const {
     return index->knnSearch(&query_pt[0], num_points, &result_index[0], &result_distsq[0]);
   }
 
-  std::size_t radius_search(const point_type &query_pt, float radius,
-                            std::vector<std::pair<index_type, float>> &result) const {
+  std::size_t radius_search(const point_type& query_pt, float radius,
+                            std::vector<std::pair<index_type, float>>& result) const {
 #if NANOFLANN_VERSION >= 0x150
     nanoflann::SearchParameters params;
     params.sorted = true;
@@ -335,7 +335,7 @@ struct point_cloud_2d {
     std::vector<nanoflann::ResultItem<index_type, distance_type>> founds;
     const auto found_size = index->radiusSearch(&query_pt[0], radius, founds, params);
 
-    for (const auto &found : founds) {
+    for (const auto& found : founds) {
       result.push_back(std::make_pair(found.first, found.second));
     }
 
@@ -348,8 +348,8 @@ struct point_cloud_2d {
   }
 };
 
-static glm::vec2 epipoloar_transfer(const camera_t &c3, const glm::mat3 &f1, const glm::mat3 &f2,
-                                    const glm::vec2 &pt1, const glm::vec2 &pt2) {
+static glm::vec2 epipoloar_transfer(const camera_t& c3, const glm::mat3& f1, const glm::mat3& f2,
+                                    const glm::vec2& pt1, const glm::vec2& pt2) {
   const auto line1 = compute_correspond_epiline(f1, pt1);
   const auto line2 = compute_correspond_epiline(f2, pt2);
 
@@ -365,9 +365,9 @@ static glm::vec2 epipoloar_transfer(const camera_t &c3, const glm::mat3 &f1, con
   return pt3;
 }
 
-void find_correspondance(const std::vector<std::vector<glm::vec2>> &pts,
-                         const std::vector<camera_t> &cameras, std::vector<node_t> &nodes,
-                         adj_list_t &adj, double screen_thresh) {
+void find_correspondance(const std::vector<std::vector<glm::vec2>>& pts,
+                         const std::vector<camera_t>& cameras, std::vector<node_t>& nodes,
+                         adj_list_t& adj, double screen_thresh) {
   std::vector<std::pair<std::size_t, std::size_t>> camera_pairs;
 
   std::vector<std::vector<glm::vec2>> undist_pts(pts.size());
@@ -465,7 +465,7 @@ void find_correspondance(const std::vector<std::vector<glm::vec2>> &pts,
 
         for (size_t c3 = 0; c3 < cameras.size(); c3++) {
           bool is_dup_camera = false;
-          for (const auto &obs_camera : observed_cameras) {
+          for (const auto& obs_camera : observed_cameras) {
             if (obs_camera == c3) {
               is_dup_camera = true;
               break;
@@ -536,7 +536,7 @@ void find_correspondance(const std::vector<std::vector<glm::vec2>> &pts,
 
   adj.clear();
   adj.resize(nodes.size());
-  for (const auto &edge : edges) {
+  for (const auto& edge : edges) {
     adj[edge.u].push_back(edge.v);
     adj[edge.v].push_back(edge.u);
   }
@@ -547,7 +547,7 @@ class label_writer {
  public:
   label_writer(Name _name) : name(_name) {}
   template <class VertexOrEdge>
-  void operator()(std::ostream &out, const VertexOrEdge &v) const {
+  void operator()(std::ostream& out, const VertexOrEdge& v) const {
     out << "[label=\"" << name.at(v) << "\"]";
   }
 
@@ -555,14 +555,14 @@ class label_writer {
   Name name;
 };
 
-void save_graphs(const std::vector<node_t> &nodes, const adj_list_t &adj,
-                 const std::string &prefix) {
+void save_graphs(const std::vector<node_t>& nodes, const adj_list_t& adj,
+                 const std::string& prefix) {
   std::vector<node_index_list_t> connected_graphs;
   compute_observations(adj, connected_graphs);
 
   std::size_t count = 0;
   for (std::size_t i = 0; i < connected_graphs.size(); i++) {
-    const auto &connected_graph = connected_graphs[i];
+    const auto& connected_graph = connected_graphs[i];
     if (connected_graph.size() < 2) {
       continue;
     }

@@ -8,8 +8,8 @@
 #include "triangulation.hpp"
 
 namespace stargazer::reconstruction {
-std::vector<glm::vec3> reconstruct(const std::vector<stargazer::camera_t> &camera_list,
-                                   const std::vector<std::vector<glm::vec2>> &camera_pts,
+std::vector<glm::vec3> reconstruct(const std::vector<stargazer::camera_t>& camera_list,
+                                   const std::vector<std::vector<glm::vec2>>& camera_pts,
                                    glm::mat4 axis) {
   if (camera_list.size() < 2) {
     return {};
@@ -34,7 +34,7 @@ std::vector<glm::vec3> reconstruct(const std::vector<stargazer::camera_t> &camer
 
   bool all_hard_correspondance = true;
   for (std::size_t i = 0; i < connected_components.size(); i++) {
-    const auto &connected_graph = connected_components[i];
+    const auto& connected_graph = connected_components[i];
     const auto has_ambigious =
         stargazer::reconstruction::has_soft_correspondance(nodes, connected_graph);
     if (has_ambigious) {
@@ -48,7 +48,7 @@ std::vector<glm::vec3> reconstruct(const std::vector<stargazer::camera_t> &camer
   }
 
   std::vector<glm::vec3> markers;
-  for (auto &g : connected_components) {
+  for (auto& g : connected_components) {
     if (g.size() < 2) {
       continue;
     }
@@ -68,13 +68,13 @@ std::vector<glm::vec3> reconstruct(const std::vector<stargazer::camera_t> &camer
 }
 
 std::vector<glm::vec3> reconstruct(
-    const std::map<std::string, stargazer::camera_t> &cameras,
-    const std::map<std::string, std::vector<stargazer::point_data>> &frame, glm::mat4 axis) {
+    const std::map<std::string, stargazer::camera_t>& cameras,
+    const std::map<std::string, std::vector<stargazer::point_data>>& frame, glm::mat4 axis) {
   std::vector<std::vector<glm::vec2>> camera_pts;
   std::vector<stargazer::camera_t> camera_list;
-  for (const auto &[camera_name, camera] : cameras) {
+  for (const auto& [camera_name, camera] : cameras) {
     std::vector<glm::vec2> pts;
-    for (const auto &pt : frame.at(camera_name)) {
+    for (const auto& pt : frame.at(camera_name)) {
       pts.push_back(pt.point);
     }
     camera_pts.push_back(pts);

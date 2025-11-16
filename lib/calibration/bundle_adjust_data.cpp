@@ -21,7 +21,7 @@ void bundle_adjust_data::resize_parameters(size_t num_cameras, size_t num_points
 
   parameters_.resize(num_parameters_);
 }
-bool bundle_adjust_data::load_txt(std::istream &ifs) {
+bool bundle_adjust_data::load_txt(std::istream& ifs) {
   if (!ifs) {
     return false;
   }
@@ -49,7 +49,7 @@ bool bundle_adjust_data::load_txt(std::istream &ifs) {
   return true;
 }
 
-bool bundle_adjust_data::save_txt(std::ostream &ofs) {
+bool bundle_adjust_data::save_txt(std::ostream& ofs) {
   if (!ofs) {
     return false;
   }
@@ -70,21 +70,21 @@ bool bundle_adjust_data::save_txt(std::ostream &ofs) {
   return true;
 }
 
-bool bundle_adjust_data::load_txt(const std::string &filename) {
+bool bundle_adjust_data::load_txt(const std::string& filename) {
   std::ifstream ifs;
   ifs.open(filename, std::ios::in);
 
   return load_txt(ifs);
 }
 
-bool bundle_adjust_data::save_txt(const std::string &filename) {
+bool bundle_adjust_data::save_txt(const std::string& filename) {
   std::ofstream ofs;
   ofs.open(filename, std::ios::out | std::ios::out);
 
   return save_txt(ofs);
 }
 
-bool bundle_adjust_data::load_json(std::istream &ifs) {
+bool bundle_adjust_data::load_json(std::istream& ifs) {
   if (!ifs) {
     return false;
   }
@@ -127,7 +127,7 @@ bool bundle_adjust_data::load_json(std::istream &ifs) {
   return true;
 }
 
-bool bundle_adjust_data::save_json(std::ostream &ofs) {
+bool bundle_adjust_data::save_json(std::ostream& ofs) {
   if (!ofs) {
     return false;
   }
@@ -185,14 +185,14 @@ bool bundle_adjust_data::save_json(std::ostream &ofs) {
   return true;
 }
 
-bool bundle_adjust_data::load_json(const std::string &filename) {
+bool bundle_adjust_data::load_json(const std::string& filename) {
   std::ifstream ifs;
   ifs.open(filename, std::ios::in);
 
   return load_json(ifs);
 }
 
-bool bundle_adjust_data::save_json(const std::string &filename) {
+bool bundle_adjust_data::save_json(const std::string& filename) {
   std::ofstream ofs;
   ofs.open(filename, std::ios::out | std::ios::out);
 
@@ -205,7 +205,7 @@ glm::mat4 bundle_adjust_data::get_camera_extrinsic(std::size_t i) {
   double rot[9];
   ceres::QuaternionToRotation(quat, rot);
 
-  double *trans = &mutable_camera(i)[3];
+  double* trans = &mutable_camera(i)[3];
 
   glm::mat4 mat(1.0);
   for (size_t j = 0; j < 3; j++) {
@@ -228,7 +228,7 @@ struct reprojection_error_functor {
       : observed_x(observed_x), observed_y(observed_y) {}
 
   template <typename T>
-  bool operator()(const T *const camera, const T *const point, T *residuals) const {
+  bool operator()(const T* const camera, const T* const point, T* residuals) const {
     T p[3];
     ceres::AngleAxisRotatePoint(camera, point, p);
 
@@ -242,22 +242,22 @@ struct reprojection_error_functor {
     T predicted_x;
     T predicted_y;
 
-    const T &fx = camera[6];
-    const T &fy = camera[7];
-    const T &cx = camera[8];
-    const T &cy = camera[9];
+    const T& fx = camera[6];
+    const T& fy = camera[7];
+    const T& cx = camera[8];
+    const T& cy = camera[9];
     const T r2 = xp * xp + yp * yp;
 
-    const T &k1 = camera[10];
-    const T &k2 = camera[11];
-    const T &k3 = camera[12];
-    const T &p1 = camera[13];
-    const T &p2 = camera[14];
+    const T& k1 = camera[10];
+    const T& k2 = camera[11];
+    const T& k3 = camera[12];
+    const T& p1 = camera[13];
+    const T& p2 = camera[14];
 
     if constexpr (is_radial_distortion) {
-      const T &k4 = camera[15];
-      const T &k5 = camera[16];
-      const T &k6 = camera[17];
+      const T& k4 = camera[15];
+      const T& k5 = camera[16];
+      const T& k6 = camera[17];
 
       const T distortion =
           (1.0 + (k1 + (k2 + k3 * r2) * r2) * r2) / (1.0 + (k4 + (k5 + k6 * r2) * r2) * r2);
@@ -279,7 +279,7 @@ struct reprojection_error_functor {
     return true;
   }
 
-  static ceres::CostFunction *create(const double observed_x, const double observed_y) {
+  static ceres::CostFunction* create(const double observed_x, const double observed_y) {
     return (new ceres::AutoDiffCostFunction<reprojection_error_functor, 2, num_parameters, 3>(
         new reprojection_error_functor(observed_x, observed_y)));
   }
@@ -288,12 +288,12 @@ struct reprojection_error_functor {
   double observed_y;
 };
 
-void bundle_adjustment(stargazer::calibration::bundle_adjust_data &ba_data, bool only_extrinsic,
+void bundle_adjustment(stargazer::calibration::bundle_adjust_data& ba_data, bool only_extrinsic,
                        bool robust) {
-  const double *observations = ba_data.observations();
+  const double* observations = ba_data.observations();
   ceres::Problem problem;
 
-  ceres::SubsetManifold *constant_params_manifold = nullptr;
+  ceres::SubsetManifold* constant_params_manifold = nullptr;
   if (only_extrinsic) {
     std::vector<int> constant_params;
 
@@ -305,9 +305,9 @@ void bundle_adjustment(stargazer::calibration::bundle_adjust_data &ba_data, bool
   }
 
   for (int i = 0; i < ba_data.num_observations(); ++i) {
-    ceres::LossFunction *loss_function = robust ? new ceres::HuberLoss(1.0) : nullptr;
+    ceres::LossFunction* loss_function = robust ? new ceres::HuberLoss(1.0) : nullptr;
 
-    ceres::CostFunction *cost_function =
+    ceres::CostFunction* cost_function =
         reprojection_error_functor<false>::create(observations[2 * i + 0], observations[2 * i + 1]);
     problem.AddResidualBlock(cost_function, loss_function,
                              ba_data.mutable_camera_for_observation(i),

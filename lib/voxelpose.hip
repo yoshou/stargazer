@@ -1,5 +1,5 @@
-#include <hipblas/hipblas.h>
 #include <hip/hip_runtime.h>
+#include <hipblas/hipblas.h>
 #include <miopen/miopen.h>
 
 #include <algorithm>
@@ -10,52 +10,45 @@
 #include "preprocess.hpp"
 #include "voxelpose_internal.hpp"
 
-#define CUDA_SAFE_CALL(func)                                                                       \
-  do {                                                                                             \
+#define CUDA_SAFE_CALL(func)                                                                      \
+  do {                                                                                            \
     hipError_t err = (func);                                                                      \
     if (err != hipSuccess) {                                                                      \
       fprintf(stderr, "[Error] %s (error code: %d) at %s line %d\n", hipGetErrorString(err), err, \
-              __FILE__, __LINE__);                                                                 \
-      exit(err);                                                                                   \
-    }                                                                                              \
+              __FILE__, __LINE__);                                                                \
+      exit(err);                                                                                  \
+    }                                                                                             \
   } while (0)
 
 #define MIOPEN_SAFE_CALL(func)                                                                  \
-  do {                                                                                         \
+  do {                                                                                          \
     miopenStatus_t err = (func);                                                                \
-    if (err != miopenStatusSuccess) {                                                         \
+    if (err != miopenStatusSuccess) {                                                           \
       fprintf(stderr, "[Error] %s (error code: %d) at %s line %d\n", miopenGetErrorString(err), \
-              err, __FILE__, __LINE__);                                                        \
-      exit(err);                                                                               \
-    }                                                                                          \
+              err, __FILE__, __LINE__);                                                         \
+      exit(err);                                                                                \
+    }                                                                                           \
   } while (0)
 
-#define HIPBLAS_SAFE_CALL(error)                              \
-  do {                                                          \
-    if(error != HIPBLAS_STATUS_SUCCESS)                         \
-    {                                                           \
-        fprintf(stderr, "hipBLAS error: ");                     \
-        if(error == HIPBLAS_STATUS_NOT_INITIALIZED)             \
-            fprintf(stderr, "HIPBLAS_STATUS_NOT_INITIALIZED");  \
-        if(error == HIPBLAS_STATUS_ALLOC_FAILED)                \
-            fprintf(stderr, "HIPBLAS_STATUS_ALLOC_FAILED");     \
-        if(error == HIPBLAS_STATUS_INVALID_VALUE)               \
-            fprintf(stderr, "HIPBLAS_STATUS_INVALID_VALUE");    \
-        if(error == HIPBLAS_STATUS_MAPPING_ERROR)               \
-            fprintf(stderr, "HIPBLAS_STATUS_MAPPING_ERROR");    \
-        if(error == HIPBLAS_STATUS_EXECUTION_FAILED)            \
-            fprintf(stderr, "HIPBLAS_STATUS_EXECUTION_FAILED"); \
-        if(error == HIPBLAS_STATUS_INTERNAL_ERROR)              \
-            fprintf(stderr, "HIPBLAS_STATUS_INTERNAL_ERROR");   \
-        if(error == HIPBLAS_STATUS_NOT_SUPPORTED)               \
-            fprintf(stderr, "HIPBLAS_STATUS_NOT_SUPPORTED");    \
-        if(error == HIPBLAS_STATUS_INVALID_ENUM)                \
-            fprintf(stderr, "HIPBLAS_STATUS_INVALID_ENUM");     \
-        if(error == HIPBLAS_STATUS_UNKNOWN)                     \
-            fprintf(stderr, "HIPBLAS_STATUS_UNKNOWN");          \
-        fprintf(stderr, "\n");                                  \
-        exit(EXIT_FAILURE);                                     \
-    }                                                           \
+#define HIPBLAS_SAFE_CALL(error)                                                                  \
+  do {                                                                                            \
+    if (error != HIPBLAS_STATUS_SUCCESS) {                                                        \
+      fprintf(stderr, "hipBLAS error: ");                                                         \
+      if (error == HIPBLAS_STATUS_NOT_INITIALIZED)                                                \
+        fprintf(stderr, "HIPBLAS_STATUS_NOT_INITIALIZED");                                        \
+      if (error == HIPBLAS_STATUS_ALLOC_FAILED) fprintf(stderr, "HIPBLAS_STATUS_ALLOC_FAILED");   \
+      if (error == HIPBLAS_STATUS_INVALID_VALUE) fprintf(stderr, "HIPBLAS_STATUS_INVALID_VALUE"); \
+      if (error == HIPBLAS_STATUS_MAPPING_ERROR) fprintf(stderr, "HIPBLAS_STATUS_MAPPING_ERROR"); \
+      if (error == HIPBLAS_STATUS_EXECUTION_FAILED)                                               \
+        fprintf(stderr, "HIPBLAS_STATUS_EXECUTION_FAILED");                                       \
+      if (error == HIPBLAS_STATUS_INTERNAL_ERROR)                                                 \
+        fprintf(stderr, "HIPBLAS_STATUS_INTERNAL_ERROR");                                         \
+      if (error == HIPBLAS_STATUS_NOT_SUPPORTED) fprintf(stderr, "HIPBLAS_STATUS_NOT_SUPPORTED"); \
+      if (error == HIPBLAS_STATUS_INVALID_ENUM) fprintf(stderr, "HIPBLAS_STATUS_INVALID_ENUM");   \
+      if (error == HIPBLAS_STATUS_UNKNOWN) fprintf(stderr, "HIPBLAS_STATUS_UNKNOWN");             \
+      fprintf(stderr, "\n");                                                                      \
+      exit(EXIT_FAILURE);                                                                         \
+    }                                                                                             \
   } while (0)
 
 namespace stargazer::voxelpose {
@@ -64,20 +57,20 @@ enum {
   INTER_TAB_SIZE = (1 << INTER_BITS),
 };
 
-static inline void interpolate_linear(float x, float *coeffs) {
+static inline void interpolate_linear(float x, float* coeffs) {
   coeffs[0] = 1.f - x;
   coeffs[1] = x;
 }
 
-static void init_interpolation_table_line_bilinear(float *table, int table_size) {
+static void init_interpolation_table_line_bilinear(float* table, int table_size) {
   float scale = 1.f / table_size;
   for (int i = 0; i < table_size; i++, table += 2) interpolate_linear(i * scale, table);
 }
 
-static const float *init_interpolation_table_bilinear() {
+static const float* init_interpolation_table_bilinear() {
   alignas(32) static float BilinearTab_f[INTER_TAB_SIZE * INTER_TAB_SIZE][2][2];
 
-  float *tab = BilinearTab_f[0][0];
+  float* tab = BilinearTab_f[0][0];
 
   static bool created = false;
   if (created) {
@@ -122,18 +115,18 @@ struct proj_camera {
 
 struct voxel_projector::cuda_data {
   hipStream_t stream;
-  float *bilinear_wtab;
-  float *cubes_g;
-  proj_camera *cameras_g;
+  float* bilinear_wtab;
+  float* cubes_g;
+  proj_camera* cameras_g;
 
   cuda_data() : bilinear_wtab(nullptr), cubes_g(nullptr), cameras_g(nullptr) {
     hipStreamCreate(&stream);
 
-    const float *wtab = init_interpolation_table_bilinear();
+    const float* wtab = init_interpolation_table_bilinear();
 
     hipMalloc(&bilinear_wtab, INTER_TAB_SIZE * INTER_TAB_SIZE * 2 * 2 * sizeof(float));
     hipMemcpy(bilinear_wtab, wtab, INTER_TAB_SIZE * INTER_TAB_SIZE * 2 * 2 * sizeof(float),
-               hipMemcpyHostToDevice);
+              hipMemcpyHostToDevice);
   }
 
   ~cuda_data() {
@@ -147,7 +140,7 @@ voxel_projector::voxel_projector() : cuda_data_(std::make_unique<cuda_data>()) {
 voxel_projector::~voxel_projector() {}
 
 __device__ void project_point(const float p_x, const float p_y, const float p_z,
-                              const proj_camera &camera, float &u, float &v) {
+                              const proj_camera& camera, float& u, float& v) {
   using acc_t = float;
 
   const auto fx = static_cast<acc_t>(camera.fx);
@@ -184,12 +177,12 @@ __device__ void project_point(const float p_x, const float p_y, const float p_z,
   v = static_cast<float>(fy * y2 + cy);
 }
 
-__global__ void proj_kernel(const float *heatmaps, int heatmap_width, int heatmap_height,
+__global__ void proj_kernel(const float* heatmaps, int heatmap_width, int heatmap_height,
                             int heatmap_channel, int grid_size_x, int grid_size_y, int grid_size_z,
                             float area_size_x, float area_size_y, float area_size_z,
                             float grid_center_x, float grid_center_y, float grid_center_z,
-                            const proj_camera *cameras, int num_views, float *grid,
-                            const float *wtab) {
+                            const proj_camera* cameras, int num_views, float* grid,
+                            const float* wtab) {
   const int x = blockIdx.x * blockDim.x + threadIdx.x;
   const int y = blockIdx.y * blockDim.y + threadIdx.y;
 
@@ -209,7 +202,7 @@ __global__ void proj_kernel(const float *heatmaps, int heatmap_width, int heatma
     float tmp = 0.0f;
     float bounding_count = 0.0f;
     for (int i = 0; i < num_views; i++) {
-      const float *heatmap = heatmaps + heatmap_width * heatmap_height * heatmap_channel * i +
+      const float* heatmap = heatmaps + heatmap_width * heatmap_height * heatmap_channel * i +
                              heatmap_width * heatmap_height * channel;
 
       float u, v;
@@ -263,7 +256,7 @@ __global__ void proj_kernel(const float *heatmaps, int heatmap_width, int heatma
           return static_cast<float>(0);
         }
       };
-      const float *w = wtab + ma * 4;
+      const float* w = wtab + ma * 4;
       const auto sample_value = get_value(0, 0) * w[0] + get_value(1, 0) * w[1] +
                                 get_value(0, 1) * w[2] + get_value(1, 1) * w[3];
 
@@ -277,10 +270,10 @@ __global__ void proj_kernel(const float *heatmaps, int heatmap_width, int heatma
   }
 }
 
-void voxel_projector::get_voxel(const float *heatmaps, int num_cameras, int heatmap_width,
-                                int heatmap_height, const std::vector<camera_data> &cameras,
-                                const std::vector<roi_data> &rois,
-                                const std::array<float, 3> &grid_center) {
+void voxel_projector::get_voxel(const float* heatmaps, int num_cameras, int heatmap_width,
+                                int heatmap_height, const std::vector<camera_data>& cameras,
+                                const std::vector<roi_data>& rois,
+                                const std::array<float, 3>& grid_center) {
   const auto num_bins = static_cast<uint32_t>(
       std::accumulate(cube_size.begin(), cube_size.end(), 1, std::multiplies<int32_t>()));
   const auto num_joints = 15;
@@ -290,8 +283,8 @@ void voxel_projector::get_voxel(const float *heatmaps, int num_cameras, int heat
   std::vector<proj_camera> proj_cameras(num_cameras);
 
   for (uint32_t c = 0; c < num_cameras; c++) {
-    const auto &roi = rois.at(c);
-    const auto &&image_size = cv::Size2f(960, 512);
+    const auto& roi = rois.at(c);
+    const auto&& image_size = cv::Size2f(960, 512);
     const auto center = cv::Point2f(roi.center[0], roi.center[1]);
     const auto scale = cv::Size2f(roi.scale[0], roi.scale[1]);
     const auto width = center.x * 2;
@@ -340,8 +333,8 @@ void voxel_projector::get_voxel(const float *heatmaps, int num_cameras, int heat
   }
 
   CUDA_SAFE_CALL(hipMemcpyAsync(cuda_data_->cameras_g, proj_cameras.data(),
-                                 num_cameras * sizeof(proj_camera), hipMemcpyHostToDevice,
-                                 cuda_data_->stream));
+                                num_cameras * sizeof(proj_camera), hipMemcpyHostToDevice,
+                                cuda_data_->stream));
 
   {
     dim3 block(256, 1, 1);
@@ -357,9 +350,9 @@ void voxel_projector::get_voxel(const float *heatmaps, int num_cameras, int heat
   CUDA_SAFE_CALL(hipStreamSynchronize(cuda_data_->stream));
 }
 
-const float *voxel_projector::get_cubes() const { return cuda_data_->cubes_g; }
+const float* voxel_projector::get_cubes() const { return cuda_data_->cubes_g; }
 
-__global__ void soft_argmax_pre_kernel(const float *src, float *dst, float *grid, int grid_size_x,
+__global__ void soft_argmax_pre_kernel(const float* src, float* dst, float* grid, int grid_size_x,
                                        int grid_size_y, int grid_size_z, int num_channel,
                                        float area_size_x, float area_size_y, float area_size_z,
                                        float grid_center_x, float grid_center_y,
@@ -394,10 +387,10 @@ struct joint_extractor::cuda_data {
   miopenHandle_t miopen_handle;
   hipblasHandle_t hipblas_handle;
   miopenTensorDescriptor_t scaled_value_tensor, softmax_value_tensor;
-  float *scaled_value;
-  float *grid;
-  float *softmax_value;
-  float *joints;
+  float* scaled_value;
+  float* grid;
+  float* softmax_value;
+  float* joints;
 
   cuda_data() : scaled_value(nullptr), grid(nullptr), softmax_value(nullptr), joints(nullptr) {
     hipStreamCreate(&stream);
@@ -406,12 +399,10 @@ struct joint_extractor::cuda_data {
     miopenSetStream(miopen_handle, stream);
 
     miopenCreateTensorDescriptor(&scaled_value_tensor);
-    miopenSet4dTensorDescriptor(scaled_value_tensor, miopenFloat, 15, 1, 1,
-                               64 * 64 * 64);
+    miopenSet4dTensorDescriptor(scaled_value_tensor, miopenFloat, 15, 1, 1, 64 * 64 * 64);
 
     miopenCreateTensorDescriptor(&softmax_value_tensor);
-    miopenSet4dTensorDescriptor(softmax_value_tensor, miopenFloat, 15, 1, 1,
-                               64 * 64 * 64);
+    miopenSet4dTensorDescriptor(softmax_value_tensor, miopenFloat, 15, 1, 1, 64 * 64 * 64);
 
     hipblasCreate(&hipblas_handle);
     hipblasSetStream(hipblas_handle, stream);
@@ -457,10 +448,10 @@ joint_extractor::joint_extractor(int num_joints)
 
 joint_extractor::~joint_extractor() {}
 
-void joint_extractor::soft_argmax(const float *src_data, float beta,
-                                  const std::array<float, 3> &grid_size,
-                                  const std::array<int32_t, 3> &cube_size,
-                                  const std::array<float, 3> &grid_center) {
+void joint_extractor::soft_argmax(const float* src_data, float beta,
+                                  const std::array<float, 3>& grid_size,
+                                  const std::array<int32_t, 3>& cube_size,
+                                  const std::array<float, 3>& grid_center) {
   const auto num_bins = static_cast<uint32_t>(
       std::accumulate(cube_size.begin(), cube_size.end(), 1, std::multiplies<int32_t>()));
 
@@ -494,24 +485,24 @@ void joint_extractor::soft_argmax(const float *src_data, float beta,
     const float alpha = 1.0f;
     const float beta = 0.0f;
 
-    MIOPEN_SAFE_CALL(miopenSoftmaxForward(
-        cuda_data_->miopen_handle, &alpha,
-        cuda_data_->scaled_value_tensor, cuda_data_->scaled_value, &beta,
-        cuda_data_->softmax_value_tensor, cuda_data_->softmax_value));
+    MIOPEN_SAFE_CALL(miopenSoftmaxForward(cuda_data_->miopen_handle, &alpha,
+                                          cuda_data_->scaled_value_tensor, cuda_data_->scaled_value,
+                                          &beta, cuda_data_->softmax_value_tensor,
+                                          cuda_data_->softmax_value));
   }
 
   {
     const float alpha = 1.0f;
     const float beta = 0.0f;
 
-    HIPBLAS_SAFE_CALL(hipblasSgemm(cuda_data_->hipblas_handle, HIPBLAS_OP_T, HIPBLAS_OP_N, 3, num_joints,
-                                 num_bins, &alpha, cuda_data_->grid, num_bins,
-                                 cuda_data_->softmax_value, num_bins, &beta, cuda_data_->joints,
-                                 3));
+    HIPBLAS_SAFE_CALL(hipblasSgemm(cuda_data_->hipblas_handle, HIPBLAS_OP_T, HIPBLAS_OP_N, 3,
+                                   num_joints, num_bins, &alpha, cuda_data_->grid, num_bins,
+                                   cuda_data_->softmax_value, num_bins, &beta, cuda_data_->joints,
+                                   3));
   }
 
   CUDA_SAFE_CALL(hipStreamSynchronize(cuda_data_->stream));
 }
 
-const float *joint_extractor::get_joints() const { return cuda_data_->joints; }
+const float* joint_extractor::get_joints() const { return cuda_data_->joints; }
 }  // namespace stargazer::voxelpose
