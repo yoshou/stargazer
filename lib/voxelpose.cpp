@@ -940,7 +940,7 @@ class cv_dnn_inference_heatmap : public dnn_inference_heatmap {
     const auto backends = cv::dnn::getAvailableBackends();
     net = cv::dnn::readNetFromONNX(model_data);
 
-    const auto input_size = 960 * 512 * 3 * max_views;
+    const auto input_size = image_width * image_height * 3 * max_views;
     malloc_device(&input_data, input_size);
     input_data_cpu.resize(input_size);
 
@@ -954,7 +954,7 @@ class cv_dnn_inference_heatmap : public dnn_inference_heatmap {
   ~cv_dnn_inference_heatmap() {}
 
   void process(const std::vector<cv::Mat>& images, std::vector<roi_data>& rois) {
-    const auto&& image_size = cv::Size(960, 512);
+    const auto&& image_size = cv::Size(image_width, image_height);
 
     for (size_t i = 0; i < images.size(); i++) {
       const auto& data = images.at(i);
@@ -993,7 +993,8 @@ class cv_dnn_inference_heatmap : public dnn_inference_heatmap {
 
       preprocess_cuda(input_image_data + i * input_image_width * 3 * input_image_height,
                       input_image_width, input_image_height, input_image_width * 3,
-                      input_data + i * 960 * 512 * 3, 960, 512, 960, mean, std);
+                      input_data + i * image_width * image_height * 3, image_width, image_height,
+                      image_width, mean, std);
     }
 
     synchronize_device();
@@ -1002,9 +1003,11 @@ class cv_dnn_inference_heatmap : public dnn_inference_heatmap {
   }
 
   void inference(size_t num_views) {
-    memcpy_dtoh(input_data_cpu.data(), input_data, num_views * 960 * 512 * 3 * sizeof(float));
+    memcpy_dtoh(input_data_cpu.data(), input_data,
+                num_views * image_width * image_height * 3 * sizeof(float));
 
-    const cv::dnn::MatShape input_shape = {static_cast<int>(num_views), 3, 512, 960};
+    const cv::dnn::MatShape input_shape = {static_cast<int>(num_views), 3, image_height,
+                                           image_width};
 
     cv::Mat input_mat(input_shape, CV_32FC1, (void*)input_data_cpu.data());
     net.setInput(input_mat);
