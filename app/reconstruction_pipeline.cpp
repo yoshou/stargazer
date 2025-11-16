@@ -250,7 +250,7 @@ class grpc_server_node : public graph_node {
     set_output(output);
   }
 
-  virtual std::string get_proc_name() const override { return "grpc_server_node"; }
+  virtual std::string get_proc_name() const override { return "grpc_server"; }
 
   void set_address(const std::string& value) { address = value; }
 
@@ -325,7 +325,7 @@ class callback_node : public graph_node {
  public:
   callback_node() : graph_node() {}
 
-  virtual std::string get_proc_name() const override { return "callback_node"; }
+  virtual std::string get_proc_name() const override { return "callback"; }
 
   void set_name(const std::string& value) { name = value; }
   std::string get_name() const { return name; }
@@ -380,7 +380,7 @@ class epipolar_reconstruct_node : public graph_node {
     set_output(output);
   }
 
-  virtual std::string get_proc_name() const override { return "epipolar_reconstruct_node"; }
+  virtual std::string get_proc_name() const override { return "epipolar_reconstruct"; }
 
   template <typename Archive>
   void serialize(Archive& archive) {
@@ -658,7 +658,7 @@ class voxelpose_reconstruct_node : public image_reconstruct_node {
     set_output(output);
   }
 
-  virtual std::string get_proc_name() const override { return "voxelpose_reconstruct_node"; }
+  virtual std::string get_proc_name() const override { return "voxelpose_reconstruct"; }
 
   template <typename Archive>
   void serialize(Archive& archive) {
@@ -859,7 +859,7 @@ class mvpose_reconstruct_node : public image_reconstruct_node {
     set_output(output);
   }
 
-  virtual std::string get_proc_name() const override { return "mvpose_reconstruct_node"; }
+  virtual std::string get_proc_name() const override { return "mvpose_reconstruct"; }
 
   template <typename Archive>
   void serialize(Archive& archive) {
@@ -1037,7 +1037,7 @@ class dump_se3_node : public graph_node {
 
   void set_name(std::string value) { name = value; }
 
-  virtual std::string get_proc_name() const override { return "dump_se3_node"; }
+  virtual std::string get_proc_name() const override { return "dump_se3"; }
 
   template <typename Archive>
   void serialize(Archive& archive) {
