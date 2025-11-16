@@ -94,12 +94,12 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
                        libnvonnxparsers-dev=${TENSORRT_VERSION}.*
 
 # Install ONNX Runtime
-ENV ONNXRUNTIME_VERSION 1.17.3
+ENV ONNXRUNTIME_VERSION 1.23.2
 
 WORKDIR /onnxruntime/
 
 RUN curl -L \
-    https://github.com/microsoft/onnxruntime/releases/download/v${ONNXRUNTIME_VERSION}/onnxruntime-linux-x64-gpu-cuda12-${ONNXRUNTIME_VERSION}.tgz \
+    https://github.com/microsoft/onnxruntime/releases/download/v${ONNXRUNTIME_VERSION}/onnxruntime-linux-x64-gpu-${ONNXRUNTIME_VERSION}.tgz \
     -o /tmp/onnxruntime.tgz \
     && tar -zxvf /tmp/onnxruntime.tgz --strip-components 1 -C /onnxruntime
 

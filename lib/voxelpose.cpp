@@ -161,7 +161,7 @@ class ort_dnn_inference : public dnn_inference {
 
       cuda_options.device_id = 0;
       cuda_options.arena_extend_strategy = 1;
-      cuda_options.gpu_mem_limit = 2ULL * 1024 * 1024 * 1024;
+      cuda_options.gpu_mem_limit = 4ULL * 1024 * 1024 * 1024;
       cuda_options.cudnn_conv_algo_search = OrtCudnnConvAlgoSearchExhaustive;
       cuda_options.do_copy_in_default_stream = 1;
 
@@ -337,7 +337,7 @@ class ort_dnn_inference_heatmap : public dnn_inference_heatmap {
 
       cuda_options.device_id = 0;
       cuda_options.arena_extend_strategy = 1;
-      cuda_options.gpu_mem_limit = 2ULL * 1024 * 1024 * 1024;
+      cuda_options.gpu_mem_limit = 4ULL * 1024 * 1024 * 1024;
       cuda_options.cudnn_conv_algo_search = OrtCudnnConvAlgoSearchExhaustive;
       cuda_options.do_copy_in_default_stream = 1;
 
