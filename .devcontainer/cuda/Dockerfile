@@ -10,18 +10,10 @@ RUN if [ "${REINSTALL_CMAKE_VERSION_FROM_SOURCE}" != "none" ]; then \
     fi \
     && rm -f /tmp/reinstall-cmake.sh
 
+# Install dependencies
 RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
     && apt-get -y install --no-install-recommends gfortran bison python3 python3-setuptools libarchive-dev libblas-dev liblapack-dev \
     libxinerama-dev libxcursor-dev xorg-dev libglu1-mesa-dev pkg-config
-
-RUN update-alternatives --set c++ /usr/bin/clang++ \
-    && update-alternatives --set cc /usr/bin/clang
-
-RUN su vscode -c "${VCPKG_ROOT}/vcpkg install boost-program-options boost-asio boost-graph ceres opencv4[core,highgui,calib3d,contrib,jpeg,dnn] glm grpc glfw3 glad nanoflann nlohmann-json imgui[opengl3-binding,glfw-binding] libjpeg-turbo lz4 sqlite3 cereal spdlog"
-
-ENV PATH $PATH:${VCPKG_ROOT}/installed/x64-linux
-ENV PATH $PATH:${VCPKG_ROOT}/installed/x64-linux/tools/protobuf
-ENV PATH $PATH:${VCPKG_ROOT}/installed/x64-linux/tools/grpc
 
 # Install CUDA
 ENV NVARCH x86_64
@@ -93,14 +85,23 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
                        libnvonnxparsers${TENSORRT_MAJOR_VERSION}=${TENSORRT_VERSION}.* \
                        libnvonnxparsers-dev=${TENSORRT_VERSION}.*
 
+RUN update-alternatives --set c++ /usr/bin/clang++ \
+    && update-alternatives --set cc /usr/bin/clang
+
+RUN su vscode -c "${VCPKG_ROOT}/vcpkg install boost-program-options boost-asio boost-graph ceres opencv4[core,highgui,calib3d,contrib,jpeg,dnn] glm grpc glfw3 glad nanoflann nlohmann-json imgui[opengl3-binding,glfw-binding] libjpeg-turbo lz4 sqlite3 cereal spdlog"
+
+ENV PATH $PATH:${VCPKG_ROOT}/installed/x64-linux
+ENV PATH $PATH:${VCPKG_ROOT}/installed/x64-linux/tools/protobuf
+ENV PATH $PATH:${VCPKG_ROOT}/installed/x64-linux/tools/grpc
+
 # Install ONNX Runtime
 ENV ONNXRUNTIME_VERSION 1.23.2
 
-WORKDIR /onnxruntime/
+WORKDIR /usr/local/onnxruntime/
 
 RUN curl -L \
     https://github.com/microsoft/onnxruntime/releases/download/v${ONNXRUNTIME_VERSION}/onnxruntime-linux-x64-gpu-${ONNXRUNTIME_VERSION}.tgz \
     -o /tmp/onnxruntime.tgz \
-    && tar -zxvf /tmp/onnxruntime.tgz --strip-components 1 -C /onnxruntime
+    && tar -zxvf /tmp/onnxruntime.tgz --strip-components 1 -C /usr/local/onnxruntime
 
-ENV ONNXRUNTIME_ROOT /onnxruntime
+ENV ONNXRUNTIME_ROOT /usr/local/onnxruntime

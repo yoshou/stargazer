@@ -44,11 +44,11 @@ ENV PATH=$PATH:${VCPKG_ROOT}/installed/x64-linux/tools/grpc
 # Install ONNX Runtime
 ENV ONNXRUNTIME_VERSION=1.23.2
 
-WORKDIR /onnxruntime/
+WORKDIR /usr/local/onnxruntime/
 
 RUN curl -L \
     https://github.com/microsoft/onnxruntime/releases/download/v${ONNXRUNTIME_VERSION}/onnxruntime-linux-x64-gpu-${ONNXRUNTIME_VERSION}.tgz \
     -o /tmp/onnxruntime.tgz \
-    && tar -zxvf /tmp/onnxruntime.tgz --strip-components 1 -C /onnxruntime
+    && tar -zxvf /tmp/onnxruntime.tgz --strip-components 1 -C /usr/local/onnxruntime
 
-ENV ONNXRUNTIME_ROOT=/onnxruntime
+ENV ONNXRUNTIME_ROOT=/usr/local/onnxruntime
