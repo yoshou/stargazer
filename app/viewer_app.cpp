@@ -1089,7 +1089,7 @@ class viewer_app : public window_base {
           }
         }
 
-        pose_view_->axis = glm::mat4(1.0);
+        pose_view_->axis = std::get<scene_t>(parameters->at("scene")).axis;
       } else if (top_bar_view_->view_type == top_bar_view::ViewType::Contrail) {
         for (const auto &node : calibration_config->get_node_infos()) {
           if (!node.is_camera()) {
