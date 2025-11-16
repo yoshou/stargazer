@@ -19,15 +19,15 @@ class voxel_projector {
   ~voxel_projector();
 
   std::array<float, 3> get_grid_size() const { return grid_size; }
-  void set_grid_size(const std::array<float, 3> &value) { grid_size = value; }
+  void set_grid_size(const std::array<float, 3>& value) { grid_size = value; }
   std::array<int32_t, 3> get_cube_size() const { return cube_size; }
-  void set_cube_size(const std::array<int32_t, 3> &value) { cube_size = value; }
+  void set_cube_size(const std::array<int32_t, 3>& value) { cube_size = value; }
 
-  void get_voxel(const float *heatmaps, int num_cameras, int heatmap_width, int heatmap_height,
-                 const std::vector<camera_data> &cameras, const std::vector<roi_data> &rois,
-                 const std::array<float, 3> &grid_center);
+  void get_voxel(const float* heatmaps, int num_cameras, int heatmap_width, int heatmap_height,
+                 const std::vector<camera_data>& cameras, const std::vector<roi_data>& rois,
+                 const std::array<float, 3>& grid_center);
 
-  const float *get_cubes() const;
+  const float* get_cubes() const;
 };
 
 class joint_extractor {
@@ -40,10 +40,10 @@ class joint_extractor {
  public:
   joint_extractor(int num_joints = 15);
   ~joint_extractor();
-  void soft_argmax(const float *src_data, float beta, const std::array<float, 3> &grid_size,
-                   const std::array<int32_t, 3> &cube_size,
-                   const std::array<float, 3> &grid_center);
-  const float *get_joints() const;
+  void soft_argmax(const float* src_data, float beta, const std::array<float, 3>& grid_size,
+                   const std::array<int32_t, 3>& cube_size,
+                   const std::array<float, 3>& grid_center);
+  const float* get_joints() const;
 };
 
 class proposal_extractor {
@@ -59,10 +59,10 @@ class proposal_extractor {
   void set_max_num(uint32_t value) { max_num = value; }
   void set_threshold(float value) { threshold = value; }
   std::array<float, 3> get_grid_size() const { return grid_size; }
-  void set_grid_size(const std::array<float, 3> &value) { grid_size = value; }
+  void set_grid_size(const std::array<float, 3>& value) { grid_size = value; }
   std::array<float, 3> get_grid_center() const { return grid_center; }
-  void set_grid_center(const std::array<float, 3> &value) { grid_center = value; }
+  void set_grid_center(const std::array<float, 3>& value) { grid_center = value; }
   std::array<int32_t, 3> get_cube_size() const { return cube_size; }
-  void set_cube_size(const std::array<int32_t, 3> &value) { cube_size = value; }
+  void set_cube_size(const std::array<int32_t, 3>& value) { cube_size = value; }
 };
 }  // namespace stargazer::voxelpose

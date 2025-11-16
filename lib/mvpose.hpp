@@ -30,7 +30,7 @@ class mvpose {
  public:
   mvpose();
   ~mvpose();
-  std::vector<glm::vec3> inference(const std::vector<cv::Mat> &images_list,
-                                   const std::vector<stargazer::camera_t> &cameras_list);
+  std::vector<glm::vec3> inference(const std::vector<cv::Mat>& images_list,
+                                   const std::vector<stargazer::camera_t>& cameras_list);
 };
 }  // namespace stargazer::mvpose
