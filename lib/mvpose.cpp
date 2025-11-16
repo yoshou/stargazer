@@ -783,7 +783,7 @@ class dnn_inference_det_trt {
   static constexpr auto num_people = 100;
 
   dnn_inference_det_trt(const std::vector<uint8_t> &model_data, size_t max_views) {
-    plugin_handler = dlopen("libmmdeploy_tensorrt_ops.so", RTLD_NOW);
+    plugin_handler = dlopen("../data/mvpose/libmmdeploy_tensorrt_ops.so", RTLD_NOW);
     if (!plugin_handler) {
       throw std::runtime_error(dlerror());
     }
