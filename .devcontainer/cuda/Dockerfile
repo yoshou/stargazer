@@ -10,11 +10,6 @@ RUN if [ "${REINSTALL_CMAKE_VERSION_FROM_SOURCE}" != "none" ]; then \
     fi \
     && rm -f /tmp/reinstall-cmake.sh
 
-# Install dependencies
-RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
-    && apt-get -y install --no-install-recommends gfortran bison python3 python3-setuptools libarchive-dev libblas-dev liblapack-dev \
-    libxinerama-dev libxcursor-dev xorg-dev libglu1-mesa-dev pkg-config
-
 # Install CUDA
 ENV NVARCH x86_64
     
@@ -84,6 +79,11 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
                        libnvinfer-plugin-dev=${TENSORRT_VERSION}.* \
                        libnvonnxparsers${TENSORRT_MAJOR_VERSION}=${TENSORRT_VERSION}.* \
                        libnvonnxparsers-dev=${TENSORRT_VERSION}.*
+
+# Install dependencies
+RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
+    && apt-get -y install --no-install-recommends gfortran bison python3 python3-setuptools libarchive-dev libblas-dev liblapack-dev \
+    libxinerama-dev libxcursor-dev xorg-dev libglu1-mesa-dev pkg-config
 
 RUN update-alternatives --set c++ /usr/bin/clang++ \
     && update-alternatives --set cc /usr/bin/clang
