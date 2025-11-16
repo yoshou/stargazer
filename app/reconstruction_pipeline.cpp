@@ -33,7 +33,7 @@
 using namespace coalsack;
 using namespace stargazer;
 
-static std::string read_text_file(const std::string &filename) {
+static std::string read_text_file(const std::string& filename) {
   std::ifstream ifs(filename.c_str());
   return std::string(std::istreambuf_iterator<char>(ifs), std::istreambuf_iterator<char>());
 }
@@ -43,7 +43,7 @@ struct se3 {
   glm::quat rotation;
 
   template <typename Archive>
-  void serialize(Archive &archive) {
+  void serialize(Archive& archive) {
     archive(position, rotation);
   }
 };
@@ -53,7 +53,7 @@ struct float2 {
   float y;
 
   template <typename Archive>
-  void serialize(Archive &archive) {
+  void serialize(Archive& archive) {
     archive(x, y);
   }
 };
@@ -64,7 +64,7 @@ struct float3 {
   float z;
 
   template <typename Archive>
-  void serialize(Archive &archive) {
+  void serialize(Archive& archive) {
     archive(x, y, z);
   }
 };
@@ -88,18 +88,18 @@ CEREAL_REGISTER_POLYMORPHIC_RELATION(coalsack::frame_message_base, se3_list_mess
 
 class SensorServiceImpl final : public Sensor::Service {
   std::mutex mtx;
-  std::unordered_map<std::string, grpc::ServerWriter<SphereMessage> *> writers;
-  std::vector<std::function<void(const std::string &, int64_t, const std::vector<se3> &)>>
+  std::unordered_map<std::string, grpc::ServerWriter<SphereMessage>*> writers;
+  std::vector<std::function<void(const std::string&, int64_t, const std::vector<se3>&)>>
       se3_received;
 
  public:
-  void notify_sphere(const std::string &name, int64_t timestamp,
-                     const std::vector<glm::vec3> &spheres) {
+  void notify_sphere(const std::string& name, int64_t timestamp,
+                     const std::vector<glm::vec3>& spheres) {
     SphereMessage response;
     response.set_name(name);
     response.set_timestamp(timestamp);
     const auto mutable_values = response.mutable_values();
-    for (const auto &sphere : spheres) {
+    for (const auto& sphere : spheres) {
       const auto mutable_value = mutable_values->Add();
       mutable_value->mutable_point()->set_x(sphere.x);
       mutable_value->mutable_point()->set_y(sphere.y);
@@ -108,18 +108,18 @@ class SensorServiceImpl final : public Sensor::Service {
     }
     {
       std::lock_guard<std::mutex> lock(mtx);
-      for (const auto &[name, writer] : writers) {
+      for (const auto& [name, writer] : writers) {
         writer->Write(response);
       }
     }
   }
 
-  void receive_se3(std::function<void(const std::string &, int64_t, const std::vector<se3> &)> f) {
+  void receive_se3(std::function<void(const std::string&, int64_t, const std::vector<se3>&)> f) {
     se3_received.push_back(f);
   }
 
-  grpc::Status SubscribeSphere(grpc::ServerContext *context, const SubscribeRequest *request,
-                               grpc::ServerWriter<SphereMessage> *writer) override {
+  grpc::Status SubscribeSphere(grpc::ServerContext* context, const SubscribeRequest* request,
+                               grpc::ServerWriter<SphereMessage>* writer) override {
     {
       std::lock_guard<std::mutex> lock(mtx);
       writers.insert(std::make_pair(request->name(), writer));
@@ -136,21 +136,21 @@ class SensorServiceImpl final : public Sensor::Service {
     return grpc::Status::OK;
   }
 
-  grpc::Status PublishSE3(grpc::ServerContext *context, grpc::ServerReader<SE3Message> *reader,
-                          google::protobuf::Empty *response) override {
+  grpc::Status PublishSE3(grpc::ServerContext* context, grpc::ServerReader<SE3Message>* reader,
+                          google::protobuf::Empty* response) override {
     SE3Message data;
     while (reader->Read(&data)) {
       const auto name = data.name();
       const auto timestamp = data.timestamp();
-      const auto &values = data.values();
+      const auto& values = data.values();
       std::vector<se3> se3;
-      for (const auto &value : values) {
+      for (const auto& value : values) {
         se3.push_back({{static_cast<float>(value.t().x()), static_cast<float>(value.t().y()),
                         static_cast<float>(value.t().z())},
                        {static_cast<float>(value.q().x()), static_cast<float>(value.q().y()),
                         static_cast<float>(value.q().z()), static_cast<float>(value.q().w())}});
       }
-      for (const auto &f : se3_received) {
+      for (const auto& f : se3_received) {
         f(name, timestamp, se3);
       }
     }
@@ -166,18 +166,18 @@ class grpc_server {
   std::unique_ptr<SensorServiceImpl> service;
 
  public:
-  grpc_server(const std::string &server_address);
+  grpc_server(const std::string& server_address);
   ~grpc_server();
 
   void run();
   void stop();
 
-  void notify_sphere(const std::string &name, int64_t timestamp,
-                     const std::vector<glm::vec3> &spheres);
-  void receive_se3(std::function<void(const std::string &, int64_t, const std::vector<se3> &)> f);
+  void notify_sphere(const std::string& name, int64_t timestamp,
+                     const std::vector<glm::vec3>& spheres);
+  void receive_se3(std::function<void(const std::string&, int64_t, const std::vector<se3>&)> f);
 };
 
-grpc_server::grpc_server(const std::string &server_address)
+grpc_server::grpc_server(const std::string& server_address)
     : server_address(server_address),
       running(false),
       server_th(),
@@ -223,15 +223,15 @@ void grpc_server::stop() {
   }
 }
 
-void grpc_server::notify_sphere(const std::string &name, int64_t timestamp,
-                                const std::vector<glm::vec3> &spheres) {
+void grpc_server::notify_sphere(const std::string& name, int64_t timestamp,
+                                const std::vector<glm::vec3>& spheres) {
   if (running && service) {
     service->notify_sphere(name, timestamp, spheres);
   }
 }
 
 void grpc_server::receive_se3(
-    std::function<void(const std::string &, int64_t, const std::vector<se3> &)> f) {
+    std::function<void(const std::string&, int64_t, const std::vector<se3>&)> f) {
   service->receive_se3(f);
 }
 
@@ -252,10 +252,10 @@ class grpc_server_node : public graph_node {
 
   virtual std::string get_proc_name() const override { return "grpc_server_node"; }
 
-  void set_address(const std::string &value) { address = value; }
+  void set_address(const std::string& value) { address = value; }
 
   template <typename Archive>
-  void serialize(Archive &archive) {
+  void serialize(Archive& archive) {
     archive(address);
   }
 
@@ -263,7 +263,7 @@ class grpc_server_node : public graph_node {
     server.reset(new grpc_server(address));
 
     server->receive_se3(
-        [this](const std::string &name, int64_t timestamp, const std::vector<se3> &se3) {
+        [this](const std::string& name, int64_t timestamp, const std::vector<se3>& se3) {
           auto msg = std::make_shared<frame_message<object_message>>();
           auto obj_msg = object_message();
           auto se3_msg = std::make_shared<se3_list_message>();
@@ -281,7 +281,7 @@ class grpc_server_node : public graph_node {
   virtual void process(std::string input_name, graph_message_ptr message) override {
     if (const auto msg = std::dynamic_pointer_cast<float3_list_message>(message)) {
       std::vector<glm::vec3> spheres;
-      for (const auto &data : msg->get_data()) {
+      for (const auto& data : msg->get_data()) {
         spheres.push_back(glm::vec3(data.x, data.y, data.z));
       }
 
@@ -304,7 +304,7 @@ CEREAL_REGISTER_POLYMORPHIC_RELATION(coalsack::frame_message_base, frame_message
 class callback_node;
 
 class callback_list : public resource_base {
-  using callback_func = std::function<void(const callback_node *, std::string, graph_message_ptr)>;
+  using callback_func = std::function<void(const callback_node*, std::string, graph_message_ptr)>;
   std::vector<callback_func> callbacks;
 
  public:
@@ -312,8 +312,8 @@ class callback_list : public resource_base {
 
   void add(callback_func callback) { callbacks.push_back(callback); }
 
-  void invoke(const callback_node *node, std::string input_name, graph_message_ptr message) const {
-    for (auto &callback : callbacks) {
+  void invoke(const callback_node* node, std::string input_name, graph_message_ptr message) const {
+    for (auto& callback : callbacks) {
       callback(node, input_name, message);
     }
   }
@@ -327,11 +327,11 @@ class callback_node : public graph_node {
 
   virtual std::string get_proc_name() const override { return "callback_node"; }
 
-  void set_name(const std::string &value) { name = value; }
+  void set_name(const std::string& value) { name = value; }
   std::string get_name() const { return name; }
 
   template <typename Archive>
-  void serialize(Archive &archive) {
+  void serialize(Archive& archive) {
     archive(name);
   }
 
@@ -353,14 +353,14 @@ class camera_message : public graph_message {
  public:
   camera_message() : graph_message(), camera() {}
 
-  camera_message(const camera_t &camera) : graph_message(), camera(camera) {}
+  camera_message(const camera_t& camera) : graph_message(), camera(camera) {}
 
   camera_t get_camera() const { return camera; }
 
-  void set_camera(const camera_t &value) { camera = value; }
+  void set_camera(const camera_t& value) { camera = value; }
 
   template <typename Archive>
-  void serialize(Archive &archive) {
+  void serialize(Archive& archive) {
     archive(camera);
   }
 };
@@ -383,14 +383,14 @@ class epipolar_reconstruct_node : public graph_node {
   virtual std::string get_proc_name() const override { return "epipolar_reconstruct_node"; }
 
   template <typename Archive>
-  void serialize(Archive &archive) {
+  void serialize(Archive& archive) {
     archive(cameras, axis);
   }
 
   virtual void process(std::string input_name, graph_message_ptr message) override {
     if (input_name == "cameras") {
       if (auto camera_msg = std::dynamic_pointer_cast<object_message>(message)) {
-        for (const auto &[name, field] : camera_msg->get_fields()) {
+        for (const auto& [name, field] : camera_msg->get_fields()) {
           if (auto camera_msg = std::dynamic_pointer_cast<camera_message>(field)) {
             std::lock_guard lock(cameras_mtx);
             cameras[name] = camera_msg->get_camera();
@@ -420,14 +420,14 @@ class epipolar_reconstruct_node : public graph_node {
         cameras = this->cameras;
       }
 
-      for (const auto &[name, field] : obj_msg.get_fields()) {
+      for (const auto& [name, field] : obj_msg.get_fields()) {
         if (auto points_msg = std::dynamic_pointer_cast<float2_list_message>(field)) {
           if (cameras.find(name) == cameras.end()) {
             continue;
           }
-          const auto &camera = cameras.at(name);
+          const auto& camera = cameras.at(name);
           std::vector<glm::vec2> pts;
-          for (const auto &pt : points_msg->get_data()) {
+          for (const auto& pt : points_msg->get_data()) {
             pts.push_back(glm::vec2(pt.x, pt.y));
           }
           camera_pts.push_back(pts);
@@ -439,7 +439,7 @@ class epipolar_reconstruct_node : public graph_node {
 
       auto marker_msg = std::make_shared<float3_list_message>();
       std::vector<float3> marker_data;
-      for (const auto &marker : markers) {
+      for (const auto& marker : markers) {
         marker_data.push_back({marker.x, marker.y, marker.z});
       }
       marker_msg->set_data(marker_data);
@@ -459,13 +459,13 @@ class multiview_point_reconstruction_pipeline::impl {
 
   mutable std::mutex markers_mtx;
   std::vector<glm::vec3> markers;
-  std::vector<std::function<void(const std::vector<glm::vec3> &)>> markers_received;
+  std::vector<std::function<void(const std::vector<glm::vec3>&)>> markers_received;
 
   std::shared_ptr<epipolar_reconstruct_node> reconstruct_node;
   std::shared_ptr<graph_node> input_node;
 
  public:
-  void add_markers_received(std::function<void(const std::vector<glm::vec3> &)> f) {
+  void add_markers_received(std::function<void(const std::vector<glm::vec3>&)> f) {
     std::lock_guard lock(markers_mtx);
     markers_received.push_back(f);
   }
@@ -478,7 +478,7 @@ class multiview_point_reconstruction_pipeline::impl {
   impl()
       : graph(), running(false), markers(), markers_received(), reconstruct_node(), input_node() {}
 
-  void set_camera(const std::string &name, const camera_t &camera) {
+  void set_camera(const std::string& name, const camera_t& camera) {
     auto camera_msg = std::make_shared<camera_message>(camera);
     camera_msg->set_camera(camera);
 
@@ -490,7 +490,7 @@ class multiview_point_reconstruction_pipeline::impl {
     }
   }
 
-  void set_axis(const glm::mat4 &axis) {
+  void set_axis(const glm::mat4& axis) {
     auto mat4_msg = std::make_shared<mat4_message>();
     mat4_msg->set_data(axis);
 
@@ -501,16 +501,16 @@ class multiview_point_reconstruction_pipeline::impl {
 
   using frame_type = std::map<std::string, std::vector<point_data>>;
 
-  void push_frame(const frame_type &frame) {
+  void push_frame(const frame_type& frame) {
     if (!running) {
       return;
     }
 
     auto msg = std::make_shared<object_message>();
-    for (const auto &[name, field] : frame) {
+    for (const auto& [name, field] : frame) {
       auto float2_msg = std::make_shared<float2_list_message>();
       std::vector<float2> float2_data;
-      for (const auto &pt : field) {
+      for (const auto& pt : field) {
         float2_data.push_back({pt.point.x, pt.point.y});
       }
       float2_msg->set_data(float2_data);
@@ -560,11 +560,11 @@ class multiview_point_reconstruction_pipeline::impl {
     const auto callbacks = std::make_shared<callback_list>();
 
     callbacks->add(
-        [this](const callback_node *node, std::string input_name, graph_message_ptr message) {
+        [this](const callback_node* node, std::string input_name, graph_message_ptr message) {
           if (node->get_name() == "markers") {
             if (const auto markers_msg = std::dynamic_pointer_cast<float3_list_message>(message)) {
               std::vector<glm::vec3> markers;
-              for (const auto &marker : markers_msg->get_data()) {
+              for (const auto& marker : markers_msg->get_data()) {
                 markers.push_back(glm::vec3(marker.x, marker.y, marker.z));
               }
 
@@ -573,7 +573,7 @@ class multiview_point_reconstruction_pipeline::impl {
                 this->markers = markers;
               }
 
-              for (const auto &f : markers_received) {
+              for (const auto& f : markers_received) {
                 f(markers);
               }
             }
@@ -608,7 +608,7 @@ multiview_point_reconstruction_pipeline::multiview_point_reconstruction_pipeline
     : pimpl(new impl()) {}
 multiview_point_reconstruction_pipeline::~multiview_point_reconstruction_pipeline() = default;
 
-void multiview_point_reconstruction_pipeline::push_frame(const frame_type &frame) {
+void multiview_point_reconstruction_pipeline::push_frame(const frame_type& frame) {
   pimpl->push_frame(frame);
 }
 
@@ -620,12 +620,12 @@ std::vector<glm::vec3> multiview_point_reconstruction_pipeline::get_markers() co
   return pimpl->get_markers();
 }
 
-void multiview_point_reconstruction_pipeline::set_camera(const std::string &name,
-                                                         const camera_t &camera) {
+void multiview_point_reconstruction_pipeline::set_camera(const std::string& name,
+                                                         const camera_t& camera) {
   cameras[name] = camera;
   pimpl->set_camera(name, camera);
 }
-void multiview_point_reconstruction_pipeline::set_axis(const glm::mat4 &axis) {
+void multiview_point_reconstruction_pipeline::set_axis(const glm::mat4& axis) {
   this->axis = axis;
   pimpl->set_axis(axis);
 }
@@ -661,13 +661,13 @@ class voxelpose_reconstruct_node : public image_reconstruct_node {
   virtual std::string get_proc_name() const override { return "voxelpose_reconstruct_node"; }
 
   template <typename Archive>
-  void serialize(Archive &archive) {
+  void serialize(Archive& archive) {
     archive(cameras, axis);
   }
 
-  std::vector<glm::vec3> reconstruct(const std::map<std::string, camera_t> &cameras,
-                                     const std::map<std::string, cv::Mat> &frame,
-                                     const glm::mat4 &axis) {
+  std::vector<glm::vec3> reconstruct(const std::map<std::string, camera_t>& cameras,
+                                     const std::map<std::string, cv::Mat>& frame,
+                                     const glm::mat4& axis) {
     using namespace stargazer::voxelpose;
 
     std::vector<std::string> names;
@@ -678,7 +678,7 @@ class voxelpose_reconstruct_node : public image_reconstruct_node {
       return std::vector<glm::vec3>();
     }
 
-    for (const auto &[camera_name, image] : frame) {
+    for (const auto& [camera_name, image] : frame) {
       names.push_back(camera_name);
     }
 
@@ -686,7 +686,7 @@ class voxelpose_reconstruct_node : public image_reconstruct_node {
       const auto name = names[i];
       camera_data camera;
 
-      const auto &src_camera = cameras.at(name);
+      const auto& src_camera = cameras.at(name);
 
       camera.fx = src_camera.intrin.fx;
       camera.fy = src_camera.intrin.fy;
@@ -749,7 +749,7 @@ class voxelpose_reconstruct_node : public image_reconstruct_node {
   virtual void process(std::string input_name, graph_message_ptr message) override {
     if (input_name == "cameras") {
       if (auto camera_msg = std::dynamic_pointer_cast<object_message>(message)) {
-        for (const auto &[name, field] : camera_msg->get_fields()) {
+        for (const auto& [name, field] : camera_msg->get_fields()) {
           if (auto camera_msg = std::dynamic_pointer_cast<camera_message>(field)) {
             std::lock_guard lock(cameras_mtx);
             cameras[name] = camera_msg->get_camera();
@@ -778,14 +778,14 @@ class voxelpose_reconstruct_node : public image_reconstruct_node {
 
       std::map<std::string, cv::Mat> images;
 
-      for (const auto &[name, field] : obj_msg.get_fields()) {
+      for (const auto& [name, field] : obj_msg.get_fields()) {
         if (auto img_msg = std::dynamic_pointer_cast<image_message>(field)) {
           if (cameras.find(name) == cameras.end()) {
             continue;
           }
-          const auto &image = img_msg->get_image();
+          const auto& image = img_msg->get_image();
           cv::Mat img(image.get_height(), image.get_width(), convert_to_cv_type(image.get_format()),
-                      (void *)image.get_data(), image.get_stride());
+                      (void*)image.get_data(), image.get_stride());
           images[name] = img;
         }
       }
@@ -794,7 +794,7 @@ class voxelpose_reconstruct_node : public image_reconstruct_node {
 
       auto marker_msg = std::make_shared<float3_list_message>();
       std::vector<float3> marker_data;
-      for (const auto &marker : markers) {
+      for (const auto& marker : markers) {
         marker_data.push_back({marker.x, marker.y, marker.z});
       }
       marker_msg->set_data(marker_data);
@@ -826,7 +826,7 @@ class voxelpose_reconstruct_node : public image_reconstruct_node {
               .sum<1>({2});
 
       cv::Mat heatmap_mat;
-      cv::Mat(heatmap.shape[1], heatmap.shape[0], CV_32FC1, (float *)heatmap.get_data())
+      cv::Mat(heatmap.shape[1], heatmap.shape[0], CV_32FC1, (float*)heatmap.get_data())
           .clone()
           .convertTo(heatmap_mat, CV_8U, 255);
       cv::resize(heatmap_mat, heatmap_mat, cv::Size(960, 540));
@@ -862,13 +862,13 @@ class mvpose_reconstruct_node : public image_reconstruct_node {
   virtual std::string get_proc_name() const override { return "mvpose_reconstruct_node"; }
 
   template <typename Archive>
-  void serialize(Archive &archive) {
+  void serialize(Archive& archive) {
     archive(cameras, axis);
   }
 
-  std::vector<glm::vec3> reconstruct(const std::map<std::string, camera_t> &cameras,
-                                     const std::map<std::string, cv::Mat> &frame,
-                                     const glm::mat4 &axis) {
+  std::vector<glm::vec3> reconstruct(const std::map<std::string, camera_t>& cameras,
+                                     const std::map<std::string, cv::Mat>& frame,
+                                     const glm::mat4& axis) {
     using namespace stargazer::mvpose;
 
     std::vector<std::string> names;
@@ -880,7 +880,7 @@ class mvpose_reconstruct_node : public image_reconstruct_node {
       return std::vector<glm::vec3>();
     }
 
-    for (const auto &[camera_name, image] : frame) {
+    for (const auto& [camera_name, image] : frame) {
       names.push_back(camera_name);
     }
 
@@ -889,7 +889,7 @@ class mvpose_reconstruct_node : public image_reconstruct_node {
 
       camera_t camera;
 
-      const auto &src_camera = cameras.at(name);
+      const auto& src_camera = cameras.at(name);
 
       camera.intrin.fx = src_camera.intrin.fx;
       camera.intrin.fy = src_camera.intrin.fy;
@@ -928,7 +928,7 @@ class mvpose_reconstruct_node : public image_reconstruct_node {
   virtual void process(std::string input_name, graph_message_ptr message) override {
     if (input_name == "cameras") {
       if (auto camera_msg = std::dynamic_pointer_cast<object_message>(message)) {
-        for (const auto &[name, field] : camera_msg->get_fields()) {
+        for (const auto& [name, field] : camera_msg->get_fields()) {
           if (auto camera_msg = std::dynamic_pointer_cast<camera_message>(field)) {
             std::lock_guard lock(cameras_mtx);
             cameras[name] = camera_msg->get_camera();
@@ -957,14 +957,14 @@ class mvpose_reconstruct_node : public image_reconstruct_node {
 
       std::map<std::string, cv::Mat> images;
 
-      for (const auto &[name, field] : obj_msg.get_fields()) {
+      for (const auto& [name, field] : obj_msg.get_fields()) {
         if (auto img_msg = std::dynamic_pointer_cast<image_message>(field)) {
           if (cameras.find(name) == cameras.end()) {
             continue;
           }
-          const auto &image = img_msg->get_image();
+          const auto& image = img_msg->get_image();
           cv::Mat img(image.get_height(), image.get_width(), convert_to_cv_type(image.get_format()),
-                      (void *)image.get_data(), image.get_stride());
+                      (void*)image.get_data(), image.get_stride());
           images[name] = img;
         }
       }
@@ -973,7 +973,7 @@ class mvpose_reconstruct_node : public image_reconstruct_node {
 
       auto marker_msg = std::make_shared<float3_list_message>();
       std::vector<float3> marker_data;
-      for (const auto &marker : markers) {
+      for (const auto& marker : markers) {
         marker_data.push_back({marker.x, marker.y, marker.z});
       }
       marker_msg->set_data(marker_data);
@@ -1005,7 +1005,7 @@ class mvpose_reconstruct_node : public image_reconstruct_node {
               .sum<1>({2});
 
       cv::Mat heatmap_mat;
-      cv::Mat(heatmap.shape[1], heatmap.shape[0], CV_32FC1, (float *)heatmap.get_data())
+      cv::Mat(heatmap.shape[1], heatmap.shape[0], CV_32FC1, (float*)heatmap.get_data())
           .clone()
           .convertTo(heatmap_mat, CV_8U, 255);
       cv::resize(heatmap_mat, heatmap_mat, cv::Size(960, 540));
@@ -1024,8 +1024,8 @@ class dump_se3_node : public graph_node {
   std::string db_path;
   std::string name;
 
-  sqlite3 *db;
-  sqlite3_stmt *stmt;
+  sqlite3* db;
+  sqlite3_stmt* stmt;
   int topic_id;
 
   std::deque<std::tuple<double, std::string>> queue;
@@ -1040,7 +1040,7 @@ class dump_se3_node : public graph_node {
   virtual std::string get_proc_name() const override { return "dump_se3_node"; }
 
   template <typename Archive>
-  void serialize(Archive &archive) {
+  void serialize(Archive& archive) {
     archive(db_path);
     archive(name);
   }
@@ -1070,7 +1070,7 @@ class dump_se3_node : public graph_node {
     }
 
     {
-      sqlite3_stmt *stmt;
+      sqlite3_stmt* stmt;
       if (sqlite3_prepare_v2(db, "SELECT id FROM topics WHERE name = ?", -1, &stmt, nullptr) !=
           SQLITE_OK) {
         throw std::runtime_error("Failed to prepare statement");
@@ -1090,7 +1090,7 @@ class dump_se3_node : public graph_node {
     }
 
     if (topic_id == -1) {
-      sqlite3_stmt *stmt;
+      sqlite3_stmt* stmt;
       if (sqlite3_prepare_v2(db, "INSERT INTO topics (name, type) VALUES (?, ?)", -1, &stmt,
                              nullptr) != SQLITE_OK) {
         throw std::runtime_error("Failed to prepare statement");
@@ -1154,7 +1154,7 @@ class dump_se3_node : public graph_node {
     }
 
     while (queue.size() > 0) {
-      const auto &[timestamp, str] = queue.front();
+      const auto& [timestamp, str] = queue.front();
 
       if (sqlite3_reset(stmt) != SQLITE_OK) {
         throw std::runtime_error("Failed to reset");
@@ -1198,11 +1198,11 @@ class dump_se3_node : public graph_node {
 
   virtual void process(std::string input_name, graph_message_ptr message) override {
     if (auto frame_msg = std::dynamic_pointer_cast<se3_list_message>(message)) {
-      const auto &data = frame_msg->get_data();
+      const auto& data = frame_msg->get_data();
 
       nlohmann::json j_frame;
       std::vector<nlohmann::json> j_se3_list;
-      for (const auto &se3 : data) {
+      for (const auto& se3 : data) {
         nlohmann::json j_se3;
         j_se3["position"]["x"] = se3.position.x;
         j_se3["position"]["y"] = se3.position.y;
@@ -1239,13 +1239,13 @@ class multiview_image_reconstruction_pipeline::impl {
 
   mutable std::mutex markers_mtx;
   std::vector<glm::vec3> markers;
-  std::vector<std::function<void(const std::vector<glm::vec3> &)>> markers_received;
+  std::vector<std::function<void(const std::vector<glm::vec3>&)>> markers_received;
 
   std::shared_ptr<image_reconstruct_node> reconstruct_node;
   std::shared_ptr<graph_node> input_node;
 
  public:
-  void add_markers_received(std::function<void(const std::vector<glm::vec3> &)> f) {
+  void add_markers_received(std::function<void(const std::vector<glm::vec3>&)> f) {
     std::lock_guard lock(markers_mtx);
     markers_received.push_back(f);
   }
@@ -1258,7 +1258,7 @@ class multiview_image_reconstruction_pipeline::impl {
   impl()
       : graph(), running(false), markers(), markers_received(), reconstruct_node(), input_node() {}
 
-  void set_camera(const std::string &name, const camera_t &camera) {
+  void set_camera(const std::string& name, const camera_t& camera) {
     auto camera_msg = std::make_shared<camera_message>(camera);
     camera_msg->set_camera(camera);
 
@@ -1270,7 +1270,7 @@ class multiview_image_reconstruction_pipeline::impl {
     }
   }
 
-  void set_axis(const glm::mat4 &axis) {
+  void set_axis(const glm::mat4& axis) {
     auto mat4_msg = std::make_shared<mat4_message>();
     mat4_msg->set_data(axis);
 
@@ -1294,19 +1294,19 @@ class multiview_image_reconstruction_pipeline::impl {
     }
   }
 
-  void push_frame(const frame_type &frame) {
+  void push_frame(const frame_type& frame) {
     if (!running) {
       return;
     }
 
     auto msg = std::make_shared<object_message>();
-    for (const auto &[name, field] : frame) {
+    for (const auto& [name, field] : frame) {
       auto img_msg = std::make_shared<image_message>();
 
       image img(static_cast<std::uint32_t>(field.size().width),
                 static_cast<std::uint32_t>(field.size().height),
                 static_cast<std::uint32_t>(field.elemSize()),
-                static_cast<std::uint32_t>(field.step), (const uint8_t *)field.data);
+                static_cast<std::uint32_t>(field.step), (const uint8_t*)field.data);
       img.set_format(convert_to_image_format(field.type()));
 
       img_msg->set_image(std::move(img));
@@ -1321,7 +1321,7 @@ class multiview_image_reconstruction_pipeline::impl {
     }
   }
 
-  void run(const std::vector<node_info> &infos) {
+  void run(const std::vector<node_info>& infos) {
     std::shared_ptr<subgraph> g(new subgraph());
 
     std::shared_ptr<frame_number_numbering_node> n4(new frame_number_numbering_node());
@@ -1334,7 +1334,7 @@ class multiview_image_reconstruction_pipeline::impl {
     n6->set_num_threads(1);
     g->add_node(n6);
 
-    for (const auto &info : infos) {
+    for (const auto& info : infos) {
       if (info.get_type() == node_type::voxelpose_reconstruction) {
         std::shared_ptr<voxelpose_reconstruct_node> n1(new voxelpose_reconstruct_node());
         n1->set_input(n6->get_output());
@@ -1376,13 +1376,13 @@ class multiview_image_reconstruction_pipeline::impl {
     std::shared_ptr<frame_demux_node> n8(new frame_demux_node());
     n8->set_input(n7->get_output());
 
-    for (const auto &device_name : device_names) {
+    for (const auto& device_name : device_names) {
       n8->add_output(device_name);
     }
 
     g->add_node(n8);
 
-    for (auto &device_name : device_names) {
+    for (auto& device_name : device_names) {
       std::shared_ptr<dump_se3_node> n9(new dump_se3_node());
       n9->set_db_path("../data/data_20250115_1/imu.db");
       n9->set_name(device_name);
@@ -1393,11 +1393,11 @@ class multiview_image_reconstruction_pipeline::impl {
     const auto callbacks = std::make_shared<callback_list>();
 
     callbacks->add(
-        [this](const callback_node *node, std::string input_name, graph_message_ptr message) {
+        [this](const callback_node* node, std::string input_name, graph_message_ptr message) {
           if (node->get_name() == "markers") {
             if (const auto markers_msg = std::dynamic_pointer_cast<float3_list_message>(message)) {
               std::vector<glm::vec3> markers;
-              for (const auto &marker : markers_msg->get_data()) {
+              for (const auto& marker : markers_msg->get_data()) {
                 markers.push_back(glm::vec3(marker.x, marker.y, marker.z));
               }
 
@@ -1406,7 +1406,7 @@ class multiview_image_reconstruction_pipeline::impl {
                 this->markers = markers;
               }
 
-              for (const auto &f : markers_received) {
+              for (const auto& f : markers_received) {
                 f(markers);
               }
             }
@@ -1443,11 +1443,11 @@ multiview_image_reconstruction_pipeline::multiview_image_reconstruction_pipeline
     : pimpl(new impl()) {}
 multiview_image_reconstruction_pipeline::~multiview_image_reconstruction_pipeline() = default;
 
-void multiview_image_reconstruction_pipeline::push_frame(const frame_type &frame) {
+void multiview_image_reconstruction_pipeline::push_frame(const frame_type& frame) {
   pimpl->push_frame(frame);
 }
 
-void multiview_image_reconstruction_pipeline::run(const std::vector<node_info> &infos) {
+void multiview_image_reconstruction_pipeline::run(const std::vector<node_info>& infos) {
   pimpl->run(infos);
 }
 
@@ -1461,11 +1461,11 @@ std::vector<glm::vec3> multiview_image_reconstruction_pipeline::get_markers() co
   return pimpl->get_markers();
 }
 
-void multiview_image_reconstruction_pipeline::set_camera(const std::string &name,
-                                                         const camera_t &camera) {
+void multiview_image_reconstruction_pipeline::set_camera(const std::string& name,
+                                                         const camera_t& camera) {
   pimpl->set_camera(name, camera);
 }
 
-void multiview_image_reconstruction_pipeline::set_axis(const glm::mat4 &axis) {
+void multiview_image_reconstruction_pipeline::set_axis(const glm::mat4& axis) {
   pimpl->set_axis(axis);
 }
