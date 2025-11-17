@@ -38,8 +38,8 @@ static node_type get_node_type(const std::string &type) {
     return node_type::rs_d435_color;
   } else if (type == "depthai_color") {
     return node_type::depthai_color;
-  } else if (type == "raspi_playback") {
-    return node_type::raspi_playback;
+  } else if (type == "playback") {
+    return node_type::playback;
   } else if (type == "panoptic") {
     return node_type::panoptic;
   } else if (type == "record") {
@@ -74,8 +74,8 @@ static std::string get_node_type_name(node_type type) {
       return "rs_d435_color";
     case node_type::depthai_color:
       return "depthai_color";
-    case node_type::raspi_playback:
-      return "raspi_playback";
+    case node_type::playback:
+      return "playback";
     case node_type::panoptic:
       return "panoptic";
     case node_type::record:
