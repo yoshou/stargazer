@@ -10,9 +10,9 @@
 struct window_base;
 
 struct graphics_context {
-  window_base *window;
+  window_base* window;
 
-  graphics_context(window_base *window) : window(window) {}
+  graphics_context(window_base* window) : window(window) {}
 
   virtual void attach();
   virtual void detach();
@@ -23,14 +23,14 @@ struct graphics_context {
 
 struct window_base {
  public:
-  void *handle;
+  void* handle;
   std::string name;
   std::size_t width;
   std::size_t height;
 
   window_base(std::string name, std::size_t width, std::size_t height);
 
-  void *get_handle() const;
+  void* get_handle() const;
 
   virtual bool is_closed() const;
 
@@ -65,9 +65,9 @@ class window_manager {
   template <typename Func>
   struct action_func : public action_func_base {
     Func func;
-    action_func(Func &&_func) : func(std::move(_func)) {}
-    action_func(action_func &&other) : func(std::move(other.func)) {}
-    action_func &operator=(action_func &&other) {
+    action_func(Func&& _func) : func(std::move(_func)) {}
+    action_func(action_func&& other) : func(std::move(other.func)) {}
+    action_func& operator=(action_func&& other) {
       func = std::move(other.func);
       return *this;
     }
@@ -83,16 +83,16 @@ class window_manager {
 
   bool should_close();
   void handle_event();
-  void *create_window_handle(std::string name, int width, int height, window_base *window);
-  void destroy_window_handle(window_base *window);
-  void show_window(window_base *window);
-  void hide_window(window_base *window);
+  void* create_window_handle(std::string name, int width, int height, window_base* window);
+  void destroy_window_handle(window_base* window);
+  void show_window(window_base* window);
+  void hide_window(window_base* window);
   void initialize();
   void exit();
   void terminate();
 
-  void get_window_size(window_base *window, int *width, int *height);
-  void get_window_frame_size(window_base *window, int *left, int *top, int *right, int *bottom);
+  void get_window_size(window_base* window, int* width, int* height);
+  void get_window_frame_size(window_base* window, int* left, int* top, int* right, int* bottom);
 
   ~window_manager() = default;
 
@@ -105,5 +105,5 @@ struct mouse_state {
   int middle_button;
   int left_button;
 
-  static mouse_state get_mouse_state(void *handle);
+  static mouse_state get_mouse_state(void* handle);
 };

@@ -31,7 +31,7 @@ class remote_cluster {
 
 class remote_cluster_raspi : public remote_cluster {
  public:
-  explicit remote_cluster_raspi(int fps, const image *mask, bool is_master = false,
+  explicit remote_cluster_raspi(int fps, const image* mask, bool is_master = false,
                                 bool emitter_enabled = true) {
     constexpr bool with_image = true;
     constexpr bool with_marker = true;
@@ -124,7 +124,7 @@ class remote_cluster_raspi : public remote_cluster {
         mask_node_->set_mask(*mask);
       } else {
         cv::Mat img(height, width, CV_8UC1, cv::Scalar(255));
-        image mask_img(img.cols, img.rows, CV_8UC1, img.step, (const uint8_t *)img.data);
+        image mask_img(img.cols, img.rows, CV_8UC1, img.step, (const uint8_t*)img.data);
         mask_node_->set_mask(mask_img);
       }
       g->add_node(mask_node_);
@@ -637,7 +637,7 @@ class local_server {
 class callback_node;
 
 class callback_list : public resource_base {
-  using callback_func = std::function<void(const callback_node *, std::string, graph_message_ptr)>;
+  using callback_func = std::function<void(const callback_node*, std::string, graph_message_ptr)>;
   std::vector<callback_func> callbacks;
 
  public:
@@ -645,8 +645,8 @@ class callback_list : public resource_base {
 
   void add(callback_func callback) { callbacks.push_back(callback); }
 
-  void invoke(const callback_node *node, std::string input_name, graph_message_ptr message) const {
-    for (auto &callback : callbacks) {
+  void invoke(const callback_node* node, std::string input_name, graph_message_ptr message) const {
+    for (auto& callback : callbacks) {
       callback(node, input_name, message);
     }
   }
@@ -660,11 +660,11 @@ class callback_node : public graph_node {
 
   virtual std::string get_proc_name() const override { return "callback"; }
 
-  void set_name(const std::string &value) { name = value; }
+  void set_name(const std::string& value) { name = value; }
   std::string get_name() const { return name; }
 
   template <typename Archive>
-  void serialize(Archive &archive) {
+  void serialize(Archive& archive) {
     archive(name);
   }
 
@@ -684,8 +684,8 @@ class dump_blob_node : public graph_node {
   std::string db_path;
   std::string name;
 
-  sqlite3 *db;
-  sqlite3_stmt *stmt;
+  sqlite3* db;
+  sqlite3_stmt* stmt;
   int topic_id;
 
   std::deque<std::shared_ptr<frame_message<blob>>> queue;
@@ -700,7 +700,7 @@ class dump_blob_node : public graph_node {
   virtual std::string get_proc_name() const override { return "dump_blob"; }
 
   template <typename Archive>
-  void serialize(Archive &archive) {
+  void serialize(Archive& archive) {
     archive(db_path);
     archive(name);
   }
@@ -730,7 +730,7 @@ class dump_blob_node : public graph_node {
     }
 
     {
-      sqlite3_stmt *stmt;
+      sqlite3_stmt* stmt;
       if (sqlite3_prepare_v2(db, "SELECT id FROM topics WHERE name = ?", -1, &stmt, nullptr) !=
           SQLITE_OK) {
         throw std::runtime_error("Failed to prepare statement");
@@ -750,7 +750,7 @@ class dump_blob_node : public graph_node {
     }
 
     if (topic_id == -1) {
-      sqlite3_stmt *stmt;
+      sqlite3_stmt* stmt;
       if (sqlite3_prepare_v2(db, "INSERT INTO topics (name, type) VALUES (?, ?)", -1, &stmt,
                              nullptr) != SQLITE_OK) {
         throw std::runtime_error("Failed to prepare statement");
@@ -814,8 +814,8 @@ class dump_blob_node : public graph_node {
     }
 
     while (queue.size() > 0) {
-      const auto &frame_msg = queue.front();
-      const auto &data = frame_msg->get_data();
+      const auto& frame_msg = queue.front();
+      const auto& data = frame_msg->get_data();
 
       if (sqlite3_reset(stmt) != SQLITE_OK) {
         throw std::runtime_error("Failed to reset");
@@ -875,8 +875,8 @@ class dump_keypoint_node : public graph_node {
   std::string db_path;
   std::string name;
 
-  sqlite3 *db;
-  sqlite3_stmt *stmt;
+  sqlite3* db;
+  sqlite3_stmt* stmt;
   int topic_id;
 
   std::deque<std::tuple<double, std::string>> queue;
@@ -891,7 +891,7 @@ class dump_keypoint_node : public graph_node {
   virtual std::string get_proc_name() const override { return "dump_keypoint"; }
 
   template <typename Archive>
-  void serialize(Archive &archive) {
+  void serialize(Archive& archive) {
     archive(db_path);
     archive(name);
   }
@@ -921,7 +921,7 @@ class dump_keypoint_node : public graph_node {
     }
 
     {
-      sqlite3_stmt *stmt;
+      sqlite3_stmt* stmt;
       if (sqlite3_prepare_v2(db, "SELECT id FROM topics WHERE name = ?", -1, &stmt, nullptr) !=
           SQLITE_OK) {
         throw std::runtime_error("Failed to prepare statement");
@@ -941,7 +941,7 @@ class dump_keypoint_node : public graph_node {
     }
 
     if (topic_id == -1) {
-      sqlite3_stmt *stmt;
+      sqlite3_stmt* stmt;
       if (sqlite3_prepare_v2(db, "INSERT INTO topics (name, type) VALUES (?, ?)", -1, &stmt,
                              nullptr) != SQLITE_OK) {
         throw std::runtime_error("Failed to prepare statement");
@@ -1005,7 +1005,7 @@ class dump_keypoint_node : public graph_node {
     }
 
     while (queue.size() > 0) {
-      const auto &[timestamp, str] = queue.front();
+      const auto& [timestamp, str] = queue.front();
 
       if (sqlite3_reset(stmt) != SQLITE_OK) {
         throw std::runtime_error("Failed to reset");
@@ -1049,11 +1049,11 @@ class dump_keypoint_node : public graph_node {
 
   virtual void process(std::string input_name, graph_message_ptr message) override {
     if (auto frame_msg = std::dynamic_pointer_cast<keypoint_frame_message>(message)) {
-      const auto &data = frame_msg->get_data();
+      const auto& data = frame_msg->get_data();
 
       nlohmann::json frame;
       std::vector<nlohmann::json> kps;
-      for (const auto &keypoint : data) {
+      for (const auto& keypoint : data) {
         nlohmann::json kp;
         kp["x"] = keypoint.pt_x;
         kp["y"] = keypoint.pt_y;
@@ -1119,7 +1119,7 @@ class load_blob_node : public graph_node {
   virtual std::string get_proc_name() const override { return "load_blob"; }
 
   template <typename Archive>
-  void serialize(Archive &archive) {
+  void serialize(Archive& archive) {
     archive(db_path);
     archive(name);
     archive(stream);
@@ -1130,14 +1130,14 @@ class load_blob_node : public graph_node {
   virtual void initialize() override {
     start_timestamp = std::numeric_limits<uint64_t>::max();
 
-    sqlite3 *db;
+    sqlite3* db;
     if (sqlite3_open_v2(db_path.c_str(), &db, SQLITE_OPEN_READONLY | SQLITE_OPEN_NOMUTEX,
                         nullptr) != SQLITE_OK) {
       throw std::runtime_error("Failed to open database");
     }
 
     {
-      sqlite3_stmt *stmt;
+      sqlite3_stmt* stmt;
       if (sqlite3_prepare_v2(db, "SELECT timestamp FROM messages ORDER BY timestamp ASC", -1, &stmt,
                              nullptr) != SQLITE_OK) {
         throw std::runtime_error("Failed to prepare statement");
@@ -1152,7 +1152,7 @@ class load_blob_node : public graph_node {
     }
 
     {
-      sqlite3_stmt *stmt;
+      sqlite3_stmt* stmt;
       if (sqlite3_prepare_v2(db, "SELECT id, name FROM topics WHERE name = ?", -1, &stmt,
                              nullptr) != SQLITE_OK) {
         throw std::runtime_error("Failed to prepare statement");
@@ -1176,13 +1176,13 @@ class load_blob_node : public graph_node {
 
   virtual void run() override {
     th.reset(new std::thread([this]() {
-      sqlite3 *db;
+      sqlite3* db;
       if (sqlite3_open_v2(db_path.c_str(), &db, SQLITE_OPEN_READONLY | SQLITE_OPEN_NOMUTEX,
                           nullptr) != SQLITE_OK) {
         throw std::runtime_error("Failed to open database");
       }
 
-      sqlite3_stmt *stmt;
+      sqlite3_stmt* stmt;
       if (sqlite3_prepare_v2(db,
                              "SELECT timestamp, topic_id, data FROM messages WHERE topic_id = ? "
                              "ORDER BY timestamp ASC",
@@ -1206,7 +1206,7 @@ class load_blob_node : public graph_node {
         const auto elapsed_time = timestamp - start_timestamp;
 
         const auto data_size = static_cast<size_t>(sqlite3_column_bytes(stmt, 2));
-        const auto data_ptr = reinterpret_cast<const uint8_t *>(sqlite3_column_blob(stmt, 2));
+        const auto data_ptr = reinterpret_cast<const uint8_t*>(sqlite3_column_blob(stmt, 2));
         const std::vector<uint8_t> data(data_ptr, data_ptr + data_size);
 
         auto msg = std::make_shared<blob_frame_message>();
@@ -1279,7 +1279,7 @@ class load_marker_node : public graph_node {
   virtual std::string get_proc_name() const override { return "load_marker"; }
 
   template <typename Archive>
-  void serialize(Archive &archive) {
+  void serialize(Archive& archive) {
     archive(db_path);
     archive(name);
     archive(stream);
@@ -1290,14 +1290,14 @@ class load_marker_node : public graph_node {
   virtual void initialize() override {
     start_timestamp = std::numeric_limits<uint64_t>::max();
 
-    sqlite3 *db;
+    sqlite3* db;
     if (sqlite3_open_v2(db_path.c_str(), &db, SQLITE_OPEN_READONLY | SQLITE_OPEN_NOMUTEX,
                         nullptr) != SQLITE_OK) {
       throw std::runtime_error("Failed to open database");
     }
 
     {
-      sqlite3_stmt *stmt;
+      sqlite3_stmt* stmt;
       if (sqlite3_prepare_v2(db, "SELECT timestamp FROM messages ORDER BY timestamp ASC", -1, &stmt,
                              nullptr) != SQLITE_OK) {
         throw std::runtime_error("Failed to prepare statement");
@@ -1312,7 +1312,7 @@ class load_marker_node : public graph_node {
     }
 
     {
-      sqlite3_stmt *stmt;
+      sqlite3_stmt* stmt;
       if (sqlite3_prepare_v2(db, "SELECT id, name FROM topics WHERE name = ?", -1, &stmt,
                              nullptr) != SQLITE_OK) {
         throw std::runtime_error("Failed to prepare statement");
@@ -1334,7 +1334,7 @@ class load_marker_node : public graph_node {
     sqlite3_close(db);
   }
 
-  void read_frame(const std::string &text, std::vector<keypoint> &frame_data) {
+  void read_frame(const std::string& text, std::vector<keypoint>& frame_data) {
     nlohmann::json j_frame = nlohmann::json::parse(text);
 
     const auto j_kpts = j_frame["points"];
@@ -1347,12 +1347,12 @@ class load_marker_node : public graph_node {
 
   virtual void run() override {
     th.reset(new std::thread([this]() {
-      sqlite3 *db;
+      sqlite3* db;
       if (sqlite3_open(db_path.c_str(), &db) != SQLITE_OK) {
         throw std::runtime_error("Failed to open database");
       }
 
-      sqlite3_stmt *stmt;
+      sqlite3_stmt* stmt;
       if (sqlite3_prepare_v2(db,
                              "SELECT timestamp, topic_id, data FROM messages WHERE topic_id = ? "
                              "ORDER BY timestamp ASC",
@@ -1375,7 +1375,7 @@ class load_marker_node : public graph_node {
         const auto timestamp = sqlite3_column_int64(stmt, 0);
         const auto elapsed_time = timestamp - start_timestamp;
 
-        const std::string data(reinterpret_cast<const char *>(sqlite3_column_text(stmt, 2)));
+        const std::string data(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2)));
 
         std::vector<keypoint> points;
         read_frame(data, points);
@@ -1449,7 +1449,7 @@ class load_panoptic_node : public graph_node {
   virtual std::string get_proc_name() const override { return "load_panoptic"; }
 
   template <typename Archive>
-  void serialize(Archive &archive) {
+  void serialize(Archive& archive) {
     archive(db_path);
     archive(name);
     archive(stream);
@@ -1518,12 +1518,12 @@ CEREAL_REGISTER_TYPE(load_panoptic_node)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, load_panoptic_node)
 
 static void genenerate_common_nodes(
-    const std::vector<node_info> &node_infos, std::shared_ptr<subgraph> g, int &sync_fps,
-    std::vector<std::shared_ptr<remote_cluster>> &clusters, std::map<std::string, cv::Mat> &masks,
-    std::map<std::string, std::shared_ptr<mask_node>> &mask_nodes,
-    std::unordered_map<std::string, std::shared_ptr<graph_node>> &rcv_nodes,
-    std::unordered_map<std::string, std::shared_ptr<graph_node>> &rcv_marker_nodes,
-    std::unordered_map<std::string, std::shared_ptr<graph_node>> &rcv_blob_nodes) {
+    const std::vector<node_info>& node_infos, std::shared_ptr<subgraph> g, int& sync_fps,
+    std::vector<std::shared_ptr<remote_cluster>>& clusters, std::map<std::string, cv::Mat>& masks,
+    std::map<std::string, std::shared_ptr<mask_node>>& mask_nodes,
+    std::unordered_map<std::string, std::shared_ptr<graph_node>>& rcv_nodes,
+    std::unordered_map<std::string, std::shared_ptr<graph_node>>& rcv_marker_nodes,
+    std::unordered_map<std::string, std::shared_ptr<graph_node>>& rcv_blob_nodes) {
   size_t num_raspi = 0;
 
   for (std::size_t i = 0; i < node_infos.size(); i++) {
@@ -1543,9 +1543,9 @@ static void genenerate_common_nodes(
       sync_fps = std::min(sync_fps, fps);
       std::shared_ptr<image> mask_img;
       if (masks.find(node_infos[i].name) != masks.end()) {
-        const auto &mask = masks.at(node_infos[i].name);
+        const auto& mask = masks.at(node_infos[i].name);
         mask_img.reset(
-            new image(mask.cols, mask.rows, CV_8UC1, mask.step, (const uint8_t *)mask.data));
+            new image(mask.cols, mask.rows, CV_8UC1, mask.step, (const uint8_t*)mask.data));
       }
       cluster = std::make_shared<remote_cluster_raspi>(fps, mask_img.get(), is_master);
       is_master = false;
@@ -1661,15 +1661,15 @@ class capture_pipeline::impl {
   std::map<std::string, cv::Mat> masks;
 
   mutable std::mutex image_received_mtx;
-  std::vector<std::function<void(const cv::Mat &)>> image_received;
+  std::vector<std::function<void(const cv::Mat&)>> image_received;
 
   mutable std::mutex frame_received_mtx;
-  std::vector<std::function<void(const marker_frame_data &)>> marker_received;
+  std::vector<std::function<void(const marker_frame_data&)>> marker_received;
 
  public:
   impl() : server(0) {}
 
-  void add_marker_received(std::function<void(const marker_frame_data &)> f) {
+  void add_marker_received(std::function<void(const marker_frame_data&)> f) {
     std::lock_guard lock(frame_received_mtx);
     marker_received.push_back(f);
   }
@@ -1679,7 +1679,7 @@ class capture_pipeline::impl {
     marker_received.clear();
   }
 
-  void add_image_received(std::function<void(const cv::Mat &)> f) {
+  void add_image_received(std::function<void(const cv::Mat&)> f) {
     std::lock_guard lock(image_received_mtx);
     image_received.push_back(f);
   }
@@ -1689,7 +1689,7 @@ class capture_pipeline::impl {
     image_received.clear();
   }
 
-  void run(const node_info &info) {
+  void run(const node_info& info) {
     std::vector<node_info> node_infos = {info};
 
     int sync_fps = 90;
@@ -1704,14 +1704,14 @@ class capture_pipeline::impl {
     genenerate_common_nodes(node_infos, g, sync_fps, clusters, masks, mask_nodes, rcv_nodes,
                             rcv_marker_nodes, rcv_blob_nodes);
 
-    for (const auto &[name, recv_node] : rcv_nodes) {
+    for (const auto& [name, recv_node] : rcv_nodes) {
       std::shared_ptr<callback_node> n8(new callback_node());
       n8->set_input(recv_node->get_output());
       g->add_node(n8);
 
       n8->set_name("image#" + name);
     }
-    for (const auto &[name, recv_node] : rcv_marker_nodes) {
+    for (const auto& [name, recv_node] : rcv_marker_nodes) {
       std::shared_ptr<callback_node> n8(new callback_node());
       n8->set_input(recv_node->get_output());
       g->add_node(n8);
@@ -1722,7 +1722,7 @@ class capture_pipeline::impl {
     const auto callbacks = std::make_shared<callback_list>();
 
     callbacks->add(
-        [this](const callback_node *node, std::string input_name, graph_message_ptr message) {
+        [this](const callback_node* node, std::string input_name, graph_message_ptr message) {
           if (node->get_name().find_first_of("image#") == 0) {
             const auto camera_name = node->get_name().substr(6);
 
@@ -1732,7 +1732,7 @@ class capture_pipeline::impl {
                 frame = frame_msg;
               }
 
-              const auto &image = frame_msg->get_data();
+              const auto& image = frame_msg->get_data();
 
               int type = -1;
               if (frame_msg->get_profile()) {
@@ -1745,16 +1745,16 @@ class capture_pipeline::impl {
               }
 
               const auto frame = cv::Mat(image.get_height(), image.get_width(), type,
-                                         (uchar *)image.get_data(), image.get_stride())
+                                         (uchar*)image.get_data(), image.get_stride())
                                      .clone();
 
-              std::vector<std::function<void(const cv::Mat &)>> image_received;
+              std::vector<std::function<void(const cv::Mat&)>> image_received;
               {
                 std::lock_guard lock(image_received_mtx);
                 image_received = this->image_received;
               }
 
-              for (const auto &f : image_received) {
+              for (const auto& f : image_received) {
                 f(frame);
               }
             }
@@ -1768,10 +1768,10 @@ class capture_pipeline::impl {
                 markers = frame_msg->get_data();
               }
 
-              const auto &keypoints = frame_msg->get_data();
+              const auto& keypoints = frame_msg->get_data();
 
               marker_frame_data frame;
-              for (const auto &keypoint : keypoints) {
+              for (const auto& keypoint : keypoints) {
                 marker_data kp;
                 kp.x = keypoint.pt_x;
                 kp.y = keypoint.pt_y;
@@ -1782,13 +1782,13 @@ class capture_pipeline::impl {
               frame.timestamp = frame_msg->get_timestamp();
               frame.frame_number = frame_msg->get_frame_number();
 
-              std::vector<std::function<void(const marker_frame_data &)>> marker_received;
+              std::vector<std::function<void(const marker_frame_data&)>> marker_received;
               {
                 std::lock_guard lock(frame_received_mtx);
                 marker_received = this->marker_received;
               }
 
-              for (const auto &f : marker_received) {
+              for (const auto& f : marker_received) {
                 f(frame);
               }
             }
@@ -1832,7 +1832,7 @@ class capture_pipeline::impl {
       return cv::Mat();
     }
 
-    const auto &image = frame->get_data();
+    const auto& image = frame->get_data();
 
     int type = -1;
     if (frame->get_profile()) {
@@ -1844,14 +1844,14 @@ class capture_pipeline::impl {
       throw std::logic_error("Unknown image format");
     }
 
-    return cv::Mat(image.get_height(), image.get_width(), type, (uchar *)image.get_data(),
+    return cv::Mat(image.get_height(), image.get_width(), type, (uchar*)image.get_data(),
                    image.get_stride())
         .clone();
   }
 
   std::unordered_map<int, cv::Point2f> get_markers() const {
     std::unordered_map<int, cv::Point2f> result;
-    for (const auto &marker : markers) {
+    for (const auto& marker : markers) {
       result[marker.class_id] = cv::Point2f(marker.pt_x, marker.pt_y);
     }
     return result;
@@ -1861,7 +1861,7 @@ class capture_pipeline::impl {
 capture_pipeline::capture_pipeline() : pimpl(new impl()) {}
 capture_pipeline::~capture_pipeline() = default;
 
-void capture_pipeline::run(const node_info &info) { pimpl->run(info); }
+void capture_pipeline::run(const node_info& info) { pimpl->run(info); }
 
 void capture_pipeline::stop() { pimpl->stop(); }
 cv::Mat capture_pipeline::get_frame() const { return pimpl->get_frame(); }
@@ -1871,11 +1871,11 @@ std::unordered_map<int, cv::Point2f> capture_pipeline::get_markers() const {
 
 void capture_pipeline::set_mask(cv::Mat mask) {}
 
-void capture_pipeline::add_marker_received(std::function<void(const marker_frame_data &)> f) {
+void capture_pipeline::add_marker_received(std::function<void(const marker_frame_data&)> f) {
   pimpl->add_marker_received(f);
 }
 void capture_pipeline::clear_marker_received() { pimpl->clear_marker_received(); }
-void capture_pipeline::add_image_received(std::function<void(const cv::Mat &)> f) {
+void capture_pipeline::add_image_received(std::function<void(const cv::Mat&)> f) {
   pimpl->add_image_received(f);
 }
 void capture_pipeline::clear_image_received() { pimpl->clear_image_received(); }
@@ -1890,7 +1890,7 @@ class multiview_capture_pipeline::impl {
   std::map<std::string, cv::Mat> frames;
 
   mutable std::mutex image_received_mtx;
-  std::vector<std::function<void(const std::map<std::string, cv::Mat> &)>> image_received;
+  std::vector<std::function<void(const std::map<std::string, cv::Mat>&)>> image_received;
 
   std::map<std::string, std::shared_ptr<mask_node>> mask_nodes;
   std::map<std::string, cv::Mat> masks;
@@ -1899,12 +1899,10 @@ class multiview_capture_pipeline::impl {
   std::unordered_set<std::string> marker_collecting_clusters;
 
   mutable std::mutex frame_received_mtx;
-  std::vector<std::function<void(const std::map<std::string, marker_frame_data> &)>>
-      marker_received;
+  std::vector<std::function<void(const std::map<std::string, marker_frame_data>&)>> marker_received;
 
  public:
-  void add_marker_received(
-      std::function<void(const std::map<std::string, marker_frame_data> &)> f) {
+  void add_marker_received(std::function<void(const std::map<std::string, marker_frame_data>&)> f) {
     std::lock_guard lock(frame_received_mtx);
     marker_received.push_back(f);
   }
@@ -1914,7 +1912,7 @@ class multiview_capture_pipeline::impl {
     marker_received.clear();
   }
 
-  void add_image_received(std::function<void(const std::map<std::string, cv::Mat> &)> f) {
+  void add_image_received(std::function<void(const std::map<std::string, cv::Mat>&)> f) {
     std::lock_guard lock(image_received_mtx);
     image_received.push_back(f);
   }
@@ -1924,9 +1922,9 @@ class multiview_capture_pipeline::impl {
     image_received.clear();
   }
 
-  impl(const std::map<std::string, cv::Mat> &masks) : server(0), masks(masks) {}
+  impl(const std::map<std::string, cv::Mat>& masks) : server(0), masks(masks) {}
 
-  void run(const std::vector<node_info> &infos) {
+  void run(const std::vector<node_info>& infos) {
     int sync_fps = 90;
     std::vector<node_info> node_infos = infos;
 
@@ -1943,9 +1941,9 @@ class multiview_capture_pipeline::impl {
     for (std::size_t i = 0; i < node_infos.size(); i++) {
       if (node_infos[i].get_type() == node_type::record) {
         {
-          const auto &input = node_infos[i].inputs.at("default");
+          const auto& input = node_infos[i].inputs.at("default");
           if (rcv_blob_nodes.find(input) != rcv_blob_nodes.end()) {
-            const auto &n = rcv_blob_nodes[input];
+            const auto& n = rcv_blob_nodes[input];
             if (n) {
               std::shared_ptr<fifo_node> n12(new fifo_node());
               n12->set_max_size(1000);
@@ -1962,9 +1960,9 @@ class multiview_capture_pipeline::impl {
         }
 
         {
-          const auto &input = node_infos[i].inputs.at("default");
+          const auto& input = node_infos[i].inputs.at("default");
           if (rcv_marker_nodes.find(input) != rcv_marker_nodes.end()) {
-            const auto &n = rcv_marker_nodes[input];
+            const auto& n = rcv_marker_nodes[input];
             if (n) {
               std::shared_ptr<fifo_node> n12(new fifo_node());
               n12->set_max_size(1000);
@@ -1983,7 +1981,7 @@ class multiview_capture_pipeline::impl {
     }
 
     std::shared_ptr<approximate_time_sync_node> n3(new approximate_time_sync_node());
-    for (const auto &[name, recv_node] : rcv_nodes) {
+    for (const auto& [name, recv_node] : rcv_nodes) {
       if (recv_node) {
         n3->set_input(recv_node->get_output(), name);
       }
@@ -1998,7 +1996,7 @@ class multiview_capture_pipeline::impl {
     g->add_node(n8);
 
     std::shared_ptr<approximate_time_sync_node> n6(new approximate_time_sync_node());
-    for (const auto &[name, recv_node] : rcv_marker_nodes) {
+    for (const auto& [name, recv_node] : rcv_marker_nodes) {
       if (recv_node) {
         n6->set_input(recv_node->get_output(), name);
       }
@@ -2014,14 +2012,14 @@ class multiview_capture_pipeline::impl {
 
     const auto callbacks = std::make_shared<callback_list>();
 
-    callbacks->add([this](const callback_node *node, std::string input_name,
+    callbacks->add([this](const callback_node* node, std::string input_name,
                           graph_message_ptr message) {
       if (node->get_name() == "images") {
         if (auto obj_msg = std::dynamic_pointer_cast<object_message>(message)) {
           std::map<std::string, cv::Mat> frames;
-          for (const auto &[name, field] : obj_msg->get_fields()) {
+          for (const auto& [name, field] : obj_msg->get_fields()) {
             if (auto image_msg = std::dynamic_pointer_cast<frame_message<image>>(field)) {
-              const auto &image = image_msg->get_data();
+              const auto& image = image_msg->get_data();
 
               int type = -1;
               if (image_msg->get_profile()) {
@@ -2035,7 +2033,7 @@ class multiview_capture_pipeline::impl {
 
               frames.insert(
                   std::make_pair(name, cv::Mat(image.get_height(), image.get_width(), type,
-                                               (uchar *)image.get_data(), image.get_stride())
+                                               (uchar*)image.get_data(), image.get_stride())
                                            .clone()));
             }
           }
@@ -2045,13 +2043,13 @@ class multiview_capture_pipeline::impl {
             this->frames = frames;
           }
 
-          std::vector<std::function<void(const std::map<std::string, cv::Mat> &)>> image_received;
+          std::vector<std::function<void(const std::map<std::string, cv::Mat>&)>> image_received;
           {
             std::lock_guard lock(image_received_mtx);
             image_received = this->image_received;
           }
 
-          for (const auto &f : image_received) {
+          for (const auto& f : image_received) {
             f(frames);
           }
         }
@@ -2064,7 +2062,7 @@ class multiview_capture_pipeline::impl {
         }
         if (auto obj_msg = std::dynamic_pointer_cast<object_message>(message)) {
           std::map<std::string, marker_frame_data> frames;
-          for (const auto &[name, field] : obj_msg->get_fields()) {
+          for (const auto& [name, field] : obj_msg->get_fields()) {
             {
               std::lock_guard lock(marker_collecting_clusters_mtx);
               if (marker_collecting_clusters.find(name) == marker_collecting_clusters.end()) {
@@ -2073,10 +2071,10 @@ class multiview_capture_pipeline::impl {
             }
             if (const auto keypoints_msg =
                     std::dynamic_pointer_cast<keypoint_frame_message>(field)) {
-              const auto &keypoints = keypoints_msg->get_data();
+              const auto& keypoints = keypoints_msg->get_data();
 
               marker_frame_data frame;
-              for (const auto &keypoint : keypoints) {
+              for (const auto& keypoint : keypoints) {
                 marker_data kp;
                 kp.x = keypoint.pt_x;
                 kp.y = keypoint.pt_y;
@@ -2091,14 +2089,14 @@ class multiview_capture_pipeline::impl {
             }
           }
 
-          std::vector<std::function<void(const std::map<std::string, marker_frame_data> &)>>
+          std::vector<std::function<void(const std::map<std::string, marker_frame_data>&)>>
               marker_received;
           {
             std::lock_guard lock(frame_received_mtx);
             marker_received = this->marker_received;
           }
 
-          for (const auto &f : marker_received) {
+          for (const auto& f : marker_received) {
             f(frames);
           }
         }
@@ -2143,7 +2141,7 @@ class multiview_capture_pipeline::impl {
   }
   void gen_mask() {
     const auto frames = get_frames();
-    for (const auto &[name, mask_node] : mask_nodes) {
+    for (const auto& [name, mask_node] : mask_nodes) {
       if (frames.find(name) == frames.end()) {
         continue;
       }
@@ -2163,7 +2161,7 @@ class multiview_capture_pipeline::impl {
       }
 
       image mask(mask_img.cols, mask_img.rows, CV_8UC1, mask_img.step,
-                 (const uint8_t *)mask_img.data);
+                 (const uint8_t*)mask_img.data);
       const auto mask_msg = std::make_shared<image_message>();
       mask_msg->set_image(mask);
       client.process(mask_node.get(), "mask", mask_msg);
@@ -2172,12 +2170,12 @@ class multiview_capture_pipeline::impl {
     }
   }
   void clear_mask() {
-    for (const auto &[name, mask_node] : mask_nodes) {
+    for (const auto& [name, mask_node] : mask_nodes) {
       const int width = 820;
       const int height = 616;
       cv::Mat mask_img(height, width, CV_8UC1, cv::Scalar(255));
       image mask(mask_img.cols, mask_img.rows, CV_8UC1, mask_img.step,
-                 (const uint8_t *)mask_img.data);
+                 (const uint8_t*)mask_img.data);
       const auto image_msg = std::make_shared<image_message>();
       image_msg->set_image(mask);
       client.process(mask_node.get(), "mask", image_msg);
@@ -2202,11 +2200,11 @@ class multiview_capture_pipeline::impl {
 
 multiview_capture_pipeline::multiview_capture_pipeline()
     : pimpl(new impl(std::map<std::string, cv::Mat>())) {}
-multiview_capture_pipeline::multiview_capture_pipeline(const std::map<std::string, cv::Mat> &masks)
+multiview_capture_pipeline::multiview_capture_pipeline(const std::map<std::string, cv::Mat>& masks)
     : pimpl(new impl(masks)) {}
 multiview_capture_pipeline::~multiview_capture_pipeline() = default;
 
-void multiview_capture_pipeline::run(const std::vector<node_info> &infos) { pimpl->run(infos); }
+void multiview_capture_pipeline::run(const std::vector<node_info>& infos) { pimpl->run(infos); }
 
 void multiview_capture_pipeline::stop() { pimpl->stop(); }
 std::map<std::string, cv::Mat> multiview_capture_pipeline::get_frames() const {
@@ -2225,12 +2223,12 @@ void multiview_capture_pipeline::disable_marker_collecting(std::string name) {
   pimpl->disable_marker_collecting(name);
 }
 void multiview_capture_pipeline::add_marker_received(
-    std::function<void(const std::map<std::string, marker_frame_data> &)> f) {
+    std::function<void(const std::map<std::string, marker_frame_data>&)> f) {
   pimpl->add_marker_received(f);
 }
 void multiview_capture_pipeline::clear_marker_received() { pimpl->clear_marker_received(); }
 void multiview_capture_pipeline::add_image_received(
-    std::function<void(const std::map<std::string, cv::Mat> &)> f) {
+    std::function<void(const std::map<std::string, cv::Mat>&)> f) {
   pimpl->add_image_received(f);
 }
 void multiview_capture_pipeline::clear_image_received() { pimpl->clear_image_received(); }

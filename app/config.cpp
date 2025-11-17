@@ -7,10 +7,10 @@
 namespace nlohmann {
 template <typename... Ts>
 struct adl_serializer<std::variant<Ts...>> {
-  static void to_json(nlohmann::json &j, const std::variant<Ts...> &data) {
-    std::visit([&j](const auto &v) { j = v; }, data);
+  static void to_json(nlohmann::json& j, const std::variant<Ts...>& data) {
+    std::visit([&j](const auto& v) { j = v; }, data);
   }
-  static void from_json(const nlohmann::json &j, std::variant<Ts...> &data) {
+  static void from_json(const nlohmann::json& j, std::variant<Ts...>& data) {
     if (j.is_string()) {
       data = j.get<std::string>();
     } else if (j.is_number_integer()) {
@@ -27,7 +27,7 @@ struct adl_serializer<std::variant<Ts...>> {
 }  // namespace nlohmann
 
 namespace stargazer {
-static node_type get_node_type(const std::string &type) {
+static node_type get_node_type(const std::string& type) {
   if (type == "raspi") {
     return node_type::raspi;
   } else if (type == "raspi_color") {
@@ -96,7 +96,7 @@ static std::string get_node_type_name(node_type type) {
   throw std::runtime_error("Invalid node type");
 }
 
-configuration::configuration(const std::string &path) : path(path) {
+configuration::configuration(const std::string& path) : path(path) {
   std::ifstream ifs;
   ifs.open(path, std::ios::in);
 
@@ -104,9 +104,9 @@ configuration::configuration(const std::string &path) : path(path) {
     const auto j = nlohmann::json::parse(ifs);
 
     if (j.contains("nodes")) {
-      for (const auto &j_node : j["nodes"]) {
+      for (const auto& j_node : j["nodes"]) {
         auto node = std::make_shared<node_info>();
-        for (const auto &[key, value] : j_node.items()) {
+        for (const auto& [key, value] : j_node.items()) {
           if (key == "type") {
             node->type = get_node_type(value.get<std::string>());
           } else if (key == "name") {
@@ -115,7 +115,7 @@ configuration::configuration(const std::string &path) : path(path) {
             node->inputs = value.get<std::unordered_map<std::string, std::string>>();
           } else if (key == "extends") {
             const auto extends = value.get<std::vector<std::string>>();
-            for (const auto &extend : extends) {
+            for (const auto& extend : extends) {
               if (nodes.find(extend) == nodes.end()) {
                 throw std::runtime_error("Node not found: " + extend);
               }
@@ -138,13 +138,13 @@ configuration::configuration(const std::string &path) : path(path) {
           std::make_pair("static_pipeline", j["static_pipeline"].get<std::string>()));
     }
 
-    for (const auto &[pipeline_name, pipeline] : j["pipelines"].items()) {
+    for (const auto& [pipeline_name, pipeline] : j["pipelines"].items()) {
       std::unordered_set<std::string> node_names;
 
       std::vector<node_info> node_infos;
-      for (const auto &j_node : pipeline["nodes"]) {
+      for (const auto& j_node : pipeline["nodes"]) {
         node_info node;
-        for (const auto &[key, value] : j_node.items()) {
+        for (const auto& [key, value] : j_node.items()) {
           if (key == "type") {
             node.type = get_node_type(value.get<std::string>());
           } else if (key == "name") {
@@ -153,7 +153,7 @@ configuration::configuration(const std::string &path) : path(path) {
             node.inputs = value.get<std::unordered_map<std::string, std::string>>();
           } else if (key == "extends") {
             const auto extends = value.get<std::vector<std::string>>();
-            for (const auto &extend : extends) {
+            for (const auto& extend : extends) {
               if (nodes.find(extend) == nodes.end()) {
                 throw std::runtime_error("Node not found: " + extend);
               }
@@ -181,7 +181,7 @@ void configuration::update() {
 
   {
     std::vector<nlohmann::json> j_nodes;
-    for (const auto &[name, node] : nodes) {
+    for (const auto& [name, node] : nodes) {
       nlohmann::json j_node;
       if (node->type != node_type::unknown) {
         j_node["type"] = get_node_type_name(node->type);
@@ -190,12 +190,12 @@ void configuration::update() {
       if (node->inputs.size() > 0) {
         j_node["inputs"] = node->inputs;
       }
-      for (const auto &[key, value] : node->params) {
+      for (const auto& [key, value] : node->params) {
         j_node[key] = value;
       }
       if (node->extends.size() > 0) {
         std::vector<std::string> extends;
-        for (const auto &extend : node->extends) {
+        for (const auto& extend : node->extends) {
           extends.push_back(extend->name);
         }
         j_node["extends"] = extends;
@@ -205,9 +205,9 @@ void configuration::update() {
     j["nodes"] = j_nodes;
   }
 
-  for (const auto &[pipeline_name, nodes] : pipeline_nodes) {
+  for (const auto& [pipeline_name, nodes] : pipeline_nodes) {
     std::vector<nlohmann::json> j_nodes;
-    for (const auto &node : nodes) {
+    for (const auto& node : nodes) {
       nlohmann::json j_node;
 
       if (node.type != node_type::unknown) {
@@ -217,12 +217,12 @@ void configuration::update() {
       if (node.inputs.size() > 0) {
         j_node["inputs"] = node.inputs;
       }
-      for (const auto &[key, value] : node.params) {
+      for (const auto& [key, value] : node.params) {
         j_node[key] = value;
       }
       if (node.extends.size() > 0) {
         std::vector<std::string> extends;
-        for (const auto &extend : node.extends) {
+        for (const auto& extend : node.extends) {
           extends.push_back(extend->name);
         }
         j_node["extends"] = extends;
@@ -233,7 +233,7 @@ void configuration::update() {
     j["pipelines"][pipeline_name]["nodes"] = j_nodes;
   }
 
-  for (const auto &[pipeline, pipeline_name] : pipeline_names) {
+  for (const auto& [pipeline, pipeline_name] : pipeline_names) {
     j[pipeline] = pipeline_name;
   }
 

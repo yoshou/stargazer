@@ -24,12 +24,12 @@ using namespace stargazer::reconstruction;
 
 class calibration_target {
  public:
-  virtual std::vector<glm::vec2> detect_points(const std::vector<point_data> &markers) = 0;
+  virtual std::vector<glm::vec2> detect_points(const std::vector<point_data>& markers) = 0;
   virtual ~calibration_target() = default;
 };
 
 template <class T, class F>
-void combination(const std::vector<T> &seed, int target_size, F callback) {
+void combination(const std::vector<T>& seed, int target_size, F callback) {
   std::vector<int> indices(target_size);
   const int seed_size = seed.size();
   int start_index = 0;
@@ -60,25 +60,25 @@ enum class calibration_pattern {
 };
 
 static void calc_board_corner_positions(
-    cv::Size board_size, cv::Size2f square_size, std::vector<cv::Point3f> &corners,
+    cv::Size board_size, cv::Size2f square_size, std::vector<cv::Point3f>& corners,
     const calibration_pattern pattern_type = calibration_pattern::CHESSBOARD);
 
 static bool detect_calibration_board(
-    cv::Mat frame, std::vector<cv::Point2f> &points,
+    cv::Mat frame, std::vector<cv::Point2f>& points,
     const calibration_pattern pattern_type = calibration_pattern::CHESSBOARD);
 
 class three_point_bar_calibration_target : public calibration_target {
   template <typename T>
-  static void sort(T &a, T &b, T &c) {
+  static void sort(T& a, T& b, T& c) {
     if (a > b) std::swap(a, b);
     if (b > c) std::swap(b, c);
     if (a > b) std::swap(a, b);
   }
 
  public:
-  virtual std::vector<glm::vec2> detect_points(const std::vector<point_data> &markers) override {
+  virtual std::vector<glm::vec2> detect_points(const std::vector<point_data>& markers) override {
     std::vector<glm::vec2> points;
-    combination(markers, 3, [&](const std::vector<point_data> &target_markers) {
+    combination(markers, 3, [&](const std::vector<point_data>& target_markers) {
       auto x1 = target_markers[0].point.x;
       auto y1 = target_markers[0].point.y;
       auto x2 = target_markers[1].point.x;
@@ -119,16 +119,16 @@ class pattern_board_calibration_target : public calibration_target {
   camera_t camera;
 
  public:
-  pattern_board_calibration_target(const std::vector<cv::Point3f> &object_points,
-                                   const camera_t &camera)
+  pattern_board_calibration_target(const std::vector<cv::Point3f>& object_points,
+                                   const camera_t& camera)
       : object_points(object_points), camera(camera) {}
 
-  virtual std::vector<glm::vec2> detect_points(const std::vector<point_data> &markers) override {
+  virtual std::vector<glm::vec2> detect_points(const std::vector<point_data>& markers) override {
     if (markers.size() == object_points.size()) {
       std::vector<cv::Point2f> image_points;
 
       std::transform(markers.begin(), markers.end(), std::back_inserter(image_points),
-                     [](const auto &pt) { return cv::Point2f(pt.point.x, pt.point.y); });
+                     [](const auto& pt) { return cv::Point2f(pt.point.x, pt.point.y); });
 
       cv::Mat rvec, tvec;
 
@@ -163,7 +163,7 @@ struct float2 {
   float y;
 
   template <typename Archive>
-  void serialize(Archive &archive) {
+  void serialize(Archive& archive) {
     archive(x, y);
   }
 };
@@ -182,16 +182,16 @@ class camera_message : public graph_message {
  public:
   camera_message() : graph_message(), camera() {}
 
-  camera_message(const camera_t &camera) : graph_message(), camera(camera) {}
+  camera_message(const camera_t& camera) : graph_message(), camera(camera) {}
 
   static std::string get_type() { return "camera"; }
 
   camera_t get_camera() const { return camera; }
 
-  void set_camera(const camera_t &value) { camera = value; }
+  void set_camera(const camera_t& value) { camera = value; }
 
   template <typename Archive>
-  void serialize(Archive &archive) {
+  void serialize(Archive& archive) {
     archive(camera);
   }
 };
@@ -205,16 +205,16 @@ class scene_message : public graph_message {
  public:
   scene_message() : graph_message(), scene() {}
 
-  scene_message(const scene_t &scene) : graph_message(), scene(scene) {}
+  scene_message(const scene_t& scene) : graph_message(), scene(scene) {}
 
   static std::string get_type() { return "scene"; }
 
   scene_t get_scene() const { return scene; }
 
-  void set_scene(const scene_t &value) { scene = value; }
+  void set_scene(const scene_t& value) { scene = value; }
 
   template <typename Archive>
-  void serialize(Archive &archive) {
+  void serialize(Archive& archive) {
     archive(scene);
   }
 };
@@ -245,7 +245,7 @@ class pattern_board_calibration_target_detector_node : public graph_node {
   }
 
   template <typename Archive>
-  void serialize(Archive &archive) {
+  void serialize(Archive& archive) {
     archive(camera);
   }
 
@@ -253,20 +253,20 @@ class pattern_board_calibration_target_detector_node : public graph_node {
     detector = std::make_unique<pattern_board_calibration_target>(get_object_points(), camera);
   }
 
-  void set_camera(const camera_t &camera) { this->camera = camera; }
+  void set_camera(const camera_t& camera) { this->camera = camera; }
 
   virtual void process(std::string input_name, graph_message_ptr message) override {
     if (const auto frame_msg = std::dynamic_pointer_cast<float2_list_message>(message)) {
       if (detector) {
         std::vector<point_data> markers;
-        for (const auto &pt : frame_msg->get_data()) {
+        for (const auto& pt : frame_msg->get_data()) {
           markers.push_back({{pt.x, pt.y}, 0.0, 0.0});
         }
 
         const auto points = detector->detect_points(markers);
 
         std::vector<float2> float2_data;
-        for (const auto &pt : points) {
+        for (const auto& pt : points) {
           float2_data.push_back({pt.x, pt.y});
         }
 
@@ -300,7 +300,7 @@ class three_point_bar_calibration_target_detector_node : public graph_node {
   }
 
   template <typename Archive>
-  void serialize(Archive &archive) {}
+  void serialize(Archive& archive) {}
 
   virtual void run() override { detector = std::make_unique<three_point_bar_calibration_target>(); }
 
@@ -308,14 +308,14 @@ class three_point_bar_calibration_target_detector_node : public graph_node {
     if (const auto frame_msg = std::dynamic_pointer_cast<float2_list_message>(message)) {
       if (detector) {
         std::vector<point_data> markers;
-        for (const auto &pt : frame_msg->get_data()) {
+        for (const auto& pt : frame_msg->get_data()) {
           markers.push_back({{pt.x, pt.y}, 0.0, 0.0});
         }
 
         const auto points = detector->detect_points(markers);
 
         std::vector<float2> float2_data;
-        for (const auto &pt : points) {
+        for (const auto& pt : points) {
           float2_data.push_back({pt.x, pt.y});
         }
 
@@ -358,7 +358,7 @@ class calibration_node : public graph_node {
 
   virtual std::string get_proc_name() const override { return "calibration"; }
 
-  void set_cameras(const std::unordered_map<std::string, camera_t> &cameras) {
+  void set_cameras(const std::unordered_map<std::string, camera_t>& cameras) {
     this->cameras = cameras;
   }
 
@@ -367,7 +367,7 @@ class calibration_node : public graph_node {
   void set_robust(bool robust) { this->robust = robust; }
 
   template <typename Archive>
-  void serialize(Archive &archive) {
+  void serialize(Archive& archive) {
     archive(cameras, only_extrinsic, robust);
   }
 
@@ -423,7 +423,7 @@ class calibration_node : public graph_node {
       camera_names.clear();
 
       if (auto camera_msg = std::dynamic_pointer_cast<object_message>(message)) {
-        for (const auto &[name, field] : camera_msg->get_fields()) {
+        for (const auto& [name, field] : camera_msg->get_fields()) {
           if (auto camera_msg = std::dynamic_pointer_cast<camera_message>(field)) {
             std::lock_guard lock(cameras_mtx);
             cameras[name] = camera_msg->get_camera();
@@ -435,7 +435,7 @@ class calibration_node : public graph_node {
       calibrate();
 
       std::shared_ptr<object_message> msg(new object_message());
-      for (const auto &[name, camera] : calibrated_cameras) {
+      for (const auto& [name, camera] : calibrated_cameras) {
         std::shared_ptr<camera_message> camera_msg(new camera_message(camera));
         msg->add_field(name, camera_msg);
       }
@@ -446,7 +446,7 @@ class calibration_node : public graph_node {
 
     if (auto points_msg = std::dynamic_pointer_cast<float2_list_message>(message)) {
       std::vector<glm::vec2> points;
-      for (const auto &pt : points_msg->get_data()) {
+      for (const auto& pt : points_msg->get_data()) {
         points.emplace_back(pt.x, pt.y);
       }
       observed_frames.add_frame_points(points_msg->get_frame_number(), input_name, points);
@@ -460,7 +460,7 @@ CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, calibration_node);
 class callback_node;
 
 class callback_list : public resource_base {
-  using callback_func = std::function<void(const callback_node *, std::string, graph_message_ptr)>;
+  using callback_func = std::function<void(const callback_node*, std::string, graph_message_ptr)>;
   std::vector<callback_func> callbacks;
 
  public:
@@ -468,8 +468,8 @@ class callback_list : public resource_base {
 
   void add(callback_func callback) { callbacks.push_back(callback); }
 
-  void invoke(const callback_node *node, std::string input_name, graph_message_ptr message) const {
-    for (auto &callback : callbacks) {
+  void invoke(const callback_node* node, std::string input_name, graph_message_ptr message) const {
+    for (auto& callback : callbacks) {
       callback(node, input_name, message);
     }
   }
@@ -483,11 +483,11 @@ class callback_node : public graph_node {
 
   virtual std::string get_proc_name() const override { return "callback"; }
 
-  void set_name(const std::string &value) { name = value; }
+  void set_name(const std::string& value) { name = value; }
   std::string get_name() const { return name; }
 
   template <typename Archive>
-  void serialize(Archive &archive) {
+  void serialize(Archive& archive) {
     archive(name);
   }
 
@@ -510,7 +510,7 @@ class object_map_node : public graph_node {
   virtual std::string get_proc_name() const override { return "object_map"; }
 
   template <typename Archive>
-  void save(Archive &archive) const {
+  void save(Archive& archive) const {
     std::vector<std::string> output_names;
     auto outputs = get_outputs();
     for (auto output : outputs) {
@@ -520,7 +520,7 @@ class object_map_node : public graph_node {
   }
 
   template <typename Archive>
-  void load(Archive &archive) {
+  void load(Archive& archive) {
     std::vector<std::string> output_names;
     archive(output_names);
     for (auto output_name : output_names) {
@@ -528,7 +528,7 @@ class object_map_node : public graph_node {
     }
   }
 
-  graph_edge_ptr add_output(const std::string &name) {
+  graph_edge_ptr add_output(const std::string& name) {
     auto outputs = get_outputs();
     auto it = outputs.find(name);
     if (it == outputs.end()) {
@@ -541,12 +541,12 @@ class object_map_node : public graph_node {
 
   virtual void process(std::string input_name, graph_message_ptr message) override {
     if (auto obj_msg = std::dynamic_pointer_cast<object_message>(message)) {
-      for (const auto &[name, field] : obj_msg->get_fields()) {
+      for (const auto& [name, field] : obj_msg->get_fields()) {
         if (auto frame_msg = std::dynamic_pointer_cast<frame_message_base>(field)) {
           try {
             const auto output = get_output(name);
             output->send(field);
-          } catch (const std::exception &e) {
+          } catch (const std::exception& e) {
             spdlog::error(e.what());
           }
         }
@@ -565,7 +565,7 @@ class sentinel_message : public graph_message {
   static std::string get_type() { return "sentinel"; }
 
   template <typename Archive>
-  void serialize(Archive &archive) {}
+  void serialize(Archive& archive) {}
 };
 
 class object_mux_node : public graph_node {
@@ -580,7 +580,7 @@ class object_mux_node : public graph_node {
 
   virtual void process(std::string input_name, graph_message_ptr message) override {
     if (auto obj_msg = std::dynamic_pointer_cast<object_message>(message)) {
-      for (const auto &[name, field] : obj_msg->get_fields()) {
+      for (const auto& [name, field] : obj_msg->get_fields()) {
         auto msg = std::make_shared<object_message>();
         msg->add_field(name, field);
         output->send(msg);
@@ -606,25 +606,25 @@ class calibration_pipeline::impl {
   std::unordered_map<std::string, camera_t> cameras;
   std::unordered_map<std::string, camera_t> calibrated_cameras;
 
-  std::vector<std::function<void(const std::unordered_map<std::string, camera_t> &)>> calibrated;
+  std::vector<std::function<void(const std::unordered_map<std::string, camera_t>&)>> calibrated;
 
   void add_calibrated(
-      std::function<void(const std::unordered_map<std::string, camera_t> &)> callback) {
+      std::function<void(const std::unordered_map<std::string, camera_t>&)> callback) {
     calibrated.push_back(callback);
   }
 
   void clear_calibrated() { calibrated.clear(); }
 
-  void push_frame(const std::map<std::string, std::vector<point_data>> &frame) {
+  void push_frame(const std::map<std::string, std::vector<point_data>>& frame) {
     if (!running) {
       return;
     }
 
     auto msg = std::make_shared<object_message>();
-    for (const auto &[name, field] : frame) {
+    for (const auto& [name, field] : frame) {
       auto float2_msg = std::make_shared<float2_list_message>();
       std::vector<float2> float2_data;
-      for (const auto &pt : field) {
+      for (const auto& pt : field) {
         float2_data.push_back({pt.point.x, pt.point.y});
       }
       float2_msg->set_data(float2_data);
@@ -636,16 +636,16 @@ class calibration_pipeline::impl {
     }
   }
 
-  void calibrate(const std::unordered_map<std::string, camera_t> &cameras) {
+  void calibrate(const std::unordered_map<std::string, camera_t>& cameras) {
     std::shared_ptr<object_message> msg(new object_message());
-    for (const auto &[name, camera] : cameras) {
+    for (const auto& [name, camera] : cameras) {
       std::shared_ptr<camera_message> camera_msg(new camera_message(camera));
       msg->add_field(name, camera_msg);
     }
     graph.process(calib_node.get(), "calibrate", msg);
   }
 
-  void run(const std::vector<node_info> &infos) {
+  void run(const std::vector<node_info>& infos) {
     std::shared_ptr<subgraph> g(new subgraph());
 
     std::shared_ptr<frame_number_numbering_node> n4(new frame_number_numbering_node());
@@ -659,9 +659,9 @@ class calibration_pipeline::impl {
 
     std::unordered_map<std::string, graph_node_ptr> detector_nodes;
 
-    for (const auto &info : infos) {
+    for (const auto& info : infos) {
       if (info.get_type() == node_type::pattern_board_calibration_target_detector) {
-        for (const auto &[name, camera] : cameras) {
+        for (const auto& [name, camera] : cameras) {
           std::shared_ptr<pattern_board_calibration_target_detector_node> n1(
               new pattern_board_calibration_target_detector_node());
           n1->set_input(n5->add_output(name));
@@ -672,7 +672,7 @@ class calibration_pipeline::impl {
         }
       }
       if (info.get_type() == node_type::three_point_bar_calibration_target_detector) {
-        for (const auto &[name, camera] : cameras) {
+        for (const auto& [name, camera] : cameras) {
           std::shared_ptr<three_point_bar_calibration_target_detector_node> n1(
               new three_point_bar_calibration_target_detector_node());
           n1->set_input(n5->add_output(name));
@@ -683,10 +683,10 @@ class calibration_pipeline::impl {
       }
     }
 
-    for (const auto &info : infos) {
+    for (const auto& info : infos) {
       if (info.get_type() == node_type::calibration) {
         std::shared_ptr<calibration_node> n1(new calibration_node());
-        for (const auto &[name, node] : detector_nodes) {
+        for (const auto& [name, node] : detector_nodes) {
           n1->set_input(node->get_output(), name);
         }
         n1->set_cameras(cameras);
@@ -712,15 +712,15 @@ class calibration_pipeline::impl {
     const auto callbacks = std::make_shared<callback_list>();
 
     callbacks->add(
-        [this](const callback_node *node, std::string input_name, graph_message_ptr message) {
+        [this](const callback_node* node, std::string input_name, graph_message_ptr message) {
           if (node->get_name() == "cameras") {
             if (auto obj_msg = std::dynamic_pointer_cast<object_message>(message)) {
-              for (const auto &[name, field] : obj_msg->get_fields()) {
+              for (const auto& [name, field] : obj_msg->get_fields()) {
                 if (auto camera_msg = std::dynamic_pointer_cast<camera_message>(field)) {
                   calibrated_cameras[name] = camera_msg->get_camera();
                 }
               }
-              for (const auto &f : calibrated) {
+              for (const auto& f : calibrated) {
                 f(calibrated_cameras);
               }
             }
@@ -759,26 +759,26 @@ calibration_pipeline::calibration_pipeline() : pimpl(std::make_unique<impl>()) {
 
 calibration_pipeline::~calibration_pipeline() = default;
 
-void calibration_pipeline::set_camera(const std::string &name, const camera_t &camera) {
+void calibration_pipeline::set_camera(const std::string& name, const camera_t& camera) {
   pimpl->cameras[name] = camera;
 }
 
 size_t calibration_pipeline::get_camera_size() const { return pimpl->cameras.size(); }
 
-const std::unordered_map<std::string, camera_t> &calibration_pipeline::get_cameras() const {
+const std::unordered_map<std::string, camera_t>& calibration_pipeline::get_cameras() const {
   return pimpl->cameras;
 }
 
-std::unordered_map<std::string, camera_t> &calibration_pipeline::get_cameras() {
+std::unordered_map<std::string, camera_t>& calibration_pipeline::get_cameras() {
   return pimpl->cameras;
 }
 
-void calibration_pipeline::run(const std::vector<node_info> &infos) { pimpl->run(infos); }
+void calibration_pipeline::run(const std::vector<node_info>& infos) { pimpl->run(infos); }
 
 void calibration_pipeline::stop() { pimpl->stop(); }
 
 void calibration_pipeline::add_calibrated(
-    std::function<void(const std::unordered_map<std::string, camera_t> &)> callback) {
+    std::function<void(const std::unordered_map<std::string, camera_t>&)> callback) {
   pimpl->add_calibrated(callback);
 }
 
@@ -793,19 +793,19 @@ const std::vector<observed_points_t> calibration_pipeline::get_observed_points(
   return pimpl->get_observed_points(name);
 }
 
-const std::unordered_map<std::string, camera_t> &calibration_pipeline::get_calibrated_cameras()
+const std::unordered_map<std::string, camera_t>& calibration_pipeline::get_calibrated_cameras()
     const {
   return pimpl->calibrated_cameras;
 }
 
-void calibration_pipeline::push_frame(const std::map<std::string, std::vector<point_data>> &frame) {
+void calibration_pipeline::push_frame(const std::map<std::string, std::vector<point_data>>& frame) {
   pimpl->push_frame(frame);
 }
 
 void calibration_pipeline::calibrate() { pimpl->calibrate(pimpl->cameras); }
 
 static void calc_board_corner_positions(cv::Size board_size, cv::Size2f square_size,
-                                        std::vector<cv::Point3f> &corners,
+                                        std::vector<cv::Point3f>& corners,
                                         const calibration_pattern pattern_type) {
   corners.clear();
   switch (pattern_type) {
@@ -830,7 +830,7 @@ static void calc_board_corner_positions(cv::Size board_size, cv::Size2f square_s
   }
 }
 
-static bool detect_calibration_board(cv::Mat frame, std::vector<cv::Point2f> &points,
+static bool detect_calibration_board(cv::Mat frame, std::vector<cv::Point2f>& points,
                                      const calibration_pattern pattern_type) {
   if (frame.empty()) {
     return false;
@@ -919,7 +919,7 @@ class intrinsic_calibration_node : public graph_node {
   virtual std::string get_proc_name() const override { return "intrinsic_calibration"; }
 
   template <typename Archive>
-  void serialize(Archive &archive) {
+  void serialize(Archive& archive) {
     archive(initial_camera);
   }
 
@@ -937,35 +937,35 @@ class intrinsic_calibration_node : public graph_node {
 
     if (auto points_msg = std::dynamic_pointer_cast<float2_list_message>(message)) {
       std::vector<point_data> points;
-      for (const auto &pt : points_msg->get_data()) {
+      for (const auto& pt : points_msg->get_data()) {
         points.push_back(point_data{glm::vec2(pt.x, pt.y), 0, 0});
       }
       push_frame(points);
     }
 
     if (auto image_msg = std::dynamic_pointer_cast<image_message>(message)) {
-      const auto &image = image_msg->get_image();
+      const auto& image = image_msg->get_image();
       cv::Mat img(image.get_height(), image.get_width(), convert_to_cv_type(image.get_format()),
-                  (void *)image.get_data(), image.get_stride());
+                  (void*)image.get_data(), image.get_stride());
       push_frame(img);
     }
   }
 
   double get_rms() const { return rms; }
 
-  void set_initial_camera(const camera_t &camera) { initial_camera = camera; }
+  void set_initial_camera(const camera_t& camera) { initial_camera = camera; }
 
-  const camera_t &get_calibrated_camera() const { return calibrated_camera; }
+  const camera_t& get_calibrated_camera() const { return calibrated_camera; }
 
   size_t get_num_frames() const { return frames.size(); }
 
-  void push_frame(const std::vector<point_data> &frame) { frames.push_back(frame); }
+  void push_frame(const std::vector<point_data>& frame) { frames.push_back(frame); }
 
-  void push_frame(const cv::Mat &frame) {
+  void push_frame(const cv::Mat& frame) {
     std::vector<cv::Point2f> board;
     if (detect_calibration_board(frame, board)) {
       std::vector<point_data> points;
-      for (const auto &point : board) {
+      for (const auto& point : board) {
         points.push_back(point_data{glm::vec2(point.x, point.y), 0, 0});
       }
       push_frame(points);
@@ -990,13 +990,13 @@ class intrinsic_calibration_node : public graph_node {
     const auto frame_indices =
         create_random_indices(std::min(frames.size(), static_cast<size_t>(max_num_frames)));
 
-    for (const auto &frame_index : frame_indices) {
-      const auto &frame = frames.at(frame_index);
+    for (const auto& frame_index : frame_indices) {
+      const auto& frame = frames.at(frame_index);
 
       object_points.push_back(object_point);
 
       std::vector<cv::Point2f> image_point;
-      for (const auto &point : frame) {
+      for (const auto& point : frame) {
         image_point.push_back(cv::Point2f(point.point.x, point.point.y));
       }
 
@@ -1038,7 +1038,7 @@ class intrinsic_calibration_pipeline::impl {
 
   impl() = default;
 
-  void run(const std::vector<node_info> &infos) {
+  void run(const std::vector<node_info>& infos) {
     std::shared_ptr<subgraph> g(new subgraph());
 
     std::shared_ptr<frame_number_numbering_node> n4(new frame_number_numbering_node());
@@ -1050,7 +1050,7 @@ class intrinsic_calibration_pipeline::impl {
     n5->set_input(n4->get_output());
     g->add_node(n5);
 
-    for (const auto &info : infos) {
+    for (const auto& info : infos) {
       if (info.get_type() == node_type::calibration) {
         std::shared_ptr<intrinsic_calibration_node> n1(new intrinsic_calibration_node());
         n1->set_input(n5->get_output());
@@ -1074,7 +1074,7 @@ class intrinsic_calibration_pipeline::impl {
     const auto callbacks = std::make_shared<callback_list>();
 
     callbacks->add(
-        [](const callback_node *node, std::string input_name, graph_message_ptr message) {});
+        [](const callback_node* node, std::string input_name, graph_message_ptr message) {});
 
     graph.deploy(g);
     graph.get_resources()->add(callbacks);
@@ -1094,7 +1094,7 @@ intrinsic_calibration_pipeline::intrinsic_calibration_pipeline()
 
 intrinsic_calibration_pipeline::~intrinsic_calibration_pipeline() = default;
 
-void intrinsic_calibration_pipeline::run(const std::vector<node_info> &infos) { pimpl->run(infos); }
+void intrinsic_calibration_pipeline::run(const std::vector<node_info>& infos) { pimpl->run(infos); }
 void intrinsic_calibration_pipeline::stop() { pimpl->stop(); }
 
 double intrinsic_calibration_pipeline::get_rms() const {
@@ -1113,7 +1113,7 @@ void intrinsic_calibration_pipeline::set_image_size(int width, int height) {
   }
 }
 
-const camera_t &intrinsic_calibration_pipeline::get_calibrated_camera() const {
+const camera_t& intrinsic_calibration_pipeline::get_calibrated_camera() const {
   if (pimpl->calib_node) {
     return pimpl->calib_node->get_calibrated_camera();
   }
@@ -1128,12 +1128,12 @@ size_t intrinsic_calibration_pipeline::get_num_frames() const {
   return 0;
 }
 
-void intrinsic_calibration_pipeline::push_frame(const std::vector<point_data> &frame) {
+void intrinsic_calibration_pipeline::push_frame(const std::vector<point_data>& frame) {
   if (pimpl->calib_node) {
     pimpl->calib_node->push_frame(frame);
   }
 }
-void intrinsic_calibration_pipeline::push_frame(const cv::Mat &frame) {
+void intrinsic_calibration_pipeline::push_frame(const cv::Mat& frame) {
   if (pimpl->calib_node) {
     pimpl->calib_node->push_frame(frame);
   }
@@ -1150,27 +1150,27 @@ class axis_reconstruction {
   std::map<std::string, camera_t> cameras;
 
  public:
-  void set_camera(const std::string &name, const camera_t &camera);
+  void set_camera(const std::string& name, const camera_t& camera);
 
   glm::mat4 get_axis() const { return axis; }
 
-  void set_axis(const glm::mat4 &axis) { this->axis = axis; }
+  void set_axis(const glm::mat4& axis) { this->axis = axis; }
 
-  static bool compute_axis(glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::mat4 &axis);
+  static bool compute_axis(glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::mat4& axis);
 
-  static bool detect_axis(glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::mat4 &axis,
+  static bool detect_axis(glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::mat4& axis,
                           float x_axis_length = 0.14f, float y_axis_length = 0.17f);
 
-  void push_frame(const std::map<std::string, cv::Mat> &frame);
+  void push_frame(const std::map<std::string, cv::Mat>& frame);
 
-  void push_frame(const std::map<std::string, std::vector<point_data>> &points);
+  void push_frame(const std::map<std::string, std::vector<point_data>>& points);
 };
 
-void axis_reconstruction::set_camera(const std::string &name, const camera_t &camera) {
+void axis_reconstruction::set_camera(const std::string& name, const camera_t& camera) {
   cameras[name] = camera;
 }
 
-bool axis_reconstruction::compute_axis(glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::mat4 &axis) {
+bool axis_reconstruction::compute_axis(glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::mat4& axis) {
   if (!(std::abs(glm::dot(p1 - p0, p2 - p0)) < 0.01)) {
     return false;
   }
@@ -1201,7 +1201,7 @@ bool axis_reconstruction::compute_axis(glm::vec3 p0, glm::vec3 p1, glm::vec3 p2,
   return true;
 }
 
-bool axis_reconstruction::detect_axis(glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::mat4 &axis,
+bool axis_reconstruction::detect_axis(glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::mat4& axis,
                                       float x_axis_length, float y_axis_length) {
   glm::vec3 origin;
   glm::vec3 e1, e2;
@@ -1252,8 +1252,8 @@ bool axis_reconstruction::detect_axis(glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, 
   return true;
 }
 
-static void detect_aruco_marker(cv::Mat image, std::vector<std::vector<cv::Point2f>> &points,
-                                std::vector<int> &ids) {
+static void detect_aruco_marker(cv::Mat image, std::vector<std::vector<cv::Point2f>>& points,
+                                std::vector<int>& ids) {
   cv::aruco::DetectorParameters detector_params = cv::aruco::DetectorParameters();
   cv::aruco::RefineParameters refine_params = cv::aruco::RefineParameters();
   const auto dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_4X4_250);
@@ -1264,17 +1264,17 @@ static void detect_aruco_marker(cv::Mat image, std::vector<std::vector<cv::Point
   detector.detectMarkers(image, points, ids);
 }
 
-void axis_reconstruction::push_frame(const std::map<std::string, cv::Mat> &frame) {
+void axis_reconstruction::push_frame(const std::map<std::string, cv::Mat>& frame) {
   std::map<std::string, std::vector<point_data>> points;
 
-  for (const auto &[name, image] : frame) {
+  for (const auto& [name, image] : frame) {
     std::vector<int> marker_ids;
     std::vector<std::vector<cv::Point2f>> marker_corners;
     detect_aruco_marker(image, marker_corners, marker_ids);
 
     for (size_t i = 0; i < marker_ids.size(); i++) {
       if (marker_ids[i] == 0) {
-        auto &corner_points = points[name];
+        auto& corner_points = points[name];
         for (size_t j = 0; j < 3; j++) {
           point_data point{};
           point.point.x = marker_corners[i][j].x;
@@ -1290,7 +1290,7 @@ void axis_reconstruction::push_frame(const std::map<std::string, cv::Mat> &frame
     std::vector<glm::vec2> pts;
     std::vector<camera_t> cams;
 
-    for (const auto &[name, camera] : cameras) {
+    for (const auto& [name, camera] : cameras) {
       pts.push_back(points[name][j].point);
       cams.push_back(camera);
     }
@@ -1320,7 +1320,7 @@ void axis_reconstruction::push_frame(const std::map<std::string, cv::Mat> &frame
   // axis = basis * cv_to_gl * extrinsic_calib.axis;
 }
 
-void axis_reconstruction::push_frame(const std::map<std::string, std::vector<point_data>> &frame) {
+void axis_reconstruction::push_frame(const std::map<std::string, std::vector<point_data>>& frame) {
   const auto markers = reconstruct(cameras, frame);
 
   glm::mat4 axis;
@@ -1347,9 +1347,9 @@ void axis_reconstruction::push_frame(const std::map<std::string, std::vector<poi
 
     std::vector<std::vector<cv::Point2f>> image_points_nview;
     std::vector<camera_t> cams;
-    for (const auto &[name, camera] : cameras) {
+    for (const auto& [name, camera] : cameras) {
       std::vector<cv::Point2f> image_points;
-      for (const auto &pt : frame.at(name)) {
+      for (const auto& pt : frame.at(name)) {
         image_points.push_back(cv::Point2f(pt.point.x, pt.point.y));
       }
       if (image_points.size() == num_points) {
@@ -1421,12 +1421,12 @@ class axis_calibration_node : public graph_node {
 
   virtual std::string get_proc_name() const override { return "calibration"; }
 
-  void set_cameras(const std::unordered_map<std::string, camera_t> &cameras) {
+  void set_cameras(const std::unordered_map<std::string, camera_t>& cameras) {
     this->cameras = cameras;
   }
 
   template <typename Archive>
-  void serialize(Archive &archive) {
+  void serialize(Archive& archive) {
     archive(cameras);
   }
 
@@ -1437,17 +1437,17 @@ class axis_calibration_node : public graph_node {
   }
 
   void calibrate() {
-    for (const auto &[name, camera] : cameras) {
+    for (const auto& [name, camera] : cameras) {
       reconstructor.set_camera(name, camera);
     }
 
     {
       for (size_t f = 0; f < observed_frames.get_num_frames(); f++) {
         std::map<std::string, std::vector<point_data>> frame;
-        for (const auto &camera_name : camera_names) {
+        for (const auto& camera_name : camera_names) {
           std::vector<point_data> points_data;
           const auto point = observed_frames.get_observed_point(camera_name, f);
-          for (const auto &pt : point.points) {
+          for (const auto& pt : point.points) {
             points_data.push_back(point_data{pt, 0, 0});
           }
           frame[camera_name] = points_data;
@@ -1463,7 +1463,7 @@ class axis_calibration_node : public graph_node {
       camera_names.clear();
 
       if (auto camera_msg = std::dynamic_pointer_cast<object_message>(message)) {
-        for (const auto &[name, field] : camera_msg->get_fields()) {
+        for (const auto& [name, field] : camera_msg->get_fields()) {
           if (auto camera_msg = std::dynamic_pointer_cast<camera_message>(field)) {
             std::lock_guard lock(cameras_mtx);
             cameras[name] = camera_msg->get_camera();
@@ -1483,10 +1483,10 @@ class axis_calibration_node : public graph_node {
     }
 
     if (auto obj_msg = std::dynamic_pointer_cast<object_message>(message)) {
-      for (const auto &[name, field] : obj_msg->get_fields()) {
+      for (const auto& [name, field] : obj_msg->get_fields()) {
         if (auto points_msg = std::dynamic_pointer_cast<float2_list_message>(field)) {
           std::vector<glm::vec2> points;
-          for (const auto &pt : points_msg->get_data()) {
+          for (const auto& pt : points_msg->get_data()) {
             points.emplace_back(pt.x, pt.y);
           }
           observed_frames.add_frame_points(points_msg->get_frame_number(), name, points);
@@ -1508,7 +1508,7 @@ class axis_calibration_pipeline::impl {
   std::shared_ptr<axis_calibration_node> calib_node;
   std::shared_ptr<graph_node> input_node;
 
-  using callback_func_type = std::function<void(const scene_t &)>;
+  using callback_func_type = std::function<void(const scene_t&)>;
 
   std::vector<callback_func_type> calibrated;
 
@@ -1522,16 +1522,16 @@ class axis_calibration_pipeline::impl {
 
   void clear_calibrated() { calibrated.clear(); }
 
-  void push_frame(const std::map<std::string, std::vector<point_data>> &frame) {
+  void push_frame(const std::map<std::string, std::vector<point_data>>& frame) {
     if (!running) {
       return;
     }
 
     auto msg = std::make_shared<object_message>();
-    for (const auto &[name, field] : frame) {
+    for (const auto& [name, field] : frame) {
       auto float2_msg = std::make_shared<float2_list_message>();
       std::vector<float2> float2_data;
-      for (const auto &pt : field) {
+      for (const auto& pt : field) {
         float2_data.push_back({pt.point.x, pt.point.y});
       }
       float2_msg->set_data(float2_data);
@@ -1545,14 +1545,14 @@ class axis_calibration_pipeline::impl {
 
   void calibrate() {
     std::shared_ptr<object_message> msg(new object_message());
-    for (const auto &[name, camera] : cameras) {
+    for (const auto& [name, camera] : cameras) {
       std::shared_ptr<camera_message> camera_msg(new camera_message(camera));
       msg->add_field(name, camera_msg);
     }
     graph.process(calib_node.get(), "calibrate", msg);
   }
 
-  void run(const std::vector<node_info> &infos) {
+  void run(const std::vector<node_info>& infos) {
     std::shared_ptr<subgraph> g(new subgraph());
 
     std::shared_ptr<frame_number_numbering_node> n4(new frame_number_numbering_node());
@@ -1564,7 +1564,7 @@ class axis_calibration_pipeline::impl {
     n5->set_input(n4->get_output());
     g->add_node(n5);
 
-    for (const auto &info : infos) {
+    for (const auto& info : infos) {
       if (info.get_type() == node_type::calibration) {
         std::shared_ptr<axis_calibration_node> n1(new axis_calibration_node());
         n1->set_input(n5->get_output());
@@ -1588,14 +1588,14 @@ class axis_calibration_pipeline::impl {
     const auto callbacks = std::make_shared<callback_list>();
 
     callbacks->add(
-        [this](const callback_node *node, std::string input_name, graph_message_ptr message) {
+        [this](const callback_node* node, std::string input_name, graph_message_ptr message) {
           if (node->get_name() == "scene") {
             if (auto scene_msg = std::dynamic_pointer_cast<scene_message>(message)) {
-              for (const auto &f : calibrated) {
+              for (const auto& f : calibrated) {
                 f(scene_msg->get_scene());
               }
 
-              auto &scene = std::get<scene_t>(parameters->at("scene"));
+              auto& scene = std::get<scene_t>(parameters->at("scene"));
               scene = scene_msg->get_scene();
               parameters->save();
             }
@@ -1637,17 +1637,17 @@ axis_calibration_pipeline::axis_calibration_pipeline(std::shared_ptr<parameters_
 
 axis_calibration_pipeline::~axis_calibration_pipeline() = default;
 
-void axis_calibration_pipeline::set_camera(const std::string &name, const camera_t &camera) {
+void axis_calibration_pipeline::set_camera(const std::string& name, const camera_t& camera) {
   pimpl->cameras[name] = camera;
 }
 
 size_t axis_calibration_pipeline::get_camera_size() const { return pimpl->cameras.size(); }
 
-const std::unordered_map<std::string, camera_t> &axis_calibration_pipeline::get_cameras() const {
+const std::unordered_map<std::string, camera_t>& axis_calibration_pipeline::get_cameras() const {
   return pimpl->cameras;
 }
 
-std::unordered_map<std::string, camera_t> &axis_calibration_pipeline::get_cameras() {
+std::unordered_map<std::string, camera_t>& axis_calibration_pipeline::get_cameras() {
   return pimpl->cameras;
 }
 
@@ -1661,11 +1661,11 @@ const std::vector<observed_points_t> axis_calibration_pipeline::get_observed_poi
 }
 
 void axis_calibration_pipeline::push_frame(
-    const std::map<std::string, std::vector<point_data>> &frame) {
+    const std::map<std::string, std::vector<point_data>>& frame) {
   pimpl->push_frame(frame);
 }
 
-void axis_calibration_pipeline::run(const std::vector<node_info> &infos) { pimpl->run(infos); }
+void axis_calibration_pipeline::run(const std::vector<node_info>& infos) { pimpl->run(infos); }
 void axis_calibration_pipeline::stop() { pimpl->stop(); }
 
 void axis_calibration_pipeline::calibrate() { pimpl->calibrate(); }
