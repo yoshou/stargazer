@@ -5,6 +5,7 @@
       "gateway": "192.168.0.254",
       "height": 616.0,
       "width": 820.0,
+      "fps": 90,
       "type": "raspi"
     },
     {
@@ -33,7 +34,7 @@
     },
     {
       "name": "record_base",
-      "db_path": "../data/data_20250713_1/axis2.db",
+      "db_path": "../data/data_20250713_1/axis.db",
       "type": "record"
     }
   ],
