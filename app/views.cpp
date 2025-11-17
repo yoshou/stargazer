@@ -23,10 +23,10 @@ struct matrix4 {
     return m;
   }
 
-  operator float *() const { return (float *)&mat; }
+  operator float*() const { return (float*)&mat; }
 };
 
-inline matrix4 operator*(const matrix4 &a, const matrix4 &b) {
+inline matrix4 operator*(const matrix4& a, const matrix4& b) {
   matrix4 res;
   for (int i = 0; i < 4; i++) {
     for (int j = 0; j < 4; j++) {
@@ -43,18 +43,18 @@ inline matrix4 operator*(const matrix4 &a, const matrix4 &b) {
 namespace ImGui {
 class ScopePushFont {
  public:
-  ScopePushFont(ImFont *font) { PushFont(font); }
+  ScopePushFont(ImFont* font) { PushFont(font); }
   ~ScopePushFont() { PopFont(); }
 };
 class ScopePushStyleColor {
  public:
-  ScopePushStyleColor(ImGuiCol idx, const ImVec4 &col) { PushStyleColor(idx, col); }
+  ScopePushStyleColor(ImGuiCol idx, const ImVec4& col) { PushStyleColor(idx, col); }
   ~ScopePushStyleColor() { PopStyleColor(); }
 };
 class ScopePushStyleVar {
  public:
   ScopePushStyleVar(ImGuiStyleVar idx, float val) { PushStyleVar(idx, val); }
-  ScopePushStyleVar(ImGuiStyleVar idx, const ImVec2 &val) { PushStyleVar(idx, val); }
+  ScopePushStyleVar(ImGuiStyleVar idx, const ImVec2& val) { PushStyleVar(idx, val); }
   ~ScopePushStyleVar() { PopStyleVar(); }
 };
 }  // namespace ImGui
@@ -67,16 +67,16 @@ class ScopePushStyleVar {
 #define ImGui_ScopePushStyleVar(idx, val) \
   ImGui::ScopePushStyleVar CONCAT(scope_push_style_var, __LINE__)(idx, val)
 
-static std::vector<const char *> get_string_pointers(const std::vector<std::string> &vec) {
-  std::vector<const char *> res;
-  for (auto &&s : vec) res.push_back(s.c_str());
+static std::vector<const char*> get_string_pointers(const std::vector<std::string>& vec) {
+  std::vector<const char*> res;
+  for (auto&& s : vec) res.push_back(s.c_str());
   return res;
 }
 
 struct to_string {
   std::ostringstream ss;
   template <class T>
-  to_string &operator<<(const T &val) {
+  to_string& operator<<(const T& val) {
     ss << val;
     return *this;
   }
@@ -86,7 +86,7 @@ struct to_string {
 struct textual_icon {
   explicit constexpr textual_icon(const char8_t (&unicode_icon)[4])
       : _icon{unicode_icon[0], unicode_icon[1], unicode_icon[2], unicode_icon[3]} {}
-  operator const char *() const { return reinterpret_cast<const char *>(_icon.data()); }
+  operator const char*() const { return reinterpret_cast<const char*>(_icon.data()); }
 
  private:
   std::array<char8_t, 5> _icon;
@@ -144,7 +144,7 @@ ImVec2 view_context::get_window_size() const {
   return ImVec2{static_cast<float>(width), static_cast<float>(height)};
 }
 
-void top_bar_view::render(view_context *context) {
+void top_bar_view::render(view_context* context) {
   auto flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse |
                ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings;
 
@@ -267,7 +267,7 @@ void top_bar_view::render(view_context *context) {
   ImGui::PopStyleVar();
 }
 
-void capture_panel_view::draw_controls(view_context *context, float panel_height)
+void capture_panel_view::draw_controls(view_context* context, float panel_height)
 
 {
   std::vector<std::function<void()>> draw_later;
@@ -320,7 +320,7 @@ void capture_panel_view::draw_controls(view_context *context, float panel_height
     ImGui::PopStyleColor();
   }
 
-  for (auto &device : devices) {
+  for (auto& device : devices) {
     ImVec2 initial_screen_pos = ImGui::GetCursorScreenPos();
 
     // Upper Space
@@ -383,7 +383,7 @@ void capture_panel_view::draw_controls(view_context *context, float panel_height
                              pos.y + 9 + (header_h - panel_height) / 2});
         std::string remove_source_button_label = to_string() << textual_icons::times << "##" << id;
         if (ImGui::Button(remove_source_button_label.c_str(), {33, 35})) {
-          for (auto &f : on_remove_device) {
+          for (auto& f : on_remove_device) {
             f(device.name);
           }
         }
@@ -435,7 +435,7 @@ void capture_panel_view::draw_controls(view_context *context, float panel_height
 
           if (ImGui::Button(label.c_str(), {30, 30})) {
             device.is_streaming = true;
-            for (const auto &f : is_streaming_changed) {
+            for (const auto& f : is_streaming_changed) {
               if (!f(device)) {
                 device.is_streaming = false;
                 break;
@@ -451,7 +451,7 @@ void capture_panel_view::draw_controls(view_context *context, float panel_height
 
           if (ImGui::Button(label.c_str(), {30, 30})) {
             device.is_streaming = false;
-            for (const auto &f : is_streaming_changed) {
+            for (const auto& f : is_streaming_changed) {
               if (!f(device)) {
                 device.is_streaming = true;
                 break;
@@ -517,12 +517,12 @@ void capture_panel_view::draw_controls(view_context *context, float panel_height
     }
   }
 
-  for (const auto &func : draw_later) {
+  for (const auto& func : draw_later) {
     func();
   }
 }
 
-void capture_panel_view::render(view_context *context) {
+void capture_panel_view::render(view_context* context) {
   const auto window_size = context->get_window_size();
 
   const auto top_bar_height = 50;
@@ -564,7 +564,7 @@ void capture_panel_view::render(view_context *context) {
         std::vector<std::string> node_type_names = {
             "raspi", "raspi_color", "depthai_color", "rs_d435", "rs_d435_color",
         };
-        std::vector<const char *> node_type_names_chars = get_string_pointers(node_type_names);
+        std::vector<const char*> node_type_names_chars = get_string_pointers(node_type_names);
 
         ImGui::SetCursorPosX(10);
         ImGui::Text("Device Type");
@@ -652,7 +652,7 @@ void capture_panel_view::render(view_context *context) {
       if (ImGui::Button("OK", {100.f, 25.f}) || ImGui::IsKeyDown(ImGuiKey_Enter) ||
           ImGui::IsKeyDown(ImGuiKey_KeypadEnter)) {
         try {
-          for (auto &f : on_add_device) {
+          for (auto& f : on_add_device) {
             f(device_name, static_cast<node_type>(node_type_index), ip_address, gateway_address);
           }
         } catch (std::runtime_error e) {
@@ -684,7 +684,7 @@ void capture_panel_view::render(view_context *context) {
   ImGui::PopStyleColor();
 }
 
-float capture_panel_view::draw_control_panel(view_context *context) {
+float capture_panel_view::draw_control_panel(view_context* context) {
   const float device_panel_height = 60.0f;
   auto panel_pos = ImGui::GetCursorPos();
 
@@ -710,7 +710,7 @@ float capture_panel_view::draw_control_panel(view_context *context) {
     if (ImGui::Button(play_button_name.c_str(), device_panel_icons_size)) {
       if (is_streaming) {
         is_streaming = false;
-        for (const auto &f : is_all_streaming_changed) {
+        for (const auto& f : is_all_streaming_changed) {
           if (!f(devices, is_streaming)) {
             is_streaming = true;
             break;
@@ -718,7 +718,7 @@ float capture_panel_view::draw_control_panel(view_context *context) {
         }
       } else {
         is_streaming = true;
-        for (const auto &f : is_all_streaming_changed) {
+        for (const auto& f : is_all_streaming_changed) {
           if (!f(devices, is_streaming)) {
             is_streaming = false;
             break;
@@ -750,7 +750,7 @@ float capture_panel_view::draw_control_panel(view_context *context) {
   return device_panel_height;
 }
 
-float calibration_panel_view::draw_control_panel(view_context *context) {
+float calibration_panel_view::draw_control_panel(view_context* context) {
   const float device_panel_height = 60.0f;
   auto panel_pos = ImGui::GetCursorPos();
 
@@ -776,7 +776,7 @@ float calibration_panel_view::draw_control_panel(view_context *context) {
     if (ImGui::Button(play_button_name.c_str(), device_panel_icons_size)) {
       if (is_streaming) {
         is_streaming = false;
-        for (const auto &f : is_streaming_changed) {
+        for (const auto& f : is_streaming_changed) {
           if (!f(devices, is_streaming)) {
             is_streaming = true;
             break;
@@ -784,7 +784,7 @@ float calibration_panel_view::draw_control_panel(view_context *context) {
         }
       } else {
         is_streaming = true;
-        for (const auto &f : is_streaming_changed) {
+        for (const auto& f : is_streaming_changed) {
           if (!f(devices, is_streaming)) {
             is_streaming = false;
             break;
@@ -803,7 +803,7 @@ float calibration_panel_view::draw_control_panel(view_context *context) {
     if (ImGui::Button(mask_button_name.c_str(), device_panel_icons_size)) {
       if (is_masking) {
         is_masking = false;
-        for (const auto &f : is_masking_changed) {
+        for (const auto& f : is_masking_changed) {
           if (!f(devices, is_masking)) {
             is_masking = true;
             break;
@@ -811,7 +811,7 @@ float calibration_panel_view::draw_control_panel(view_context *context) {
         }
       } else {
         is_masking = true;
-        for (const auto &f : is_masking_changed) {
+        for (const auto& f : is_masking_changed) {
           if (!f(devices, is_masking)) {
             is_masking = false;
             break;
@@ -829,7 +829,7 @@ float calibration_panel_view::draw_control_panel(view_context *context) {
     ImGui::PushStyleColor(ImGuiCol_Text, calibrate_button_color);
     ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, calibrate_button_color);
     if (ImGui::Button(calibrate_button_name.c_str(), device_panel_icons_size)) {
-      for (const auto &f : on_calibrate) {
+      for (const auto& f : on_calibrate) {
         f(devices, true);
       }
       if (is_calibrateing) {
@@ -876,7 +876,7 @@ float calibration_panel_view::draw_control_panel(view_context *context) {
   return device_panel_height;
 }
 
-void calibration_panel_view::draw_extrinsic_calibration_control_panel(view_context *context) {
+void calibration_panel_view::draw_extrinsic_calibration_control_panel(view_context* context) {
   std::vector<std::function<void()>> draw_later;
   {
     auto pos = ImGui::GetCursorPos();
@@ -908,7 +908,7 @@ void calibration_panel_view::draw_extrinsic_calibration_control_panel(view_conte
 
           if (ImGui::Button(label.c_str(), {30, 30})) {
             is_marker_collecting = true;
-            for (const auto &f : is_marker_collecting_changed) {
+            for (const auto& f : is_marker_collecting_changed) {
               if (!f(devices, is_marker_collecting)) {
                 is_marker_collecting = false;
                 break;
@@ -924,7 +924,7 @@ void calibration_panel_view::draw_extrinsic_calibration_control_panel(view_conte
 
           if (ImGui::Button(label.c_str(), {30, 30})) {
             is_marker_collecting = false;
-            for (const auto &f : is_marker_collecting_changed) {
+            for (const auto& f : is_marker_collecting_changed) {
               if (!f(devices, is_marker_collecting)) {
                 is_marker_collecting = true;
                 break;
@@ -946,7 +946,7 @@ void calibration_panel_view::draw_extrinsic_calibration_control_panel(view_conte
       ImGuiTreeNodeFlags flags{};
       // if (show_depth_only) flags = ImGuiTreeNodeFlags_DefaultOpen;
       if (ImGui::TreeNodeEx(label.c_str(), flags | ImGuiTreeNodeFlags_FramePadding)) {
-        for (auto &device : devices) {
+        for (auto& device : devices) {
           auto pos = ImGui::GetCursorPos();
           auto windows_width = ImGui::GetContentRegionMax().x;
 
@@ -1018,22 +1018,22 @@ void calibration_panel_view::draw_extrinsic_calibration_control_panel(view_conte
     ImGui::PopFont();
   }
 
-  for (const auto &func : draw_later) {
+  for (const auto& func : draw_later) {
     func();
   }
 }
 
-void calibration_panel_view::draw_intrinsic_calibration_control_panel(view_context *context) {
+void calibration_panel_view::draw_intrinsic_calibration_control_panel(view_context* context) {
   const auto panel_width = 350;
 
   // draw selecting device
   {
     std::vector<std::string> intrinsic_calibration_devices;
-    for (const auto &device : devices) {
+    for (const auto& device : devices) {
       intrinsic_calibration_devices.push_back(device.name);
     }
     std::string id = "##intrinsic_calibration_device";
-    std::vector<const char *> intrinsic_calibration_devices_chars =
+    std::vector<const char*> intrinsic_calibration_devices_chars =
         get_string_pointers(intrinsic_calibration_devices);
 
     const auto pos = ImGui::GetCursorPos();
@@ -1043,7 +1043,7 @@ void calibration_panel_view::draw_intrinsic_calibration_control_panel(view_conte
     if (ImGui::Combo(id.c_str(), &intrinsic_calibration_device_index,
                      intrinsic_calibration_devices_chars.data(),
                      static_cast<int>(intrinsic_calibration_devices.size()))) {
-      for (auto &func : on_intrinsic_calibration_device_changed) {
+      for (auto& func : on_intrinsic_calibration_device_changed) {
         func(devices.at(intrinsic_calibration_device_index));
       }
     }
@@ -1054,7 +1054,7 @@ void calibration_panel_view::draw_intrinsic_calibration_control_panel(view_conte
 
   std::vector<std::function<void()>> draw_later;
   {
-    auto &device = devices[intrinsic_calibration_device_index];
+    auto& device = devices[intrinsic_calibration_device_index];
 
     ImGui::PushStyleColor(ImGuiCol_HeaderHovered, sensor_bg);
     ImGui::PushStyleColor(ImGuiCol_Text, light_grey);
@@ -1134,7 +1134,7 @@ void calibration_panel_view::draw_intrinsic_calibration_control_panel(view_conte
             ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 2);
           }
 
-          const auto draw_param = [&](const std::string &name, float value) {
+          const auto draw_param = [&](const std::string& name, float value) {
             ImGui::SetCursorPosX(20);
 
             ImGui::Text("%s", name.c_str());
@@ -1175,12 +1175,12 @@ void calibration_panel_view::draw_intrinsic_calibration_control_panel(view_conte
     ImGui::PopFont();
   }
 
-  for (const auto &func : draw_later) {
+  for (const auto& func : draw_later) {
     func();
   }
 }
 
-void calibration_panel_view::draw_controls(view_context *context, float panel_height) {
+void calibration_panel_view::draw_controls(view_context* context, float panel_height) {
   const auto panel_width = 350;
 
   // draw controls
@@ -1203,7 +1203,7 @@ void calibration_panel_view::draw_controls(view_context *context, float panel_he
         "Scene parameters",
     };
     std::string id = "##calibration_target";
-    std::vector<const char *> calibration_targets_chars = get_string_pointers(calibration_targets);
+    std::vector<const char*> calibration_targets_chars = get_string_pointers(calibration_targets);
 
     const auto pos = ImGui::GetCursorPos();
     ImGui::PushItemWidth(panel_width - 40);
@@ -1232,7 +1232,7 @@ void calibration_panel_view::draw_controls(view_context *context, float panel_he
   }
 }
 
-void calibration_panel_view::render(view_context *context) {
+void calibration_panel_view::render(view_context* context) {
   const auto window_size = context->get_window_size();
 
   const auto top_bar_height = 50;
@@ -1255,7 +1255,7 @@ void calibration_panel_view::render(view_context *context) {
   ImGui::PopStyleColor();
 }
 
-float reconstruction_panel_view::draw_control_panel(view_context *context) {
+float reconstruction_panel_view::draw_control_panel(view_context* context) {
   const float device_panel_height = 60.0f;
   auto panel_pos = ImGui::GetCursorPos();
 
@@ -1281,7 +1281,7 @@ float reconstruction_panel_view::draw_control_panel(view_context *context) {
     if (ImGui::Button(play_button_name.c_str(), device_panel_icons_size)) {
       if (is_streaming) {
         is_streaming = false;
-        for (const auto &f : is_streaming_changed) {
+        for (const auto& f : is_streaming_changed) {
           if (!f(devices, is_streaming)) {
             is_streaming = true;
             break;
@@ -1289,7 +1289,7 @@ float reconstruction_panel_view::draw_control_panel(view_context *context) {
         }
       } else {
         is_streaming = true;
-        for (const auto &f : is_streaming_changed) {
+        for (const auto& f : is_streaming_changed) {
           if (!f(devices, is_streaming)) {
             is_streaming = false;
             break;
@@ -1308,7 +1308,7 @@ float reconstruction_panel_view::draw_control_panel(view_context *context) {
     if (ImGui::Button(record_button_name.c_str(), device_panel_icons_size)) {
       if (is_recording) {
         is_recording = false;
-        for (const auto &f : is_recording_changed) {
+        for (const auto& f : is_recording_changed) {
           if (!f(devices, is_recording)) {
             is_recording = true;
             break;
@@ -1316,7 +1316,7 @@ float reconstruction_panel_view::draw_control_panel(view_context *context) {
         }
       } else {
         is_recording = true;
-        for (const auto &f : is_recording_changed) {
+        for (const auto& f : is_recording_changed) {
           if (!f(devices, is_recording)) {
             is_recording = false;
             break;
@@ -1355,7 +1355,7 @@ float reconstruction_panel_view::draw_control_panel(view_context *context) {
   return device_panel_height;
 }
 
-void reconstruction_panel_view::draw_controls(view_context *context, float panel_height) {
+void reconstruction_panel_view::draw_controls(view_context* context, float panel_height) {
   std::vector<std::function<void()>> draw_later;
 
   auto panel_width = 350;
@@ -1388,7 +1388,7 @@ void reconstruction_panel_view::draw_controls(view_context *context, float panel
         "Image",
     };
     std::string id = "##sources";
-    std::vector<const char *> sources_chars = get_string_pointers(sources);
+    std::vector<const char*> sources_chars = get_string_pointers(sources);
 
     const auto pos = ImGui::GetCursorPos();
     ImGui::PushItemWidth(panel_width - 40);
@@ -1402,12 +1402,12 @@ void reconstruction_panel_view::draw_controls(view_context *context, float panel
     ImGui::PopItemWidth();
   }
 
-  for (const auto &func : draw_later) {
+  for (const auto& func : draw_later) {
     func();
   }
 }
 
-void reconstruction_panel_view::render(view_context *context) {
+void reconstruction_panel_view::render(view_context* context) {
   const auto window_size = context->get_window_size();
 
   const auto top_bar_height = 50;
@@ -1430,7 +1430,7 @@ void reconstruction_panel_view::render(view_context *context) {
   ImGui::PopStyleColor();
 }
 
-static void deproject_pixel_to_point(float point[3], const pose_view::camera_t *intrin,
+static void deproject_pixel_to_point(float point[3], const pose_view::camera_t* intrin,
                                      const float pixel[2], float depth) {
   float x = (pixel[0] - intrin->ppx) / intrin->fx;
   float y = (pixel[1] - intrin->ppy) / intrin->fy;
@@ -1466,7 +1466,7 @@ static void draw_sphere(double r, int lats, int longs) {
   }
 }
 
-void pose_view::render(view_context *context) {
+void pose_view::render(view_context* context) {
   int left, top, right, bottom;
   window_manager::get_instance()->get_window_frame_size(context->window, &left, &top, &right,
                                                         &bottom);
@@ -1504,21 +1504,21 @@ void pose_view::render(view_context *context) {
     glMatrixMode(GL_PROJECTION);
     glPushMatrix();
     gluPerspective(45, viewer_rect.w / framebuf_height, 0.001f, 100.0f);
-    glGetFloatv(GL_PROJECTION_MATRIX, (GLfloat *)&perspective_mat);
+    glGetFloatv(GL_PROJECTION_MATRIX, (GLfloat*)&perspective_mat);
     glPopMatrix();
   }
 
   {
     glMatrixMode(GL_PROJECTION);
     glPushMatrix();
-    glLoadMatrixf((float *)perspective_mat.mat);
+    glLoadMatrixf((float*)perspective_mat.mat);
 
     glMatrixMode(GL_MODELVIEW);
     glPushMatrix();
 
     matrix4 view_mat;
-    memcpy(&view_mat, (float *)&context->view, sizeof(matrix4));
-    glLoadMatrixf((float *)view_mat);
+    memcpy(&view_mat, (float*)&context->view, sizeof(matrix4));
+    glLoadMatrixf((float*)view_mat);
 
     glDisable(GL_TEXTURE_2D);
 
@@ -1560,13 +1560,13 @@ void pose_view::render(view_context *context) {
     {
       glColor4f(1.f, 1.f, 1.f, 1.f);
 
-      for (const auto &p : cameras) {
-        const auto &camera = p.second;
+      for (const auto& p : cameras) {
+        const auto& camera = p.second;
 
         const auto camera_pose = axis * camera.pose;
 
         matrix4 r1;
-        memcpy(&r1, (float *)&camera_pose, sizeof(matrix4));
+        memcpy(&r1, (float*)&camera_pose, sizeof(matrix4));
         glMatrixMode(GL_MODELVIEW);
         glPushMatrix();
         glLoadMatrixf(r1 * view_mat);
@@ -1637,9 +1637,9 @@ void pose_view::render(view_context *context) {
 
 // Generate streams layout, creates a grid-like layout with factor amount of columns
 std::map<int, rect> image_tile_view::generate_layout(
-    const rect &r, int top_bar_height, size_t factor,
-    const std::vector<std::shared_ptr<stream_info>> &active_streams,
-    std::map<stream_info *, int> &stream_index) {
+    const rect& r, int top_bar_height, size_t factor,
+    const std::vector<std::shared_ptr<stream_info>>& active_streams,
+    std::map<stream_info*, int>& stream_index) {
   std::map<int, rect> results;
   if (factor == 0) return results;
 
@@ -1666,13 +1666,13 @@ std::map<int, rect> image_tile_view::generate_layout(
   return results;
 }
 
-float image_tile_view::evaluate_layout(const std::map<int, rect> &l) {
+float image_tile_view::evaluate_layout(const std::map<int, rect>& l) {
   float res = 0.f;
-  for (auto &&kvp : l) res += kvp.second.area();
+  for (auto&& kvp : l) res += kvp.second.area();
   return res;
 }
 
-std::map<int, rect> image_tile_view::calc_layout(const rect &r) {
+std::map<int, rect> image_tile_view::calc_layout(const rect& r) {
   std::map<int, rect> results;
   const auto top_bar_height = 50;
   for (size_t f = 1; f <= streams.size(); f++) {
@@ -1685,7 +1685,7 @@ std::map<int, rect> image_tile_view::calc_layout(const rect &r) {
   return results;
 }
 
-void image_tile_view::draw_stream_header(view_context *context, const rect &stream_rect) {
+void image_tile_view::draw_stream_header(view_context* context, const rect& stream_rect) {
   const auto top_bar_height = 32.f;
 
   ImGui_ScopePushFont(context->large_font);
@@ -1703,7 +1703,7 @@ void image_tile_view::draw_stream_header(view_context *context, const rect &stre
   ImGui::PopStyleColor(5);
 }
 
-void image_tile_view::render(view_context *context) {
+void image_tile_view::render(view_context* context) {
   auto flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse |
                ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings |
                ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
@@ -1738,10 +1738,10 @@ void image_tile_view::render(view_context *context) {
 
   auto layout = calc_layout(r);
 
-  for (auto &&kvp : layout) {
-    auto &&view_rect = kvp.second;
+  for (auto&& kvp : layout) {
+    auto&& view_rect = kvp.second;
     auto stream = kvp.first;
-    auto &&stream_mv = streams[stream];
+    auto&& stream_mv = streams[stream];
 
     draw_stream_header(context, view_rect);
 

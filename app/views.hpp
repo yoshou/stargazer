@@ -74,23 +74,23 @@ static const ImVec4 red = from_rgba(233, 0, 0, 255, true);
 static const ImVec4 greenish = from_rgba(67, 163, 97, 255);
 static const ImVec4 orange = from_rgba(255, 157, 0, 255, true);
 
-inline ImVec4 operator+(const ImVec4 &a, const ImVec4 &b) {
+inline ImVec4 operator+(const ImVec4& a, const ImVec4& b) {
   return ImVec4(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w);
 }
 
-inline ImVec4 operator+(const ImVec4 &c, float v) {
+inline ImVec4 operator+(const ImVec4& c, float v) {
   return ImVec4(std::max(0.f, std::min(1.f, c.x + v)), std::max(0.f, std::min(1.f, c.y + v)),
                 std::max(0.f, std::min(1.f, c.z + v)), std::max(0.f, std::min(1.f, c.w)));
 }
 
 template <typename T>
-T normalize(const T &in_val, const T &min, const T &max) {
+T normalize(const T& in_val, const T& min, const T& max) {
   if (min >= max) return 0;
   return ((in_val - min) / (max - min));
 }
 
 template <typename T>
-T unnormalize(const T &in_val, const T &min, const T &max) {
+T unnormalize(const T& in_val, const T& min, const T& max) {
   if (min == max) return min;
   return ((in_val * (max - min)) + min);
 }
@@ -113,13 +113,13 @@ struct rect {
 
     return {float(floor(x + floor(w - W) / 2)), float(floor(y + floor(h - H) / 2)), W, H};
   }
-  rect normalize(const rect &normalize_to) const {
+  rect normalize(const rect& normalize_to) const {
     return rect{::normalize(x, normalize_to.x, normalize_to.x + normalize_to.w),
                 ::normalize(y, normalize_to.y, normalize_to.y + normalize_to.h),
                 ::normalize(w, 0.f, normalize_to.w), ::normalize(h, 0.f, normalize_to.h)};
   }
 
-  rect unnormalize(const rect &unnormalize_to) const {
+  rect unnormalize(const rect& unnormalize_to) const {
     return rect{::unnormalize(x, unnormalize_to.x, unnormalize_to.x + unnormalize_to.w),
                 ::unnormalize(y, unnormalize_to.y, unnormalize_to.y + unnormalize_to.h),
                 ::unnormalize(w, 0.f, unnormalize_to.w), ::unnormalize(h, 0.f, unnormalize_to.h)};
@@ -132,7 +132,7 @@ struct texture_buffer {
 
   texture_buffer() : texture() {}
 
-  void upload_image(int w, int h, void *data, int format = GL_RGBA) {
+  void upload_image(int w, int h, void* data, int format = GL_RGBA) {
     if (!texture) glGenTextures(1, &texture);
     glBindTexture(GL_TEXTURE_2D, texture);
     glTexImage2D(GL_TEXTURE_2D, 0, format, w, h, 0, format, GL_UNSIGNED_BYTE, data);
@@ -143,7 +143,7 @@ struct texture_buffer {
     glBindTexture(GL_TEXTURE_2D, 0);
   }
 
-  void draw_texture(const rect &s, const rect &t) const {
+  void draw_texture(const rect& s, const rect& t) const {
     glBegin(GL_QUAD_STRIP);
     {
       glTexCoord2f(s.x, s.y + s.h);
@@ -158,7 +158,7 @@ struct texture_buffer {
     glEnd();
   }
 
-  void show(const rect &r, float alpha, const rect &normalized_zoom = rect{0, 0, 1, 1}) const {
+  void show(const rect& r, float alpha, const rect& normalized_zoom = rect{0, 0, 1, 1}) const {
     if (!texture) return;
     // glEnable(GL_BLEND);
 
@@ -183,9 +183,9 @@ struct texture_buffer {
 
 struct view_context {
  public:
-  ImFont *default_font;
-  ImFont *large_font;
-  window_base *window;
+  ImFont* default_font;
+  ImFont* large_font;
+  window_base* window;
   glm::mat4 view;
 
   ImVec2 get_window_size() const;
@@ -209,7 +209,7 @@ class top_bar_view {
   };
   ViewType view_type = ViewType::Image;
 
-  void render(view_context *context);
+  void render(view_context* context);
 };
 
 class capture_panel_view {
@@ -220,20 +220,20 @@ class capture_panel_view {
     std::unordered_map<std::string, stargazer::node_param_t> params;
     bool is_streaming = false;
 
-    node_info(const std::string &name, const std::string &address,
-              const std::unordered_map<std::string, stargazer::node_param_t> &params)
+    node_info(const std::string& name, const std::string& address,
+              const std::unordered_map<std::string, stargazer::node_param_t>& params)
         : name(name), address(address), params(params) {}
   };
   std::vector<node_info> devices;
 
   bool is_streaming = false;
-  std::vector<std::function<bool(const std::vector<node_info> &, bool)>> is_all_streaming_changed;
-  std::vector<std::function<bool(const node_info &)>> is_streaming_changed;
+  std::vector<std::function<bool(const std::vector<node_info>&, bool)>> is_all_streaming_changed;
+  std::vector<std::function<bool(const node_info&)>> is_streaming_changed;
 
  private:
-  float draw_control_panel(view_context *context);
+  float draw_control_panel(view_context* context);
 
-  void draw_controls(view_context *context, float panel_height);
+  void draw_controls(view_context* context, float panel_height);
 
   std::string ip_address;
   std::string gateway_address;
@@ -241,12 +241,12 @@ class capture_panel_view {
   int node_type_index;
 
  public:
-  std::vector<std::function<void(const std::string &, stargazer::node_type, const std::string &,
-                                 const std::string &)>>
+  std::vector<std::function<void(const std::string&, stargazer::node_type, const std::string&,
+                                 const std::string&)>>
       on_add_device;
-  std::vector<std::function<void(const std::string &)>> on_remove_device;
+  std::vector<std::function<void(const std::string&)>> on_remove_device;
 
-  void render(view_context *context);
+  void render(view_context* context);
 };
 
 class calibration_panel_view {
@@ -258,8 +258,8 @@ class calibration_panel_view {
     bool is_streaming = true;
     size_t num_points = 0;
 
-    node_info(const std::string &name, const std::string &address,
-              const std::unordered_map<std::string, stargazer::node_param_t> &params)
+    node_info(const std::string& name, const std::string& address,
+              const std::unordered_map<std::string, stargazer::node_param_t>& params)
         : name(name), address(address), params(params) {}
   };
   std::vector<node_info> devices;
@@ -267,12 +267,12 @@ class calibration_panel_view {
   bool is_streaming = false;
   bool is_masking = false;
 
-  std::vector<std::function<bool(const std::vector<node_info> &, bool)>>
+  std::vector<std::function<bool(const std::vector<node_info>&, bool)>>
       is_marker_collecting_changed;
-  std::vector<std::function<bool(const std::vector<node_info> &, bool)>> is_streaming_changed;
-  std::vector<std::function<bool(const std::vector<node_info> &, bool)>> is_masking_changed;
-  std::vector<std::function<bool(const std::vector<node_info> &, bool)>> on_calibrate;
-  std::vector<std::function<void(const node_info &)>> on_intrinsic_calibration_device_changed;
+  std::vector<std::function<bool(const std::vector<node_info>&, bool)>> is_streaming_changed;
+  std::vector<std::function<bool(const std::vector<node_info>&, bool)>> is_masking_changed;
+  std::vector<std::function<bool(const std::vector<node_info>&, bool)>> on_calibrate;
+  std::vector<std::function<void(const node_info&)>> on_intrinsic_calibration_device_changed;
 
   int intrinsic_calibration_device_index = 0;
   int calibration_target_index = 0;
@@ -289,16 +289,16 @@ class calibration_panel_view {
   float rms = 0;
 
  private:
-  float draw_control_panel(view_context *context);
+  float draw_control_panel(view_context* context);
 
-  void draw_extrinsic_calibration_control_panel(view_context *context);
+  void draw_extrinsic_calibration_control_panel(view_context* context);
 
-  void draw_intrinsic_calibration_control_panel(view_context *context);
+  void draw_intrinsic_calibration_control_panel(view_context* context);
 
-  void draw_controls(view_context *context, float panel_height);
+  void draw_controls(view_context* context, float panel_height);
 
  public:
-  void render(view_context *context);
+  void render(view_context* context);
 };
 
 class reconstruction_panel_view {
@@ -308,23 +308,23 @@ class reconstruction_panel_view {
     std::string address;
     bool is_streaming = true;
 
-    node_info(const std::string &name, const std::string &address) : name(name), address(address) {}
+    node_info(const std::string& name, const std::string& address) : name(name), address(address) {}
   };
   std::vector<node_info> devices;
   bool is_streaming = false;
   bool is_recording = false;
   int source = 0;
 
-  std::vector<std::function<bool(const std::vector<node_info> &, bool)>> is_streaming_changed;
-  std::vector<std::function<bool(const std::vector<node_info> &, bool)>> is_recording_changed;
+  std::vector<std::function<bool(const std::vector<node_info>&, bool)>> is_streaming_changed;
+  std::vector<std::function<bool(const std::vector<node_info>&, bool)>> is_recording_changed;
 
  private:
-  float draw_control_panel(view_context *context);
+  float draw_control_panel(view_context* context);
 
-  void draw_controls(view_context *context, float panel_height);
+  void draw_controls(view_context* context, float panel_height);
 
  public:
-  void render(view_context *context);
+  void render(view_context* context);
 };
 
 class image_tile_view {
@@ -337,22 +337,22 @@ class image_tile_view {
     stream_info(std::string name, float2 size) : name(name), size(size) {}
   };
   std::vector<std::shared_ptr<stream_info>> streams;
-  std::map<stream_info *, int> stream_index;
+  std::map<stream_info*, int> stream_index;
 
  private:
   std::map<int, rect> generate_layout(
-      const rect &r, int top_bar_height, size_t factor,
-      const std::vector<std::shared_ptr<stream_info>> &active_streams,
-      std::map<stream_info *, int> &stream_index);
+      const rect& r, int top_bar_height, size_t factor,
+      const std::vector<std::shared_ptr<stream_info>>& active_streams,
+      std::map<stream_info*, int>& stream_index);
 
-  float evaluate_layout(const std::map<int, rect> &l);
+  float evaluate_layout(const std::map<int, rect>& l);
 
-  std::map<int, rect> calc_layout(const rect &r);
+  std::map<int, rect> calc_layout(const rect& r);
 
-  void draw_stream_header(view_context *context, const rect &stream_rect);
+  void draw_stream_header(view_context* context, const rect& stream_rect);
 
  public:
-  void render(view_context *context);
+  void render(view_context* context);
 };
 
 class pose_view {
@@ -373,7 +373,7 @@ class pose_view {
   std::vector<glm::vec3> points;
   glm::mat4 axis;
 
-  void render(view_context *context);
+  void render(view_context* context);
 };
 
 class azimuth_elevation {
@@ -489,7 +489,7 @@ class azimuth_elevation {
   static glm::vec2 get_center(int width, int height) {
     return glm::vec2(width * 0.5f, height * 0.5f);
   }
-  static glm::vec2 get_center(const glm::u32vec2 &screen) {
+  static glm::vec2 get_center(const glm::u32vec2& screen) {
     return glm::vec2(screen.x * 0.5f, screen.y * 0.5f);
   }
   glm::u32vec2 screen_offset;

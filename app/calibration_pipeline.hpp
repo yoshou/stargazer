@@ -18,18 +18,18 @@ class calibration_pipeline {
 
  public:
   void add_calibrated(
-      std::function<void(const std::unordered_map<std::string, stargazer::camera_t> &)> f);
+      std::function<void(const std::unordered_map<std::string, stargazer::camera_t>&)> f);
   void clear_calibrated();
 
-  void set_camera(const std::string &name, const stargazer::camera_t &camera);
+  void set_camera(const std::string& name, const stargazer::camera_t& camera);
 
   size_t get_camera_size() const;
 
-  const std::unordered_map<std::string, stargazer::camera_t> &get_cameras() const;
+  const std::unordered_map<std::string, stargazer::camera_t>& get_cameras() const;
 
-  std::unordered_map<std::string, stargazer::camera_t> &get_cameras();
+  std::unordered_map<std::string, stargazer::camera_t>& get_cameras();
 
-  const std::unordered_map<std::string, stargazer::camera_t> &get_calibrated_cameras() const;
+  const std::unordered_map<std::string, stargazer::camera_t>& get_calibrated_cameras() const;
 
   calibration_pipeline();
   virtual ~calibration_pipeline();
@@ -38,8 +38,8 @@ class calibration_pipeline {
   const std::vector<stargazer::calibration::observed_points_t> get_observed_points(
       std::string name) const;
 
-  void push_frame(const std::map<std::string, std::vector<stargazer::point_data>> &frame);
-  void run(const std::vector<stargazer::node_info> &infos);
+  void push_frame(const std::map<std::string, std::vector<stargazer::point_data>>& frame);
+  void run(const std::vector<stargazer::node_info>& infos);
   void stop();
 
   void calibrate();
@@ -57,14 +57,14 @@ class intrinsic_calibration_pipeline {
 
   void set_image_size(int width, int height);
 
-  const stargazer::camera_t &get_calibrated_camera() const;
+  const stargazer::camera_t& get_calibrated_camera() const;
 
   size_t get_num_frames() const;
 
-  void push_frame(const std::vector<stargazer::point_data> &frame);
-  void push_frame(const cv::Mat &frame);
+  void push_frame(const std::vector<stargazer::point_data>& frame);
+  void push_frame(const cv::Mat& frame);
 
-  void run(const std::vector<stargazer::node_info> &infos);
+  void run(const std::vector<stargazer::node_info>& infos);
   void stop();
 
   void calibrate();
@@ -78,21 +78,21 @@ class axis_calibration_pipeline {
   axis_calibration_pipeline(std::shared_ptr<stargazer::parameters_t> parameters);
   virtual ~axis_calibration_pipeline();
 
-  void set_camera(const std::string &name, const stargazer::camera_t &camera);
+  void set_camera(const std::string& name, const stargazer::camera_t& camera);
 
   size_t get_camera_size() const;
 
-  const std::unordered_map<std::string, stargazer::camera_t> &get_cameras() const;
+  const std::unordered_map<std::string, stargazer::camera_t>& get_cameras() const;
 
-  std::unordered_map<std::string, stargazer::camera_t> &get_cameras();
+  std::unordered_map<std::string, stargazer::camera_t>& get_cameras();
 
   size_t get_num_frames(std::string name) const;
   const std::vector<stargazer::calibration::observed_points_t> get_observed_points(
       std::string name) const;
 
-  void push_frame(const std::map<std::string, std::vector<stargazer::point_data>> &frame);
+  void push_frame(const std::map<std::string, std::vector<stargazer::point_data>>& frame);
 
-  void run(const std::vector<stargazer::node_info> &infos);
+  void run(const std::vector<stargazer::node_info>& infos);
   void stop();
 
   void calibrate();

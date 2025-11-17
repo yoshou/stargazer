@@ -26,7 +26,7 @@ class capture_pipeline {
   capture_pipeline();
   virtual ~capture_pipeline();
 
-  void run(const stargazer::node_info &info);
+  void run(const stargazer::node_info& info);
   void stop();
 
   void set_mask(cv::Mat mask);
@@ -34,9 +34,9 @@ class capture_pipeline {
   cv::Mat get_frame() const;
   std::unordered_map<int, cv::Point2f> get_markers() const;
 
-  void add_marker_received(std::function<void(const marker_frame_data &)> f);
+  void add_marker_received(std::function<void(const marker_frame_data&)> f);
   void clear_marker_received();
-  void add_image_received(std::function<void(const cv::Mat &)> f);
+  void add_image_received(std::function<void(const cv::Mat&)> f);
   void clear_image_received();
 };
 
@@ -47,10 +47,10 @@ class multiview_capture_pipeline {
 
  public:
   multiview_capture_pipeline();
-  multiview_capture_pipeline(const std::map<std::string, cv::Mat> &masks);
+  multiview_capture_pipeline(const std::map<std::string, cv::Mat>& masks);
   virtual ~multiview_capture_pipeline();
 
-  void run(const std::vector<stargazer::node_info> &infos);
+  void run(const std::vector<stargazer::node_info>& infos);
   void stop();
 
   std::map<std::string, cv::Mat> get_frames() const;
@@ -62,8 +62,8 @@ class multiview_capture_pipeline {
   void enable_marker_collecting(std::string name);
   void disable_marker_collecting(std::string name);
 
-  void add_marker_received(std::function<void(const std::map<std::string, marker_frame_data> &)> f);
+  void add_marker_received(std::function<void(const std::map<std::string, marker_frame_data>&)> f);
   void clear_marker_received();
-  void add_image_received(std::function<void(const std::map<std::string, cv::Mat> &)> f);
+  void add_image_received(std::function<void(const std::map<std::string, cv::Mat>&)> f);
   void clear_image_received();
 };

@@ -1,12 +1,12 @@
 #pragma once
 
+#include <memory>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include <variant>
 #include <vector>
-#include <memory>
-#include <optional>
 
 namespace stargazer {
 enum class node_type {
@@ -70,12 +70,12 @@ class node_info {
     }
     return result_type;
   }
-  
-  bool contains_param(const std::string &key) const {
+
+  bool contains_param(const std::string& key) const {
     if (params.find(key) != params.end()) {
       return true;
     }
-    for (const auto &extend : extends) {
+    for (const auto& extend : extends) {
       if (extend->contains_param(key)) {
         return true;
       }
@@ -84,7 +84,7 @@ class node_info {
   }
 
   template <typename T>
-  T get_param(const std::string &key) const {
+  T get_param(const std::string& key) const {
     std::optional<T> value;
     get_param(key, value);
     if (!value.has_value()) {
@@ -109,21 +109,21 @@ class configuration {
   std::unordered_map<std::string, std::shared_ptr<node_info>> nodes;
 
  public:
-  configuration(const std::string &path);
+  configuration(const std::string& path);
 
   void update();
 
-  const std::vector<node_info> &get_node_infos() const {
+  const std::vector<node_info>& get_node_infos() const {
     return pipeline_nodes.at(pipeline_names.at("pipeline"));
   }
-  std::vector<node_info> &get_node_infos() {
+  std::vector<node_info>& get_node_infos() {
     return pipeline_nodes.at(pipeline_names.at("pipeline"));
   }
 
-  const std::vector<node_info> &get_node_infos(const std::string &pipeline) const {
+  const std::vector<node_info>& get_node_infos(const std::string& pipeline) const {
     return pipeline_nodes.at(pipeline_names.at(pipeline));
   }
-  std::vector<node_info> &get_node_infos(const std::string &pipeline) {
+  std::vector<node_info>& get_node_infos(const std::string& pipeline) {
     return pipeline_nodes.at(pipeline_names.at(pipeline));
   }
 };

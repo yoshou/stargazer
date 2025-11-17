@@ -23,16 +23,16 @@ class multiview_point_reconstruction_pipeline {
   multiview_point_reconstruction_pipeline();
   virtual ~multiview_point_reconstruction_pipeline();
 
-  void push_frame(const frame_type &frame);
+  void push_frame(const frame_type& frame);
   void run();
   void stop();
 
   std::vector<glm::vec3> get_markers() const;
   virtual std::map<std::string, stargazer::camera_t> get_cameras() const { return cameras; }
-  virtual stargazer::camera_t &get_camera(const std::string &name) { return cameras.at(name); }
-  void set_camera(const std::string &name, const stargazer::camera_t &camera);
+  virtual stargazer::camera_t& get_camera(const std::string& name) { return cameras.at(name); }
+  void set_camera(const std::string& name, const stargazer::camera_t& camera);
   virtual glm::mat4 get_axis() const { return axis; }
-  void set_axis(const glm::mat4 &axis);
+  void set_axis(const glm::mat4& axis);
 };
 
 class multiview_image_reconstruction_pipeline {
@@ -45,12 +45,12 @@ class multiview_image_reconstruction_pipeline {
   multiview_image_reconstruction_pipeline();
   virtual ~multiview_image_reconstruction_pipeline();
 
-  void push_frame(const frame_type &frame);
-  void run(const std::vector<stargazer::node_info> &infos);
+  void push_frame(const frame_type& frame);
+  void run(const std::vector<stargazer::node_info>& infos);
   void stop();
 
   std::vector<glm::vec3> get_markers() const;
   std::map<std::string, cv::Mat> get_features() const;
-  void set_camera(const std::string &name, const stargazer::camera_t &camera);
-  void set_axis(const glm::mat4 &axis);
+  void set_camera(const std::string& name, const stargazer::camera_t& camera);
+  void set_axis(const glm::mat4& axis);
 };
