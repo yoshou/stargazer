@@ -18,7 +18,7 @@
     },
     {
       "name": "playback_ir_base",
-      "db_path": "../data/data_20221004_1/calibrate.db",
+      "db_path": "../data/data_20221004_1/capture.db",
       "height": 616.0,
       "width": 820.0,
       "fps": 90,
@@ -1011,5 +1011,5 @@
       ]
     }
   },
-  "pipeline": "capture_color"
+  "pipeline": "playback_panoptic"
 }
