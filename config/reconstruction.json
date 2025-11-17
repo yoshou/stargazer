@@ -1,386 +1,467 @@
 {
+  "nodes": [
+    {
+      "name": "raspi_ir_base",
+      "gateway": "192.168.0.254",
+      "height": 616.0,
+      "width": 820.0,
+      "fps": 90,
+      "type": "raspi"
+    },
+    {
+      "name": "raspi_color_base",
+      "gateway": "192.168.0.254",
+      "height": 540.0,
+      "width": 960.0,
+      "fps": 30,
+      "type": "raspi_color"
+    },
+    {
+      "name": "playback_ir_base",
+      "db_path": "../data/data_20221004_1/capture.db",
+      "height": 616.0,
+      "width": 820.0,
+      "fps": 90,
+      "type": "playback"
+    },
+    {
+      "name": "playback_color_base",
+      "db_path": "../data/data_20250713_1/capture.db",
+      "height": 540.0,
+      "width": 960.0,
+      "fps": 30,
+      "type": "playback"
+    },
+    {
+      "name": "playback_panoptic_base",
+      "db_path": "../data/panoptic",
+      "height": 1080.0,
+      "width": 1920.0,
+      "fps": 30,
+      "type": "panoptic"
+    }
+  ],
   "pipelines": {
-    "capture": {
+    "capture_ir": {
       "nodes": [
         {
           "name": "camera1",
           "address": "192.168.0.1",
-          "gateway": "192.168.0.254",
           "id": "000000000001",
-          "height": 616.0,
-          "width": 820.0,
-          "type": "raspi"
+          "extends": [
+            "raspi_ir_base"
+          ]
         },
         {
           "name": "camera2",
           "address": "192.168.0.2",
-          "gateway": "192.168.0.254",
           "id": "000000000002",
-          "height": 616.0,
-          "width": 820.0,
-          "type": "raspi"
+          "extends": [
+            "raspi_ir_base"
+          ]
         },
         {
           "name": "camera3",
           "address": "192.168.0.3",
-          "gateway": "192.168.0.254",
           "id": "000000000003",
-          "height": 616.0,
-          "width": 820.0,
-          "type": "raspi"
+          "extends": [
+            "raspi_ir_base"
+          ]
         },
         {
           "name": "camera4",
           "address": "192.168.0.4",
-          "gateway": "192.168.0.254",
           "id": "000000000004",
-          "height": 616.0,
-          "width": 820.0,
-          "type": "raspi"
+          "extends": [
+            "raspi_ir_base"
+          ]
         },
         {
           "name": "camera5",
           "address": "192.168.0.5",
-          "gateway": "192.168.0.254",
           "id": "000000000005",
-          "height": 616.0,
-          "width": 820.0,
-          "type": "raspi"
+          "extends": [
+            "raspi_ir_base"
+          ]
         },
         {
           "name": "camera6",
           "address": "192.168.0.6",
-          "gateway": "192.168.0.254",
           "id": "000000000006",
-          "height": 616.0,
-          "width": 820.0,
-          "type": "raspi"
+          "extends": [
+            "raspi_ir_base"
+          ]
         },
         {
           "name": "camera7",
           "address": "192.168.0.7",
-          "gateway": "192.168.0.254",
           "id": "000000000007",
-          "height": 616.0,
-          "width": 820.0,
-          "type": "raspi"
+          "extends": [
+            "raspi_ir_base"
+          ]
         },
         {
           "name": "camera8",
           "address": "192.168.0.8",
-          "gateway": "192.168.0.254",
           "id": "000000000008",
-          "height": 616.0,
-          "width": 820.0,
-          "type": "raspi"
+          "extends": [
+            "raspi_ir_base"
+          ]
         },
         {
           "name": "camera9",
           "address": "192.168.0.9",
-          "gateway": "192.168.0.254",
           "id": "000000000009",
-          "height": 616.0,
-          "width": 820.0,
-          "type": "raspi"
+          "extends": [
+            "raspi_ir_base"
+          ]
         },
         {
           "name": "camera10",
           "address": "192.168.0.10",
-          "gateway": "192.168.0.254",
           "id": "000000000010",
-          "height": 616.0,
-          "width": 820.0,
-          "type": "raspi"
+          "extends": [
+            "raspi_ir_base"
+          ]
         },
         {
           "name": "camera11",
           "address": "192.168.0.11",
-          "gateway": "192.168.0.254",
           "id": "000000000011",
-          "height": 616.0,
-          "width": 820.0,
-          "type": "raspi"
+          "extends": [
+            "raspi_ir_base"
+          ]
         },
         {
           "name": "camera12",
           "address": "192.168.0.12",
-          "gateway": "192.168.0.254",
           "id": "000000000012",
-          "height": 616.0,
-          "width": 820.0,
-          "type": "raspi"
+          "extends": [
+            "raspi_ir_base"
+          ]
         },
         {
           "name": "camera13",
           "address": "192.168.0.13",
-          "gateway": "192.168.0.254",
           "id": "000000000013",
-          "height": 616.0,
-          "width": 820.0,
-          "type": "raspi"
+          "extends": [
+            "raspi_ir_base"
+          ]
         },
         {
           "name": "camera14",
           "address": "192.168.0.14",
-          "gateway": "192.168.0.254",
           "id": "000000000014",
-          "height": 616.0,
-          "width": 820.0,
-          "type": "raspi"
+          "extends": [
+            "raspi_ir_base"
+          ]
         },
         {
           "name": "camera15",
           "address": "192.168.0.15",
-          "gateway": "192.168.0.254",
           "id": "000000000015",
-          "height": 616.0,
-          "width": 820.0,
-          "type": "raspi"
+          "extends": [
+            "raspi_ir_base"
+          ]
         },
         {
           "name": "camera16",
           "address": "192.168.0.16",
-          "gateway": "192.168.0.254",
           "id": "000000000016",
-          "height": 616.0,
-          "width": 820.0,
-          "type": "raspi"
+          "extends": [
+            "raspi_ir_base"
+          ]
         },
         {
           "name": "camera17",
           "address": "192.168.0.17",
-          "gateway": "192.168.0.254",
           "id": "000000000017",
-          "height": 616.0,
-          "width": 820.0,
-          "type": "raspi"
+          "extends": [
+            "raspi_ir_base"
+          ]
         },
         {
           "name": "camera18",
           "address": "192.168.0.18",
-          "gateway": "192.168.0.254",
           "id": "000000000018",
-          "height": 616.0,
-          "width": 820.0,
-          "type": "raspi"
+          "extends": [
+            "raspi_ir_base"
+          ]
         },
         {
           "name": "camera19",
           "address": "192.168.0.19",
-          "gateway": "192.168.0.254",
           "id": "000000000019",
-          "height": 616.0,
-          "width": 820.0,
-          "type": "raspi"
+          "extends": [
+            "raspi_ir_base"
+          ]
         },
         {
           "name": "camera20",
           "address": "192.168.0.20",
-          "gateway": "192.168.0.254",
           "id": "000000000020",
-          "height": 616.0,
-          "width": 820.0,
-          "type": "raspi"
+          "extends": [
+            "raspi_ir_base"
+          ]
         },
         {
           "name": "camera21",
           "address": "192.168.0.21",
-          "gateway": "192.168.0.254",
           "id": "000000000021",
-          "height": 616.0,
-          "width": 820.0,
-          "type": "raspi"
+          "extends": [
+            "raspi_ir_base"
+          ]
         },
         {
           "name": "camera22",
           "address": "192.168.0.22",
-          "gateway": "192.168.0.254",
           "id": "000000000022",
-          "height": 616.0,
-          "width": 820.0,
-          "type": "raspi"
+          "extends": [
+            "raspi_ir_base"
+          ]
         },
         {
           "name": "camera23",
           "address": "192.168.0.23",
-          "gateway": "192.168.0.254",
           "id": "000000000023",
-          "height": 616.0,
-          "width": 820.0,
-          "type": "raspi"
+          "extends": [
+            "raspi_ir_base"
+          ]
         },
         {
           "name": "camera24",
           "address": "192.168.0.24",
-          "gateway": "192.168.0.254",
           "id": "000000000024",
-          "height": 616.0,
-          "width": 820.0,
-          "type": "raspi"
+          "extends": [
+            "raspi_ir_base"
+          ]
         }
       ]
     },
-    "capture_playback": {
+    "capture_color": {
+      "nodes": [
+        {
+          "name": "camera101",
+          "address": "192.168.0.26",
+          "id": "000000000026",
+          "extends": [
+            "raspi_color_base"
+          ]
+        },
+        {
+          "name": "camera102",
+          "address": "192.168.0.27",
+          "id": "000000000027",
+          "extends": [
+            "raspi_color_base"
+          ]
+        },
+        {
+          "name": "camera103",
+          "address": "192.168.0.28",
+          "id": "000000000028",
+          "extends": [
+            "raspi_color_base"
+          ]
+        },
+        {
+          "name": "camera104",
+          "address": "192.168.0.29",
+          "id": "000000000029",
+          "extends": [
+            "raspi_color_base"
+          ]
+        },
+        {
+          "name": "camera105",
+          "address": "192.168.0.30",
+          "id": "000000000030",
+          "extends": [
+            "raspi_color_base"
+          ]
+        }
+      ]
+    },
+    "playback_ir": {
       "nodes": [
         {
           "name": "camera1",
-          "db_path": "../data/data_20221004_1/capture.db",
           "id": "000000000001",
-          "height": 616.0,
-          "width": 820.0,
-          "type": "raspi_playback"
+          "extends": [
+            "playback_ir_base"
+          ]
         },
         {
           "name": "camera2",
-          "db_path": "../data/data_20221004_1/capture.db",
           "id": "000000000002",
-          "height": 616.0,
-          "width": 820.0,
-          "type": "raspi_playback"
+          "extends": [
+            "playback_ir_base"
+          ]
         },
         {
           "name": "camera3",
-          "db_path": "../data/data_20221004_1/capture.db",
           "id": "000000000003",
-          "height": 616.0,
-          "width": 820.0,
-          "type": "raspi_playback"
+          "extends": [
+            "playback_ir_base"
+          ]
         },
         {
           "name": "camera4",
-          "db_path": "../data/data_20221004_1/capture.db",
           "id": "000000000004",
-          "height": 616.0,
-          "width": 820.0,
-          "type": "raspi_playback"
+          "extends": [
+            "playback_ir_base"
+          ]
         },
         {
           "name": "camera5",
-          "db_path": "../data/data_20221004_1/capture.db",
           "id": "000000000005",
-          "height": 616.0,
-          "width": 820.0,
-          "type": "raspi_playback"
+          "extends": [
+            "playback_ir_base"
+          ]
         },
         {
           "name": "camera6",
-          "db_path": "../data/data_20221004_1/capture.db",
           "id": "000000000006",
-          "height": 616.0,
-          "width": 820.0,
-          "type": "raspi_playback"
+          "extends": [
+            "playback_ir_base"
+          ]
         },
         {
           "name": "camera7",
-          "db_path": "../data/data_20221004_1/capture.db",
           "id": "000000000007",
-          "height": 616.0,
-          "width": 820.0,
-          "type": "raspi_playback"
+          "extends": [
+            "playback_ir_base"
+          ]
         },
         {
           "name": "camera8",
-          "db_path": "../data/data_20221004_1/capture.db",
           "id": "000000000008",
-          "height": 616.0,
-          "width": 820.0,
-          "type": "raspi_playback"
+          "extends": [
+            "playback_ir_base"
+          ]
         },
         {
           "name": "camera9",
-          "db_path": "../data/data_20221004_1/capture.db",
           "id": "000000000009",
-          "height": 616.0,
-          "width": 820.0,
-          "type": "raspi_playback"
+          "extends": [
+            "playback_ir_base"
+          ]
         },
         {
           "name": "camera10",
-          "db_path": "../data/data_20221004_1/capture.db",
           "id": "000000000010",
-          "height": 616.0,
-          "width": 820.0,
-          "type": "raspi_playback"
+          "extends": [
+            "playback_ir_base"
+          ]
         },
         {
           "name": "camera11",
-          "db_path": "../data/data_20221004_1/capture.db",
           "id": "000000000011",
-          "height": 616.0,
-          "width": 820.0,
-          "type": "raspi_playback"
+          "extends": [
+            "playback_ir_base"
+          ]
         },
         {
           "name": "camera12",
-          "db_path": "../data/data_20221004_1/capture.db",
           "id": "000000000012",
-          "height": 616.0,
-          "width": 820.0,
-          "type": "raspi_playback"
+          "extends": [
+            "playback_ir_base"
+          ]
         },
         {
           "name": "camera13",
-          "db_path": "../data/data_20221004_1/capture.db",
           "id": "000000000013",
-          "height": 616.0,
-          "width": 820.0,
-          "type": "raspi_playback"
+          "extends": [
+            "playback_ir_base"
+          ]
         },
         {
           "name": "camera14",
-          "db_path": "../data/data_20221004_1/capture.db",
           "id": "000000000014",
-          "height": 616.0,
-          "width": 820.0,
-          "type": "raspi_playback"
+          "extends": [
+            "playback_ir_base"
+          ]
         },
         {
           "name": "camera15",
-          "db_path": "../data/data_20221004_1/capture.db",
           "id": "000000000015",
-          "height": 616.0,
-          "width": 820.0,
-          "type": "raspi_playback"
+          "extends": [
+            "playback_ir_base"
+          ]
         },
         {
           "name": "camera16",
-          "db_path": "../data/data_20221004_1/capture.db",
           "id": "000000000016",
-          "height": 616.0,
-          "width": 820.0,
-          "type": "raspi_playback"
+          "extends": [
+            "playback_ir_base"
+          ]
         },
         {
           "name": "camera17",
-          "db_path": "../data/data_20221004_1/capture.db",
           "id": "000000000017",
-          "height": 616.0,
-          "width": 820.0,
-          "type": "raspi_playback"
+          "extends": [
+            "playback_ir_base"
+          ]
         },
         {
           "name": "camera18",
-          "db_path": "../data/data_20221004_1/capture.db",
           "id": "000000000018",
-          "height": 616.0,
-          "width": 820.0,
-          "type": "raspi_playback"
+          "extends": [
+            "playback_ir_base"
+          ]
         },
         {
           "name": "camera19",
-          "db_path": "../data/data_20221004_1/capture.db",
           "id": "000000000019",
-          "height": 616.0,
-          "width": 820.0,
-          "type": "raspi_playback"
+          "extends": [
+            "playback_ir_base"
+          ]
         },
         {
           "name": "camera20",
-          "db_path": "../data/data_20221004_1/capture.db",
           "id": "000000000020",
-          "height": 616.0,
-          "width": 820.0,
-          "type": "raspi_playback"
+          "extends": [
+            "playback_ir_base"
+          ]
+        }
+      ]
+    },
+    "playback_color": {
+      "nodes": [
+        {
+          "name": "camera101",
+          "id": "000000000026",
+          "extends": [
+            "playback_color_base"
+          ]
+        },
+        {
+          "name": "camera102",
+          "id": "000000000027",
+          "extends": [
+            "playback_color_base"
+          ]
+        },
+        {
+          "name": "camera103",
+          "id": "000000000028",
+          "extends": [
+            "playback_color_base"
+          ]
+        },
+        {
+          "name": "camera104",
+          "id": "000000000029",
+          "extends": [
+            "playback_color_base"
+          ]
+        },
+        {
+          "name": "camera105",
+          "id": "000000000030",
+          "extends": [
+            "playback_color_base"
+          ]
         }
       ]
     },
@@ -388,43 +469,38 @@
       "nodes": [
         {
           "name": "00_03",
-          "db_path": "../data/panoptic",
           "id": "00_03",
-          "height": 1080.0,
-          "width": 1920.0,
-          "type": "panoptic"
+          "extends": [
+            "playback_panoptic_base"
+          ]
         },
         {
           "name": "00_06",
-          "db_path": "../data/panoptic",
           "id": "00_06",
-          "height": 1080.0,
-          "width": 1920.0,
-          "type": "panoptic"
+          "extends": [
+            "playback_panoptic_base"
+          ]
         },
         {
           "name": "00_12",
-          "db_path": "../data/panoptic",
           "id": "00_12",
-          "height": 1080.0,
-          "width": 1920.0,
-          "type": "panoptic"
+          "extends": [
+            "playback_panoptic_base"
+          ]
         },
         {
           "name": "00_13",
-          "db_path": "../data/panoptic",
           "id": "00_13",
-          "height": 1080.0,
-          "width": 1920.0,
-          "type": "panoptic"
+          "extends": [
+            "playback_panoptic_base"
+          ]
         },
         {
           "name": "00_23",
-          "db_path": "../data/panoptic",
           "id": "00_23",
-          "height": 1080.0,
-          "width": 1920.0,
-          "type": "panoptic"
+          "extends": [
+            "playback_panoptic_base"
+          ]
         }
       ]
     },
@@ -445,6 +521,6 @@
       ]
     }
   },
-  "pipeline": "capture_playback",
+  "pipeline": "playback_panoptic",
   "static_pipeline": "voxelpose_reconstruction"
 }

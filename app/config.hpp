@@ -16,7 +16,7 @@ enum class node_type {
   depthai_color,
   rs_d435,
   rs_d435_color,
-  raspi_playback,
+  playback,
   panoptic,
   record,
   calibration,
@@ -97,7 +97,7 @@ class node_info {
     const auto type = get_type();
     return type == node_type::raspi || type == node_type::raspi_color ||
            type == node_type::depthai_color || type == node_type::rs_d435 ||
-           type == node_type::rs_d435_color || type == node_type::raspi_playback ||
+           type == node_type::rs_d435_color || type == node_type::playback ||
            type == node_type::panoptic;
   }
 };
