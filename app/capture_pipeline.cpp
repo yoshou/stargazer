@@ -1518,12 +1518,10 @@ CEREAL_REGISTER_TYPE(load_panoptic_node)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, load_panoptic_node)
 
 static void genenerate_common_nodes(
-    const std::vector<node_info>& node_infos, std::shared_ptr<subgraph> g, int& sync_fps,
+    const std::vector<node_info>& node_infos, int& sync_fps,
     std::vector<std::shared_ptr<remote_cluster>>& clusters, std::map<std::string, cv::Mat>& masks,
     std::map<std::string, std::shared_ptr<mask_node>>& mask_nodes,
-    std::unordered_map<std::string, std::shared_ptr<graph_node>>& rcv_nodes,
-    std::unordered_map<std::string, std::shared_ptr<graph_node>>& rcv_marker_nodes,
-    std::unordered_map<std::string, std::shared_ptr<graph_node>>& rcv_blob_nodes) {
+    std::unordered_map<std::string, std::shared_ptr<subgraph_node>>& rcv_nodes) {
   size_t num_raspi = 0;
 
   for (std::size_t i = 0; i < node_infos.size(); i++) {
@@ -1588,62 +1586,95 @@ static void genenerate_common_nodes(
       clusters.push_back(nullptr);
     }
 
+    auto sub_g = std::make_shared<subgraph_node>();
+
     if (cluster && cluster->encoded_image_output) {
       std::shared_ptr<p2p_tcp_listener_node> n1(new p2p_tcp_listener_node());
       n1->set_input(cluster->encoded_image_output);
       n1->set_endpoint(node_infos[i].get_param<std::string>("gateway"), 0);
-      g->add_node(n1);
+      sub_g->get_subgraph().add_node(n1);
 
-      rcv_blob_nodes[node_infos[i].name] = n1;
+      std::shared_ptr<callback_caller_node> n6(new callback_caller_node());
+      n6->set_input(n1->get_output());
+      sub_g->get_subgraph().add_node(n6);
 
       std::shared_ptr<decode_image_node> n7(new decode_image_node());
       n7->set_input(n1->get_output());
-      g->add_node(n7);
+      sub_g->get_subgraph().add_node(n7);
 
-      rcv_nodes[node_infos[i].name] = n7;
+      std::shared_ptr<callback_caller_node> n9(new callback_caller_node());
+      n9->set_input(n7->get_output());
+      sub_g->get_subgraph().add_node(n9);
+
+      sub_g->set_output(n6->get_output(), "blob");
+      sub_g->set_output(n9->get_output(), "image");
     } else if (node_infos[i].get_type() == node_type::playback) {
       std::shared_ptr<load_blob_node> n1(new load_blob_node());
       n1->set_name(std::regex_replace(node_infos[i].name, std::regex("camera"), "image_"));
       n1->set_db_path(node_infos[i].get_param<std::string>("db_path"));
-      g->add_node(n1);
+      sub_g->get_subgraph().add_node(n1);
 
-      rcv_blob_nodes[node_infos[i].name] = n1;
+      std::shared_ptr<callback_caller_node> n6(new callback_caller_node());
+      n6->set_input(n1->get_output());
+      sub_g->get_subgraph().add_node(n6);
 
       std::shared_ptr<decode_image_node> n7(new decode_image_node());
       n7->set_input(n1->get_output());
-      g->add_node(n7);
+      sub_g->get_subgraph().add_node(n7);
 
-      rcv_nodes[node_infos[i].name] = n7;
+      std::shared_ptr<callback_caller_node> n9(new callback_caller_node());
+      n9->set_input(n7->get_output());
+      sub_g->get_subgraph().add_node(n9);
+
+      sub_g->set_output(n6->get_output(), "blob");
+      sub_g->set_output(n9->get_output(), "image");
     } else if (node_infos[i].get_type() == node_type::panoptic) {
       std::shared_ptr<load_panoptic_node> n1(new load_panoptic_node());
       n1->set_name(node_infos[i].name);
       n1->set_db_path(node_infos[i].get_param<std::string>("db_path"));
-      g->add_node(n1);
+      sub_g->get_subgraph().add_node(n1);
 
-      rcv_blob_nodes[node_infos[i].name] = n1;
+      std::shared_ptr<callback_caller_node> n6(new callback_caller_node());
+      n6->set_input(n1->get_output());
+      sub_g->get_subgraph().add_node(n6);
 
       std::shared_ptr<decode_image_node> n7(new decode_image_node());
       n7->set_input(n1->get_output());
-      g->add_node(n7);
+      sub_g->get_subgraph().add_node(n7);
 
-      rcv_nodes[node_infos[i].name] = n7;
+      std::shared_ptr<callback_caller_node> n9(new callback_caller_node());
+      n9->set_input(n7->get_output());
+      sub_g->get_subgraph().add_node(n9);
+
+      sub_g->set_output(n6->get_output(), "blob");
+      sub_g->set_output(n9->get_output(), "image");
     }
 
     if (cluster && cluster->marker_output) {
-      std::shared_ptr<p2p_tcp_listener_node> n2(new p2p_tcp_listener_node());
-      n2->set_input(cluster->marker_output);
-      n2->set_endpoint(node_infos[i].get_param<std::string>("gateway"), 0);
-      g->add_node(n2);
+      std::shared_ptr<p2p_tcp_listener_node> n1(new p2p_tcp_listener_node());
+      n1->set_input(cluster->marker_output);
+      n1->set_endpoint(node_infos[i].get_param<std::string>("gateway"), 0);
+      sub_g->get_subgraph().add_node(n1);
 
-      rcv_marker_nodes[node_infos[i].name] = n2;
+      std::shared_ptr<callback_caller_node> n2(new callback_caller_node());
+      n2->set_input(n1->get_output());
+      sub_g->get_subgraph().add_node(n2);
+
+      sub_g->set_output(n2->get_output(), "marker");
     } else if (node_infos[i].get_type() == node_type::playback) {
       std::shared_ptr<load_marker_node> n1(new load_marker_node());
       n1->set_name(std::regex_replace(node_infos[i].name, std::regex("camera"), "marker_"));
       n1->set_db_path(node_infos[i].get_param<std::string>("db_path"));
-      g->add_node(n1);
+      sub_g->get_subgraph().add_node(n1);
 
-      rcv_marker_nodes[node_infos[i].name] = n1;
+      std::shared_ptr<callback_caller_node> n2(new callback_caller_node());
+      n2->set_input(n1->get_output());
+      sub_g->get_subgraph().add_node(n2);
+
+      sub_g->set_output(n2->get_output(), "marker");
     }
+
+    rcv_nodes[node_infos[i].name] = sub_g;
   }
 }
 
@@ -1696,15 +1727,35 @@ class capture_pipeline::impl {
 
     std::shared_ptr<subgraph> g(new subgraph());
 
-    std::unordered_map<std::string, std::shared_ptr<graph_node>> rcv_nodes;
-    std::unordered_map<std::string, std::shared_ptr<graph_node>> rcv_marker_nodes;
-    std::unordered_map<std::string, std::shared_ptr<graph_node>> rcv_blob_nodes;
+    std::unordered_map<std::string, std::shared_ptr<subgraph_node>> rcv_nodes;
     std::vector<std::shared_ptr<remote_cluster>> clusters;
 
-    genenerate_common_nodes(node_infos, g, sync_fps, clusters, masks, mask_nodes, rcv_nodes,
-                            rcv_marker_nodes, rcv_blob_nodes);
+    genenerate_common_nodes(node_infos, sync_fps, clusters, masks, mask_nodes, rcv_nodes);
 
     for (const auto& [name, recv_node] : rcv_nodes) {
+      g->add_node(recv_node);
+    }
+    std::unordered_map<std::string, std::shared_ptr<graph_node>> rcv_marker_nodes;
+    std::unordered_map<std::string, std::shared_ptr<graph_node>> rcv_image_nodes;
+
+    for (const auto& [name, recv_node] : rcv_nodes) {
+      const auto recv_image = recv_node->find_output("image");
+      if (recv_image) {
+        std::shared_ptr<callback_callee_node> n1(new callback_callee_node());
+        n1->set_input(recv_image);
+        g->add_node(n1);
+        rcv_image_nodes[name] = n1;
+      }
+      const auto recv_marker = recv_node->find_output("marker");
+      if (recv_marker) {
+        std::shared_ptr<callback_callee_node> n1(new callback_callee_node());
+        n1->set_input(recv_marker);
+        g->add_node(n1);
+        rcv_marker_nodes[name] = n1;
+      }
+    }
+
+    for (const auto& [name, recv_node] : rcv_image_nodes) {
       std::shared_ptr<callback_node> n8(new callback_node());
       n8->set_input(recv_node->get_output());
       g->add_node(n8);
@@ -1930,13 +1981,41 @@ class multiview_capture_pipeline::impl {
 
     std::shared_ptr<subgraph> g(new subgraph());
 
-    std::unordered_map<std::string, std::shared_ptr<graph_node>> rcv_nodes;
-    std::unordered_map<std::string, std::shared_ptr<graph_node>> rcv_marker_nodes;
-    std::unordered_map<std::string, std::shared_ptr<graph_node>> rcv_blob_nodes;
+    std::unordered_map<std::string, std::shared_ptr<subgraph_node>> rcv_nodes;
     std::vector<std::shared_ptr<remote_cluster>> clusters;
 
-    genenerate_common_nodes(node_infos, g, sync_fps, clusters, masks, mask_nodes, rcv_nodes,
-                            rcv_marker_nodes, rcv_blob_nodes);
+    genenerate_common_nodes(node_infos, sync_fps, clusters, masks, mask_nodes, rcv_nodes);
+
+    for (const auto& [name, recv_node] : rcv_nodes) {
+      g->add_node(recv_node);
+    }
+    std::unordered_map<std::string, std::shared_ptr<graph_node>> rcv_marker_nodes;
+    std::unordered_map<std::string, std::shared_ptr<graph_node>> rcv_blob_nodes;
+    std::unordered_map<std::string, std::shared_ptr<graph_node>> rcv_image_nodes;
+
+    for (const auto& [name, recv_node] : rcv_nodes) {
+      const auto recv_image = recv_node->find_output("image");
+      if (recv_image) {
+        std::shared_ptr<callback_callee_node> n1(new callback_callee_node());
+        n1->set_input(recv_image);
+        g->add_node(n1);
+        rcv_image_nodes[name] = n1;
+      }
+      const auto recv_marker = recv_node->find_output("marker");
+      if (recv_marker) {
+        std::shared_ptr<callback_callee_node> n1(new callback_callee_node());
+        n1->set_input(recv_marker);
+        g->add_node(n1);
+        rcv_marker_nodes[name] = n1;
+      }
+      const auto recv_blob = recv_node->find_output("blob");
+      if (recv_blob) {
+        std::shared_ptr<callback_callee_node> n1(new callback_callee_node());
+        n1->set_input(recv_blob);
+        g->add_node(n1);
+        rcv_blob_nodes[name] = n1;
+      }
+    }
 
     for (std::size_t i = 0; i < node_infos.size(); i++) {
       if (node_infos[i].get_type() == node_type::record) {
@@ -1944,18 +2023,17 @@ class multiview_capture_pipeline::impl {
           const auto& input = node_infos[i].inputs.at("default");
           if (rcv_blob_nodes.find(input) != rcv_blob_nodes.end()) {
             const auto& n = rcv_blob_nodes[input];
-            if (n) {
-              std::shared_ptr<fifo_node> n12(new fifo_node());
-              n12->set_max_size(1000);
-              n12->set_input(n->get_output());
-              g->add_node(n12);
 
-              std::shared_ptr<dump_blob_node> n5(new dump_blob_node());
-              n5->set_input(n12->get_output());
-              n5->set_name(std::regex_replace(node_infos[i].name, std::regex("record"), "image_"));
-              n5->set_db_path(node_infos[i].get_param<std::string>("db_path"));
-              g->add_node(n5);
-            }
+            std::shared_ptr<fifo_node> n12(new fifo_node());
+            n12->set_max_size(1000);
+            n12->set_input(n->get_output());
+            g->add_node(n12);
+
+            std::shared_ptr<dump_blob_node> n5(new dump_blob_node());
+            n5->set_input(n12->get_output());
+            n5->set_name(std::regex_replace(node_infos[i].name, std::regex("record"), "image_"));
+            n5->set_db_path(node_infos[i].get_param<std::string>("db_path"));
+            g->add_node(n5);
           }
         }
 
@@ -1963,28 +2041,25 @@ class multiview_capture_pipeline::impl {
           const auto& input = node_infos[i].inputs.at("default");
           if (rcv_marker_nodes.find(input) != rcv_marker_nodes.end()) {
             const auto& n = rcv_marker_nodes[input];
-            if (n) {
-              std::shared_ptr<fifo_node> n12(new fifo_node());
-              n12->set_max_size(1000);
-              n12->set_input(n->get_output());
-              g->add_node(n12);
 
-              std::shared_ptr<dump_keypoint_node> n5(new dump_keypoint_node());
-              n5->set_input(n12->get_output());
-              n5->set_name(std::regex_replace(node_infos[i].name, std::regex("record"), "marker_"));
-              n5->set_db_path(node_infos[i].get_param<std::string>("db_path"));
-              g->add_node(n5);
-            }
+            std::shared_ptr<fifo_node> n12(new fifo_node());
+            n12->set_max_size(1000);
+            n12->set_input(n->get_output());
+            g->add_node(n12);
+
+            std::shared_ptr<dump_keypoint_node> n5(new dump_keypoint_node());
+            n5->set_input(n12->get_output());
+            n5->set_name(std::regex_replace(node_infos[i].name, std::regex("record"), "marker_"));
+            n5->set_db_path(node_infos[i].get_param<std::string>("db_path"));
+            g->add_node(n5);
           }
         }
       }
     }
 
     std::shared_ptr<approximate_time_sync_node> n3(new approximate_time_sync_node());
-    for (const auto& [name, recv_node] : rcv_nodes) {
-      if (recv_node) {
-        n3->set_input(recv_node->get_output(), name);
-      }
+    for (const auto& [name, recv_node] : rcv_image_nodes) {
+      n3->set_input(recv_node->get_output(), name);
     }
     // Allow fps variation
     n3->get_config().set_interval(1000.0 / sync_fps + 0.5);
@@ -1997,9 +2072,7 @@ class multiview_capture_pipeline::impl {
 
     std::shared_ptr<approximate_time_sync_node> n6(new approximate_time_sync_node());
     for (const auto& [name, recv_node] : rcv_marker_nodes) {
-      if (recv_node) {
-        n6->set_input(recv_node->get_output(), name);
-      }
+      n6->set_input(recv_node->get_output(), name);
     }
     // Allow fps variation
     n6->get_config().set_interval(1000.0 / sync_fps + 0.5);
