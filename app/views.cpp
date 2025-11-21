@@ -1,5 +1,7 @@
 #include "views.hpp"
 
+#include <spdlog/spdlog.h>
+
 using namespace stargazer;
 
 namespace {
