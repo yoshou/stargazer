@@ -1,12 +1,9 @@
-#include <glad/glad.h>
-
-#include <opencv2/core.hpp>
-#include <opencv2/imgproc.hpp>
-
-#include "viewer.hpp"
 #define GLFW_INCLUDE_GLU
+
+#include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <signal.h>
+#include <spdlog/spdlog.h>
 
 #include <cmath>
 #include <filesystem>
@@ -14,12 +11,15 @@
 #include <iostream>
 #include <map>
 #include <memory>
+#include <opencv2/core.hpp>
+#include <opencv2/imgproc.hpp>
 
 #include "calibration_pipeline.hpp"
 #include "capture_pipeline.hpp"
 #include "config.hpp"
 #include "parameters.hpp"
 #include "reconstruction_pipeline.hpp"
+#include "viewer.hpp"
 #include "views.hpp"
 
 using namespace stargazer;

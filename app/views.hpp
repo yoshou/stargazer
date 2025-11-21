@@ -1,36 +1,24 @@
 #pragma once
 
-#include <glad/glad.h>
 #define GLFW_INCLUDE_GLU
+#define GLM_ENABLE_EXPERIMENTAL
+
 #include <GLFW/glfw3.h>
 
-#include <glm/glm.hpp>
-#include <glm/gtc/quaternion.hpp>
+#include <array>
+#include <functional>
+#include <glm/gtx/quaternion.hpp>
+#include <glm/gtx/transform.hpp>
+#include <map>
+#include <memory>
 #include <opencv2/core.hpp>
+#include <vector>
 
+#include "config.hpp"
 #include "imgui-fonts-fontawesome.hpp"
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
-
-#define GLM_ENABLE_EXPERIMENTAL
-#include <spdlog/spdlog.h>
-
-#include <array>
-#include <cmath>
-#include <functional>
-#include <glm/gtx/euler_angles.hpp>
-#include <glm/gtx/matrix_decompose.hpp>
-#include <glm/gtx/quaternion.hpp>
-#include <glm/gtx/string_cast.hpp>
-#include <glm/gtx/transform.hpp>
-#include <iostream>
-#include <map>
-#include <memory>
-#include <sstream>
-#include <vector>
-
-#include "config.hpp"
 #include "viewer.hpp"
 
 static ImVec4 from_rgba(uint8_t r, uint8_t g, uint8_t b, uint8_t a, bool consistent_color = false) {
