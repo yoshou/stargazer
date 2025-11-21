@@ -126,14 +126,22 @@ struct rect {
   }
 };
 
-struct texture_buffer {
+class texture_buffer {
   GLuint texture;
+
+ public:
   GLuint get_gl_handle() const { return texture; }
 
-  texture_buffer() : texture() {}
+  texture_buffer() : texture() { glGenTextures(1, &texture); }
+
+  ~texture_buffer() {
+    if (texture) {
+      glDeleteTextures(1, &texture);
+      texture = 0;
+    }
+  }
 
   void upload_image(int w, int h, void* data, int format = GL_RGBA) {
-    if (!texture) glGenTextures(1, &texture);
     glBindTexture(GL_TEXTURE_2D, texture);
     glTexImage2D(GL_TEXTURE_2D, 0, format, w, h, 0, format, GL_UNSIGNED_BYTE, data);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -143,40 +151,8 @@ struct texture_buffer {
     glBindTexture(GL_TEXTURE_2D, 0);
   }
 
-  void draw_texture(const rect& s, const rect& t) const {
-    glBegin(GL_QUAD_STRIP);
-    {
-      glTexCoord2f(s.x, s.y + s.h);
-      glVertex2f(t.x, t.y + t.h);
-      glTexCoord2f(s.x, s.y);
-      glVertex2f(t.x, t.y);
-      glTexCoord2f(s.x + s.w, s.y + s.h);
-      glVertex2f(t.x + t.w, t.y + t.h);
-      glTexCoord2f(s.x + s.w, s.y);
-      glVertex2f(t.x + t.w, t.y);
-    }
-    glEnd();
-  }
-
   void show(const rect& r, float alpha, const rect& normalized_zoom = rect{0, 0, 1, 1}) const {
     if (!texture) return;
-    // glEnable(GL_BLEND);
-
-    // glBlendFunc(GL_ONE_MINUS_SRC_ALPHA, GL_SRC_ALPHA);
-    // glBegin(GL_QUADS);
-    // glColor4f(1.0f, 1.0f, 1.0f, 1 - alpha);
-    // glEnd();
-
-    // glBindTexture(GL_TEXTURE_2D, get_gl_handle());
-
-    // glEnable(GL_TEXTURE_2D);
-    // draw_texture(normalized_zoom, r);
-
-    // glDisable(GL_TEXTURE_2D);
-    // glBindTexture(GL_TEXTURE_2D, 0);
-
-    // glDisable(GL_BLEND);
-
     ImGui::Image((ImTextureID)get_gl_handle(), ImVec2{r.w, r.h});
   }
 };
