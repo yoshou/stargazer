@@ -6,13 +6,13 @@ ARG REINSTALL_CMAKE_VERSION_FROM_SOURCE="3.22.2"
 COPY ./reinstall-cmake.sh /tmp/
 
 RUN if [ "${REINSTALL_CMAKE_VERSION_FROM_SOURCE}" != "none" ]; then \
-        chmod +x /tmp/reinstall-cmake.sh && /tmp/reinstall-cmake.sh ${REINSTALL_CMAKE_VERSION_FROM_SOURCE}; \
+    chmod +x /tmp/reinstall-cmake.sh && /tmp/reinstall-cmake.sh ${REINSTALL_CMAKE_VERSION_FROM_SOURCE}; \
     fi \
     && rm -f /tmp/reinstall-cmake.sh
 
 # Install CUDA
 ENV NVARCH x86_64
-    
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gnupg2 curl ca-certificates\
     && curl -fsSLO https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/${NVARCH}/cuda-keyring_1.1-1_all.deb \
@@ -72,13 +72,13 @@ ENV TENSORRT_VERSION 10.4
 RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
     && TENSORRT_MAJOR_VERSION=`echo ${TENSORRT_VERSION} | cut -d '.' -f 1` \
     && apt-get install -y libnvinfer${TENSORRT_MAJOR_VERSION}=${TENSORRT_VERSION}.* \
-                       libnvinfer-plugin${TENSORRT_MAJOR_VERSION}=${TENSORRT_VERSION}.* \
-                       libnvinfer-dev=${TENSORRT_VERSION}.* \
-                       libnvinfer-headers-dev=${TENSORRT_VERSION}.* \
-                       libnvinfer-headers-plugin-dev=${TENSORRT_VERSION}.* \
-                       libnvinfer-plugin-dev=${TENSORRT_VERSION}.* \
-                       libnvonnxparsers${TENSORRT_MAJOR_VERSION}=${TENSORRT_VERSION}.* \
-                       libnvonnxparsers-dev=${TENSORRT_VERSION}.*
+    libnvinfer-plugin${TENSORRT_MAJOR_VERSION}=${TENSORRT_VERSION}.* \
+    libnvinfer-dev=${TENSORRT_VERSION}.* \
+    libnvinfer-headers-dev=${TENSORRT_VERSION}.* \
+    libnvinfer-headers-plugin-dev=${TENSORRT_VERSION}.* \
+    libnvinfer-plugin-dev=${TENSORRT_VERSION}.* \
+    libnvonnxparsers${TENSORRT_MAJOR_VERSION}=${TENSORRT_VERSION}.* \
+    libnvonnxparsers-dev=${TENSORRT_VERSION}.*
 
 # Install dependencies
 RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
