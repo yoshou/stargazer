@@ -6,18 +6,59 @@
 #include <mutex>
 #include <queue>
 #include <thread>
+#include <vulkan/vulkan.hpp>
 
 struct window_base;
 
+// Queue family indices for Vulkan device
+struct QueueFamilyIndices {
+  std::optional<uint32_t> graphics_family;
+  std::optional<uint32_t> present_family;
+
+  bool is_complete() const { return graphics_family.has_value() && present_family.has_value(); }
+};
+
+// Helper function to find queue families (used by gui.cpp)
+QueueFamilyIndices find_queue_families(vk::PhysicalDevice device, vk::SurfaceKHR surface);
+
 struct graphics_context {
   window_base* window;
+  vk::UniqueInstance instance;
+  vk::UniqueSurfaceKHR surface;
+  vk::PhysicalDevice physical_device;
+  vk::UniqueDevice device;
+  vk::Queue graphics_queue;
+  vk::Queue present_queue;
+  vk::UniqueSwapchainKHR swapchain;
+  std::vector<vk::Image> swapchain_images;
+  vk::Format swapchain_image_format;
+  vk::Extent2D swapchain_extent;
+  vk::UniqueCommandPool command_pool;
+  std::vector<vk::UniqueCommandBuffer> command_buffers;
+  std::vector<vk::UniqueSemaphore> image_available_semaphores;
+  std::vector<vk::UniqueSemaphore> render_finished_semaphores;
+  std::vector<vk::UniqueFence> in_flight_fences;
+
+  // Rendering resources
+  vk::UniqueRenderPass render_pass;
+  std::vector<vk::UniqueFramebuffer> framebuffers;
+  std::vector<vk::UniqueImageView> swapchain_image_views;
+
+  // Depth buffer resources
+  vk::UniqueImage depth_image;
+  vk::UniqueDeviceMemory depth_image_memory;
+  vk::UniqueImageView depth_image_view;
+
+  size_t current_frame = 0;
+  uint32_t current_image_index = 0;
+  static constexpr int MAX_FRAMES_IN_FLIGHT = 2;
 
   graphics_context(window_base* window) : window(window) {}
 
   virtual void attach();
   virtual void detach();
-  virtual void clear();
-  virtual void swap_buffer();
+  virtual void begin_frame();
+  virtual void end_frame();
   virtual ~graphics_context();
 };
 

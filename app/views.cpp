@@ -2,7 +2,220 @@
 
 #include <spdlog/spdlog.h>
 
+#include "render3d.hpp"
+
 using namespace stargazer;
+
+// Texture buffer implementation for Vulkan
+texture_buffer::texture_buffer()
+    : gfx_ctx(nullptr), descriptor_set(VK_NULL_HANDLE), width(0), height(0) {}
+
+texture_buffer::~texture_buffer() {
+  // Vulkan resources are automatically cleaned up by UniqueHandles
+}
+
+static uint32_t find_memory_type(vk::PhysicalDevice physical_device, uint32_t type_filter,
+                                 vk::MemoryPropertyFlags properties) {
+  vk::PhysicalDeviceMemoryProperties mem_properties = physical_device.getMemoryProperties();
+
+  for (uint32_t i = 0; i < mem_properties.memoryTypeCount; i++) {
+    if ((type_filter & (1 << i)) &&
+        (mem_properties.memoryTypes[i].propertyFlags & properties) == properties) {
+      return i;
+    }
+  }
+
+  throw std::runtime_error("Failed to find suitable memory type");
+}
+
+void texture_buffer::upload_image(int w, int h, void* data, int format) {
+  if (!gfx_ctx || !gfx_ctx->device) {
+    return;
+  }
+
+  width = w;
+  height = h;
+
+  // Assume RGB 3-channel format (convert to RGBA)
+  vk::DeviceSize image_size = w * h * 4;
+  std::vector<uint8_t> rgba_data(image_size);
+
+  // Convert RGB to RGBA
+  const uint8_t* src = static_cast<const uint8_t*>(data);
+  for (int i = 0; i < w * h; ++i) {
+    rgba_data[i * 4 + 0] = src[i * 3 + 0];  // R
+    rgba_data[i * 4 + 1] = src[i * 3 + 1];  // G
+    rgba_data[i * 4 + 2] = src[i * 3 + 2];  // B
+    rgba_data[i * 4 + 3] = 255;             // A
+  }
+
+  // Create staging buffer
+  vk::BufferCreateInfo buffer_info;
+  buffer_info.size = image_size;
+  buffer_info.usage = vk::BufferUsageFlagBits::eTransferSrc;
+  buffer_info.sharingMode = vk::SharingMode::eExclusive;
+
+  vk::UniqueBuffer staging_buffer = gfx_ctx->device->createBufferUnique(buffer_info);
+
+  vk::MemoryRequirements mem_requirements =
+      gfx_ctx->device->getBufferMemoryRequirements(staging_buffer.get());
+
+  vk::MemoryAllocateInfo alloc_info;
+  alloc_info.allocationSize = mem_requirements.size;
+  alloc_info.memoryTypeIndex = find_memory_type(
+      gfx_ctx->physical_device, mem_requirements.memoryTypeBits,
+      vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+
+  vk::UniqueDeviceMemory staging_memory = gfx_ctx->device->allocateMemoryUnique(alloc_info);
+  gfx_ctx->device->bindBufferMemory(staging_buffer.get(), staging_memory.get(), 0);
+
+  // Copy RGBA data to staging buffer
+  void* mapped = gfx_ctx->device->mapMemory(staging_memory.get(), 0, image_size);
+  memcpy(mapped, rgba_data.data(), static_cast<size_t>(image_size));
+  gfx_ctx->device->unmapMemory(staging_memory.get());
+
+  // Create image
+  vk::ImageCreateInfo image_info;
+  image_info.imageType = vk::ImageType::e2D;
+  image_info.extent.width = w;
+  image_info.extent.height = h;
+  image_info.extent.depth = 1;
+  image_info.mipLevels = 1;
+  image_info.arrayLayers = 1;
+  image_info.format = vk::Format::eR8G8B8A8Unorm;
+  image_info.tiling = vk::ImageTiling::eOptimal;
+  image_info.initialLayout = vk::ImageLayout::eUndefined;
+  image_info.usage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled;
+  image_info.samples = vk::SampleCountFlagBits::e1;
+  image_info.sharingMode = vk::SharingMode::eExclusive;
+
+  image = gfx_ctx->device->createImageUnique(image_info);
+
+  vk::MemoryRequirements img_mem_requirements =
+      gfx_ctx->device->getImageMemoryRequirements(image.get());
+
+  vk::MemoryAllocateInfo img_alloc_info;
+  img_alloc_info.allocationSize = img_mem_requirements.size;
+  img_alloc_info.memoryTypeIndex =
+      find_memory_type(gfx_ctx->physical_device, img_mem_requirements.memoryTypeBits,
+                       vk::MemoryPropertyFlagBits::eDeviceLocal);
+
+  image_memory = gfx_ctx->device->allocateMemoryUnique(img_alloc_info);
+  gfx_ctx->device->bindImageMemory(image.get(), image_memory.get(), 0);
+
+  // Transition image layout and copy buffer to image
+  vk::CommandBufferAllocateInfo cmd_alloc_info;
+  cmd_alloc_info.commandPool = gfx_ctx->command_pool.get();
+  cmd_alloc_info.level = vk::CommandBufferLevel::ePrimary;
+  cmd_alloc_info.commandBufferCount = 1;
+
+  auto command_buffers = gfx_ctx->device->allocateCommandBuffersUnique(cmd_alloc_info);
+  auto& command_buffer = command_buffers[0];
+
+  vk::CommandBufferBeginInfo begin_info;
+  begin_info.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
+  command_buffer->begin(begin_info);
+
+  // Transition to transfer dst
+  vk::ImageMemoryBarrier barrier;
+  barrier.oldLayout = vk::ImageLayout::eUndefined;
+  barrier.newLayout = vk::ImageLayout::eTransferDstOptimal;
+  barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+  barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+  barrier.image = image.get();
+  barrier.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
+  barrier.subresourceRange.baseMipLevel = 0;
+  barrier.subresourceRange.levelCount = 1;
+  barrier.subresourceRange.baseArrayLayer = 0;
+  barrier.subresourceRange.layerCount = 1;
+  barrier.srcAccessMask = vk::AccessFlags();
+  barrier.dstAccessMask = vk::AccessFlagBits::eTransferWrite;
+
+  command_buffer->pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe,
+                                  vk::PipelineStageFlagBits::eTransfer, vk::DependencyFlags(), 0,
+                                  nullptr, 0, nullptr, 1, &barrier);
+
+  // Copy buffer to image
+  vk::BufferImageCopy region;
+  region.bufferOffset = 0;
+  region.bufferRowLength = 0;
+  region.bufferImageHeight = 0;
+  region.imageSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
+  region.imageSubresource.mipLevel = 0;
+  region.imageSubresource.baseArrayLayer = 0;
+  region.imageSubresource.layerCount = 1;
+  region.imageOffset = vk::Offset3D{0, 0, 0};
+  region.imageExtent = vk::Extent3D{static_cast<uint32_t>(w), static_cast<uint32_t>(h), 1};
+
+  command_buffer->copyBufferToImage(staging_buffer.get(), image.get(),
+                                    vk::ImageLayout::eTransferDstOptimal, 1, &region);
+
+  // Transition to shader read
+  barrier.oldLayout = vk::ImageLayout::eTransferDstOptimal;
+  barrier.newLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+  barrier.srcAccessMask = vk::AccessFlagBits::eTransferWrite;
+  barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
+
+  command_buffer->pipelineBarrier(vk::PipelineStageFlagBits::eTransfer,
+                                  vk::PipelineStageFlagBits::eFragmentShader, vk::DependencyFlags(),
+                                  0, nullptr, 0, nullptr, 1, &barrier);
+
+  command_buffer->end();
+
+  vk::SubmitInfo submit_info;
+  submit_info.commandBufferCount = 1;
+  submit_info.pCommandBuffers = &command_buffer.get();
+
+  (void)gfx_ctx->graphics_queue.submit(1, &submit_info, nullptr);
+  (void)gfx_ctx->graphics_queue.waitIdle();
+
+  // Create image view
+  vk::ImageViewCreateInfo view_info;
+  view_info.image = image.get();
+  view_info.viewType = vk::ImageViewType::e2D;
+  view_info.format = vk::Format::eR8G8B8A8Unorm;
+  view_info.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
+  view_info.subresourceRange.baseMipLevel = 0;
+  view_info.subresourceRange.levelCount = 1;
+  view_info.subresourceRange.baseArrayLayer = 0;
+  view_info.subresourceRange.layerCount = 1;
+
+  image_view = gfx_ctx->device->createImageViewUnique(view_info);
+
+  // Create sampler
+  vk::SamplerCreateInfo sampler_info;
+  sampler_info.magFilter = vk::Filter::eLinear;
+  sampler_info.minFilter = vk::Filter::eLinear;
+  sampler_info.addressModeU = vk::SamplerAddressMode::eRepeat;
+  sampler_info.addressModeV = vk::SamplerAddressMode::eRepeat;
+  sampler_info.addressModeW = vk::SamplerAddressMode::eRepeat;
+  sampler_info.anisotropyEnable = VK_FALSE;
+  sampler_info.maxAnisotropy = 1.0f;
+  sampler_info.borderColor = vk::BorderColor::eIntOpaqueBlack;
+  sampler_info.unnormalizedCoordinates = VK_FALSE;
+  sampler_info.compareEnable = VK_FALSE;
+  sampler_info.compareOp = vk::CompareOp::eAlways;
+  sampler_info.mipmapMode = vk::SamplerMipmapMode::eLinear;
+
+  sampler = gfx_ctx->device->createSamplerUnique(sampler_info);
+
+  // Add ImGui descriptor set
+  descriptor_set = ImGui_ImplVulkan_AddTexture(sampler.get(), image_view.get(),
+                                               VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+}
+
+void texture_buffer::show(const rect& r, float alpha, const rect& normalized_zoom) const {
+  if (descriptor_set == VK_NULL_HANDLE) {
+    return;
+  }
+
+  ImVec2 uv0(normalized_zoom.x, normalized_zoom.y);
+  ImVec2 uv1(normalized_zoom.x + normalized_zoom.w, normalized_zoom.y + normalized_zoom.h);
+
+  ImGui::GetWindowDrawList()->AddImage((ImTextureID)(intptr_t)descriptor_set, ImVec2(r.x, r.y),
+                                       ImVec2(r.x + r.w, r.y + r.h), uv0, uv1,
+                                       ImGui::ColorConvertFloat4ToU32(ImVec4(1, 1, 1, alpha)));
+}
 
 namespace {
 struct float3 {
@@ -1442,199 +1655,115 @@ static void deproject_pixel_to_point(float point[3], const pose_view::camera_t* 
   point[2] = depth;
 }
 
-static void draw_sphere(double r, int lats, int longs) {
-  int i, j;
-  for (i = 0; i <= lats; i++) {
-    double lat0 = M_PI * (-0.5 + (double)(i - 1) / lats);
-    double z0 = sin(lat0);
-    double zr0 = cos(lat0);
+void pose_view::initialize(vk::Device device, vk::PhysicalDevice physical_device,
+                           vk::RenderPass render_pass) {
+  pipeline_ = std::make_unique<render3d_pipeline>();
+  pipeline_->initialize(device, physical_device, render_pass);
+}
 
-    double lat1 = M_PI * (-0.5 + (double)i / lats);
-    double z1 = sin(lat1);
-    double zr1 = cos(lat1);
-
-    glBegin(GL_QUAD_STRIP);
-    for (j = 0; j <= longs; j++) {
-      double lng = 2 * M_PI * (double)(j - 1) / longs;
-      double x = cos(lng);
-      double y = sin(lng);
-
-      glNormal3f(x * zr0, y * zr0, z0);
-      glVertex3f(r * x * zr0, r * y * zr0, r * z0);
-      glNormal3f(x * zr1, y * zr1, z1);
-      glVertex3f(r * x * zr1, r * y * zr1, r * z1);
-    }
-    glEnd();
+void pose_view::cleanup() {
+  if (pipeline_) {
+    pipeline_->cleanup();
+    pipeline_.reset();
   }
 }
 
-void pose_view::render(view_context* context) {
-  int left, top, right, bottom;
-  window_manager::get_instance()->get_window_frame_size(context->window, &left, &top, &right,
-                                                        &bottom);
-
-  const auto window_width = context->get_window_size().x;
-  const auto window_height = context->get_window_size().y;
-
-  const auto framebuf_width = window_width + left + right;
-  const auto framebuf_height = window_height + top + bottom;
-
-  auto output_height = 30;
-  auto panel_width = 350;
-  const auto top_bar_height = 50;
-
-  const float x = panel_width;
-  const float y = top_bar_height;
-  const float width = window_width - panel_width;
-  const float height = window_height - top_bar_height - output_height;
-
-  auto viewer_rect = rect{x, y, width, height};
-
-  rect window_size{0, 0, window_width, window_height};
-  rect fb_size{0, 0, framebuf_width, framebuf_height};
-  viewer_rect = viewer_rect.normalize(window_size).unnormalize(fb_size);
-
-  glViewport(viewer_rect.x, viewer_rect.y, static_cast<GLsizei>(viewer_rect.w),
-             static_cast<GLsizei>(viewer_rect.h));
-  glClearColor(0, 0, 0, 1);
-  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-  glLoadIdentity();
-
-  matrix4 perspective_mat;
-  {
-    glMatrixMode(GL_PROJECTION);
-    glPushMatrix();
-    gluPerspective(45, viewer_rect.w / framebuf_height, 0.001f, 100.0f);
-    glGetFloatv(GL_PROJECTION_MATRIX, (GLfloat*)&perspective_mat);
-    glPopMatrix();
+void pose_view::render(view_context* context, vk::CommandBuffer cmd, vk::Extent2D extent) {
+  if (!pipeline_) {
+    return;
   }
 
-  {
-    glMatrixMode(GL_PROJECTION);
-    glPushMatrix();
-    glLoadMatrixf((float*)perspective_mat.mat);
+  auto window_size = context->get_window_size();
 
-    glMatrixMode(GL_MODELVIEW);
-    glPushMatrix();
+  // Layout constants (same as OpenGL version)
+  constexpr float panel_width = 350.0f;
+  constexpr float top_bar_height = 50.0f;
+  constexpr float output_height = 30.0f;
 
-    matrix4 view_mat;
-    memcpy(&view_mat, (float*)&context->view, sizeof(matrix4));
-    glLoadMatrixf((float*)view_mat);
+  // Calculate pose view area (excluding panel and bars)
+  const float view_x = panel_width;
+  const float view_y = top_bar_height;
+  const float view_width = window_size.x - panel_width;
+  const float view_height = window_size.y - top_bar_height - output_height;
 
-    glDisable(GL_TEXTURE_2D);
+  // Use view matrix from context (set by view_controller in viewer_app)
+  glm::mat4 view = context ? context->view : glm::mat4(1.0f);
 
-    glEnable(GL_DEPTH_TEST);
+  // Calculate aspect ratio based on pose view area, not full window
+  float aspect =
+      view_width > 0 && view_height > 0 ? view_width / view_height : window_size.x / window_size.y;
 
-    {
-      float tiles = 24;
-      const auto metric_system = true;
-      static const float FEET_TO_METER = 0.3048f;
-      if (!metric_system) tiles *= 1.f / FEET_TO_METER;
+  // Standard perspective projection
+  // Using 0.1f near clip for better depth precision with scaled scene
+  glm::mat4 projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 100.0f);
+  projection[1][1] *= -1;  // Flip Y for Vulkan
 
-      glTranslatef(0, 0, 0);
-      glLineWidth(1);
+  // Calculate viewport offset and extent for pose view area
+  vk::Offset2D viewport_offset{static_cast<int32_t>(view_x), static_cast<int32_t>(view_y)};
+  vk::Extent2D viewport_extent{static_cast<uint32_t>(view_width),
+                               static_cast<uint32_t>(view_height)};
 
-      // Render "floor" grid
-      glBegin(GL_LINES);
+  pipeline_->begin_frame(cmd, projection, view, extent, viewport_offset, viewport_extent);
 
-      auto T = tiles * 0.5f;
+  // Apply scale to entire scene
+  glm::mat4 scale_matrix =
+      glm::scale(glm::mat4(1.0f), glm::vec3(POSE_VIEW_SCALE, POSE_VIEW_SCALE, POSE_VIEW_SCALE));
+  glm::mat4 scaled_axis = scale_matrix * axis;
 
-      if (!metric_system) T *= FEET_TO_METER;
+  // Draw floor grid (24 tiles with POSE_VIEW_SCALE spacing for better depth precision)
+  // This creates a (24 * POSE_VIEW_SCALE) meter grid
+  pipeline_->draw_grid(24, 1.0f * POSE_VIEW_SCALE,
+                       glm::vec3(1.0f, 1.0f, 1.0f));  // White base color with 0.4/0.7 intensity
 
-      for (int i = 0; i <= ceil(tiles); i++) {
-        float I = float(i);
-        if (!metric_system) I *= FEET_TO_METER;
+  // Draw camera frustums
+  for (const auto& [name, camera] : cameras) {
+    // Camera pose in world space (apply axis transformation and scale)
+    glm::mat4 camera_pose = scaled_axis * camera.pose;
 
-        if (i == tiles / 2)
-          glColor4f(0.7f, 0.7f, 0.7f, 1.f);
-        else
-          glColor4f(0.4f, 0.4f, 0.4f, 1.f);
+    // Draw frustum using deproject method
+    for (float d = 1; d < 6; d += 2) {
+      auto get_point = [&](float x, float y) -> glm::vec3 {
+        float point[3];
+        float pixel[2]{x, y};
+        deproject_pixel_to_point(point, &camera, pixel, d * 0.03f);
 
-        glVertex3f(I - T, 0, -T);
-        glVertex3f(I - T, 0, T);
-        glVertex3f(-T, 0, I - T);
-        glVertex3f(T, 0, I - T);
-      }
-      glEnd();
+        // Transform point from camera space to world space
+        glm::vec4 camera_space_point(point[0], point[1], point[2], 1.0f);
+        glm::vec4 world_point = camera_pose * camera_space_point;
+        return glm::vec3(world_point);
+      };
+
+      glm::vec3 camera_origin = glm::vec3(camera_pose[3]);
+      auto top_left = get_point(0, 0);
+      auto top_right = get_point(static_cast<float>(camera.width), 0);
+      auto bottom_right =
+          get_point(static_cast<float>(camera.width), static_cast<float>(camera.height));
+      auto bottom_left = get_point(0, static_cast<float>(camera.height));
+
+      glm::vec3 color = glm::vec3(0.5f, 0.5f, 0.5f);  // Gray color
+
+      // Lines from camera origin to corners
+      pipeline_->draw_line(camera_origin, top_left, color);
+      pipeline_->draw_line(camera_origin, top_right, color);
+      pipeline_->draw_line(camera_origin, bottom_right, color);
+      pipeline_->draw_line(camera_origin, bottom_left, color);
+
+      // Rectangle at depth d
+      pipeline_->draw_line(top_left, top_right, color);
+      pipeline_->draw_line(top_right, bottom_right, color);
+      pipeline_->draw_line(bottom_right, bottom_left, color);
+      pipeline_->draw_line(bottom_left, top_left, color);
     }
-
-    {
-      glColor4f(1.f, 1.f, 1.f, 1.f);
-
-      for (const auto& p : cameras) {
-        const auto& camera = p.second;
-
-        const auto camera_pose = axis * camera.pose;
-
-        matrix4 r1;
-        memcpy(&r1, (float*)&camera_pose, sizeof(matrix4));
-        glMatrixMode(GL_MODELVIEW);
-        glPushMatrix();
-        glLoadMatrixf(r1 * view_mat);
-
-        glTranslatef(0, 0, 0);
-        glLineWidth(1.f);
-        glBegin(GL_LINES);
-
-        const auto _pc_selected = false;
-        if (_pc_selected)
-          glColor4f(light_blue.x, light_blue.y, light_blue.z, 0.5f);
-        else
-          glColor4f(sensor_bg.x, sensor_bg.y, sensor_bg.z, 0.5f);
-
-        for (float d = 1; d < 6; d += 2) {
-          auto get_point = [&](float x, float y) -> float3 {
-            float point[3];
-            float pixel[2]{x, y};
-            deproject_pixel_to_point(point, &camera, pixel, d * 0.03f);
-            glVertex3f(0.f, 0.f, 0.f);
-            glVertex3fv(point);
-            return {point[0], point[1], point[2]};
-          };
-
-          auto top_left = get_point(0, 0);
-          auto top_right = get_point(static_cast<float>(camera.width), 0);
-          auto bottom_right =
-              get_point(static_cast<float>(camera.width), static_cast<float>(camera.height));
-          auto bottom_left = get_point(0, static_cast<float>(camera.height));
-
-          glVertex3fv(&top_left.x);
-          glVertex3fv(&top_right.x);
-          glVertex3fv(&top_right.x);
-          glVertex3fv(&bottom_right.x);
-          glVertex3fv(&bottom_right.x);
-          glVertex3fv(&bottom_left.x);
-          glVertex3fv(&bottom_left.x);
-          glVertex3fv(&top_left.x);
-        }
-
-        glEnd();
-
-        glPopMatrix();
-
-        glColor4f(1.f, 1.f, 1.f, 1.f);
-      }
-    }
-
-    {
-      glColor4f(1.f, 1.f, 1.f, 1.f);
-
-      for (const auto p : points) {
-        glPushMatrix();
-        glTranslatef(p.x, p.y, p.z);
-
-        draw_sphere(0.01, 20, 20);
-
-        glPopMatrix();
-        glColor4f(1.f, 1.f, 1.f, 1.f);
-      }
-    }
-
-    glPopMatrix();
-    glMatrixMode(GL_PROJECTION);
-    glPopMatrix();
   }
+
+  // Draw 3D points as spheres
+  for (const auto& point : points) {
+    glm::vec3 scaled_point = glm::vec3(scale_matrix * glm::vec4(point, 1.0f));
+    pipeline_->draw_sphere(scaled_point, 0.01f * POSE_VIEW_SCALE, glm::vec3(1.0f, 1.0f, 1.0f), 20,
+                           20);  // White spheres
+  }
+
+  pipeline_->end_frame(cmd);
 }
 
 // Generate streams layout, creates a grid-like layout with factor amount of columns

@@ -1,8 +1,48 @@
 cmake_minimum_required(VERSION 3.18)
 
+# Find glslc compiler
+find_program(GLSLC glslc REQUIRED)
+
+# Shader compilation function
+function(compile_shader SHADER_SOURCE SHADER_OUTPUT)
+    get_filename_component(SHADER_NAME ${SHADER_SOURCE} NAME)
+    get_filename_component(SHADER_DIR ${SHADER_SOURCE} DIRECTORY)
+    set(SHADER_SPV ${CMAKE_CURRENT_BINARY_DIR}/${SHADER_NAME}.spv)
+    set(SHADER_INC ${SHADER_DIR}/${SHADER_NAME}.spv.inc)
+    
+    add_custom_command(
+        OUTPUT ${SHADER_SPV}
+        COMMAND ${GLSLC} ${SHADER_SOURCE} -o ${SHADER_SPV}
+        DEPENDS ${SHADER_SOURCE}
+        COMMENT "Compiling shader ${SHADER_NAME}"
+        VERBATIM
+    )
+    
+    add_custom_command(
+        OUTPUT ${SHADER_INC}
+        COMMAND python3 ${SHADER_DIR}/convert_shader.py ${SHADER_SPV} ${SHADER_INC}
+        DEPENDS ${SHADER_SPV} ${SHADER_DIR}/convert_shader.py
+        COMMENT "Converting ${SHADER_NAME}.spv to C header"
+        VERBATIM
+    )
+    
+    set(${SHADER_OUTPUT} ${SHADER_INC} PARENT_SCOPE)
+endfunction()
+
+# Compile shaders
+compile_shader(${CMAKE_CURRENT_LIST_DIR}/shaders/simple3d.vert VERT_SHADER_INC)
+compile_shader(${CMAKE_CURRENT_LIST_DIR}/shaders/simple3d.frag FRAG_SHADER_INC)
+
+# Create custom target for shader compilation
+add_custom_target(stargazer_shaders ALL
+    DEPENDS ${VERT_SHADER_INC} ${FRAG_SHADER_INC}
+)
+
 add_executable(stargazer_viewer
     ${CMAKE_CURRENT_LIST_DIR}/viewer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/views.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/gui.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/render3d.cpp
     ${CMAKE_CURRENT_LIST_DIR}/capture_pipeline.cpp
     ${CMAKE_CURRENT_LIST_DIR}/calibration_pipeline.cpp
     ${CMAKE_CURRENT_LIST_DIR}/reconstruction_pipeline.cpp
@@ -12,6 +52,7 @@ add_executable(stargazer_viewer
 
 add_dependencies(stargazer_viewer
     stargazer
+    stargazer_shaders
     stargazer_sensor_grpc_proto
     stargazer_voxelpose
     stargazer_preprocess
@@ -47,11 +88,9 @@ target_link_libraries(stargazer_viewer
     opencv_features2d
     opencv_calib3d
     opencv_aruco
-    $<$<NOT:$<BOOL:${WIN32}>>:GL>
-    $<$<NOT:$<BOOL:${WIN32}>>:GLU>
+    $<$<NOT:$<BOOL:${WIN32}>>:vulkan>
     $<$<NOT:$<BOOL:${WIN32}>>:dl>
     glfw
-    glad::glad
     $<$<NOT:$<BOOL:${WIN32}>>:pthread>
     spdlog::spdlog_header_only
     cereal::cereal

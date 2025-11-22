@@ -1,6 +1,5 @@
 #pragma once
 
-#define GLFW_INCLUDE_GLU
 #define GLM_ENABLE_EXPERIMENTAL
 
 #include <GLFW/glfw3.h>
@@ -18,8 +17,13 @@
 #include "imgui-fonts-fontawesome.hpp"
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
-#include "imgui_impl_opengl3.h"
+#include "imgui_impl_vulkan.h"
 #include "viewer.hpp"
+
+// Scene scale factor for pose view
+// Reducing the scale improves depth buffer precision
+// Scale of 0.1 means: 1 unit in scene = 10cm in world
+constexpr float POSE_VIEW_SCALE = 0.1f;  // Scene scale (change this to adjust all sizes at once)
 
 static ImVec4 from_rgba(uint8_t r, uint8_t g, uint8_t b, uint8_t a, bool consistent_color = false) {
   auto res = ImVec4(r / (float)255, g / (float)255, b / (float)255, a / (float)255);
@@ -115,34 +119,24 @@ struct rect {
 };
 
 class texture_buffer {
-  GLuint texture;
+  graphics_context* gfx_ctx;
+  vk::UniqueImage image;
+  vk::UniqueDeviceMemory image_memory;
+  vk::UniqueImageView image_view;
+  vk::UniqueSampler sampler;
+  VkDescriptorSet descriptor_set;
+  int width;
+  int height;
 
  public:
-  GLuint get_gl_handle() const { return texture; }
+  void* get_handle() const { return (void*)(intptr_t)descriptor_set; }
 
-  texture_buffer() : texture() { glGenTextures(1, &texture); }
+  texture_buffer();
+  ~texture_buffer();
 
-  ~texture_buffer() {
-    if (texture) {
-      glDeleteTextures(1, &texture);
-      texture = 0;
-    }
-  }
-
-  void upload_image(int w, int h, void* data, int format = GL_RGBA) {
-    glBindTexture(GL_TEXTURE_2D, texture);
-    glTexImage2D(GL_TEXTURE_2D, 0, format, w, h, 0, format, GL_UNSIGNED_BYTE, data);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-    glBindTexture(GL_TEXTURE_2D, 0);
-  }
-
-  void show(const rect& r, float alpha, const rect& normalized_zoom = rect{0, 0, 1, 1}) const {
-    if (!texture) return;
-    ImGui::Image((ImTextureID)get_gl_handle(), ImVec2{r.w, r.h});
-  }
+  void set_context(graphics_context* ctx) { gfx_ctx = ctx; }
+  void upload_image(int w, int h, void* data, int format = 0);
+  void show(const rect& r, float alpha, const rect& normalized_zoom = rect{0, 0, 1, 1}) const;
 };
 
 struct view_context {
@@ -298,7 +292,10 @@ class image_tile_view {
     float2 size;
     texture_buffer texture;
 
-    stream_info(std::string name, float2 size) : name(name), size(size) {}
+    stream_info(std::string name, float2 size, graphics_context* gfx_ctx = nullptr)
+        : name(name), size(size) {
+      texture.set_context(gfx_ctx);
+    }
   };
   std::vector<std::shared_ptr<stream_info>> streams;
   std::map<stream_info*, int> stream_index;
@@ -319,6 +316,9 @@ class image_tile_view {
   void render(view_context* context);
 };
 
+class render3d_pipeline;
+class azimuth_elevation;
+
 class pose_view {
  public:
   struct camera_t {
@@ -337,7 +337,13 @@ class pose_view {
   std::vector<glm::vec3> points;
   glm::mat4 axis;
 
-  void render(view_context* context);
+  void initialize(vk::Device device, vk::PhysicalDevice physical_device,
+                  vk::RenderPass render_pass);
+  void cleanup();
+  void render(view_context* context, vk::CommandBuffer cmd, vk::Extent2D extent);
+
+ private:
+  std::unique_ptr<render3d_pipeline> pipeline_;
 };
 
 class azimuth_elevation {
@@ -362,7 +368,13 @@ class azimuth_elevation {
 
   void set_radius_translation(float value) { radius_translation = value; }
 
-  void set_radius(float value) { radius = value; }
+  void set_radius(float value) {
+    radius = value;
+    // Prevent radius from going too small or negative
+    if (radius < 0.05f * POSE_VIEW_SCALE) {
+      radius = 0.05f * POSE_VIEW_SCALE;
+    }
+  }
   float get_radius() const { return radius; }
 
   float get_screen_w() const { return (float)screen_size.x; }
@@ -438,16 +450,27 @@ class azimuth_elevation {
     angle = glm::vec2(0.f, 0.f);
     previous_rotation = glm::quat(1.f, 0.f, 0.f, 0.f);
     current_rotation = glm::angleAxis(glm::radians(30.f), glm::vec3(1.f, 0.f, 0.f));
-    translation_matrix = glm::translate(glm::vec3(0.f, 1.f, 0.f));
+    translation_matrix = glm::translate(glm::vec3(0.f, 1.f * POSE_VIEW_SCALE, 0.f));
     translation_delta_matrix = glm::identity<glm::mat4>();
     drag_rotation = false;
-    radius_translation = 1.0f;
-    radius = 5.0f;
+    radius_translation = 1.0f * POSE_VIEW_SCALE;
+    radius = 5.0f * POSE_VIEW_SCALE;
   }
 
   void update(mouse_state mouse);
 
-  void scroll(double x, double y) { radius -= (static_cast<float>(y) * 1.0f); }
+  void scroll(double x, double y) {
+    radius -= (static_cast<float>(y) * 1.0f * POSE_VIEW_SCALE);
+    // Prevent radius from going too small or negative
+    if (radius < 0.05f * POSE_VIEW_SCALE) {
+      radius = 0.05f * POSE_VIEW_SCALE;
+    }
+  }
+
+  void set_screen_area(glm::u32vec2 offset, glm::u32vec2 size) {
+    screen_offset = offset;
+    screen_size = size;
+  }
 
  private:
   static glm::vec2 get_center(int width, int height) {
