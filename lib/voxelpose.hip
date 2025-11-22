@@ -1,12 +1,9 @@
 #include <hip/hip_runtime.h>
-#include <hipblas/hipblas.h>
-#include <miopen/miopen.h>
 
 #include <algorithm>
 #include <iostream>
 #include <numeric>
 
-// #include "device_launch_parameters.h"
 #include "preprocess.hpp"
 #include "voxelpose_internal.hpp"
 
@@ -18,16 +15,6 @@
               __FILE__, __LINE__);                                                                \
       exit(err);                                                                                  \
     }                                                                                             \
-  } while (0)
-
-#define MIOPEN_SAFE_CALL(func)                                                                  \
-  do {                                                                                          \
-    miopenStatus_t err = (func);                                                                \
-    if (err != miopenStatusSuccess) {                                                           \
-      fprintf(stderr, "[Error] %s (error code: %d) at %s line %d\n", miopenGetErrorString(err), \
-              err, __FILE__, __LINE__);                                                         \
-      exit(err);                                                                                \
-    }                                                                                           \
   } while (0)
 
 #define HIPBLAS_SAFE_CALL(error)                                                                  \
@@ -382,11 +369,109 @@ __global__ void soft_argmax_pre_kernel(const float* src, float* dst, float* grid
   }
 }
 
+// Custom softmax kernel to replace MIOpen
+__global__ void softmax_kernel(const float* input, float* output, int num_bins, int num_joints) {
+  const int joint_idx = blockIdx.x;
+  if (joint_idx >= num_joints) return;
+
+  const float* input_joint = input + joint_idx * num_bins;
+  float* output_joint = output + joint_idx * num_bins;
+
+  // Find max value for numerical stability
+  float max_val = -1e30f;
+  for (int i = threadIdx.x; i < num_bins; i += blockDim.x) {
+    max_val = fmaxf(max_val, input_joint[i]);
+  }
+
+  // Warp-level reduction for max
+  for (int offset = 16; offset > 0; offset /= 2) {
+    max_val = fmaxf(max_val, __shfl_down(max_val, offset));
+  }
+
+  __shared__ float block_max;
+  if (threadIdx.x == 0) {
+    block_max = -1e30f;
+  }
+  __syncthreads();
+
+  if (threadIdx.x % 32 == 0) {
+    atomicMax(reinterpret_cast<int*>(&block_max), __float_as_int(max_val));
+  }
+  __syncthreads();
+
+  // Compute exp and sum
+  float sum_exp = 0.0f;
+  for (int i = threadIdx.x; i < num_bins; i += blockDim.x) {
+    const float exp_val = expf(input_joint[i] - block_max);
+    output_joint[i] = exp_val;
+    sum_exp += exp_val;
+  }
+
+  // Warp-level reduction for sum
+  for (int offset = 16; offset > 0; offset /= 2) {
+    sum_exp += __shfl_down(sum_exp, offset);
+  }
+
+  __shared__ float block_sum;
+  if (threadIdx.x == 0) {
+    block_sum = 0.0f;
+  }
+  __syncthreads();
+
+  if (threadIdx.x % 32 == 0) {
+    atomicAdd(&block_sum, sum_exp);
+  }
+  __syncthreads();
+
+  // Normalize
+  const float inv_sum = 1.0f / (block_sum + 1e-8f);
+  for (int i = threadIdx.x; i < num_bins; i += blockDim.x) {
+    output_joint[i] *= inv_sum;
+  }
+}
+
+__global__ void soft_argmax_gemm_kernel(const float* grid, const float* softmax_value,
+                                        float* joints, int num_bins, int num_joints) {
+  const int joint_idx = blockIdx.x;
+  const int xyz_idx = blockIdx.y;
+
+  if (joint_idx >= num_joints || xyz_idx >= 3) return;
+
+  const float* grid_ptr = grid + xyz_idx * num_bins;
+  const float* softmax_ptr = softmax_value + joint_idx * num_bins;
+
+  float sum = 0.0f;
+  for (int i = threadIdx.x; i < num_bins; i += blockDim.x) {
+    sum += grid_ptr[i] * softmax_ptr[i];
+  }
+
+  // Warp-level reduction
+  for (int offset = 16; offset > 0; offset /= 2) {
+    sum += __shfl_down(sum, offset);
+  }
+
+  __shared__ float block_sum[32];  // One per warp
+  const int warp_id = threadIdx.x / 32;
+  const int lane_id = threadIdx.x % 32;
+
+  if (lane_id == 0) {
+    block_sum[warp_id] = sum;
+  }
+  __syncthreads();
+
+  // Final reduction across warps
+  if (threadIdx.x == 0) {
+    float total = 0.0f;
+    const int num_warps = (blockDim.x + 31) / 32;
+    for (int i = 0; i < num_warps; i++) {
+      total += block_sum[i];
+    }
+    joints[joint_idx * 3 + xyz_idx] = total;
+  }
+}
+
 struct joint_extractor::cuda_data {
   hipStream_t stream;
-  miopenHandle_t miopen_handle;
-  hipblasHandle_t hipblas_handle;
-  miopenTensorDescriptor_t scaled_value_tensor, softmax_value_tensor;
   float* scaled_value;
   float* grid;
   float* softmax_value;
@@ -394,35 +479,11 @@ struct joint_extractor::cuda_data {
 
   cuda_data() : scaled_value(nullptr), grid(nullptr), softmax_value(nullptr), joints(nullptr) {
     hipStreamCreate(&stream);
-
-    miopenCreate(&miopen_handle);
-    miopenSetStream(miopen_handle, stream);
-
-    miopenCreateTensorDescriptor(&scaled_value_tensor);
-    miopenSet4dTensorDescriptor(scaled_value_tensor, miopenFloat, 15, 1, 1, 64 * 64 * 64);
-
-    miopenCreateTensorDescriptor(&softmax_value_tensor);
-    miopenSet4dTensorDescriptor(softmax_value_tensor, miopenFloat, 15, 1, 1, 64 * 64 * 64);
-
-    hipblasCreate(&hipblas_handle);
-    hipblasSetStream(hipblas_handle, stream);
   }
 
   ~cuda_data() {
     hipStreamDestroy(stream);
     stream = nullptr;
-
-    miopenDestroyTensorDescriptor(scaled_value_tensor);
-    scaled_value_tensor = nullptr;
-
-    miopenDestroyTensorDescriptor(softmax_value_tensor);
-    softmax_value_tensor = nullptr;
-
-    miopenDestroy(miopen_handle);
-    miopen_handle = nullptr;
-
-    hipblasDestroy(hipblas_handle);
-    hipblas_handle = nullptr;
 
     if (scaled_value) {
       hipFree(scaled_value);
@@ -458,47 +519,40 @@ void joint_extractor::soft_argmax(const float* src_data, float beta,
   if (!cuda_data_->scaled_value) {
     CUDA_SAFE_CALL(hipMalloc(&cuda_data_->scaled_value, num_bins * num_joints * sizeof(float)));
   }
-
   if (!cuda_data_->grid) {
     CUDA_SAFE_CALL(hipMalloc(&cuda_data_->grid, num_bins * 3 * sizeof(float)));
   }
-
   if (!cuda_data_->softmax_value) {
     CUDA_SAFE_CALL(hipMalloc(&cuda_data_->softmax_value, num_bins * num_joints * sizeof(float)));
   }
-
   if (!cuda_data_->joints) {
     CUDA_SAFE_CALL(hipMalloc(&cuda_data_->joints, num_joints * 3 * sizeof(float)));
   }
 
+  // Step 1: Generate grid coordinates and scale input
   {
     dim3 block(256, 1, 1);
     dim3 grid((num_bins + block.x - 1) / block.x, 1, 1);
-
     soft_argmax_pre_kernel<<<grid, block, 0, cuda_data_->stream>>>(
         src_data, cuda_data_->scaled_value, cuda_data_->grid, cube_size[0], cube_size[1],
         cube_size[2], num_joints, grid_size[0], grid_size[1], grid_size[2], grid_center[0],
         grid_center[1], grid_center[2], beta);
   }
 
+  // Step 2: Softmax
   {
-    const float alpha = 1.0f;
-    const float beta = 0.0f;
-
-    MIOPEN_SAFE_CALL(miopenSoftmaxForward_V2(
-        cuda_data_->miopen_handle, &alpha, cuda_data_->scaled_value_tensor,
-        cuda_data_->scaled_value, &beta, cuda_data_->softmax_value_tensor,
-        cuda_data_->softmax_value, MIOPEN_SOFTMAX_ACCURATE, MIOPEN_SOFTMAX_MODE_INSTANCE));
+    dim3 block(256, 1, 1);
+    dim3 grid(num_joints, 1, 1);
+    softmax_kernel<<<grid, block, 0, cuda_data_->stream>>>(
+        cuda_data_->scaled_value, cuda_data_->softmax_value, num_bins, num_joints);
   }
 
+  // Step 3: Weighted sum (GEMM)
   {
-    const float alpha = 1.0f;
-    const float beta = 0.0f;
-
-    HIPBLAS_SAFE_CALL(hipblasSgemm(cuda_data_->hipblas_handle, HIPBLAS_OP_T, HIPBLAS_OP_N, 3,
-                                   num_joints, num_bins, &alpha, cuda_data_->grid, num_bins,
-                                   cuda_data_->softmax_value, num_bins, &beta, cuda_data_->joints,
-                                   3));
+    dim3 block(256, 1, 1);
+    dim3 grid(num_joints, 3, 1);
+    soft_argmax_gemm_kernel<<<grid, block, 0, cuda_data_->stream>>>(
+        cuda_data_->grid, cuda_data_->softmax_value, cuda_data_->joints, num_bins, num_joints);
   }
 
   CUDA_SAFE_CALL(hipStreamSynchronize(cuda_data_->stream));
