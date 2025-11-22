@@ -15,8 +15,8 @@ RUN wget https://repo.radeon.com/rocm/rocm.gpg.key -O - | \
     gpg --dearmor | tee /etc/apt/keyrings/rocm.gpg > /dev/null
 
 RUN cat <<EOF >> /etc/apt/sources.list.d/rocm.list
-deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] https://repo.radeon.com/rocm/apt/7.0 noble main
-deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] https://repo.radeon.com/graphics/7.0/ubuntu noble main
+deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] https://repo.radeon.com/rocm/apt/7.1 noble main
+deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] https://repo.radeon.com/graphics/7.1/ubuntu noble main
 EOF
 
 RUN cat <<EOF >> /etc/apt/preferences.d/rocm-pin-600
@@ -33,10 +33,15 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
     && apt-get -y install --no-install-recommends xxd gfortran bison python3 python3-setuptools libarchive-dev libblas-dev liblapack-dev \
     libxinerama-dev libxcursor-dev xorg-dev libglu1-mesa-dev pkg-config
 
+RUN wget -qO- https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo tee /etc/apt/trusted.gpg.d/lunarg.asc \
+    && wget -qO /etc/apt/sources.list.d/lunarg-vulkan-noble.list http://packages.lunarg.com/vulkan/lunarg-vulkan-noble.list \
+    && sudo apt update \
+    && sudo apt install -y vulkan-sdk mesa-vulkan-drivers
+
 RUN update-alternatives --set c++ /usr/bin/clang++ \
     && update-alternatives --set cc /usr/bin/clang
 
-RUN su vscode -c "${VCPKG_ROOT}/vcpkg install boost-asio boost-graph ceres opencv4[core,highgui,calib3d,contrib,jpeg,dnn] glm grpc nanoflann nlohmann-json libjpeg-turbo sqlite3 cereal spdlog glfw3 glad imgui[opengl3-binding,glfw-binding]"
+RUN su vscode -c "${VCPKG_ROOT}/vcpkg install boost-asio boost-graph ceres opencv4[core,highgui,calib3d,contrib,jpeg,dnn] glm grpc nanoflann nlohmann-json libjpeg-turbo sqlite3 cereal spdlog glfw3 glad imgui[vulkan-binding,opengl3-binding,glfw-binding]"
 
 ENV PATH=$PATH:${VCPKG_ROOT}/installed/x64-linux
 ENV PATH=$PATH:${VCPKG_ROOT}/installed/x64-linux/tools/protobuf
