@@ -485,10 +485,10 @@ void joint_extractor::soft_argmax(const float* src_data, float beta,
     const float alpha = 1.0f;
     const float beta = 0.0f;
 
-    MIOPEN_SAFE_CALL(miopenSoftmaxForward(cuda_data_->miopen_handle, &alpha,
-                                          cuda_data_->scaled_value_tensor, cuda_data_->scaled_value,
-                                          &beta, cuda_data_->softmax_value_tensor,
-                                          cuda_data_->softmax_value));
+    MIOPEN_SAFE_CALL(miopenSoftmaxForward_V2(
+        cuda_data_->miopen_handle, &alpha, cuda_data_->scaled_value_tensor,
+        cuda_data_->scaled_value, &beta, cuda_data_->softmax_value_tensor,
+        cuda_data_->softmax_value, MIOPEN_SOFTMAX_ACCURATE, MIOPEN_SOFTMAX_MODE_INSTANCE));
   }
 
   {

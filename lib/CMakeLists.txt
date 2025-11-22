@@ -31,6 +31,7 @@ target_include_directories(stargazer_voxelpose
 target_compile_definitions(stargazer_voxelpose
     PUBLIC
     $<$<BOOL:${ENABLE_CUDA}>:USE_CUDA>
+    $<$<NOT:$<BOOL:${ENABLE_CUDA}>>:USE_MIGRAPHX>
 )
 
 if (ENABLE_CUDA)
@@ -72,6 +73,8 @@ else()
         hip::host
         roc::hipblas
         MIOpen
+        migraphx::c
+        /opt/rocm/lib/migraphx/lib/libmigraphx_tf.so
         spdlog::spdlog_header_only
         cereal::cereal
     )
