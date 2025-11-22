@@ -518,7 +518,8 @@ class ort_dnn_inference_heatmap : public dnn_inference_heatmap {
 }  // namespace stargazer::voxelpose
 #endif
 
-#define USE_TENSORRT
+// #define USE_TENSORRT
+// #define USE_MIGRAPHX
 
 #ifdef USE_TENSORRT
 
@@ -859,6 +860,319 @@ class trt_dnn_inference_heatmap : public dnn_inference_heatmap {
 }  // namespace stargazer::voxelpose
 #endif
 
+#ifdef USE_MIGRAPHX
+
+#include <migraphx/migraphx.h>
+
+#include <migraphx/migraphx.hpp>
+
+namespace stargazer::voxelpose {
+
+class mgx_dnn_inference : public dnn_inference {
+  std::vector<uint8_t> model_data;
+
+  migraphx::program prog;
+
+  float* input_data = nullptr;
+  float* output_data = nullptr;
+
+  std::vector<std::string> input_node_names;
+  std::vector<std::string> output_node_names;
+
+  std::unordered_map<std::string, std::vector<int64_t>> input_node_dims;
+  std::unordered_map<std::string, std::vector<int64_t>> output_node_dims;
+
+ public:
+  mgx_dnn_inference(const std::string& model_path) {
+    spdlog::info("Loading MIGraphX compiled model: {}", model_path);
+    prog = migraphx::load(model_path.c_str());
+
+    // Get input parameter shapes
+    auto param_shapes = prog.get_parameter_shapes();
+    for (const auto& name : param_shapes.names()) {
+      const auto& shape = param_shapes[name];
+
+      std::vector<int64_t> dims;
+
+      // Dynamic shapes not expected for these models, but check anyway
+      if (!shape.dynamic()) {
+        auto lengths = shape.lengths();
+        for (size_t i = 0; i < lengths.size(); i++) {
+          dims.push_back(lengths[i]);
+        }
+      } else {
+        throw std::runtime_error("Dynamic shapes not supported for this model");
+      }
+
+      input_node_names.push_back(name);
+      input_node_dims[name] = dims;
+    }
+
+    // Get output shapes
+    auto output_shapes = prog.get_output_shapes();
+    for (size_t i = 0; i < output_shapes.size(); i++) {
+      const auto& shape = output_shapes[i];
+
+      std::vector<int64_t> dims;
+
+      // Dynamic shapes not expected for these models, but check anyway
+      if (!shape.dynamic()) {
+        auto lengths = shape.lengths();
+        for (size_t j = 0; j < lengths.size(); j++) {
+          dims.push_back(lengths[j]);
+        }
+      } else {
+        throw std::runtime_error("Dynamic shapes not supported for this model");
+      }
+
+      // MIGraphX doesn't name outputs, use index
+      std::string name = "output";
+      output_node_names.push_back(name);
+      output_node_dims[name] = dims;
+    }
+
+    assert(input_node_names.size() == 1);
+    assert(output_node_names.size() == 1);
+
+    {
+      const auto dims = input_node_dims.at(input_node_names[0]);
+      const auto input_size =
+          std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<int64_t>());
+
+      malloc_device(&input_data, input_size);
+    }
+
+    {
+      const auto dims = output_node_dims.at(output_node_names[0]);
+      const auto output_size =
+          std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<int64_t>());
+
+      malloc_device(&output_data, output_size);
+    }
+  }
+
+  ~mgx_dnn_inference() {
+    free_device(input_data);
+    free_device(output_data);
+  }
+
+  void inference(const float* input) {
+    assert(input_node_names.size() == 1);
+    assert(input_node_names[0] == "input");
+
+    assert(output_node_names.size() == 1);
+    assert(output_node_names[0] == "output");
+
+    const auto dims = input_node_dims.at(input_node_names[0]);
+    const auto input_size =
+        std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<int64_t>());
+
+    memcpy_dtod(input_data, input, input_size * sizeof(float));
+
+    migraphx::program_parameters params;
+    std::vector<size_t> shape_dims;
+    for (auto d : dims) shape_dims.push_back(d);
+    migraphx::shape input_shape{migraphx_shape_float_type, shape_dims};
+
+    // Create empty argument and copy data from HIP memory
+    migraphx::argument input_arg(input_shape);
+    memcpy_dtod(input_arg.data(), input_data, input_shape.bytes());
+    params.add(input_node_names[0].c_str(), input_arg);
+
+    auto outputs = prog.eval(params);
+
+    const auto& output = outputs[0];
+    // MIGraphX returns GPU memory, copy to our HIP buffer
+    auto output_size = output.get_shape().bytes();
+#if defined(USE_HIP) || defined(USE_MIGRAPHX)
+    HIP_SAFE_CALL(hipMemcpy(output_data, output.data(), output_size, hipMemcpyDeviceToDevice));
+#endif
+  }
+
+  const float* get_output_data() const { return output_data; }
+};
+
+class mgx_dnn_inference_heatmap : public dnn_inference_heatmap {
+  std::vector<uint8_t> model_data;
+
+  migraphx::program prog;
+
+  float* input_data = nullptr;
+  float* output_data = nullptr;
+
+  std::vector<std::string> input_node_names;
+  std::vector<std::string> output_node_names;
+
+  std::unordered_map<std::string, std::vector<int64_t>> input_node_dims;
+  std::unordered_map<std::string, std::vector<int64_t>> output_node_dims;
+
+  static const int max_input_image_width = 1920;
+  static const int max_input_image_height = 1080;
+
+  int image_width = 960;
+  int image_height = 512;
+
+  uint8_t* input_image_data = nullptr;
+
+ public:
+  mgx_dnn_inference_heatmap(const std::string& model_path, size_t max_views) {
+    spdlog::info("Loading MIGraphX compiled heatmap model: {}", model_path);
+    prog = migraphx::load(model_path.c_str());
+
+    // Get input parameter shapes
+    auto param_shapes = prog.get_parameter_shapes();
+    for (const auto& name : param_shapes.names()) {
+      const auto& shape = param_shapes[name];
+
+      std::vector<int64_t> dims;
+
+      // Check if shape is dynamic
+      if (shape.dynamic()) {
+        // For dynamic shapes, use expected dimensions
+        // Input shape: [batch, channels, height, width] = [max_views, 3, 512, 960]
+        dims = {static_cast<int64_t>(max_views), 3, 512, 960};
+      } else {
+        auto lengths = shape.lengths();
+        for (size_t i = 0; i < lengths.size(); i++) {
+          dims.push_back(lengths[i]);
+        }
+      }
+
+      input_node_names.push_back(name);
+      input_node_dims[name] = dims;
+    }
+
+    // Get output shapes
+    auto output_shapes = prog.get_output_shapes();
+    for (size_t i = 0; i < output_shapes.size(); i++) {
+      const auto& shape = output_shapes[i];
+
+      std::vector<int64_t> dims;
+
+      // Check if shape is dynamic
+      if (shape.dynamic()) {
+        // For dynamic shapes, use expected dimensions
+        // Output shape: [batch, channels, height, width] = [max_views, 15, 128, 240]
+        dims = {static_cast<int64_t>(max_views), 15, 128, 240};
+      } else {
+        auto lengths = shape.lengths();
+        for (size_t j = 0; j < lengths.size(); j++) {
+          dims.push_back(lengths[j]);
+        }
+      }
+
+      // MIGraphX doesn't name outputs, use index
+      std::string name = "output";
+      output_node_names.push_back(name);
+      output_node_dims[name] = dims;
+    }
+
+    assert(input_node_names.size() == 1);
+    assert(output_node_names.size() == 1);
+
+    const auto input_size = 960 * 512 * 3 * max_views;
+    malloc_device(&input_data, input_size);
+
+    const auto output_size = 240 * 128 * 15 * max_views;
+    malloc_device(&output_data, output_size);
+
+    malloc_device(&input_image_data,
+                  max_input_image_width * max_input_image_height * 3 * max_views);
+  }
+
+  ~mgx_dnn_inference_heatmap() {
+    free_device(input_data);
+    free_device(output_data);
+    free_device(input_image_data);
+  }
+
+  void process(const std::vector<cv::Mat>& images, std::vector<roi_data>& rois) {
+    const auto&& image_size = cv::Size(image_width, image_height);
+
+    for (size_t i = 0; i < images.size(); i++) {
+      const auto& data = images.at(i);
+
+      const auto get_scale = [](const cv::Size2f& image_size, const cv::Size2f& resized_size) {
+        float w_pad, h_pad;
+        if (image_size.width / resized_size.width < image_size.height / resized_size.height) {
+          w_pad = image_size.height / resized_size.height * resized_size.width;
+          h_pad = image_size.height;
+        } else {
+          w_pad = image_size.width;
+          h_pad = image_size.width / resized_size.width * resized_size.height;
+        }
+
+        return cv::Size2f(w_pad / 200.0, h_pad / 200.0);
+      };
+
+      const auto input_image_width = data.size().width;
+      const auto input_image_height = data.size().height;
+
+      assert(input_image_width <= max_input_image_width);
+      assert(input_image_height <= max_input_image_height);
+
+      const auto scale = get_scale(data.size(), image_size);
+      const auto center = cv::Point2f(data.size().width / 2.0, data.size().height / 2.0);
+      const auto rotation = 0.0;
+
+      roi_data roi = {{scale.width, scale.height}, rotation, {center.x, center.y}};
+      rois.push_back(roi);
+
+      const std::array<float, 3> mean = {0.485, 0.456, 0.406};
+      const std::array<float, 3> std = {0.229, 0.224, 0.225};
+
+      memcpy2d_htod(input_image_data + i * input_image_width * 3 * input_image_height,
+                    input_image_width * 3, data.data, data.step, data.cols * 3, data.rows);
+
+      preprocess_cuda(input_image_data + i * input_image_width * 3 * input_image_height,
+                      input_image_width, input_image_height, input_image_width * 3,
+                      input_data + i * 960 * 512 * 3, 960, 512, 960, mean, std);
+    }
+
+    synchronize_device();
+
+    inference(images.size());
+  }
+
+  void inference(size_t num_views) {
+    assert(input_node_names.size() == 1);
+    assert(input_node_names[0] == "input");
+
+    assert(output_node_names.size() == 1);
+    assert(output_node_names[0] == "output");
+
+    auto dims = input_node_dims.at(input_node_names[0]);
+    dims[0] = num_views;
+
+    migraphx::program_parameters params;
+    std::vector<size_t> shape_dims;
+    for (auto d : dims) shape_dims.push_back(d);
+    migraphx::shape input_shape{migraphx_shape_float_type, shape_dims};
+
+    // Create empty argument and copy data from HIP memory
+    migraphx::argument input_arg(input_shape);
+    memcpy_dtod(input_arg.data(), input_data, input_shape.bytes());
+    params.add(input_node_names[0].c_str(), input_arg);
+
+    auto outputs = prog.eval(params);
+
+    const auto& output = outputs[0];
+    // MIGraphX returns GPU memory, copy to our HIP buffer
+    auto output_size = output.get_shape().bytes();
+#if defined(USE_HIP) || defined(USE_MIGRAPHX)
+    HIP_SAFE_CALL(hipMemcpy(output_data, output.data(), output_size, hipMemcpyDeviceToDevice));
+#endif
+  }
+
+  const float* get_heatmaps() const { return output_data; }
+
+  int get_heatmap_width() const { return 240; }
+
+  int get_heatmap_height() const { return 128; }
+};
+}  // namespace stargazer::voxelpose
+#endif
+
 namespace stargazer::voxelpose {
 class cv_dnn_inference : public dnn_inference {
   cv::dnn::Net net;
@@ -1129,7 +1443,9 @@ voxelpose::voxelpose()
       joint_extract(new joint_extractor()),
       grid_center({0.0, 0.0, 0.0}),
       grid_size({8000.0, 8000.0, 2000.0}) {
-#ifdef USE_TENSORRT
+#ifdef USE_MIGRAPHX
+  inference_heatmap.reset(new mgx_dnn_inference_heatmap("../data/voxelpose/backbone.mxr", 5));
+#elif defined(USE_TENSORRT)
   std::vector<uint8_t> backbone_model_data;
   {
     const auto model_path = "../data/voxelpose/backbone-fp16.trt";
@@ -1164,7 +1480,9 @@ voxelpose::voxelpose()
   inference_heatmap.reset(new cv_dnn_inference_heatmap(backbone_model_data, 5));
 #endif
 
-#ifdef USE_TENSORRT
+#ifdef USE_MIGRAPHX
+  inference_proposal.reset(new mgx_dnn_inference("../data/voxelpose/proposal_v2v_net.mxr"));
+#elif defined(USE_TENSORRT)
   std::vector<uint8_t> proposal_v2v_net_model_data;
   {
     const auto model_path = "../data/voxelpose/proposal_v2v_net-fp16.trt";
@@ -1199,7 +1517,9 @@ voxelpose::voxelpose()
   inference_proposal.reset(new cv_dnn_inference(proposal_v2v_net_model_data));
 #endif
 
-#ifdef USE_TENSORRT
+#ifdef USE_MIGRAPHX
+  inference_pose.reset(new mgx_dnn_inference("../data/voxelpose/pose_v2v_net.mxr"));
+#elif defined(USE_TENSORRT)
   std::vector<uint8_t> pose_v2v_net_model_data;
   {
     const auto model_path = "../data/voxelpose/pose_v2v_net-fp16.trt";
@@ -1263,9 +1583,12 @@ std::vector<glm::vec3> voxelpose::inference(const std::vector<cv::Mat>& images_l
   inference_proposal->inference(global_proj->get_cubes());
 
   coalsack::tensor<float, 5> proposal({20, 80, 80, 1, 1});
-#ifdef USE_CUDA
+#if defined(USE_CUDA)
   CUDA_SAFE_CALL(cudaMemcpy(proposal.get_data(), inference_proposal->get_output_data(),
                             proposal.get_size() * sizeof(float), cudaMemcpyDeviceToHost));
+#elif defined(USE_HIP) || defined(USE_MIGRAPHX)
+  HIP_SAFE_CALL(hipMemcpy(proposal.get_data(), inference_proposal->get_output_data(),
+                          proposal.get_size() * sizeof(float), hipMemcpyDeviceToHost));
 #endif
 
   prop->set_max_num(10);
@@ -1302,9 +1625,12 @@ std::vector<glm::vec3> voxelpose::inference(const std::vector<cv::Mat>& images_l
 
       std::vector<glm::vec3> joints(15);
 
-#ifdef USE_CUDA
+#if defined(USE_CUDA)
       CUDA_SAFE_CALL(cudaMemcpy(&joints[0][0], joint_extract->get_joints(), 3 * 15 * sizeof(float),
                                 cudaMemcpyDeviceToHost));
+#elif defined(USE_HIP) || defined(USE_MIGRAPHX)
+      HIP_SAFE_CALL(hipMemcpy(&joints[0][0], joint_extract->get_joints(), 3 * 15 * sizeof(float),
+                              hipMemcpyDeviceToHost));
 #endif
 
       glm::mat4 basis(1.f);
@@ -1324,11 +1650,16 @@ std::vector<glm::vec3> voxelpose::inference(const std::vector<cv::Mat>& images_l
 const float* voxelpose::get_heatmaps() const { return inference_heatmap->get_heatmaps(); }
 
 void voxelpose::copy_heatmap_to(size_t num_views, float* data) const {
-#ifdef USE_CUDA
+#if defined(USE_CUDA)
   const auto heatmap_size =
       get_heatmap_width() * get_heatmap_height() * get_num_joints() * num_views;
   CUDA_SAFE_CALL(
       cudaMemcpy(data, get_heatmaps(), heatmap_size * sizeof(float), cudaMemcpyDeviceToHost));
+#elif defined(USE_HIP) || defined(USE_MIGRAPHX)
+  const auto heatmap_size =
+      get_heatmap_width() * get_heatmap_height() * get_num_joints() * num_views;
+  HIP_SAFE_CALL(
+      hipMemcpy(data, get_heatmaps(), heatmap_size * sizeof(float), hipMemcpyDeviceToHost));
 #endif
 }
 uint32_t voxelpose::get_heatmap_width() const { return inference_heatmap->get_heatmap_width(); }
