@@ -1,6 +1,3 @@
-#define GLFW_INCLUDE_GLU
-
-#include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <signal.h>
 #include <spdlog/spdlog.h>
@@ -13,12 +10,17 @@
 #include <memory>
 #include <opencv2/core.hpp>
 #include <opencv2/imgproc.hpp>
+#include <vulkan/vulkan.hpp>
 
 #include "calibration_pipeline.hpp"
 #include "capture_pipeline.hpp"
 #include "config.hpp"
+#include "gui.hpp"
+#include "imgui.h"
+#include "imgui_impl_glfw.h"
 #include "parameters.hpp"
 #include "reconstruction_pipeline.hpp"
+#include "render3d.hpp"
 #include "viewer.hpp"
 #include "views.hpp"
 
@@ -30,6 +32,7 @@ const int SCREEN_HEIGHT = 1050;
 class viewer_app : public window_base {
   ImFont* large_font;
   ImFont* default_font;
+  graphics_context* gfx_ctx;  // Graphics context pointer
 
   std::unique_ptr<view_context> context;
   std::unique_ptr<top_bar_view> top_bar_view_;
@@ -111,7 +114,7 @@ class viewer_app : public window_base {
             const auto height = static_cast<int>(std::round(node_info.get_param<float>("height")));
 
             const auto stream = std::make_shared<image_tile_view::stream_info>(
-                device.name, float2{(float)width, (float)height});
+                device.name, float2{(float)width, (float)height}, gfx_ctx);
             image_tile_view_->streams.push_back(stream);
           } else {
             auto it = captures.find(device.name);
@@ -162,7 +165,7 @@ class viewer_app : public window_base {
                 const auto height =
                     static_cast<int>(std::round(node_info.get_param<float>("height")));
                 const auto stream = std::make_shared<image_tile_view::stream_info>(
-                    node_info.name, float2{(float)width, (float)height});
+                    node_info.name, float2{(float)width, (float)height}, gfx_ctx);
                 image_tile_view_->streams.push_back(stream);
               }
             }
@@ -322,7 +325,7 @@ class viewer_app : public window_base {
                   const auto height =
                       static_cast<int>(std::round(node_info.get_param<float>("height")));
                   const auto stream = std::make_shared<image_tile_view::stream_info>(
-                      node_info.name, float2{(float)width, (float)height});
+                      node_info.name, float2{(float)width, (float)height}, gfx_ctx);
                   image_tile_view_->streams.push_back(stream);
                 }
               }
@@ -359,7 +362,7 @@ class viewer_app : public window_base {
                   static_cast<int>(std::round(node_info.get_param<float>("height")));
 
               const auto stream = std::make_shared<image_tile_view::stream_info>(
-                  device.name, float2{(float)width, (float)height});
+                  device.name, float2{(float)width, (float)height}, gfx_ctx);
               image_tile_view_->streams.push_back(stream);
             } else if (calibration_panel_view_->calibration_target_index == 2) {
               // Axis calibration
@@ -394,7 +397,7 @@ class viewer_app : public window_base {
                   const auto height =
                       static_cast<int>(std::round(node_info.get_param<float>("height")));
                   const auto stream = std::make_shared<image_tile_view::stream_info>(
-                      node_info.name, float2{(float)width, (float)height});
+                      node_info.name, float2{(float)width, (float)height}, gfx_ctx);
                   image_tile_view_->streams.push_back(stream);
                 }
               }
@@ -671,7 +674,7 @@ class viewer_app : public window_base {
                   const auto height =
                       static_cast<int>(std::round(node_info.get_param<float>("height")));
                   const auto stream = std::make_shared<image_tile_view::stream_info>(
-                      node_info.name, float2{(float)width, (float)height});
+                      node_info.name, float2{(float)width, (float)height}, gfx_ctx);
                   image_tile_view_->streams.push_back(stream);
                 }
               }
@@ -708,7 +711,7 @@ class viewer_app : public window_base {
                   const auto height =
                       static_cast<int>(std::round(node_info.get_param<float>("height")));
                   const auto stream = std::make_shared<image_tile_view::stream_info>(
-                      node_info.name, float2{(float)width, (float)height});
+                      node_info.name, float2{(float)width, (float)height}, gfx_ctx);
                   image_tile_view_->streams.push_back(stream);
                 }
               }
@@ -736,8 +739,6 @@ class viewer_app : public window_base {
   }
 
   void init_gui() {
-    const char* glsl_version = "#version 130";
-
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
@@ -750,8 +751,7 @@ class viewer_app : public window_base {
     // ImGui::StyleColorsLight();
 
     // Setup Platform/Renderer backends
-    ImGui_ImplGlfw_InitForOpenGL((GLFWwindow*)get_handle(), true);
-    ImGui_ImplOpenGL3_Init(glsl_version);
+    ImGui_ImplGlfw_InitForVulkan((GLFWwindow*)get_handle(), true);
 
     static const ImWchar icons_ranges[] = {0xf000, 0xf999, 0};
 
@@ -826,19 +826,30 @@ class viewer_app : public window_base {
   }
 
   void term_gui() {
-    if (ImGui::GetIO().BackendRendererUserData) {
-      ImGui_ImplOpenGL3_Shutdown();
-    }
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
   }
 
  public:
-  viewer_app() : window_base("Stargazer", SCREEN_WIDTH, SCREEN_HEIGHT), calib() {}
+  viewer_app() : window_base("Stargazer", SCREEN_WIDTH, SCREEN_HEIGHT), gfx_ctx(nullptr), calib() {}
+
+  void set_graphics_context(graphics_context* ctx) {
+    gfx_ctx = ctx;
+
+    // Set graphics context for all existing stream textures
+    if (image_tile_view_) {
+      for (auto& stream : image_tile_view_->streams) {
+        stream->texture.set_context(gfx_ctx);
+      }
+    }
+    if (contrail_tile_view_) {
+      for (auto& stream : contrail_tile_view_->streams) {
+        stream->texture.set_context(gfx_ctx);
+      }
+    }
+  }
 
   virtual void initialize() override {
-    gladLoadGL();
-
     capture_config.reset(new configuration("../config/capture.json"));
     reconstruction_config.reset(new configuration("../config/reconstruction.json"));
     calibration_config.reset(new configuration("../config/calibration.json"));
@@ -863,7 +874,14 @@ class viewer_app : public window_base {
 
     view_controller =
         std::make_shared<azimuth_elevation>(glm::u32vec2(0, 0), glm::u32vec2(width, height));
+
     pose_view_ = std::make_unique<pose_view>();
+
+    // Initialize pose_view with Vulkan resources
+    if (gfx_ctx) {
+      pose_view_->initialize(gfx_ctx->device.get(), gfx_ctx->physical_device,
+                             gfx_ctx->render_pass.get());
+    }
 
     multiview_point_reconstruction_pipeline_ =
         std::make_unique<multiview_point_reconstruction_pipeline>();
@@ -951,7 +969,10 @@ class viewer_app : public window_base {
   }
 
   virtual void finalize() override {
-    term_gui();
+    // Cleanup pose_view Vulkan resources
+    if (pose_view_) {
+      pose_view_->cleanup();
+    }
 
     calib->stop();
     axis_calib->stop();
@@ -978,7 +999,7 @@ class viewer_app : public window_base {
     if (handle == nullptr) {
       return;
     }
-    ImGui_ImplOpenGL3_NewFrame();
+
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
@@ -998,8 +1019,7 @@ class viewer_app : public window_base {
               } else if (frame.channels() == 3) {
                 cv::cvtColor(frame, color_image, cv::COLOR_BGR2RGB);
               }
-              stream->texture.upload_image(color_image.cols, color_image.rows, color_image.data,
-                                           GL_RGB);
+              stream->texture.upload_image(color_image.cols, color_image.rows, color_image.data, 0);
             }
           }
         }
@@ -1018,8 +1038,7 @@ class viewer_app : public window_base {
             } else if (frame.channels() == 3) {
               cv::cvtColor(frame, color_image, cv::COLOR_BGR2RGB);
             }
-            stream->texture.upload_image(color_image.cols, color_image.rows, color_image.data,
-                                         GL_RGB);
+            stream->texture.upload_image(color_image.cols, color_image.rows, color_image.data, 0);
           }
         }
       }
@@ -1105,7 +1124,7 @@ class viewer_app : public window_base {
                            [&](const auto& x) { return x->name == node.name; });
           if (found == contrail_tile_view_->streams.end()) {
             stream = std::make_shared<image_tile_view::stream_info>(
-                node.name, float2{(float)width, (float)height});
+                node.name, float2{(float)width, (float)height}, gfx_ctx);
             contrail_tile_view_->streams.push_back(stream);
           } else {
             stream = *found;
@@ -1121,8 +1140,7 @@ class viewer_app : public window_base {
               }
             }
           }
-          stream->texture.upload_image(cloud_image.cols, cloud_image.rows, cloud_image.data,
-                                       GL_RGB);
+          stream->texture.upload_image(cloud_image.cols, cloud_image.rows, cloud_image.data, 0);
         }
       }
     } else if (top_bar_view_->view_mode == top_bar_view::Mode::Reconstruction) {
@@ -1180,8 +1198,7 @@ class viewer_app : public window_base {
                   cv::cvtColor(frame, color_image, cv::COLOR_BGR2RGB);
                 }
                 (*stream_it)
-                    ->texture.upload_image(color_image.cols, color_image.rows, color_image.data,
-                                           GL_RGB);
+                    ->texture.upload_image(color_image.cols, color_image.rows, color_image.data, 0);
               }
             }
           }
@@ -1206,8 +1223,7 @@ class viewer_app : public window_base {
                   cv::cvtColor(frame, color_image, cv::COLOR_BGR2RGB);
                 }
                 (*stream_it)
-                    ->texture.upload_image(color_image.cols, color_image.rows, color_image.data,
-                                           GL_RGB);
+                    ->texture.upload_image(color_image.cols, color_image.rows, color_image.data, 0);
               }
             }
           }
@@ -1222,16 +1238,18 @@ class viewer_app : public window_base {
     } else if (top_bar_view_->view_type == top_bar_view::ViewType::Point) {
       image_tile_view_->render(context.get());
     } else if (top_bar_view_->view_type == top_bar_view::ViewType::Pose) {
-      pose_view_->render(context.get());
+      if (gfx_ctx && pose_view_) {
+        vk::CommandBuffer cmd = gfx_ctx->command_buffers[gfx_ctx->current_frame].get();
+        pose_view_->render(context.get(), cmd, gfx_ctx->swapchain_extent);
+      }
     }
 
-    ImGui::Render();
-
-    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+    // Note: ImGui::Render() and ImGui_ImplVulkan_RenderDrawData() are called in
+    // graphics_context::swap_buffer()
   }
 
   virtual void on_char(unsigned int codepoint) override {}
-};
+};  // class viewer_app
 
 static void sigint_handler(int) { window_manager::get_instance()->exit(); }
 
@@ -1246,17 +1264,36 @@ int main() {
   window->create();
   auto graphics_ctx = window->create_graphics_context();
   graphics_ctx.attach();
+  window->set_graphics_context(&graphics_ctx);
+
   window->initialize();
+
+  // Set graphics context again after initialization to update all stream textures
+  window->set_graphics_context(&graphics_ctx);
+
+  // Initialize ImGui Vulkan backend
+  std::unique_ptr<imgui_context> imgui_ctx = std::make_unique<imgui_context>(&graphics_ctx);
+  imgui_ctx->initialize();
+
   window->show();
 
   while (!win_mgr->should_close()) {
     win_mgr->handle_event();
-    graphics_ctx.clear();
+    imgui_ctx->begin_frame();
+    graphics_ctx.begin_frame();
     window->update();
-    graphics_ctx.swap_buffer();
+    imgui_ctx->end_frame();
+    graphics_ctx.end_frame();
   }
 
   window->finalize();
+
+  imgui_ctx->cleanup();
+  imgui_ctx.reset();
+
+  ImGui_ImplGlfw_Shutdown();
+  ImGui::DestroyContext();
+
   graphics_ctx.detach();
   window->destroy();
 

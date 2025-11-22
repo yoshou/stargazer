@@ -69,10 +69,9 @@ else()
         opencv_features2d
         opencv_calib3d
         opencv_dnn
-        hip
+        hip::host
         roc::hipblas
         MIOpen
-        migraphx::c
         spdlog::spdlog_header_only
         cereal::cereal
     )
@@ -126,7 +125,7 @@ else()
         opencv_highgui
         opencv_features2d
         opencv_calib3d
-        hip
+        hip::host
         roc::hipblas
         MIOpen
         glm::glm
