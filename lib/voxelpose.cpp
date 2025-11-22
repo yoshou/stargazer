@@ -880,6 +880,7 @@ class mgx_dnn_inference : public dnn_inference {
 
   std::vector<std::string> input_node_names;
   std::vector<std::string> output_node_names;
+  std::vector<std::string> output_param_names;
 
   std::unordered_map<std::string, std::vector<int64_t>> input_node_dims;
   std::unordered_map<std::string, std::vector<int64_t>> output_node_dims;
@@ -891,7 +892,23 @@ class mgx_dnn_inference : public dnn_inference {
 
     // Get input parameter shapes
     auto param_shapes = prog.get_parameter_shapes();
-    for (const auto& name : param_shapes.names()) {
+    auto param_names = param_shapes.names();
+    for (const auto& name : param_names) {
+      std::string name_str(name);
+      if (name_str.find("#output") != std::string::npos) {
+        const auto& shape = param_shapes[name];
+        std::vector<int64_t> dims;
+        if (!shape.dynamic()) {
+          auto lengths = shape.lengths();
+          for (size_t i = 0; i < lengths.size(); i++) {
+            dims.push_back(lengths[i]);
+          }
+        }
+        output_param_names.push_back(name_str);
+        output_node_dims[name_str] = dims;
+        continue;
+      }
+
       const auto& shape = param_shapes[name];
 
       std::vector<int64_t> dims;
@@ -906,8 +923,8 @@ class mgx_dnn_inference : public dnn_inference {
         throw std::runtime_error("Dynamic shapes not supported for this model");
       }
 
-      input_node_names.push_back(name);
-      input_node_dims[name] = dims;
+      input_node_names.push_back(name_str);
+      input_node_dims[name_str] = dims;
     }
 
     // Get output shapes
@@ -933,8 +950,14 @@ class mgx_dnn_inference : public dnn_inference {
       output_node_dims[name] = dims;
     }
 
-    assert(input_node_names.size() == 1);
-    assert(output_node_names.size() == 1);
+    if (input_node_names.size() != 1) {
+      spdlog::error("Expected 1 input, got {}", input_node_names.size());
+      throw std::runtime_error("Invalid number of inputs");
+    }
+    if (output_node_names.size() != 1) {
+      spdlog::error("Expected 1 output, got {}", output_node_names.size());
+      throw std::runtime_error("Invalid number of outputs");
+    }
 
     HIP_SAFE_CALL(hipStreamCreateWithFlags(&stream, hipStreamNonBlocking));
 
@@ -962,42 +985,33 @@ class mgx_dnn_inference : public dnn_inference {
   }
 
   void inference(const float* input) {
-    assert(input_node_names.size() == 1);
-    assert(input_node_names[0] == "input");
-
-    assert(output_node_names.size() == 1);
-    assert(output_node_names[0] == "output");
+    if (input_node_names.empty() || output_node_names.empty()) {
+      throw std::runtime_error("Model not properly initialized");
+    }
 
     const auto dims = input_node_dims.at(input_node_names[0]);
     const auto input_size =
         std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<int64_t>());
-
-    HIP_SAFE_CALL(hipMemcpyAsync(input_data, input, input_size * sizeof(float),
-                                 hipMemcpyDeviceToDevice, stream));
-    HIP_SAFE_CALL(hipStreamSynchronize(stream));
 
     migraphx::program_parameters params;
     std::vector<size_t> shape_dims;
     for (auto d : dims) shape_dims.push_back(d);
     migraphx::shape input_shape{migraphx_shape_float_type, shape_dims};
 
-    // Create empty argument and reference our device memory
-    migraphx::argument input_arg(input_shape);
-    HIP_SAFE_CALL(hipMemcpyAsync(input_arg.data(), input_data, input_size * sizeof(float),
-                                 hipMemcpyDeviceToDevice, stream));
-    HIP_SAFE_CALL(hipStreamSynchronize(stream));
+    migraphx::argument input_arg(input_shape, const_cast<float*>(input));
     params.add(input_node_names[0].c_str(), input_arg);
 
-    auto outputs = prog.eval(params);
+    if (!output_param_names.empty()) {
+      const auto& output_dims = output_node_dims.at(output_param_names[0]);
+      std::vector<size_t> output_shape_dims;
+      for (auto d : output_dims) output_shape_dims.push_back(d);
+      migraphx::shape output_shape{migraphx_shape_float_type, output_shape_dims};
+      migraphx::argument output_arg(output_shape, output_data);
+      params.add(output_param_names[0].c_str(), output_arg);
+    }
 
-    const auto& output = outputs[0];
-    // MIGraphX returns GPU memory, copy to our HIP buffer
-    auto output_size = output.get_shape().bytes();
-#if defined(USE_HIP) || defined(USE_MIGRAPHX)
-    HIP_SAFE_CALL(
-        hipMemcpyAsync(output_data, output.data(), output_size, hipMemcpyDeviceToDevice, stream));
+    prog.run_async(params, stream);
     HIP_SAFE_CALL(hipStreamSynchronize(stream));
-#endif
   }
 
   const float* get_output_data() const { return output_data; }
@@ -1015,6 +1029,7 @@ class mgx_dnn_inference_heatmap : public dnn_inference_heatmap {
 
   std::vector<std::string> input_node_names;
   std::vector<std::string> output_node_names;
+  std::vector<std::string> output_param_names;
 
   static const int max_input_image_width = 1920;
   static const int max_input_image_height = 1080;
@@ -1045,9 +1060,25 @@ class mgx_dnn_inference_heatmap : public dnn_inference_heatmap {
 
       // Get input/output shapes for this batch size
       auto param_shapes = prog_map[batch].get_parameter_shapes();
-      for (const auto& name : param_shapes.names()) {
+      auto param_names = param_shapes.names();
+      for (const auto& name : param_names) {
+        std::string name_str(name);
+        if (name_str.find("#output") != std::string::npos) {
+          const auto& shape = param_shapes[name];
+          std::vector<int64_t> dims;
+          auto lengths = shape.lengths();
+          for (size_t i = 0; i < lengths.size(); i++) {
+            dims.push_back(lengths[i]);
+          }
+          output_dims_map[batch][name_str] = dims;
+          if (output_param_names.empty()) {
+            output_param_names.push_back(name_str);
+          }
+          continue;
+        }
+
         if (input_node_names.empty()) {
-          input_node_names.push_back(name);
+          input_node_names.push_back(name_str);
         }
         const auto& shape = param_shapes[name];
         std::vector<int64_t> dims;
@@ -1055,7 +1086,7 @@ class mgx_dnn_inference_heatmap : public dnn_inference_heatmap {
         for (size_t i = 0; i < lengths.size(); i++) {
           dims.push_back(lengths[i]);
         }
-        input_dims_map[batch][name] = dims;
+        input_dims_map[batch][name_str] = dims;
       }
 
       auto output_shapes = prog_map[batch].get_output_shapes();
@@ -1073,8 +1104,14 @@ class mgx_dnn_inference_heatmap : public dnn_inference_heatmap {
       }
     }
 
-    assert(input_node_names.size() == 1);
-    assert(output_node_names.size() == 1);
+    if (input_node_names.size() != 1) {
+      spdlog::error("Expected 1 input, got {}", input_node_names.size());
+      throw std::runtime_error("Invalid number of inputs");
+    }
+    if (output_node_names.size() != 1) {
+      spdlog::error("Expected 1 output, got {}", output_node_names.size());
+      throw std::runtime_error("Invalid number of outputs");
+    }
 
     HIP_SAFE_CALL(hipStreamCreateWithFlags(&stream, hipStreamNonBlocking));
 
@@ -1146,11 +1183,9 @@ class mgx_dnn_inference_heatmap : public dnn_inference_heatmap {
   }
 
   void inference(size_t num_views) {
-    assert(input_node_names.size() == 1);
-    assert(input_node_names[0] == "input");
-
-    assert(output_node_names.size() == 1);
-    assert(output_node_names[0] == "output");
+    if (input_node_names.empty() || output_node_names.empty()) {
+      throw std::runtime_error("Model not properly initialized");
+    }
 
     // Clamp num_views to available models
     size_t batch_size = std::min(num_views, max_batch_size);
@@ -1168,23 +1203,28 @@ class mgx_dnn_inference_heatmap : public dnn_inference_heatmap {
     const auto input_size =
         std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<int64_t>());
 
-    // Create empty argument and copy data from HIP memory
-    migraphx::argument input_arg(input_shape);
-    HIP_SAFE_CALL(hipMemcpyAsync(input_arg.data(), input_data, input_size * sizeof(float),
-                                 hipMemcpyDeviceToDevice, stream));
-    HIP_SAFE_CALL(hipStreamSynchronize(stream));
+    migraphx::argument input_arg(input_shape, input_data);
     params.add(input_node_names[0].c_str(), input_arg);
 
-    auto outputs = prog.eval(params);
+    if (!output_param_names.empty()) {
+      const auto& batch_output_dims = output_dims_map.at(batch_size);
+      if (batch_output_dims.find(output_param_names[0]) != batch_output_dims.end()) {
+        const auto& output_dims = batch_output_dims.at(output_param_names[0]);
+        std::vector<size_t> output_shape_dims;
+        for (auto d : output_dims) output_shape_dims.push_back(d);
+        migraphx::shape output_shape{migraphx_shape_float_type, output_shape_dims};
+        migraphx::argument output_arg(output_shape, output_data);
+        params.add(output_param_names[0].c_str(), output_arg);
+      } else {
+        spdlog::error("Output parameter {} not found in batch {} dimensions", output_param_names[0],
+                      batch_size);
+      }
+    } else {
+      spdlog::info("No output parameters (offload_copy might be True)");
+    }
 
-    const auto& output = outputs[0];
-    // MIGraphX returns GPU memory, copy to our HIP buffer
-    auto output_size = output.get_shape().bytes();
-#if defined(USE_HIP) || defined(USE_MIGRAPHX)
-    HIP_SAFE_CALL(
-        hipMemcpyAsync(output_data, output.data(), output_size, hipMemcpyDeviceToDevice, stream));
+    prog.run_async(params, stream);
     HIP_SAFE_CALL(hipStreamSynchronize(stream));
-#endif
   }
 
   const float* get_heatmaps() const { return output_data; }
