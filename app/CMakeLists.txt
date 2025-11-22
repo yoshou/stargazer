@@ -8,7 +8,7 @@ function(compile_shader SHADER_SOURCE SHADER_OUTPUT)
     get_filename_component(SHADER_NAME ${SHADER_SOURCE} NAME)
     get_filename_component(SHADER_DIR ${SHADER_SOURCE} DIRECTORY)
     set(SHADER_SPV ${CMAKE_CURRENT_BINARY_DIR}/${SHADER_NAME}.spv)
-    set(SHADER_INC ${SHADER_DIR}/${SHADER_NAME}.spv.inc)
+    set(SHADER_INC ${CMAKE_CURRENT_BINARY_DIR}/${SHADER_NAME}.spv.inc)
     
     add_custom_command(
         OUTPUT ${SHADER_SPV}
@@ -61,6 +61,7 @@ add_dependencies(stargazer_viewer
 
 target_include_directories(stargazer_viewer
     PRIVATE
+    ${CMAKE_CURRENT_BINARY_DIR}
     $<$<BOOL:${ENABLE_ONNXRUNTIME_EXT}>:${ONNXRUNTIME_INCLUDE_DIRS}>
 )
 

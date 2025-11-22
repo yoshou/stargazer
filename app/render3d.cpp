@@ -8,12 +8,12 @@
 
 // Vertex shader (SPIR-V embedded as array)
 static const uint8_t vert_shader_code[] = {
-#include "shaders/simple3d.vert.spv.inc"
+#include "simple3d.vert.spv.inc"
 };
 
 // Fragment shader (SPIR-V embedded as array)
 static const uint8_t frag_shader_code[] = {
-#include "shaders/simple3d.frag.spv.inc"
+#include "simple3d.frag.spv.inc"
 };
 
 static uint32_t find_memory_type(vk::PhysicalDevice physical_device, uint32_t type_filter,
