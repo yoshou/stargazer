@@ -600,6 +600,38 @@ __global__ void max_pool3d_kernel(const float* input, float* output, int size_x,
   output[idx] = (center_val == max_val) ? center_val : 0.0f;
 }
 
+__device__ inline void bitonic_sort_descending(float* vals, int* idxs, int n) {
+  for (int size = 2; size <= n; size *= 2) {
+    for (int stride = size / 2; stride > 0; stride /= 2) {
+      for (int i = threadIdx.x; i < n; i += blockDim.x) {
+        const int ixj = i ^ stride;
+        if (ixj > i) {
+          if ((i & size) == 0) {
+            if (vals[i] < vals[ixj]) {
+              const float tmp_val = vals[i];
+              const int tmp_idx = idxs[i];
+              vals[i] = vals[ixj];
+              idxs[i] = idxs[ixj];
+              vals[ixj] = tmp_val;
+              idxs[ixj] = tmp_idx;
+            }
+          } else {
+            if (vals[i] > vals[ixj]) {
+              const float tmp_val = vals[i];
+              const int tmp_idx = idxs[i];
+              vals[i] = vals[ixj];
+              idxs[i] = idxs[ixj];
+              vals[ixj] = tmp_val;
+              idxs[ixj] = tmp_idx;
+            }
+          }
+        }
+      }
+      __syncthreads();
+    }
+  }
+}
+
 __global__ void topk_select_kernel(const float* input, float* topk_values, int* topk_indices,
                                    int input_size, int k) {
   const int valid_k = min(k, kMaxTopK);
@@ -637,57 +669,57 @@ __global__ void topk_select_kernel(const float* input, float* topk_values, int* 
   }
   __syncthreads();
 
-  if (threadIdx.x == 0) {
-    float final_vals[kMaxTopK];
-    int final_idxs[kMaxTopK];
-    for (int i = 0; i < valid_k; ++i) {
-      final_vals[i] = -FLT_MAX;
-      final_idxs[i] = -1;
-    }
-
-    const int candidate_count = blockDim.x * valid_k;
-    for (int i = 0; i < candidate_count; ++i) {
-      const float val = shared_vals[i];
-      const int idx = shared_idxs[i];
-      if (idx < 0) {
-        continue;
-      }
-      int min_pos = 0;
-      float min_val = final_vals[0];
-      for (int j = 1; j < valid_k; ++j) {
-        if (final_vals[j] < min_val) {
-          min_val = final_vals[j];
-          min_pos = j;
+  // Parallel reduction across threads
+  for (int stride = blockDim.x / 2; stride > 0; stride /= 2) {
+    if (threadIdx.x < stride) {
+      const int base1 = threadIdx.x * valid_k;
+      const int base2 = (threadIdx.x + stride) * valid_k;
+      
+      for (int i = 0; i < valid_k; ++i) {
+        float local_min_val = shared_vals[base1 + 0];
+        int local_min_pos = 0;
+        for (int j = 1; j < valid_k; ++j) {
+          if (shared_vals[base1 + j] < local_min_val) {
+            local_min_val = shared_vals[base1 + j];
+            local_min_pos = j;
+          }
         }
-      }
-      if (val > min_val) {
-        final_vals[min_pos] = val;
-        final_idxs[min_pos] = idx;
-      }
-    }
-
-    // Sort descending for deterministic order
-    for (int i = 0; i < valid_k - 1; ++i) {
-      for (int j = 0; j < valid_k - i - 1; ++j) {
-        if (final_vals[j] < final_vals[j + 1]) {
-          const float tmp_val = final_vals[j];
-          const int tmp_idx = final_idxs[j];
-          final_vals[j] = final_vals[j + 1];
-          final_idxs[j] = final_idxs[j + 1];
-          final_vals[j + 1] = tmp_val;
-          final_idxs[j + 1] = tmp_idx;
+        
+        const float val2 = shared_vals[base2 + i];
+        const int idx2 = shared_idxs[base2 + i];
+        if (val2 > local_min_val && idx2 >= 0) {
+          shared_vals[base1 + local_min_pos] = val2;
+          shared_idxs[base1 + local_min_pos] = idx2;
         }
       }
     }
+    __syncthreads();
+  }
 
-    for (int i = 0; i < valid_k; ++i) {
-      topk_values[i] = final_vals[i];
-      topk_indices[i] = final_idxs[i];
+  // Bitonic sort in parallel for final k elements
+  int padded_k = 1;
+  while (padded_k < valid_k) padded_k *= 2;
+  
+  if (threadIdx.x < padded_k) {
+    const int idx = threadIdx.x;
+    if (idx < valid_k) {
+      shared_vals[idx] = shared_vals[idx];
+      shared_idxs[idx] = shared_idxs[idx];
+    } else {
+      shared_vals[idx] = -FLT_MAX;
+      shared_idxs[idx] = -1;
     }
-    for (int i = valid_k; i < k; ++i) {
-      topk_values[i] = -FLT_MAX;
-      topk_indices[i] = -1;
-    }
+  }
+  __syncthreads();
+
+  bitonic_sort_descending(shared_vals, shared_idxs, padded_k);
+
+  if (threadIdx.x < valid_k) {
+    topk_values[threadIdx.x] = shared_vals[threadIdx.x];
+    topk_indices[threadIdx.x] = shared_idxs[threadIdx.x];
+  } else if (threadIdx.x < k) {
+    topk_values[threadIdx.x] = -FLT_MAX;
+    topk_indices[threadIdx.x] = -1;
   }
 }
 
