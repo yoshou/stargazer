@@ -4,7 +4,6 @@
 
 #include <algorithm>
 #include <array>
-#include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -1504,7 +1503,11 @@ voxelpose::voxelpose()
       inference_pose(),
       global_proj(new voxel_projector()),
       local_proj(new voxel_projector()),
+#if defined(USE_HIP) || defined(USE_MIGRAPHX)
+      prop_gpu(new proposal_extractor()),
+#else
       prop(new get_proposal()),
+#endif
       joint_extract(new joint_extractor()),
       grid_center({0.0, 0.0, 0.0}),
       grid_size({8000.0, 8000.0, 2000.0}) {
@@ -1648,6 +1651,19 @@ std::vector<glm::vec3> voxelpose::inference(const std::vector<cv::Mat>& images_l
 
   inference_proposal->inference(global_proj->get_cubes());
 
+  constexpr uint32_t max_num_people = 10;
+
+#if defined(USE_HIP) || defined(USE_MIGRAPHX)
+  prop_gpu->set_max_num(max_num_people);
+  prop_gpu->set_threshold(0.3f);
+  prop_gpu->set_grid_size(grid_size);
+  prop_gpu->set_grid_center(grid_center);
+  prop_gpu->set_cube_size(cube_size);
+
+  std::vector<float> centers_data(5 * max_num_people, 0.0f);
+  prop_gpu->get_centers(inference_proposal->get_output_data(), centers_data.data());
+  const uint32_t centers_count = max_num_people;
+#else
   coalsack::tensor<float, 5> proposal({20, 80, 80, 1, 1});
 #if defined(USE_CUDA)
   CUDA_SAFE_CALL(cudaMemcpy(proposal.get_data(), inference_proposal->get_output_data(),
@@ -1657,21 +1673,34 @@ std::vector<glm::vec3> voxelpose::inference(const std::vector<cv::Mat>& images_l
                           proposal.get_size() * sizeof(float), hipMemcpyDeviceToHost));
 #endif
 
-  prop->set_max_num(10);
+  prop->set_max_num(max_num_people);
   prop->set_threshold(0.3f);
   prop->set_grid_size(grid_size);
   prop->set_grid_center(grid_center);
   prop->set_cube_size(cube_size);
 
   const auto centers = prop->get_centers(proposal);
+  const uint32_t centers_count = centers.shape[1];
+#endif
 
   std::vector<glm::vec3> points;
 
-  for (uint32_t i = 0; i < centers.shape[1]; i++) {
+#if defined(USE_HIP) || defined(USE_MIGRAPHX)
+  for (uint32_t i = 0; i < centers_count; i++) {
+    const auto score = centers_data[4 * centers_count + i];
+#else
+  for (uint32_t i = 0; i < centers_count; i++) {
     const auto score = centers.get({4, i});
+#endif
     if (score > 0.3f) {
+#if defined(USE_HIP) || defined(USE_MIGRAPHX)
+      const std::array<float, 3> center = {centers_data[0 * centers_count + i],
+                                           centers_data[1 * centers_count + i],
+                                           centers_data[2 * centers_count + i]};
+#else
       const std::array<float, 3> center = {centers.get({0, i}), centers.get({1, i}),
                                            centers.get({2, i})};
+#endif
 
       std::array<int32_t, 3> cube_size = {64, 64, 64};
       std::array<float, 3> grid_size = {2000.0, 2000.0, 2000.0};

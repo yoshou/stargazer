@@ -28,6 +28,7 @@ class dnn_inference;
 class dnn_inference_heatmap;
 class get_proposal;
 class joint_extractor;
+class proposal_extractor;
 
 class voxelpose {
   std::unique_ptr<dnn_inference_heatmap> inference_heatmap;
@@ -35,7 +36,11 @@ class voxelpose {
   std::unique_ptr<dnn_inference> inference_pose;
   std::unique_ptr<voxel_projector> global_proj;
   std::unique_ptr<voxel_projector> local_proj;
+#if defined(USE_HIP) || defined(USE_MIGRAPHX)
+  std::unique_ptr<proposal_extractor> prop_gpu;
+#else
   std::unique_ptr<get_proposal> prop;
+#endif
   std::unique_ptr<joint_extractor> joint_extract;
 
   std::array<float, 3> grid_center;

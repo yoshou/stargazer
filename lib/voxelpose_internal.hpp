@@ -53,8 +53,12 @@ class proposal_extractor {
   std::array<float, 3> grid_center;
   std::array<int32_t, 3> cube_size;
 
+  struct cuda_data;
+  std::unique_ptr<cuda_data> cuda_data_;
+
  public:
-  proposal_extractor() {}
+  proposal_extractor();
+  ~proposal_extractor();
 
   void set_max_num(uint32_t value) { max_num = value; }
   void set_threshold(float value) { threshold = value; }
@@ -64,5 +68,7 @@ class proposal_extractor {
   void set_grid_center(const std::array<float, 3>& value) { grid_center = value; }
   std::array<int32_t, 3> get_cube_size() const { return cube_size; }
   void set_cube_size(const std::array<int32_t, 3>& value) { cube_size = value; }
+
+  void get_centers(const float* proposal_data, float* centers_data);
 };
 }  // namespace stargazer::voxelpose
