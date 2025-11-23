@@ -1,8 +1,12 @@
 #include <hip/hip_runtime.h>
 
 #include <algorithm>
+#include <array>
+#include <cfloat>
 #include <iostream>
+#include <memory>
 #include <numeric>
+#include <vector>
 
 #include "preprocess.hpp"
 #include "voxelpose_internal.hpp"
@@ -559,4 +563,268 @@ void joint_extractor::soft_argmax(const float* src_data, float beta,
 }
 
 const float* joint_extractor::get_joints() const { return cuda_data_->joints; }
+
+namespace {
+constexpr int kMaxTopK = 128;
+}
+
+__global__ void max_pool3d_kernel(const float* input, float* output, int size_x, int size_y,
+                                  int size_z, int kernel_size, int padding) {
+  const int ix = blockIdx.x * blockDim.x + threadIdx.x;
+  const int iy = blockIdx.y * blockDim.y + threadIdx.y;
+  const int iz = blockIdx.z * blockDim.z + threadIdx.z;
+
+  if (ix >= size_x || iy >= size_y || iz >= size_z) {
+    return;
+  }
+
+  const int stride_yz = size_y * size_z;
+  const int idx = (ix * stride_yz) + (iy * size_z) + iz;
+  const float center_val = input[idx];
+
+  float max_val = center_val;
+  for (int kx = -padding; kx <= padding; ++kx) {
+    for (int ky = -padding; ky <= padding; ++ky) {
+      for (int kz = -padding; kz <= padding; ++kz) {
+        const int nx = ix + kx;
+        const int ny = iy + ky;
+        const int nz = iz + kz;
+        if (nx >= 0 && nx < size_x && ny >= 0 && ny < size_y && nz >= 0 && nz < size_z) {
+          const int nidx = (nx * stride_yz) + (ny * size_z) + nz;
+          max_val = fmaxf(max_val, input[nidx]);
+        }
+      }
+    }
+  }
+
+  output[idx] = (center_val == max_val) ? center_val : 0.0f;
+}
+
+__global__ void topk_select_kernel(const float* input, float* topk_values, int* topk_indices,
+                                   int input_size, int k) {
+  const int valid_k = min(k, kMaxTopK);
+
+  extern __shared__ unsigned char shared_buffer[];
+  float* shared_vals = reinterpret_cast<float*>(shared_buffer);
+  int* shared_idxs = reinterpret_cast<int*>(shared_buffer + blockDim.x * valid_k * sizeof(float));
+
+  float local_vals[kMaxTopK];
+  int local_idxs[kMaxTopK];
+  for (int i = 0; i < valid_k; ++i) {
+    local_vals[i] = -FLT_MAX;
+    local_idxs[i] = -1;
+  }
+
+  for (int idx = threadIdx.x; idx < input_size; idx += blockDim.x) {
+    const float val = input[idx];
+    int min_pos = 0;
+    float min_val = local_vals[0];
+    for (int i = 1; i < valid_k; ++i) {
+      if (local_vals[i] < min_val) {
+        min_val = local_vals[i];
+        min_pos = i;
+      }
+    }
+    if (val > min_val) {
+      local_vals[min_pos] = val;
+      local_idxs[min_pos] = idx;
+    }
+  }
+
+  for (int i = 0; i < valid_k; ++i) {
+    shared_vals[threadIdx.x * valid_k + i] = local_vals[i];
+    shared_idxs[threadIdx.x * valid_k + i] = local_idxs[i];
+  }
+  __syncthreads();
+
+  if (threadIdx.x == 0) {
+    float final_vals[kMaxTopK];
+    int final_idxs[kMaxTopK];
+    for (int i = 0; i < valid_k; ++i) {
+      final_vals[i] = -FLT_MAX;
+      final_idxs[i] = -1;
+    }
+
+    const int candidate_count = blockDim.x * valid_k;
+    for (int i = 0; i < candidate_count; ++i) {
+      const float val = shared_vals[i];
+      const int idx = shared_idxs[i];
+      if (idx < 0) {
+        continue;
+      }
+      int min_pos = 0;
+      float min_val = final_vals[0];
+      for (int j = 1; j < valid_k; ++j) {
+        if (final_vals[j] < min_val) {
+          min_val = final_vals[j];
+          min_pos = j;
+        }
+      }
+      if (val > min_val) {
+        final_vals[min_pos] = val;
+        final_idxs[min_pos] = idx;
+      }
+    }
+
+    // Sort descending for deterministic order
+    for (int i = 0; i < valid_k - 1; ++i) {
+      for (int j = 0; j < valid_k - i - 1; ++j) {
+        if (final_vals[j] < final_vals[j + 1]) {
+          const float tmp_val = final_vals[j];
+          const int tmp_idx = final_idxs[j];
+          final_vals[j] = final_vals[j + 1];
+          final_idxs[j] = final_idxs[j + 1];
+          final_vals[j + 1] = tmp_val;
+          final_idxs[j + 1] = tmp_idx;
+        }
+      }
+    }
+
+    for (int i = 0; i < valid_k; ++i) {
+      topk_values[i] = final_vals[i];
+      topk_indices[i] = final_idxs[i];
+    }
+    for (int i = valid_k; i < k; ++i) {
+      topk_values[i] = -FLT_MAX;
+      topk_indices[i] = -1;
+    }
+  }
+}
+
+__global__ void unravel_and_convert_kernel(const int* indices, const float* values, float* centers,
+                                           int max_num, int size_x, int size_y, int size_z,
+                                           float grid_size_x, float grid_size_y, float grid_size_z,
+                                           float grid_center_x, float grid_center_y,
+                                           float grid_center_z, float threshold) {
+  const int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  if (idx >= max_num) {
+    return;
+  }
+
+  const int linear_idx = indices[idx];
+  if (linear_idx < 0) {
+    centers[0 * max_num + idx] = 0.0f;
+    centers[1 * max_num + idx] = 0.0f;
+    centers[2 * max_num + idx] = 0.0f;
+    centers[3 * max_num + idx] = 0.0f;
+    centers[4 * max_num + idx] = 0.0f;
+    return;
+  }
+
+  const int stride_yz = size_y * size_z;
+  const int ix = linear_idx / stride_yz;
+  const int iy = (linear_idx % stride_yz) / size_z;
+  const int iz = linear_idx % size_z;
+
+  const float x = -grid_size_x / 2.0f +
+                  grid_size_x * static_cast<float>(ix) / static_cast<float>(size_x - 1) +
+                  grid_center_x;
+  const float y = -grid_size_y / 2.0f +
+                  grid_size_y * static_cast<float>(iy) / static_cast<float>(size_y - 1) +
+                  grid_center_y;
+  const float z = -grid_size_z / 2.0f +
+                  grid_size_z * static_cast<float>(iz) / static_cast<float>(size_z - 1) +
+                  grid_center_z;
+
+  centers[0 * max_num + idx] = x;
+  centers[1 * max_num + idx] = y;
+  centers[2 * max_num + idx] = z;
+  centers[3 * max_num + idx] = (values[idx] > threshold ? 1.0f : 0.0f) - 1.0f;
+  centers[4 * max_num + idx] = values[idx];
+}
+
+struct proposal_extractor::cuda_data {
+  hipStream_t stream;
+  float* nms_output;
+  float* topk_values;
+  int* topk_indices;
+  float* centers;
+  int allocated_max_num;
+  int allocated_grid_size;
+
+  cuda_data(int max_num, int grid_size)
+      : stream(nullptr),
+        nms_output(nullptr),
+        topk_values(nullptr),
+        topk_indices(nullptr),
+        centers(nullptr),
+        allocated_max_num(max_num),
+        allocated_grid_size(grid_size) {
+    CUDA_SAFE_CALL(hipStreamCreateWithFlags(&stream, hipStreamNonBlocking));
+    CUDA_SAFE_CALL(hipMalloc(&nms_output, allocated_grid_size * sizeof(float)));
+    CUDA_SAFE_CALL(hipMalloc(&topk_values, allocated_max_num * sizeof(float)));
+    CUDA_SAFE_CALL(hipMalloc(&topk_indices, allocated_max_num * sizeof(int)));
+    CUDA_SAFE_CALL(hipMalloc(&centers, 5 * allocated_max_num * sizeof(float)));
+  }
+
+  ~cuda_data() {
+    if (nms_output) hipFree(nms_output);
+    if (topk_values) hipFree(topk_values);
+    if (topk_indices) hipFree(topk_indices);
+    if (centers) hipFree(centers);
+    if (stream) CUDA_SAFE_CALL(hipStreamDestroy(stream));
+  }
+};
+
+proposal_extractor::proposal_extractor()
+    : max_num(10),
+      threshold(0.3f),
+      grid_size{0.0f, 0.0f, 0.0f},
+      grid_center{0.0f, 0.0f, 0.0f},
+      cube_size{0, 0, 0},
+      cuda_data_(nullptr) {}
+
+proposal_extractor::~proposal_extractor() = default;
+
+void proposal_extractor::get_centers(const float* proposal_data, float* centers_data) {
+  if (!proposal_data || !centers_data) {
+    return;
+  }
+
+  const int size_x = cube_size[0];
+  const int size_y = cube_size[1];
+  const int size_z = cube_size[2];
+  const int total_size = size_x * size_y * size_z;
+
+  if (!cuda_data_ || cuda_data_->allocated_max_num < static_cast<int>(max_num) ||
+      cuda_data_->allocated_grid_size < total_size) {
+    cuda_data_.reset();
+    cuda_data_ = std::make_unique<cuda_data>(max_num, total_size);
+  }
+
+  // Step 1: 3D NMS via max pooling
+  {
+    dim3 block(8, 8, 4);
+    dim3 grid((size_x + block.x - 1) / block.x, (size_y + block.y - 1) / block.y,
+              (size_z + block.z - 1) / block.z);
+    const int kernel_size = 3;
+    const int padding = (kernel_size - 1) / 2;
+    max_pool3d_kernel<<<grid, block, 0, cuda_data_->stream>>>(
+        proposal_data, cuda_data_->nms_output, size_x, size_y, size_z, kernel_size, padding);
+  }
+
+  // Step 2: Top-k selection
+  {
+    dim3 block(256, 1, 1);
+    const int k = static_cast<int>(std::min<uint32_t>(max_num, kMaxTopK));
+    const int shared_mem_size = block.x * k * (sizeof(float) + sizeof(int));
+    topk_select_kernel<<<1, block, shared_mem_size, cuda_data_->stream>>>(
+        cuda_data_->nms_output, cuda_data_->topk_values, cuda_data_->topk_indices, total_size,
+        static_cast<int>(max_num));
+  }
+
+  // Step 3: Convert to world coordinates
+  {
+    dim3 block(256, 1, 1);
+    dim3 grid((max_num + block.x - 1) / block.x, 1, 1);
+    unravel_and_convert_kernel<<<grid, block, 0, cuda_data_->stream>>>(
+        cuda_data_->topk_indices, cuda_data_->topk_values, cuda_data_->centers,
+        static_cast<int>(max_num), size_x, size_y, size_z, grid_size[0], grid_size[1], grid_size[2],
+        grid_center[0], grid_center[1], grid_center[2], threshold);
+  }
+
+  CUDA_SAFE_CALL(hipMemcpyAsync(centers_data, cuda_data_->centers, 5 * max_num * sizeof(float),
+                                hipMemcpyDeviceToHost, cuda_data_->stream));
+  CUDA_SAFE_CALL(hipStreamSynchronize(cuda_data_->stream));
+}
 }  // namespace stargazer::voxelpose
