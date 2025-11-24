@@ -40,7 +40,7 @@ class dnn_inference_heatmap {
 };
 }  // namespace stargazer::voxelpose
 
-#ifdef USE_CUDA
+#if defined(USE_CUDA) || defined(USE_TENSORRT)
 
 #include <cuda_runtime.h>
 
@@ -120,7 +120,7 @@ class ort_dnn_inference : public dnn_inference {
   Ort::Env env{ORT_LOGGING_LEVEL_WARNING};
   Ort::Session session;
   Ort::IoBinding io_binding;
-#if USE_CUDA
+#if defined(USE_CUDA)
   Ort::MemoryInfo device_mem_info{"Cuda", OrtDeviceAllocator, 0, OrtMemTypeDefault};
 #else
   Ort::MemoryInfo device_mem_info{"Hip", OrtDeviceAllocator, 0, OrtMemTypeDefault};
@@ -145,7 +145,7 @@ class ort_dnn_inference : public dnn_inference {
     session_options.SetIntraOpNumThreads(4);
     session_options.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_EXTENDED);
 
-#if USE_CUDA
+#if defined(USE_CUDA)
     try {
       OrtCUDAProviderOptions cuda_options{};
 
@@ -288,7 +288,7 @@ class ort_dnn_inference_heatmap : public dnn_inference_heatmap {
   Ort::Env env{ORT_LOGGING_LEVEL_WARNING};
   Ort::Session session;
   Ort::IoBinding io_binding;
-#if USE_CUDA
+#if defined(USE_CUDA)
   Ort::MemoryInfo device_mem_info{"Cuda", OrtDeviceAllocator, 0, OrtMemTypeDefault};
 #else
   Ort::MemoryInfo device_mem_info{"Hip", OrtDeviceAllocator, 0, OrtMemTypeDefault};
@@ -321,7 +321,7 @@ class ort_dnn_inference_heatmap : public dnn_inference_heatmap {
     session_options.SetIntraOpNumThreads(4);
     session_options.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_EXTENDED);
 
-#if USE_CUDA
+#if defined(USE_CUDA)
     try {
       OrtCUDAProviderOptions cuda_options{};
 
@@ -1665,7 +1665,7 @@ std::vector<glm::vec3> voxelpose::inference(const std::vector<cv::Mat>& images_l
   const uint32_t centers_count = max_num_people;
 #else
   coalsack::tensor<float, 5> proposal({20, 80, 80, 1, 1});
-#if defined(USE_CUDA)
+#if defined(USE_CUDA) || defined(USE_TENSORRT)
   CUDA_SAFE_CALL(cudaMemcpy(proposal.get_data(), inference_proposal->get_output_data(),
                             proposal.get_size() * sizeof(float), cudaMemcpyDeviceToHost));
 #elif defined(USE_HIP) || defined(USE_MIGRAPHX)
@@ -1720,7 +1720,7 @@ std::vector<glm::vec3> voxelpose::inference(const std::vector<cv::Mat>& images_l
 
       std::vector<glm::vec3> joints(15);
 
-#if defined(USE_CUDA)
+#if defined(USE_CUDA) || defined(USE_TENSORRT)
       CUDA_SAFE_CALL(cudaMemcpy(&joints[0][0], joint_extract->get_joints(), 3 * 15 * sizeof(float),
                                 cudaMemcpyDeviceToHost));
 #elif defined(USE_HIP) || defined(USE_MIGRAPHX)
@@ -1745,7 +1745,7 @@ std::vector<glm::vec3> voxelpose::inference(const std::vector<cv::Mat>& images_l
 const float* voxelpose::get_heatmaps() const { return inference_heatmap->get_heatmaps(); }
 
 void voxelpose::copy_heatmap_to(size_t num_views, float* data) const {
-#if defined(USE_CUDA)
+#if defined(USE_CUDA) || defined(USE_TENSORRT)
   const auto heatmap_size =
       get_heatmap_width() * get_heatmap_height() * get_num_joints() * num_views;
   CUDA_SAFE_CALL(
