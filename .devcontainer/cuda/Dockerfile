@@ -82,13 +82,18 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
 
 # Install dependencies
 RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
-    && apt-get -y install --no-install-recommends gfortran bison python3 python3-setuptools libarchive-dev libblas-dev liblapack-dev \
+    && apt-get -y install --no-install-recommends xxd gfortran bison python3 python3-setuptools libarchive-dev libblas-dev liblapack-dev \
     libxinerama-dev libxcursor-dev xorg-dev libglu1-mesa-dev pkg-config
+
+RUN wget -qO- https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo tee /etc/apt/trusted.gpg.d/lunarg.asc \
+    && wget -qO /etc/apt/sources.list.d/lunarg-vulkan-noble.list http://packages.lunarg.com/vulkan/lunarg-vulkan-noble.list \
+    && sudo apt update \
+    && sudo apt install -y vulkan-sdk mesa-vulkan-drivers
 
 RUN update-alternatives --set c++ /usr/bin/clang++ \
     && update-alternatives --set cc /usr/bin/clang
 
-RUN su vscode -c "${VCPKG_ROOT}/vcpkg install boost-program-options boost-asio boost-graph ceres opencv4[core,highgui,calib3d,contrib,jpeg,dnn] glm grpc glfw3 glad nanoflann nlohmann-json imgui[opengl3-binding,glfw-binding] libjpeg-turbo lz4 sqlite3 cereal spdlog"
+RUN su vscode -c "${VCPKG_ROOT}/vcpkg install boost-program-options boost-asio boost-graph ceres opencv4[core,highgui,calib3d,contrib,jpeg,dnn] glm grpc glfw3 glad nanoflann nlohmann-json imgui[vulkan-binding,opengl3-binding,glfw-binding] libjpeg-turbo lz4 sqlite3 cereal spdlog"
 
 ENV PATH $PATH:${VCPKG_ROOT}/installed/x64-linux
 ENV PATH $PATH:${VCPKG_ROOT}/installed/x64-linux/tools/protobuf

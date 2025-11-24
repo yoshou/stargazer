@@ -30,7 +30,7 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
 
 # Install dependencies
 RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
-    && apt-get -y install --no-install-recommends gfortran bison python3 python3-setuptools libarchive-dev libblas-dev liblapack-dev \
+    && apt-get -y install --no-install-recommends xxd gfortran bison python3 python3-setuptools libarchive-dev libblas-dev liblapack-dev \
     libxinerama-dev libxcursor-dev xorg-dev libglu1-mesa-dev pkg-config
 
 RUN update-alternatives --set c++ /usr/bin/clang++ \
