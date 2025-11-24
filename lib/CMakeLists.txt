@@ -30,7 +30,7 @@ target_include_directories(stargazer_voxelpose
 
 target_compile_definitions(stargazer_voxelpose
     PUBLIC
-    $<$<BOOL:${ENABLE_CUDA}>:USE_CUDA>
+    $<$<BOOL:${ENABLE_CUDA}>:USE_TENSORRT>
     $<$<NOT:$<BOOL:${ENABLE_CUDA}>>:USE_MIGRAPHX>
 )
 
