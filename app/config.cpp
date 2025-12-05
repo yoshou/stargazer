@@ -50,6 +50,8 @@ static node_type get_node_type(const std::string& type) {
     return node_type::voxelpose_reconstruction;
   } else if (type == "mvpose_reconstruction") {
     return node_type::mvpose_reconstruction;
+  } else if (type == "mvp_reconstruction") {
+    return node_type::mvp_reconstruction;
   } else if (type == "epipolar_reconstruction") {
     return node_type::epipolar_reconstruction;
   } else if (type == "pattern_board_calibration_target_detector") {

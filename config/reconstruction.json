@@ -519,6 +519,14 @@
           "type": "mvpose_reconstruction"
         }
       ]
+    },
+    "mvp_reconstruction": {
+      "nodes": [
+        {
+          "name": "reconstruction",
+          "type": "mvp_reconstruction"
+        }
+      ]
     }
   },
   "pipeline": "playback_panoptic",

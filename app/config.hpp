@@ -24,6 +24,7 @@ enum class node_type {
   three_point_bar_calibration_target_detector,
   voxelpose_reconstruction,
   mvpose_reconstruction,
+  mvp_reconstruction,
   epipolar_reconstruction,
 };
 

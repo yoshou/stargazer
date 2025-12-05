@@ -57,6 +57,7 @@ add_dependencies(stargazer_viewer
     stargazer_voxelpose
     stargazer_preprocess
     stargazer_mvpose
+    stargazer_mvp
 )
 
 target_include_directories(stargazer_viewer
@@ -83,6 +84,7 @@ target_link_libraries(stargazer_viewer
     stargazer_voxelpose
     stargazer_preprocess
     stargazer_mvpose
+    stargazer_mvp
     opencv_imgproc
     opencv_highgui
     opencv_videoio
