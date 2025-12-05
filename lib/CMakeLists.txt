@@ -176,6 +176,43 @@ endif()
 set_target_properties(stargazer_mvpose PROPERTIES
     CXX_STANDARD 20)
 
+add_library(stargazer_mvp
+    ${CMAKE_CURRENT_LIST_DIR}/mvp.cpp
+)
+
+target_include_directories(stargazer_mvp
+    PRIVATE
+    $<$<BOOL:${ENABLE_ONNXRUNTIME_EXT}>:${ONNXRUNTIME_INCLUDE_DIRS}>
+)
+
+target_compile_definitions(stargazer_mvp
+    PUBLIC
+    $<$<BOOL:${ENABLE_CUDA}>:USE_CUDA>
+)
+
+if (ENABLE_CUDA)
+    target_link_libraries(stargazer_mvp
+        glm::glm
+        opencv_imgproc
+        opencv_calib3d
+        stargazer_preprocess
+        CUDA::cudart
+        CUDA::cuda_driver
+        nvinfer
+        spdlog::spdlog_header_only
+    )
+else()
+    target_link_libraries(stargazer_mvp
+        glm::glm
+        opencv_imgproc
+        opencv_calib3d
+        spdlog::spdlog_header_only
+    )
+endif()
+
+set_target_properties(stargazer_mvp PROPERTIES
+    CXX_STANDARD 20)
+
 add_library(stargazer
     ${CMAKE_CURRENT_LIST_DIR}/parameters.cpp
     ${CMAKE_CURRENT_LIST_DIR}/reconstruction/triangulation.cpp
