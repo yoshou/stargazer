@@ -677,8 +677,7 @@ class callback_node : public graph_node {
   }
 };
 
-CEREAL_REGISTER_TYPE(callback_node)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, callback_node)
+COALSACK_REGISTER_NODE(callback_node, graph_node)
 
 class dump_blob_node : public graph_node {
   std::string db_path;
@@ -868,8 +867,7 @@ class dump_blob_node : public graph_node {
   }
 };
 
-CEREAL_REGISTER_TYPE(dump_blob_node)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, dump_blob_node)
+COALSACK_REGISTER_NODE(dump_blob_node, graph_node)
 
 class dump_keypoint_node : public graph_node {
   std::string db_path;
@@ -1076,8 +1074,7 @@ class dump_keypoint_node : public graph_node {
   }
 };
 
-CEREAL_REGISTER_TYPE(dump_keypoint_node)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, dump_keypoint_node)
+COALSACK_REGISTER_NODE(dump_keypoint_node, graph_node)
 
 class load_blob_node : public graph_node {
   std::string db_path;
@@ -1238,8 +1235,7 @@ class load_blob_node : public graph_node {
   }
 };
 
-CEREAL_REGISTER_TYPE(load_blob_node)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, load_blob_node)
+COALSACK_REGISTER_NODE(load_blob_node, graph_node)
 
 class load_marker_node : public graph_node {
   std::string db_path;
@@ -1409,8 +1405,7 @@ class load_marker_node : public graph_node {
   }
 };
 
-CEREAL_REGISTER_TYPE(load_marker_node)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, load_marker_node)
+COALSACK_REGISTER_NODE(load_marker_node, graph_node)
 
 class load_panoptic_node : public graph_node {
   std::string db_path;
@@ -1514,8 +1509,7 @@ class load_panoptic_node : public graph_node {
   }
 };
 
-CEREAL_REGISTER_TYPE(load_panoptic_node)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, load_panoptic_node)
+COALSACK_REGISTER_NODE(load_panoptic_node, graph_node)
 
 static void genenerate_common_nodes(
     const std::vector<node_info>& node_infos, std::shared_ptr<subgraph> g, int& sync_fps,
