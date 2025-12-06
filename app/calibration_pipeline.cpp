@@ -170,11 +170,9 @@ struct float2 {
 
 using float2_list_message = frame_message<std::vector<float2>>;
 
-CEREAL_REGISTER_TYPE(float2_list_message)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(coalsack::frame_message_base, float2_list_message)
+COALSACK_REGISTER_MESSAGE(float2_list_message, coalsack::frame_message_base)
 
-CEREAL_REGISTER_TYPE(frame_message<object_message>)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(coalsack::frame_message_base, frame_message<object_message>)
+COALSACK_REGISTER_MESSAGE(frame_message<object_message>, coalsack::frame_message_base)
 
 class camera_message : public graph_message {
   camera_t camera;
@@ -196,8 +194,7 @@ class camera_message : public graph_message {
   }
 };
 
-CEREAL_REGISTER_TYPE(camera_message)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_message, camera_message)
+COALSACK_REGISTER_MESSAGE(camera_message, graph_message)
 
 class scene_message : public graph_message {
   scene_t scene;
@@ -219,8 +216,7 @@ class scene_message : public graph_message {
   }
 };
 
-CEREAL_REGISTER_TYPE(scene_message)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_message, scene_message)
+COALSACK_REGISTER_MESSAGE(scene_message, graph_message)
 
 class pattern_board_calibration_target_detector_node : public graph_node {
   camera_t camera;
@@ -282,8 +278,7 @@ class pattern_board_calibration_target_detector_node : public graph_node {
   }
 };
 
-CEREAL_REGISTER_TYPE(pattern_board_calibration_target_detector_node)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, pattern_board_calibration_target_detector_node)
+COALSACK_REGISTER_NODE(pattern_board_calibration_target_detector_node, graph_node)
 
 class three_point_bar_calibration_target_detector_node : public graph_node {
   std::unique_ptr<three_point_bar_calibration_target> detector;
@@ -331,8 +326,7 @@ class three_point_bar_calibration_target_detector_node : public graph_node {
   }
 };
 
-CEREAL_REGISTER_TYPE(three_point_bar_calibration_target_detector_node)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, three_point_bar_calibration_target_detector_node)
+COALSACK_REGISTER_NODE(three_point_bar_calibration_target_detector_node, graph_node)
 
 class calibration_node : public graph_node {
   bool only_extrinsic;
@@ -454,8 +448,7 @@ class calibration_node : public graph_node {
   }
 };
 
-CEREAL_REGISTER_TYPE(calibration_node);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, calibration_node);
+COALSACK_REGISTER_NODE(calibration_node, graph_node)
 
 class callback_node;
 
@@ -500,8 +493,7 @@ class callback_node : public graph_node {
   }
 };
 
-CEREAL_REGISTER_TYPE(callback_node)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, callback_node)
+COALSACK_REGISTER_NODE(callback_node, graph_node)
 
 class object_map_node : public graph_node {
  public:
@@ -555,8 +547,7 @@ class object_map_node : public graph_node {
   }
 };
 
-CEREAL_REGISTER_TYPE(object_map_node)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, object_map_node)
+COALSACK_REGISTER_NODE(object_map_node, graph_node)
 
 class sentinel_message : public graph_message {
  public:
@@ -591,8 +582,7 @@ class object_mux_node : public graph_node {
   }
 };
 
-CEREAL_REGISTER_TYPE(object_mux_node)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, object_mux_node)
+COALSACK_REGISTER_NODE(object_mux_node, graph_node)
 
 class calibration_pipeline::impl {
  public:
@@ -1024,8 +1014,7 @@ class intrinsic_calibration_node : public graph_node {
   }
 };
 
-CEREAL_REGISTER_TYPE(intrinsic_calibration_node)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, intrinsic_calibration_node)
+COALSACK_REGISTER_NODE(intrinsic_calibration_node, graph_node)
 
 class intrinsic_calibration_pipeline::impl {
  public:
@@ -1496,8 +1485,7 @@ class axis_calibration_node : public graph_node {
   }
 };
 
-CEREAL_REGISTER_TYPE(axis_calibration_node);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, axis_calibration_node);
+COALSACK_REGISTER_NODE(axis_calibration_node, graph_node)
 
 class axis_calibration_pipeline::impl {
  public:

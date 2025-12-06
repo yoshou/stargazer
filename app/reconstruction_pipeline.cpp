@@ -75,17 +75,13 @@ using float3_list_message = frame_message<std::vector<float3>>;
 using mat4_message = frame_message<glm::mat4>;
 using se3_list_message = frame_message<std::vector<se3>>;
 
-CEREAL_REGISTER_TYPE(float2_list_message)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(coalsack::frame_message_base, float2_list_message)
+COALSACK_REGISTER_MESSAGE(float2_list_message, coalsack::frame_message_base)
 
-CEREAL_REGISTER_TYPE(float3_list_message)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(coalsack::frame_message_base, float3_list_message)
+COALSACK_REGISTER_MESSAGE(float3_list_message, coalsack::frame_message_base)
 
-CEREAL_REGISTER_TYPE(mat4_message)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(coalsack::frame_message_base, mat4_message)
+COALSACK_REGISTER_MESSAGE(mat4_message, coalsack::frame_message_base)
 
-CEREAL_REGISTER_TYPE(se3_list_message)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(coalsack::frame_message_base, se3_list_message)
+COALSACK_REGISTER_MESSAGE(se3_list_message, coalsack::frame_message_base)
 
 class SensorServiceImpl final : public Sensor::Service {
   std::mutex mtx;
@@ -296,11 +292,9 @@ class grpc_server_node : public graph_node {
   }
 };
 
-CEREAL_REGISTER_TYPE(grpc_server_node)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, grpc_server_node)
+COALSACK_REGISTER_NODE(grpc_server_node, graph_node)
 
-CEREAL_REGISTER_TYPE(frame_message<object_message>)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(coalsack::frame_message_base, frame_message<object_message>)
+COALSACK_REGISTER_MESSAGE(frame_message<object_message>, coalsack::frame_message_base)
 
 class callback_node;
 
@@ -345,8 +339,7 @@ class callback_node : public graph_node {
   }
 };
 
-CEREAL_REGISTER_TYPE(callback_node)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, callback_node)
+COALSACK_REGISTER_NODE(callback_node, graph_node)
 
 class camera_message : public graph_message {
   camera_t camera;
@@ -366,8 +359,7 @@ class camera_message : public graph_message {
   }
 };
 
-CEREAL_REGISTER_TYPE(camera_message)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_message, camera_message)
+COALSACK_REGISTER_MESSAGE(camera_message, graph_message)
 
 class epipolar_reconstruct_node : public graph_node {
   mutable std::mutex cameras_mtx;
@@ -450,8 +442,7 @@ class epipolar_reconstruct_node : public graph_node {
   }
 };
 
-CEREAL_REGISTER_TYPE(epipolar_reconstruct_node)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, epipolar_reconstruct_node)
+COALSACK_REGISTER_NODE(epipolar_reconstruct_node, graph_node)
 
 class multiview_point_reconstruction_pipeline::impl {
   graph_proc graph;
@@ -638,8 +629,7 @@ class image_reconstruct_node : public graph_node {
   virtual std::map<std::string, cv::Mat> get_features() const = 0;
 };
 
-CEREAL_REGISTER_TYPE(image_reconstruct_node)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, image_reconstruct_node)
+COALSACK_REGISTER_NODE(image_reconstruct_node, graph_node)
 
 class voxelpose_reconstruct_node : public image_reconstruct_node {
   mutable std::mutex cameras_mtx;
@@ -839,8 +829,7 @@ class voxelpose_reconstruct_node : public image_reconstruct_node {
   }
 };
 
-CEREAL_REGISTER_TYPE(voxelpose_reconstruct_node)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(image_reconstruct_node, voxelpose_reconstruct_node)
+COALSACK_REGISTER_NODE(voxelpose_reconstruct_node, image_reconstruct_node)
 
 class mvpose_reconstruct_node : public image_reconstruct_node {
   mutable std::mutex cameras_mtx;
@@ -1018,8 +1007,7 @@ class mvpose_reconstruct_node : public image_reconstruct_node {
   }
 };
 
-CEREAL_REGISTER_TYPE(mvpose_reconstruct_node)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(image_reconstruct_node, mvpose_reconstruct_node)
+COALSACK_REGISTER_NODE(mvpose_reconstruct_node, image_reconstruct_node)
 
 class mvp_reconstruct_node : public image_reconstruct_node {
   mutable std::mutex cameras_mtx;
@@ -1187,8 +1175,7 @@ class mvp_reconstruct_node : public image_reconstruct_node {
   }
 };
 
-CEREAL_REGISTER_TYPE(mvp_reconstruct_node)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(image_reconstruct_node, mvp_reconstruct_node)
+COALSACK_REGISTER_NODE(mvp_reconstruct_node, image_reconstruct_node)
 
 class dump_se3_node : public graph_node {
   std::string db_path;
@@ -1399,8 +1386,7 @@ class dump_se3_node : public graph_node {
   }
 };
 
-CEREAL_REGISTER_TYPE(dump_se3_node)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(graph_node, dump_se3_node)
+COALSACK_REGISTER_NODE(dump_se3_node, graph_node)
 
 class multiview_image_reconstruction_pipeline::impl {
   graph_proc graph;
