@@ -1597,7 +1597,8 @@ static void genenerate_common_nodes(
       rcv_nodes[node_infos[i].name] = n7;
     } else if (node_infos[i].get_type() == node_type::playback) {
       std::shared_ptr<load_blob_node> n1(new load_blob_node());
-      n1->set_name(std::regex_replace(node_infos[i].name, std::regex("camera"), "image_"));
+      const auto id = node_infos[i].get_param<std::string>("id");
+      n1->set_name(std::regex_replace(id, std::regex("camera"), "image_"));
       n1->set_db_path(node_infos[i].get_param<std::string>("db_path"));
       g->add_node(n1);
 
@@ -1610,7 +1611,7 @@ static void genenerate_common_nodes(
       rcv_nodes[node_infos[i].name] = n7;
     } else if (node_infos[i].get_type() == node_type::panoptic) {
       std::shared_ptr<load_panoptic_node> n1(new load_panoptic_node());
-      n1->set_name(node_infos[i].name);
+      n1->set_name(node_infos[i].get_param<std::string>("id"));
       n1->set_db_path(node_infos[i].get_param<std::string>("db_path"));
       g->add_node(n1);
 
