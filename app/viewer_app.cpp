@@ -190,39 +190,32 @@ class viewer_app : public window_base {
           return true;
         });
 
+#if 0   // Disabled: config editing functionality
     capture_panel_view_->on_add_device.push_back(
-        [this](const std::string& device_name, node_type node_type, const std::string& ip_address,
-               const std::string& gateway_address) {
-          node_info new_device{};
+        [this](const std::string& device_name, const std::string& node_type,
+               const std::string& ip_address, const std::string& gateway_address) {
+          node_def new_device{};
           new_device.name = device_name;
           new_device.set_type(node_type);
           new_device.params["id"] = generate_new_id();
           new_device.params["address"] = ip_address;
           new_device.params["gateway"] = gateway_address;
 
-          switch (node_type) {
-            case node_type::depthai_color:
-              new_device.params["width"] = 960.0f;
-              new_device.params["height"] = 540.0f;
-              break;
-            case node_type::raspi:
-              new_device.params["width"] = 820.0f;
-              new_device.params["height"] = 616.0f;
-              break;
-            case node_type::raspi_color:
-              new_device.params["width"] = 820.0f;
-              new_device.params["height"] = 616.0f;
-              break;
-            case node_type::rs_d435:
-              new_device.params["width"] = 640.0f;
-              new_device.params["height"] = 480.0f;
-              break;
-            case node_type::rs_d435_color:
-              new_device.params["width"] = 960.0f;
-              new_device.params["height"] = 540.0f;
-              break;
-            default:
-              break;
+          if (node_type == "depthai_color") {
+            new_device.params["width"] = 960.0f;
+            new_device.params["height"] = 540.0f;
+          } else if (node_type == "raspi") {
+            new_device.params["width"] = 820.0f;
+            new_device.params["height"] = 616.0f;
+          } else if (node_type == "raspi_color") {
+            new_device.params["width"] = 820.0f;
+            new_device.params["height"] = 616.0f;
+          } else if (node_type == "rs_d435") {
+            new_device.params["width"] = 640.0f;
+            new_device.params["height"] = 480.0f;
+          } else if (node_type == "rs_d435_color") {
+            new_device.params["width"] = 960.0f;
+            new_device.params["height"] = 540.0f;
           }
 
           auto& node_infos = capture_config->get_node_infos();
@@ -269,6 +262,7 @@ class viewer_app : public window_base {
         capture_config->update();
       }
     });
+#endif  // Disabled: config editing functionality
   }
 
   void init_calibration_panel() {

@@ -38,8 +38,9 @@
       "type": "record"
     }
   ],
-  "pipelines": {
-    "playback_ir": {
+  "subgraphs": [
+    {
+      "name": "playback_ir_subgraph",
       "nodes": [
         {
           "name": "camera1",
@@ -183,7 +184,8 @@
         }
       ]
     },
-    "playback_color": {
+    {
+      "name": "playback_color_subgraph",
       "nodes": [
         {
           "name": "camera101",
@@ -222,7 +224,8 @@
         }
       ]
     },
-    "capture_ir": {
+    {
+      "name": "capture_ir_subgraph",
       "nodes": [
         {
           "name": "camera1",
@@ -418,7 +421,8 @@
         }
       ]
     },
-    "capture_color": {
+    {
+      "name": "capture_color_subgraph",
       "nodes": [
         {
           "name": "camera101",
@@ -462,7 +466,8 @@
         }
       ]
     },
-    "record_ir": {
+    {
+      "name": "record_ir_subgraph",
       "nodes": [
         {
           "name": "camera1",
@@ -874,7 +879,8 @@
         }
       ]
     },
-    "record_color": {
+    {
+      "name": "record_color_subgraph",
       "nodes": [
         {
           "name": "camera101",
@@ -963,7 +969,8 @@
         }
       ]
     },
-    "calibration_ir": {
+    {
+      "name": "calibration_ir_subgraph",
       "nodes": [
         {
           "name": "calibration",
@@ -977,7 +984,8 @@
         }
       ]
     },
-    "calibration_color": {
+    {
+      "name": "calibration_color_subgraph",
       "nodes": [
         {
           "name": "calibration",
@@ -988,6 +996,88 @@
         {
           "name": "detector",
           "type": "pattern_board_calibration_target_detector"
+        }
+      ]
+    }
+  ],
+  "pipelines": {
+    "playback_ir": {
+      "subgraphs": [
+        {
+          "name": "playback_ir",
+          "extends": [
+            "playback_ir_subgraph"
+          ]
+        }
+      ]
+    },
+    "playback_color": {
+      "subgraphs": [
+        {
+          "name": "playback_color",
+          "extends": [
+            "playback_color_subgraph"
+          ]
+        }
+      ]
+    },
+    "capture_ir": {
+      "subgraphs": [
+        {
+          "name": "capture_ir",
+          "extends": [
+            "capture_ir_subgraph"
+          ]
+        }
+      ]
+    },
+    "capture_color": {
+      "subgraphs": [
+        {
+          "name": "capture_color",
+          "extends": [
+            "capture_color_subgraph"
+          ]
+        }
+      ]
+    },
+    "record_ir": {
+      "subgraphs": [
+        {
+          "name": "record_ir",
+          "extends": [
+            "record_ir_subgraph"
+          ]
+        }
+      ]
+    },
+    "record_color": {
+      "subgraphs": [
+        {
+          "name": "record_color",
+          "extends": [
+            "record_color_subgraph"
+          ]
+        }
+      ]
+    },
+    "calibration_ir": {
+      "subgraphs": [
+        {
+          "name": "calibration_ir",
+          "extends": [
+            "calibration_ir_subgraph"
+          ]
+        }
+      ]
+    },
+    "calibration_color": {
+      "subgraphs": [
+        {
+          "name": "calibration_color",
+          "extends": [
+            "calibration_color_subgraph"
+          ]
         }
       ]
     }

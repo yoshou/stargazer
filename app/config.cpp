@@ -170,48 +170,124 @@ configuration::configuration(const std::string& path) : path(path) {
       }
     }
 
+    if (j.contains("subgraphs")) {
+      for (const auto& j_subgraph : j["subgraphs"]) {
+        subgraph_def subgraph;
+
+        if (!j_subgraph.contains("name")) {
+          throw std::runtime_error("Subgraph must have a name");
+        }
+        subgraph.name = j_subgraph["name"].get<std::string>();
+
+        if (j_subgraph.contains("nodes")) {
+          for (const auto& j_node : j_subgraph["nodes"]) {
+            node_info node;
+            for (const auto& [key, value] : j_node.items()) {
+              if (key == "type") {
+                node.type = get_node_type(value.get<std::string>());
+              } else if (key == "name") {
+                node.name = value.get<std::string>();
+              } else if (key == "inputs") {
+                node.inputs = value.get<std::unordered_map<std::string, std::string>>();
+              } else if (key == "outputs") {
+                node.outputs = value.get<std::vector<std::string>>();
+              } else if (key == "extends") {
+                const auto extends = value.get<std::vector<std::string>>();
+                for (const auto& extend : extends) {
+                  if (nodes.find(extend) == nodes.end()) {
+                    throw std::runtime_error("Node not found: " + extend);
+                  }
+                  node.extends.push_back(nodes.at(extend));
+                }
+              } else {
+                node.params[key] = value.get<node_param_t>();
+              }
+            }
+            subgraph.nodes.push_back(node);
+          }
+        }
+
+        if (j_subgraph.contains("outputs")) {
+          subgraph.outputs = j_subgraph["outputs"].get<std::vector<std::string>>();
+        }
+
+        // Subgraph-level parameters (e.g., db_path, fps, etc.)
+        for (const auto& [key, value] : j_subgraph.items()) {
+          if (key != "name" && key != "nodes" && key != "outputs" && key != "extends") {
+            subgraph.params[key] = value.get<node_param_t>();
+          }
+        }
+
+        subgraph_templates[subgraph.name] = subgraph;
+      }
+    }
+
     pipeline_names.insert(std::make_pair("pipeline", j["pipeline"].get<std::string>()));
     if (j.contains("static_pipeline")) {
       pipeline_names.insert(
           std::make_pair("static_pipeline", j["static_pipeline"].get<std::string>()));
     }
 
-    for (const auto& [pipeline_name, pipeline] : j["pipelines"].items()) {
-      std::unordered_set<std::string> node_names;
+    for (const auto& [pipeline_name, pipeline_json] : j["pipelines"].items()) {
+      pipeline_def pipeline;
+      pipeline.name = pipeline_name;
 
-      std::vector<node_info> node_infos;
-      for (const auto& j_node : pipeline["nodes"]) {
-        node_info node;
-        for (const auto& [key, value] : j_node.items()) {
-          if (key == "type") {
-            node.type = get_node_type(value.get<std::string>());
-          } else if (key == "name") {
-            node.name = value.get<std::string>();
-          } else if (key == "inputs") {
-            node.inputs = value.get<std::unordered_map<std::string, std::string>>();
-          } else if (key == "outputs") {
-            node.outputs = value.get<std::vector<std::string>>();
-          } else if (key == "extends") {
-            const auto extends = value.get<std::vector<std::string>>();
-            for (const auto& extend : extends) {
-              if (nodes.find(extend) == nodes.end()) {
-                throw std::runtime_error("Node not found: " + extend);
-              }
-              node.extends.push_back(nodes.at(extend));
-            }
-          } else {
-            node.params[key] = value.get<node_param_t>();
+      // Parse subgraphs array in pipeline
+      if (pipeline_json.contains("subgraphs")) {
+        for (const auto& j_sg : pipeline_json["subgraphs"]) {
+          subgraph_def sg_instance;
+
+          // Subgraph instance must have a name
+          if (j_sg.contains("name")) {
+            sg_instance.name = j_sg["name"].get<std::string>();
           }
-        }
-        node_infos.push_back(node);
 
-        if (node_names.find(node.name) != node_names.end()) {
-          throw std::runtime_error("Duplicate node name");
+          // Check if it extends a template
+          if (j_sg.contains("extends")) {
+            sg_instance.extends = j_sg["extends"].get<std::vector<std::string>>();
+          }
+
+          // Instance-specific parameters (override template params)
+          for (const auto& [key, value] : j_sg.items()) {
+            if (key != "name" && key != "extends" && key != "nodes" && key != "outputs") {
+              sg_instance.params[key] = value.get<node_param_t>();
+            }
+          }
+
+          // Instance can also have nodes directly defined
+          if (j_sg.contains("nodes")) {
+            for (const auto& j_node : j_sg["nodes"]) {
+              node_info node;
+              for (const auto& [key, value] : j_node.items()) {
+                if (key == "type") {
+                  node.type = get_node_type(value.get<std::string>());
+                } else if (key == "name") {
+                  node.name = value.get<std::string>();
+                } else if (key == "inputs") {
+                  node.inputs = value.get<std::unordered_map<std::string, std::string>>();
+                } else if (key == "outputs") {
+                  node.outputs = value.get<std::vector<std::string>>();
+                } else if (key == "extends") {
+                  const auto extends = value.get<std::vector<std::string>>();
+                  for (const auto& extend : extends) {
+                    if (nodes.find(extend) == nodes.end()) {
+                      throw std::runtime_error("Node not found: " + extend);
+                    }
+                    node.extends.push_back(nodes.at(extend));
+                  }
+                } else {
+                  node.params[key] = value.get<node_param_t>();
+                }
+              }
+              sg_instance.nodes.push_back(node);
+            }
+          }
+
+          pipeline.subgraphs.push_back(sg_instance);
         }
-        node_names.insert(node.name);
       }
 
-      pipeline_nodes.insert(std::make_pair(pipeline_name, node_infos));
+      pipelines[pipeline_name] = pipeline;
     }
   }
 }
@@ -245,32 +321,87 @@ void configuration::update() {
     j["nodes"] = j_nodes;
   }
 
-  for (const auto& [pipeline_name, nodes] : pipeline_nodes) {
-    std::vector<nlohmann::json> j_nodes;
-    for (const auto& node : nodes) {
-      nlohmann::json j_node;
+  // Write subgraph templates
+  {
+    std::vector<nlohmann::json> j_subgraphs;
+    for (const auto& [sg_name, sg] : subgraph_templates) {
+      nlohmann::json j_subgraph;
+      j_subgraph["name"] = sg.name;
 
-      if (node.type != node_type::unknown) {
-        j_node["type"] = get_node_type_name(node.type);
-      }
-      j_node["name"] = node.name;
-      if (node.inputs.size() > 0) {
-        j_node["inputs"] = node.inputs;
-      }
-      for (const auto& [key, value] : node.params) {
-        j_node[key] = value;
-      }
-      if (node.extends.size() > 0) {
-        std::vector<std::string> extends;
-        for (const auto& extend : node.extends) {
-          extends.push_back(extend->name);
+      std::vector<nlohmann::json> j_nodes;
+      for (const auto& node : sg.nodes) {
+        nlohmann::json j_node;
+        if (node.type != node_type::unknown) {
+          j_node["type"] = get_node_type_name(node.type);
         }
-        j_node["extends"] = extends;
+        j_node["name"] = node.name;
+        if (node.inputs.size() > 0) {
+          j_node["inputs"] = node.inputs;
+        }
+        if (node.outputs.size() > 0) {
+          j_node["outputs"] = node.outputs;
+        }
+        for (const auto& [key, value] : node.params) {
+          j_node[key] = value;
+        }
+        j_nodes.push_back(j_node);
       }
-      j_nodes.push_back(j_node);
-    }
+      j_subgraph["nodes"] = j_nodes;
 
-    j["pipelines"][pipeline_name]["nodes"] = j_nodes;
+      if (sg.outputs.size() > 0) {
+        j_subgraph["outputs"] = sg.outputs;
+      }
+
+      for (const auto& [key, value] : sg.params) {
+        j_subgraph[key] = value;
+      }
+
+      j_subgraphs.push_back(j_subgraph);
+    }
+    if (j_subgraphs.size() > 0) {
+      j["subgraphs"] = j_subgraphs;
+    }
+  }
+
+  // Write pipelines
+  for (const auto& [pipeline_name, pipeline] : pipelines) {
+    {
+      std::vector<nlohmann::json> j_subgraphs;
+      for (const auto& sg : pipeline.subgraphs) {
+        nlohmann::json j_sg;
+        j_sg["name"] = sg.name;
+
+        if (sg.extends.size() > 0) {
+          j_sg["extends"] = sg.extends;
+        }
+
+        for (const auto& [key, value] : sg.params) {
+          j_sg[key] = value;
+        }
+
+        if (sg.nodes.size() > 0) {
+          std::vector<nlohmann::json> j_nodes;
+          for (const auto& node : sg.nodes) {
+            nlohmann::json j_node;
+            if (node.type != node_type::unknown) {
+              j_node["type"] = get_node_type_name(node.type);
+            }
+            j_node["name"] = node.name;
+            if (node.inputs.size() > 0) {
+              j_node["inputs"] = node.inputs;
+            }
+            for (const auto& [key, value] : node.params) {
+              j_node[key] = value;
+            }
+            j_nodes.push_back(j_node);
+          }
+          j_sg["nodes"] = j_nodes;
+        }
+
+        j_subgraphs.push_back(j_sg);
+      }
+      j["pipelines"][pipeline_name]["subgraphs"] = j_subgraphs;
+    }
   }
 
   for (const auto& [pipeline, pipeline_name] : pipeline_names) {

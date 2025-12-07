@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <variant>
 #include <vector>
 
@@ -112,29 +113,97 @@ class node_info {
   }
 };
 
+struct subgraph_def {
+  std::string name;
+  std::vector<node_info> nodes;
+  std::vector<std::string> outputs;
+  std::unordered_map<std::string, node_param_t> params;
+  std::vector<std::string> extends;  // Template subgraph names to inherit from
+};
+
+struct pipeline_def {
+  std::string name;
+  std::vector<subgraph_def> subgraphs;  // Subgraph instances in this pipeline
+};
+
 class configuration {
   std::string path;
-  std::unordered_map<std::string, std::vector<node_info>> pipeline_nodes;
+  std::unordered_map<std::string, pipeline_def> pipelines;
   std::unordered_map<std::string, std::string> pipeline_names;
   std::unordered_map<std::string, std::shared_ptr<node_info>> nodes;
+  std::unordered_map<std::string, subgraph_def> subgraph_templates;  // Template definitions
 
  public:
   configuration(const std::string& path);
 
   void update();
 
-  const std::vector<node_info>& get_node_infos() const {
-    return pipeline_nodes.at(pipeline_names.at("pipeline"));
-  }
-  std::vector<node_info>& get_node_infos() {
-    return pipeline_nodes.at(pipeline_names.at("pipeline"));
+  std::vector<node_info> get_node_infos(const std::string& pipeline_key = "pipeline") const {
+    const auto& pipeline_name = pipeline_names.at(pipeline_key);
+    const auto& pipeline = pipelines.at(pipeline_name);
+    std::vector<node_info> result;
+
+    for (const auto& sg_instance : pipeline.subgraphs) {
+      std::vector<node_info> sg_nodes = sg_instance.nodes;
+
+      for (const auto& template_name : sg_instance.extends) {
+        if (subgraph_templates.find(template_name) != subgraph_templates.end()) {
+          const auto& sg_template = subgraph_templates.at(template_name);
+          sg_nodes = sg_template.nodes;
+
+          // Build a map of original node names in this subgraph
+          std::unordered_set<std::string> local_node_names;
+          for (const auto& n : sg_nodes) {
+            local_node_names.insert(n.name);
+          }
+
+          for (auto& node : sg_nodes) {
+            // Apply instance parameters
+            for (const auto& [key, value] : sg_instance.params) {
+              node.params[key] = value;
+            }
+
+            // Prefix node name with subgraph instance name if not already prefixed
+            if (node.name.find(sg_instance.name) == std::string::npos) {
+              node.name = sg_instance.name + "_" + node.name;
+            }
+
+            // Update input references to use prefixed names
+            for (auto& [input_name, source_name] : node.inputs) {
+              // Parse source_name to extract node reference and optional output name
+              size_t colon_pos = source_name.find(':');
+              std::string node_ref =
+                  colon_pos != std::string::npos ? source_name.substr(0, colon_pos) : source_name;
+              std::string output_ref =
+                  colon_pos != std::string::npos ? source_name.substr(colon_pos) : "";
+
+              // Check if this is a local reference (node exists in subgraph)
+              if (local_node_names.count(node_ref) > 0) {
+                // This is a local reference, prefix it
+                if (node_ref.find(sg_instance.name) == std::string::npos) {
+                  source_name = sg_instance.name + "_" + node_ref + output_ref;
+                }
+              }
+            }
+          }
+        }
+      }
+
+      result.insert(result.end(), sg_nodes.begin(), sg_nodes.end());
+    }
+    return result;
   }
 
-  const std::vector<node_info>& get_node_infos(const std::string& pipeline) const {
-    return pipeline_nodes.at(pipeline_names.at(pipeline));
+  bool has_subgraph(const std::string& name) const {
+    return subgraph_templates.find(name) != subgraph_templates.end();
   }
-  std::vector<node_info>& get_node_infos(const std::string& pipeline) {
-    return pipeline_nodes.at(pipeline_names.at(pipeline));
+
+  const subgraph_def& get_subgraph(const std::string& name) const {
+    return subgraph_templates.at(name);
+  }
+
+  const pipeline_def& get_pipeline(const std::string& pipeline_key) const {
+    return pipelines.at(pipeline_names.at(pipeline_key));
   }
 };
 }  // namespace stargazer

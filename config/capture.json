@@ -46,8 +46,9 @@
       "type": "record"
     }
   ],
-  "pipelines": {
-    "record_color": {
+  "subgraphs": [
+    {
+      "name": "record_color_subgraph",
       "nodes": [
         {
           "name": "camera101",
@@ -136,7 +137,8 @@
         }
       ]
     },
-    "record_ir": {
+    {
+      "name": "record_ir_subgraph",
       "nodes": [
         {
           "name": "camera1",
@@ -548,7 +550,8 @@
         }
       ]
     },
-    "capture_color": {
+    {
+      "name": "capture_color_subgraph",
       "nodes": [
         {
           "name": "camera101",
@@ -592,7 +595,8 @@
         }
       ]
     },
-    "capture_ir": {
+    {
+      "name": "capture_ir_subgraph",
       "nodes": [
         {
           "name": "camera1",
@@ -788,7 +792,8 @@
         }
       ]
     },
-    "playback_color": {
+    {
+      "name": "playback_color_subgraph",
       "nodes": [
         {
           "name": "camera101",
@@ -827,7 +832,8 @@
         }
       ]
     },
-    "playback_ir": {
+    {
+      "name": "playback_ir_subgraph",
       "nodes": [
         {
           "name": "camera1",
@@ -971,7 +977,8 @@
         }
       ]
     },
-    "playback_panoptic": {
+    {
+      "name": "playback_panoptic_subgraph",
       "nodes": [
         {
           "name": "00_03",
@@ -1010,6 +1017,78 @@
         }
       ]
     }
+  ],
+  "pipelines": {
+    "record_color": {
+      "subgraphs": [
+        {
+          "name": "record_color",
+          "extends": [
+            "record_color_subgraph"
+          ]
+        }
+      ]
+    },
+    "record_ir": {
+      "subgraphs": [
+        {
+          "name": "record_ir",
+          "extends": [
+            "record_ir_subgraph"
+          ]
+        }
+      ]
+    },
+    "capture_color": {
+      "subgraphs": [
+        {
+          "name": "capture_color",
+          "extends": [
+            "capture_color_subgraph"
+          ]
+        }
+      ]
+    },
+    "capture_ir": {
+      "subgraphs": [
+        {
+          "name": "capture_ir",
+          "extends": [
+            "capture_ir_subgraph"
+          ]
+        }
+      ]
+    },
+    "playback_color": {
+      "subgraphs": [
+        {
+          "name": "playback_color",
+          "extends": [
+            "playback_color_subgraph"
+          ]
+        }
+      ]
+    },
+    "playback_ir": {
+      "subgraphs": [
+        {
+          "name": "playback_ir",
+          "extends": [
+            "playback_ir_subgraph"
+          ]
+        }
+      ]
+    },
+    "playback_panoptic": {
+      "subgraphs": [
+        {
+          "name": "playback_panoptic",
+          "extends": [
+            "playback_panoptic_subgraph"
+          ]
+        }
+      ]
+    }
   },
-  "pipeline": "playback_panoptic"
+  "pipeline": "capture_color"
 }
