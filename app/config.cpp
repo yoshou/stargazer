@@ -58,6 +58,22 @@ static node_type get_node_type(const std::string& type) {
     return node_type::pattern_board_calibration_target_detector;
   } else if (type == "three_point_bar_calibration_target_detector") {
     return node_type::three_point_bar_calibration_target_detector;
+  } else if (type == "approximate_time_sync") {
+    return node_type::approximate_time_sync;
+  } else if (type == "frame_number_numbering") {
+    return node_type::frame_number_numbering;
+  } else if (type == "parallel_queue") {
+    return node_type::parallel_queue;
+  } else if (type == "frame_number_ordering") {
+    return node_type::frame_number_ordering;
+  } else if (type == "callback") {
+    return node_type::callback;
+  } else if (type == "grpc_server") {
+    return node_type::grpc_server;
+  } else if (type == "frame_demux") {
+    return node_type::frame_demux;
+  } else if (type == "dump_se3") {
+    return node_type::dump_se3;
   }
   throw std::runtime_error("Invalid node type");
 }
@@ -88,12 +104,30 @@ static std::string get_node_type_name(node_type type) {
       return "voxelpose_reconstruction";
     case node_type::mvpose_reconstruction:
       return "mvpose_reconstruction";
+    case node_type::mvp_reconstruction:
+      return "mvp_reconstruction";
     case node_type::epipolar_reconstruction:
       return "epipolar_reconstruction";
     case node_type::pattern_board_calibration_target_detector:
       return "pattern_board_calibration_target_detector";
     case node_type::three_point_bar_calibration_target_detector:
       return "three_point_bar_calibration_target_detector";
+    case node_type::approximate_time_sync:
+      return "approximate_time_sync";
+    case node_type::frame_number_numbering:
+      return "frame_number_numbering";
+    case node_type::parallel_queue:
+      return "parallel_queue";
+    case node_type::frame_number_ordering:
+      return "frame_number_ordering";
+    case node_type::callback:
+      return "callback";
+    case node_type::grpc_server:
+      return "grpc_server";
+    case node_type::frame_demux:
+      return "frame_demux";
+    case node_type::dump_se3:
+      return "dump_se3";
   }
   throw std::runtime_error("Invalid node type");
 }
@@ -115,6 +149,8 @@ configuration::configuration(const std::string& path) : path(path) {
             node->name = value.get<std::string>();
           } else if (key == "inputs") {
             node->inputs = value.get<std::unordered_map<std::string, std::string>>();
+          } else if (key == "outputs") {
+            node->outputs = value.get<std::vector<std::string>>();
           } else if (key == "extends") {
             const auto extends = value.get<std::vector<std::string>>();
             for (const auto& extend : extends) {
@@ -153,6 +189,8 @@ configuration::configuration(const std::string& path) : path(path) {
             node.name = value.get<std::string>();
           } else if (key == "inputs") {
             node.inputs = value.get<std::unordered_map<std::string, std::string>>();
+          } else if (key == "outputs") {
+            node.outputs = value.get<std::vector<std::string>>();
           } else if (key == "extends") {
             const auto extends = value.get<std::vector<std::string>>();
             for (const auto& extend : extends) {

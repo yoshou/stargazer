@@ -1480,77 +1480,111 @@ class multiview_image_reconstruction_pipeline::impl {
   void run(const std::vector<node_info>& infos) {
     std::shared_ptr<subgraph> g(new subgraph());
 
-    std::shared_ptr<frame_number_numbering_node> n4(new frame_number_numbering_node());
-    g->add_node(n4);
-
-    input_node = n4;
-
-    std::shared_ptr<parallel_queue_node> n6(new parallel_queue_node());
-    n6->set_input(n4->get_output());
-    n6->set_num_threads(1);
-    g->add_node(n6);
+    std::unordered_map<std::string, graph_node_ptr> node_map;
 
     for (const auto& info : infos) {
-      if (info.get_type() == node_type::voxelpose_reconstruction) {
-        std::shared_ptr<voxelpose_reconstruct_node> n1(new voxelpose_reconstruct_node());
-        n1->set_input(n6->get_output());
-        g->add_node(n1);
+      graph_node_ptr node;
 
-        reconstruct_node = n1;
+      switch (info.get_type()) {
+        case node_type::frame_number_numbering: {
+          auto n = std::make_shared<frame_number_numbering_node>();
+          node = n;
+          input_node = n;
+          break;
+        }
+        case node_type::parallel_queue: {
+          auto n = std::make_shared<parallel_queue_node>();
+          if (info.contains_param("num_threads")) {
+            n->set_num_threads(static_cast<size_t>(info.get_param<std::int64_t>("num_threads")));
+          }
+          node = n;
+          break;
+        }
+        case node_type::voxelpose_reconstruction: {
+          auto n = std::make_shared<voxelpose_reconstruct_node>();
+          node = n;
+          reconstruct_node = n;
+          break;
+        }
+        case node_type::mvpose_reconstruction: {
+          auto n = std::make_shared<mvpose_reconstruct_node>();
+          node = n;
+          reconstruct_node = n;
+          break;
+        }
+        case node_type::mvp_reconstruction: {
+          auto n = std::make_shared<mvp_reconstruct_node>();
+          node = n;
+          reconstruct_node = n;
+          break;
+        }
+        case node_type::frame_number_ordering: {
+          auto n = std::make_shared<frame_number_ordering_node>();
+          node = n;
+          break;
+        }
+        case node_type::callback: {
+          auto n = std::make_shared<callback_node>();
+          if (info.contains_param("callback_name")) {
+            n->set_name(info.get_param<std::string>("callback_name"));
+          }
+          node = n;
+          break;
+        }
+        case node_type::grpc_server: {
+          auto n = std::make_shared<grpc_server_node>();
+          if (info.contains_param("address")) {
+            n->set_address(info.get_param<std::string>("address"));
+          }
+          node = n;
+          break;
+        }
+        case node_type::frame_demux: {
+          auto n = std::make_shared<frame_demux_node>();
+          for (const auto& output_name : info.outputs) {
+            n->add_output(output_name);
+          }
+          node = n;
+          break;
+        }
+        case node_type::dump_se3: {
+          auto n = std::make_shared<dump_se3_node>();
+          if (info.contains_param("db_path")) {
+            n->set_db_path(info.get_param<std::string>("db_path"));
+          }
+          if (info.contains_param("topic_name")) {
+            n->set_name(info.get_param<std::string>("topic_name"));
+          }
+          node = n;
+          break;
+        }
+        default:
+          throw std::runtime_error("Unknown node type: " + info.name);
       }
-      if (info.get_type() == node_type::mvpose_reconstruction) {
-        std::shared_ptr<mvpose_reconstruct_node> n1(new mvpose_reconstruct_node());
-        n1->set_input(n6->get_output());
-        g->add_node(n1);
 
-        reconstruct_node = n1;
-      }
-      if (info.get_type() == node_type::mvp_reconstruction) {
-        std::shared_ptr<mvp_reconstruct_node> n1(new mvp_reconstruct_node());
-        n1->set_input(n6->get_output());
-        g->add_node(n1);
-
-        reconstruct_node = n1;
-      }
+      node_map[info.name] = node;
+      g->add_node(node);
     }
 
-    std::shared_ptr<frame_number_ordering_node> n5(new frame_number_ordering_node());
-    n5->set_input(reconstruct_node->get_output());
-    g->add_node(n5);
+    for (const auto& info : infos) {
+      if (info.inputs.empty()) {
+        continue;
+      }
 
-    std::shared_ptr<callback_node> n2(new callback_node());
-    n2->set_input(n5->get_output());
-    g->add_node(n2);
+      auto target_node = node_map.at(info.name);
 
-    n2->set_name("markers");
-
-    std::shared_ptr<grpc_server_node> n3(new grpc_server_node());
-    n3->set_input(n5->get_output(), "sphere");
-    n3->set_address("0.0.0.0:50052");
-    g->add_node(n3);
-
-    const std::vector<std::string> device_names = {
-    };
-
-    std::shared_ptr<grpc_server_node> n7(new grpc_server_node());
-    n7->set_address("0.0.0.0:50053");
-    g->add_node(n7);
-
-    std::shared_ptr<frame_demux_node> n8(new frame_demux_node());
-    n8->set_input(n7->get_output());
-
-    for (const auto& device_name : device_names) {
-      n8->add_output(device_name);
-    }
-
-    g->add_node(n8);
-
-    for (auto& device_name : device_names) {
-      std::shared_ptr<dump_se3_node> n9(new dump_se3_node());
-      n9->set_db_path("../data/data_20250115_1/imu.db");
-      n9->set_name(device_name);
-      n9->set_input(n8->get_output(device_name), device_name);
-      g->add_node(n9);
+      for (const auto& [input_name, source_name] : info.inputs) {
+        size_t pos = source_name.find(':');
+        if (pos != std::string::npos) {
+          auto node_name = source_name.substr(0, pos);
+          auto output_name = source_name.substr(pos + 1);
+          auto source_node = node_map.at(node_name);
+          target_node->set_input(source_node->get_output(output_name), input_name);
+        } else {
+          auto source_node = node_map.at(source_name);
+          target_node->set_input(source_node->get_output(), input_name);
+        }
+      }
     }
 
     const auto callbacks = std::make_shared<callback_list>();

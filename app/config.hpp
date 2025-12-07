@@ -26,6 +26,14 @@ enum class node_type {
   mvpose_reconstruction,
   mvp_reconstruction,
   epipolar_reconstruction,
+  approximate_time_sync,
+  frame_number_numbering,
+  parallel_queue,
+  frame_number_ordering,
+  callback,
+  grpc_server,
+  frame_demux,
+  dump_se3,
 };
 
 using node_param_t = std::variant<std::string, std::int64_t, float, bool>;
@@ -60,6 +68,7 @@ class node_info {
  public:
   std::string name{};
   std::unordered_map<std::string, std::string> inputs{};
+  std::vector<std::string> outputs{};
   std::unordered_map<std::string, node_param_t> params{};
 
   void set_type(node_type type) { this->type = type; }
