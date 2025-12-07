@@ -507,24 +507,212 @@
     "voxelpose_reconstruction": {
       "nodes": [
         {
-          "name": "reconstruction",
-          "type": "voxelpose_reconstruction"
+          "name": "numbering",
+          "type": "frame_number_numbering"
+        },
+        {
+          "name": "queue",
+          "type": "parallel_queue",
+          "num_threads": 1,
+          "inputs": {
+            "default": "numbering"
+          }
+        },
+        {
+          "name": "reconstruct",
+          "type": "voxelpose_reconstruction",
+          "inputs": {
+            "default": "queue"
+          }
+        },
+        {
+          "name": "ordering",
+          "type": "frame_number_ordering",
+          "inputs": {
+            "default": "reconstruct"
+          }
+        },
+        {
+          "name": "callback",
+          "type": "callback",
+          "callback_name": "markers",
+          "inputs": {
+            "default": "ordering"
+          }
+        },
+        {
+          "name": "grpc_server",
+          "type": "grpc_server",
+          "address": "0.0.0.0:50052",
+          "inputs": {
+            "sphere": "ordering"
+          }
+        },
+        {
+          "name": "imu_server",
+          "type": "grpc_server",
+          "address": "0.0.0.0:50053"
+        },
+        {
+          "name": "demux",
+          "type": "frame_demux",
+          "outputs": [
+            "imu1",
+            "imu2",
+            "imu3",
+            "imu4",
+            "imu5",
+            "imu6"
+          ],
+          "inputs": {
+            "default": "imu_server"
+          }
+        },
+        {
+          "name": "dump_imu_1",
+          "type": "dump_se3",
+          "db_path": "../data/imu.db",
+          "topic_name": "imu1",
+          "inputs": {
+            "imu1": "demux:imu1"
+          }
+        },
+        {
+          "name": "dump_imu_2",
+          "type": "dump_se3",
+          "db_path": "../data/imu.db",
+          "topic_name": "imu2",
+          "inputs": {
+            "imu2": "demux:imu2"
+          }
+        },
+        {
+          "name": "dump_imu_3",
+          "type": "dump_se3",
+          "db_path": "../data/imu.db",
+          "topic_name": "imu3",
+          "inputs": {
+            "imu3": "demux:imu3"
+          }
+        },
+        {
+          "name": "dump_imu_4",
+          "type": "dump_se3",
+          "db_path": "../data/imu.db",
+          "topic_name": "imu4",
+          "inputs": {
+            "imu4": "demux:imu4"
+          }
+        },
+        {
+          "name": "dump_imu_5",
+          "type": "dump_se3",
+          "db_path": "../data/imu.db",
+          "topic_name": "imu5",
+          "inputs": {
+            "imu5": "demux:imu5"
+          }
+        },
+        {
+          "name": "dump_imu_6",
+          "type": "dump_se3",
+          "db_path": "../data/imu.db",
+          "topic_name": "imu6",
+          "inputs": {
+            "imu6": "demux:imu6"
+          }
         }
       ]
     },
     "mvpose_reconstruction": {
       "nodes": [
         {
-          "name": "reconstruction",
-          "type": "mvpose_reconstruction"
+          "name": "numbering",
+          "type": "frame_number_numbering"
+        },
+        {
+          "name": "queue",
+          "type": "parallel_queue",
+          "num_threads": 1,
+          "inputs": {
+            "default": "numbering"
+          }
+        },
+        {
+          "name": "reconstruct",
+          "type": "mvpose_reconstruction",
+          "inputs": {
+            "default": "queue"
+          }
+        },
+        {
+          "name": "ordering",
+          "type": "frame_number_ordering",
+          "inputs": {
+            "default": "reconstruct"
+          }
+        },
+        {
+          "name": "callback",
+          "type": "callback",
+          "callback_name": "markers",
+          "inputs": {
+            "default": "ordering"
+          }
+        },
+        {
+          "name": "grpc_server",
+          "type": "grpc_server",
+          "address": "0.0.0.0:50052",
+          "inputs": {
+            "sphere": "ordering"
+          }
         }
       ]
     },
     "mvp_reconstruction": {
       "nodes": [
         {
-          "name": "reconstruction",
-          "type": "mvp_reconstruction"
+          "name": "numbering",
+          "type": "frame_number_numbering"
+        },
+        {
+          "name": "queue",
+          "type": "parallel_queue",
+          "num_threads": 1,
+          "inputs": {
+            "default": "numbering"
+          }
+        },
+        {
+          "name": "reconstruct",
+          "type": "mvp_reconstruction",
+          "inputs": {
+            "default": "queue"
+          }
+        },
+        {
+          "name": "ordering",
+          "type": "frame_number_ordering",
+          "inputs": {
+            "default": "reconstruct"
+          }
+        },
+        {
+          "name": "callback",
+          "type": "callback",
+          "callback_name": "markers",
+          "inputs": {
+            "default": "ordering"
+          }
+        },
+        {
+          "name": "grpc_server",
+          "type": "grpc_server",
+          "address": "0.0.0.0:50052",
+          "inputs": {
+            "sphere": "ordering"
+          }
         }
       ]
     }
