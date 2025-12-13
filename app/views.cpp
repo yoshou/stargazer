@@ -8,9 +8,19 @@ using namespace stargazer;
 
 // Texture buffer implementation for Vulkan
 texture_buffer::texture_buffer()
-    : gfx_ctx(nullptr), descriptor_set(VK_NULL_HANDLE), width(0), height(0) {}
+    : gfx_ctx(nullptr),
+      descriptor_set(VK_NULL_HANDLE),
+      width(0),
+      height(0),
+      staging_buffer_size(0) {}
 
 texture_buffer::~texture_buffer() {
+  // Release ImGui descriptor set before Vulkan resources
+  // Only if graphics context is still valid
+  if (descriptor_set != VK_NULL_HANDLE && gfx_ctx && gfx_ctx->device) {
+    ImGui_ImplVulkan_RemoveTexture(descriptor_set);
+    descriptor_set = VK_NULL_HANDLE;
+  }
   // Vulkan resources are automatically cleaned up by UniqueHandles
 }
 
@@ -33,8 +43,28 @@ void texture_buffer::upload_image(int w, int h, void* data, int format) {
     return;
   }
 
-  width = w;
-  height = h;
+  // Validate input parameters
+  if (!data || w <= 0 || h <= 0) {
+    return;
+  }
+
+  // Check if we need to recreate resources (size or format changed)
+  bool need_recreate = (width != w || height != h);
+
+  if (need_recreate) {
+    // Release existing resources before creating new ones
+    if (descriptor_set != VK_NULL_HANDLE) {
+      ImGui_ImplVulkan_RemoveTexture(descriptor_set);
+      descriptor_set = VK_NULL_HANDLE;
+    }
+    sampler.reset();
+    image_view.reset();
+    image_memory.reset();
+    image.reset();
+
+    width = w;
+    height = h;
+  }
 
   // Assume RGB 3-channel format (convert to RGBA)
   vk::DeviceSize image_size = w * h * 4;
@@ -49,59 +79,70 @@ void texture_buffer::upload_image(int w, int h, void* data, int format) {
     rgba_data[i * 4 + 3] = 255;             // A
   }
 
-  // Create staging buffer
-  vk::BufferCreateInfo buffer_info;
-  buffer_info.size = image_size;
-  buffer_info.usage = vk::BufferUsageFlagBits::eTransferSrc;
-  buffer_info.sharingMode = vk::SharingMode::eExclusive;
+  // Create or reuse staging buffer
+  if (staging_buffer_size < image_size) {
+    // Need to recreate staging buffer with larger size
+    staging_buffer.reset();
+    staging_memory.reset();
 
-  vk::UniqueBuffer staging_buffer = gfx_ctx->device->createBufferUnique(buffer_info);
+    vk::BufferCreateInfo buffer_info;
+    buffer_info.size = image_size;
+    buffer_info.usage = vk::BufferUsageFlagBits::eTransferSrc;
+    buffer_info.sharingMode = vk::SharingMode::eExclusive;
 
-  vk::MemoryRequirements mem_requirements =
-      gfx_ctx->device->getBufferMemoryRequirements(staging_buffer.get());
+    staging_buffer = gfx_ctx->device->createBufferUnique(buffer_info);
 
-  vk::MemoryAllocateInfo alloc_info;
-  alloc_info.allocationSize = mem_requirements.size;
-  alloc_info.memoryTypeIndex = find_memory_type(
-      gfx_ctx->physical_device, mem_requirements.memoryTypeBits,
-      vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+    vk::MemoryRequirements mem_requirements =
+        gfx_ctx->device->getBufferMemoryRequirements(staging_buffer.get());
 
-  vk::UniqueDeviceMemory staging_memory = gfx_ctx->device->allocateMemoryUnique(alloc_info);
-  gfx_ctx->device->bindBufferMemory(staging_buffer.get(), staging_memory.get(), 0);
+    vk::MemoryAllocateInfo alloc_info;
+    alloc_info.allocationSize = mem_requirements.size;
+    alloc_info.memoryTypeIndex = find_memory_type(
+        gfx_ctx->physical_device, mem_requirements.memoryTypeBits,
+        vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+
+    staging_memory = gfx_ctx->device->allocateMemoryUnique(alloc_info);
+    gfx_ctx->device->bindBufferMemory(staging_buffer.get(), staging_memory.get(), 0);
+
+    staging_buffer_size = image_size;
+  }
 
   // Copy RGBA data to staging buffer
   void* mapped = gfx_ctx->device->mapMemory(staging_memory.get(), 0, image_size);
   memcpy(mapped, rgba_data.data(), static_cast<size_t>(image_size));
   gfx_ctx->device->unmapMemory(staging_memory.get());
 
-  // Create image
-  vk::ImageCreateInfo image_info;
-  image_info.imageType = vk::ImageType::e2D;
-  image_info.extent.width = w;
-  image_info.extent.height = h;
-  image_info.extent.depth = 1;
-  image_info.mipLevels = 1;
-  image_info.arrayLayers = 1;
-  image_info.format = vk::Format::eR8G8B8A8Unorm;
-  image_info.tiling = vk::ImageTiling::eOptimal;
-  image_info.initialLayout = vk::ImageLayout::eUndefined;
-  image_info.usage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled;
-  image_info.samples = vk::SampleCountFlagBits::e1;
-  image_info.sharingMode = vk::SharingMode::eExclusive;
+  // Create image resources only if needed
+  if (need_recreate) {
+    // Create image
+    vk::ImageCreateInfo image_info;
+    image_info.imageType = vk::ImageType::e2D;
+    image_info.extent.width = w;
+    image_info.extent.height = h;
+    image_info.extent.depth = 1;
+    image_info.mipLevels = 1;
+    image_info.arrayLayers = 1;
+    image_info.format = vk::Format::eR8G8B8A8Unorm;
+    image_info.tiling = vk::ImageTiling::eOptimal;
+    image_info.initialLayout = vk::ImageLayout::eUndefined;
+    image_info.usage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled;
+    image_info.samples = vk::SampleCountFlagBits::e1;
+    image_info.sharingMode = vk::SharingMode::eExclusive;
 
-  image = gfx_ctx->device->createImageUnique(image_info);
+    image = gfx_ctx->device->createImageUnique(image_info);
 
-  vk::MemoryRequirements img_mem_requirements =
-      gfx_ctx->device->getImageMemoryRequirements(image.get());
+    vk::MemoryRequirements img_mem_requirements =
+        gfx_ctx->device->getImageMemoryRequirements(image.get());
 
-  vk::MemoryAllocateInfo img_alloc_info;
-  img_alloc_info.allocationSize = img_mem_requirements.size;
-  img_alloc_info.memoryTypeIndex =
-      find_memory_type(gfx_ctx->physical_device, img_mem_requirements.memoryTypeBits,
-                       vk::MemoryPropertyFlagBits::eDeviceLocal);
+    vk::MemoryAllocateInfo img_alloc_info;
+    img_alloc_info.allocationSize = img_mem_requirements.size;
+    img_alloc_info.memoryTypeIndex =
+        find_memory_type(gfx_ctx->physical_device, img_mem_requirements.memoryTypeBits,
+                         vk::MemoryPropertyFlagBits::eDeviceLocal);
 
-  image_memory = gfx_ctx->device->allocateMemoryUnique(img_alloc_info);
-  gfx_ctx->device->bindImageMemory(image.get(), image_memory.get(), 0);
+    image_memory = gfx_ctx->device->allocateMemoryUnique(img_alloc_info);
+    gfx_ctx->device->bindImageMemory(image.get(), image_memory.get(), 0);
+  }
 
   // Transition image layout and copy buffer to image
   vk::CommandBufferAllocateInfo cmd_alloc_info;
@@ -118,7 +159,8 @@ void texture_buffer::upload_image(int w, int h, void* data, int format) {
 
   // Transition to transfer dst
   vk::ImageMemoryBarrier barrier;
-  barrier.oldLayout = vk::ImageLayout::eUndefined;
+  barrier.oldLayout =
+      need_recreate ? vk::ImageLayout::eUndefined : vk::ImageLayout::eShaderReadOnlyOptimal;
   barrier.newLayout = vk::ImageLayout::eTransferDstOptimal;
   barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
   barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
@@ -128,10 +170,11 @@ void texture_buffer::upload_image(int w, int h, void* data, int format) {
   barrier.subresourceRange.levelCount = 1;
   barrier.subresourceRange.baseArrayLayer = 0;
   barrier.subresourceRange.layerCount = 1;
-  barrier.srcAccessMask = vk::AccessFlags();
+  barrier.srcAccessMask = need_recreate ? vk::AccessFlags() : vk::AccessFlagBits::eShaderRead;
   barrier.dstAccessMask = vk::AccessFlagBits::eTransferWrite;
 
-  command_buffer->pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe,
+  command_buffer->pipelineBarrier(need_recreate ? vk::PipelineStageFlagBits::eTopOfPipe
+                                                : vk::PipelineStageFlagBits::eFragmentShader,
                                   vk::PipelineStageFlagBits::eTransfer, vk::DependencyFlags(), 0,
                                   nullptr, 0, nullptr, 1, &barrier);
 
@@ -169,39 +212,42 @@ void texture_buffer::upload_image(int w, int h, void* data, int format) {
   (void)gfx_ctx->graphics_queue.submit(1, &submit_info, nullptr);
   (void)gfx_ctx->graphics_queue.waitIdle();
 
-  // Create image view
-  vk::ImageViewCreateInfo view_info;
-  view_info.image = image.get();
-  view_info.viewType = vk::ImageViewType::e2D;
-  view_info.format = vk::Format::eR8G8B8A8Unorm;
-  view_info.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
-  view_info.subresourceRange.baseMipLevel = 0;
-  view_info.subresourceRange.levelCount = 1;
-  view_info.subresourceRange.baseArrayLayer = 0;
-  view_info.subresourceRange.layerCount = 1;
+  // Create image view and sampler only if needed
+  if (need_recreate) {
+    // Create image view
+    vk::ImageViewCreateInfo view_info;
+    view_info.image = image.get();
+    view_info.viewType = vk::ImageViewType::e2D;
+    view_info.format = vk::Format::eR8G8B8A8Unorm;
+    view_info.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
+    view_info.subresourceRange.baseMipLevel = 0;
+    view_info.subresourceRange.levelCount = 1;
+    view_info.subresourceRange.baseArrayLayer = 0;
+    view_info.subresourceRange.layerCount = 1;
 
-  image_view = gfx_ctx->device->createImageViewUnique(view_info);
+    image_view = gfx_ctx->device->createImageViewUnique(view_info);
 
-  // Create sampler
-  vk::SamplerCreateInfo sampler_info;
-  sampler_info.magFilter = vk::Filter::eLinear;
-  sampler_info.minFilter = vk::Filter::eLinear;
-  sampler_info.addressModeU = vk::SamplerAddressMode::eRepeat;
-  sampler_info.addressModeV = vk::SamplerAddressMode::eRepeat;
-  sampler_info.addressModeW = vk::SamplerAddressMode::eRepeat;
-  sampler_info.anisotropyEnable = VK_FALSE;
-  sampler_info.maxAnisotropy = 1.0f;
-  sampler_info.borderColor = vk::BorderColor::eIntOpaqueBlack;
-  sampler_info.unnormalizedCoordinates = VK_FALSE;
-  sampler_info.compareEnable = VK_FALSE;
-  sampler_info.compareOp = vk::CompareOp::eAlways;
-  sampler_info.mipmapMode = vk::SamplerMipmapMode::eLinear;
+    // Create sampler
+    vk::SamplerCreateInfo sampler_info;
+    sampler_info.magFilter = vk::Filter::eLinear;
+    sampler_info.minFilter = vk::Filter::eLinear;
+    sampler_info.addressModeU = vk::SamplerAddressMode::eRepeat;
+    sampler_info.addressModeV = vk::SamplerAddressMode::eRepeat;
+    sampler_info.addressModeW = vk::SamplerAddressMode::eRepeat;
+    sampler_info.anisotropyEnable = VK_FALSE;
+    sampler_info.maxAnisotropy = 1.0f;
+    sampler_info.borderColor = vk::BorderColor::eIntOpaqueBlack;
+    sampler_info.unnormalizedCoordinates = VK_FALSE;
+    sampler_info.compareEnable = VK_FALSE;
+    sampler_info.compareOp = vk::CompareOp::eAlways;
+    sampler_info.mipmapMode = vk::SamplerMipmapMode::eLinear;
 
-  sampler = gfx_ctx->device->createSamplerUnique(sampler_info);
+    sampler = gfx_ctx->device->createSamplerUnique(sampler_info);
 
-  // Add ImGui descriptor set
-  descriptor_set = ImGui_ImplVulkan_AddTexture(sampler.get(), image_view.get(),
-                                               VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    // Add ImGui descriptor set
+    descriptor_set = ImGui_ImplVulkan_AddTexture(sampler.get(), image_view.get(),
+                                                 VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+  }
 }
 
 void texture_buffer::show(const rect& r, float alpha, const rect& normalized_zoom) const {

@@ -1,1030 +1,779 @@
 {
-  "nodes": [
-    {
-      "name": "raspi_ir_base",
-      "gateway": "192.168.0.254",
-      "height": 616.0,
-      "width": 820.0,
-      "fps": 90,
-      "type": "raspi"
-    },
-    {
-      "name": "raspi_color_base",
-      "gateway": "192.168.0.254",
-      "height": 540.0,
-      "width": 960.0,
-      "fps": 30,
-      "type": "raspi_color"
-    },
-    {
-      "name": "playback_ir_base",
-      "db_path": "../data/data_20221004_1/capture.db",
-      "height": 616.0,
-      "width": 820.0,
-      "fps": 90,
-      "type": "playback"
-    },
-    {
-      "name": "playback_color_base",
-      "db_path": "../data/data_20250115_1/capture.db",
-      "height": 540.0,
-      "width": 960.0,
-      "fps": 30,
-      "type": "playback"
-    },
-    {
-      "name": "playback_panoptic_base",
-      "db_path": "../data/panoptic",
-      "height": 1080.0,
-      "width": 1920.0,
-      "fps": 30,
-      "type": "panoptic"
-    },
-    {
-      "name": "record_base",
-      "db_path": "../data/data_20250506_1/capture.db",
-      "type": "record"
-    }
-  ],
   "subgraphs": [
     {
-      "name": "record_color_subgraph",
+      "name": "playback_subgraph",
+      "db_path": "../data/data_20221004_1/capture.db",
+      "height": 616,
+      "width": 820,
+      "fps": 90,
       "nodes": [
         {
-          "name": "camera101",
-          "extends": [
-            "raspi_color_base"
-          ],
-          "address": "192.168.0.26",
-          "id": "000000000026"
+          "name": "load_blob",
+          "type": "load_blob"
         },
         {
-          "name": "camera102",
-          "extends": [
-            "raspi_color_base"
-          ],
-          "address": "192.168.0.27",
-          "id": "000000000027"
+          "name": "decode_jpeg",
+          "type": "decode_jpeg",
+          "inputs": { "default": "load_blob" }
         },
         {
-          "name": "camera103",
-          "extends": [
-            "raspi_color_base"
-          ],
-          "address": "192.168.0.28",
-          "id": "000000000028"
+          "name": "callback_image",
+          "type": "callback",
+          "inputs": { "default": "decode_jpeg" },
+          "callback_name": "image",
+          "callback_type": "image"
         },
         {
-          "name": "camera104",
-          "extends": [
-            "raspi_color_base"
-          ],
-          "address": "192.168.0.29",
-          "id": "000000000029"
-        },
-        {
-          "name": "camera105",
-          "extends": [
-            "raspi_color_base"
-          ],
-          "address": "192.168.0.30",
-          "id": "000000000030"
-        },
-        {
-          "name": "record101",
-          "extends": [
-            "record_base"
-          ],
-          "inputs": {
-            "default": "camera101"
-          }
-        },
-        {
-          "name": "record102",
-          "extends": [
-            "record_base"
-          ],
-          "inputs": {
-            "default": "camera102"
-          }
-        },
-        {
-          "name": "record103",
-          "extends": [
-            "record_base"
-          ],
-          "inputs": {
-            "default": "camera103"
-          }
-        },
-        {
-          "name": "record104",
-          "extends": [
-            "record_base"
-          ],
-          "inputs": {
-            "default": "camera104"
-          }
-        },
-        {
-          "name": "record105",
-          "inputs": {
-            "default": "camera105"
-          },
-          "extends": [
-            "record_base"
-          ]
+          "name": "load_marker",
+          "type": "load_marker"
         }
-      ]
-    },
-    {
-      "name": "record_ir_subgraph",
-      "nodes": [
-        {
-          "name": "camera1",
-          "address": "192.168.0.1",
-          "id": "000000000001",
-          "extends": [
-            "raspi_ir_base"
-          ]
-        },
-        {
-          "name": "camera2",
-          "address": "192.168.0.2",
-          "id": "000000000002",
-          "extends": [
-            "raspi_ir_base"
-          ]
-        },
-        {
-          "name": "camera3",
-          "address": "192.168.0.3",
-          "id": "000000000003",
-          "extends": [
-            "raspi_ir_base"
-          ]
-        },
-        {
-          "name": "camera4",
-          "address": "192.168.0.4",
-          "id": "000000000004",
-          "extends": [
-            "raspi_ir_base"
-          ]
-        },
-        {
-          "name": "camera5",
-          "address": "192.168.0.5",
-          "id": "000000000005",
-          "extends": [
-            "raspi_ir_base"
-          ]
-        },
-        {
-          "name": "camera6",
-          "address": "192.168.0.6",
-          "id": "000000000006",
-          "extends": [
-            "raspi_ir_base"
-          ]
-        },
-        {
-          "name": "camera7",
-          "address": "192.168.0.7",
-          "id": "000000000007",
-          "extends": [
-            "raspi_ir_base"
-          ]
-        },
-        {
-          "name": "camera8",
-          "address": "192.168.0.8",
-          "id": "000000000008",
-          "extends": [
-            "raspi_ir_base"
-          ]
-        },
-        {
-          "name": "camera9",
-          "address": "192.168.0.9",
-          "id": "000000000009",
-          "extends": [
-            "raspi_ir_base"
-          ]
-        },
-        {
-          "name": "camera10",
-          "address": "192.168.0.10",
-          "id": "000000000010",
-          "extends": [
-            "raspi_ir_base"
-          ]
-        },
-        {
-          "name": "camera11",
-          "address": "192.168.0.11",
-          "id": "000000000011",
-          "extends": [
-            "raspi_ir_base"
-          ]
-        },
-        {
-          "name": "camera12",
-          "address": "192.168.0.12",
-          "id": "000000000012",
-          "extends": [
-            "raspi_ir_base"
-          ]
-        },
-        {
-          "name": "camera13",
-          "address": "192.168.0.13",
-          "id": "000000000013",
-          "extends": [
-            "raspi_ir_base"
-          ]
-        },
-        {
-          "name": "camera14",
-          "address": "192.168.0.14",
-          "id": "000000000014",
-          "extends": [
-            "raspi_ir_base"
-          ]
-        },
-        {
-          "name": "camera15",
-          "address": "192.168.0.15",
-          "id": "000000000015",
-          "extends": [
-            "raspi_ir_base"
-          ]
-        },
-        {
-          "name": "camera16",
-          "address": "192.168.0.16",
-          "id": "000000000016",
-          "extends": [
-            "raspi_ir_base"
-          ]
-        },
-        {
-          "name": "camera17",
-          "address": "192.168.0.17",
-          "id": "000000000017",
-          "extends": [
-            "raspi_ir_base"
-          ]
-        },
-        {
-          "name": "camera18",
-          "address": "192.168.0.18",
-          "id": "000000000018",
-          "extends": [
-            "raspi_ir_base"
-          ]
-        },
-        {
-          "name": "camera19",
-          "address": "192.168.0.19",
-          "id": "000000000019",
-          "extends": [
-            "raspi_ir_base"
-          ]
-        },
-        {
-          "name": "camera20",
-          "address": "192.168.0.20",
-          "id": "000000000020",
-          "extends": [
-            "raspi_ir_base"
-          ]
-        },
-        {
-          "name": "camera21",
-          "address": "192.168.0.21",
-          "id": "000000000021",
-          "extends": [
-            "raspi_ir_base"
-          ]
-        },
-        {
-          "name": "camera22",
-          "address": "192.168.0.22",
-          "id": "000000000022",
-          "extends": [
-            "raspi_ir_base"
-          ]
-        },
-        {
-          "name": "camera23",
-          "address": "192.168.0.23",
-          "id": "000000000023",
-          "extends": [
-            "raspi_ir_base"
-          ]
-        },
-        {
-          "name": "camera24",
-          "address": "192.168.0.24",
-          "id": "000000000024",
-          "extends": [
-            "raspi_ir_base"
-          ]
-        },
-        {
-          "name": "record1",
-          "inputs": {
-            "default": "camera1"
-          },
-          "extends": [
-            "record_base"
-          ]
-        },
-        {
-          "name": "record2",
-          "inputs": {
-            "default": "camera2"
-          },
-          "extends": [
-            "record_base"
-          ]
-        },
-        {
-          "name": "record3",
-          "inputs": {
-            "default": "camera3"
-          },
-          "extends": [
-            "record_base"
-          ]
-        },
-        {
-          "name": "record4",
-          "inputs": {
-            "default": "camera4"
-          },
-          "extends": [
-            "record_base"
-          ]
-        },
-        {
-          "name": "record5",
-          "inputs": {
-            "default": "camera5"
-          },
-          "extends": [
-            "record_base"
-          ]
-        },
-        {
-          "name": "record6",
-          "inputs": {
-            "default": "camera6"
-          },
-          "extends": [
-            "record_base"
-          ]
-        },
-        {
-          "name": "record7",
-          "inputs": {
-            "default": "camera7"
-          },
-          "extends": [
-            "record_base"
-          ]
-        },
-        {
-          "name": "record8",
-          "inputs": {
-            "default": "camera8"
-          },
-          "extends": [
-            "record_base"
-          ]
-        },
-        {
-          "name": "record9",
-          "inputs": {
-            "default": "camera9"
-          },
-          "extends": [
-            "record_base"
-          ]
-        },
-        {
-          "name": "record10",
-          "inputs": {
-            "default": "camera10"
-          },
-          "extends": [
-            "record_base"
-          ]
-        },
-        {
-          "name": "record11",
-          "inputs": {
-            "default": "camera11"
-          },
-          "extends": [
-            "record_base"
-          ]
-        },
-        {
-          "name": "record12",
-          "inputs": {
-            "default": "camera12"
-          },
-          "extends": [
-            "record_base"
-          ]
-        },
-        {
-          "name": "record13",
-          "inputs": {
-            "default": "camera13"
-          },
-          "extends": [
-            "record_base"
-          ]
-        },
-        {
-          "name": "record14",
-          "inputs": {
-            "default": "camera14"
-          },
-          "extends": [
-            "record_base"
-          ]
-        },
-        {
-          "name": "record15",
-          "inputs": {
-            "default": "camera15"
-          },
-          "extends": [
-            "record_base"
-          ]
-        },
-        {
-          "name": "record16",
-          "inputs": {
-            "default": "camera16"
-          },
-          "extends": [
-            "record_base"
-          ]
-        },
-        {
-          "name": "record17",
-          "inputs": {
-            "default": "camera17"
-          },
-          "extends": [
-            "record_base"
-          ]
-        },
-        {
-          "name": "record18",
-          "inputs": {
-            "default": "camera18"
-          },
-          "extends": [
-            "record_base"
-          ]
-        },
-        {
-          "name": "record19",
-          "inputs": {
-            "default": "camera19"
-          },
-          "extends": [
-            "record_base"
-          ]
-        },
-        {
-          "name": "record20",
-          "inputs": {
-            "default": "camera20"
-          },
-          "extends": [
-            "record_base"
-          ]
-        },
-        {
-          "name": "record21",
-          "inputs": {
-            "default": "camera21"
-          },
-          "extends": [
-            "record_base"
-          ]
-        },
-        {
-          "name": "record22",
-          "inputs": {
-            "default": "camera22"
-          },
-          "extends": [
-            "record_base"
-          ]
-        },
-        {
-          "name": "record23",
-          "inputs": {
-            "default": "camera23"
-          },
-          "extends": [
-            "record_base"
-          ]
-        },
-        {
-          "name": "record24",
-          "inputs": {
-            "default": "camera24"
-          },
-          "extends": [
-            "record_base"
-          ]
-        }
-      ]
-    },
-    {
-      "name": "capture_color_subgraph",
-      "nodes": [
-        {
-          "name": "camera101",
-          "extends": [
-            "raspi_color_base"
-          ],
-          "address": "192.168.0.26",
-          "id": "000000000026"
-        },
-        {
-          "name": "camera102",
-          "extends": [
-            "raspi_color_base"
-          ],
-          "address": "192.168.0.27",
-          "id": "000000000027"
-        },
-        {
-          "name": "camera103",
-          "extends": [
-            "raspi_color_base"
-          ],
-          "address": "192.168.0.28",
-          "id": "000000000028"
-        },
-        {
-          "name": "camera104",
-          "extends": [
-            "raspi_color_base"
-          ],
-          "address": "192.168.0.29",
-          "id": "000000000029"
-        },
-        {
-          "name": "camera105",
-          "extends": [
-            "raspi_color_base"
-          ],
-          "address": "192.168.0.30",
-          "id": "000000000030"
-        }
-      ]
-    },
-    {
-      "name": "capture_ir_subgraph",
-      "nodes": [
-        {
-          "name": "camera1",
-          "address": "192.168.0.1",
-          "id": "000000000001",
-          "extends": [
-            "raspi_ir_base"
-          ]
-        },
-        {
-          "name": "camera2",
-          "address": "192.168.0.2",
-          "id": "000000000002",
-          "extends": [
-            "raspi_ir_base"
-          ]
-        },
-        {
-          "name": "camera3",
-          "address": "192.168.0.3",
-          "id": "000000000003",
-          "extends": [
-            "raspi_ir_base"
-          ]
-        },
-        {
-          "name": "camera4",
-          "address": "192.168.0.4",
-          "id": "000000000004",
-          "extends": [
-            "raspi_ir_base"
-          ]
-        },
-        {
-          "name": "camera5",
-          "address": "192.168.0.5",
-          "id": "000000000005",
-          "extends": [
-            "raspi_ir_base"
-          ]
-        },
-        {
-          "name": "camera6",
-          "address": "192.168.0.6",
-          "id": "000000000006",
-          "extends": [
-            "raspi_ir_base"
-          ]
-        },
-        {
-          "name": "camera7",
-          "address": "192.168.0.7",
-          "id": "000000000007",
-          "extends": [
-            "raspi_ir_base"
-          ]
-        },
-        {
-          "name": "camera8",
-          "address": "192.168.0.8",
-          "id": "000000000008",
-          "extends": [
-            "raspi_ir_base"
-          ]
-        },
-        {
-          "name": "camera9",
-          "address": "192.168.0.9",
-          "id": "000000000009",
-          "extends": [
-            "raspi_ir_base"
-          ]
-        },
-        {
-          "name": "camera10",
-          "address": "192.168.0.10",
-          "id": "000000000010",
-          "extends": [
-            "raspi_ir_base"
-          ]
-        },
-        {
-          "name": "camera11",
-          "address": "192.168.0.11",
-          "id": "000000000011",
-          "extends": [
-            "raspi_ir_base"
-          ]
-        },
-        {
-          "name": "camera12",
-          "address": "192.168.0.12",
-          "id": "000000000012",
-          "extends": [
-            "raspi_ir_base"
-          ]
-        },
-        {
-          "name": "camera13",
-          "address": "192.168.0.13",
-          "id": "000000000013",
-          "extends": [
-            "raspi_ir_base"
-          ]
-        },
-        {
-          "name": "camera14",
-          "address": "192.168.0.14",
-          "id": "000000000014",
-          "extends": [
-            "raspi_ir_base"
-          ]
-        },
-        {
-          "name": "camera15",
-          "address": "192.168.0.15",
-          "id": "000000000015",
-          "extends": [
-            "raspi_ir_base"
-          ]
-        },
-        {
-          "name": "camera16",
-          "address": "192.168.0.16",
-          "id": "000000000016",
-          "extends": [
-            "raspi_ir_base"
-          ]
-        },
-        {
-          "name": "camera17",
-          "address": "192.168.0.17",
-          "id": "000000000017",
-          "extends": [
-            "raspi_ir_base"
-          ]
-        },
-        {
-          "name": "camera18",
-          "address": "192.168.0.18",
-          "id": "000000000018",
-          "extends": [
-            "raspi_ir_base"
-          ]
-        },
-        {
-          "name": "camera19",
-          "address": "192.168.0.19",
-          "id": "000000000019",
-          "extends": [
-            "raspi_ir_base"
-          ]
-        },
-        {
-          "name": "camera20",
-          "address": "192.168.0.20",
-          "id": "000000000020",
-          "extends": [
-            "raspi_ir_base"
-          ]
-        },
-        {
-          "name": "camera21",
-          "address": "192.168.0.21",
-          "id": "000000000021",
-          "extends": [
-            "raspi_ir_base"
-          ]
-        },
-        {
-          "name": "camera22",
-          "address": "192.168.0.22",
-          "id": "000000000022",
-          "extends": [
-            "raspi_ir_base"
-          ]
-        },
-        {
-          "name": "camera23",
-          "address": "192.168.0.23",
-          "id": "000000000023",
-          "extends": [
-            "raspi_ir_base"
-          ]
-        },
-        {
-          "name": "camera24",
-          "address": "192.168.0.24",
-          "id": "000000000024",
-          "extends": [
-            "raspi_ir_base"
-          ]
-        }
-      ]
-    },
-    {
-      "name": "playback_color_subgraph",
-      "nodes": [
-        {
-          "name": "camera101",
-          "id": "000000000026",
-          "extends": [
-            "playback_color_base"
-          ]
-        },
-        {
-          "name": "camera102",
-          "id": "000000000027",
-          "extends": [
-            "playback_color_base"
-          ]
-        },
-        {
-          "name": "camera103",
-          "id": "000000000028",
-          "extends": [
-            "playback_color_base"
-          ]
-        },
-        {
-          "name": "camera104",
-          "id": "000000000029",
-          "extends": [
-            "playback_color_base"
-          ]
-        },
-        {
-          "name": "camera105",
-          "id": "000000000030",
-          "extends": [
-            "playback_color_base"
-          ]
-        }
-      ]
-    },
-    {
-      "name": "playback_ir_subgraph",
-      "nodes": [
-        {
-          "name": "camera1",
-          "id": "000000000001",
-          "extends": [
-            "playback_ir_base"
-          ]
-        },
-        {
-          "name": "camera2",
-          "id": "000000000002",
-          "extends": [
-            "playback_ir_base"
-          ]
-        },
-        {
-          "name": "camera3",
-          "id": "000000000003",
-          "extends": [
-            "playback_ir_base"
-          ]
-        },
-        {
-          "name": "camera4",
-          "id": "000000000004",
-          "extends": [
-            "playback_ir_base"
-          ]
-        },
-        {
-          "name": "camera5",
-          "id": "000000000005",
-          "extends": [
-            "playback_ir_base"
-          ]
-        },
-        {
-          "name": "camera6",
-          "id": "000000000006",
-          "extends": [
-            "playback_ir_base"
-          ]
-        },
-        {
-          "name": "camera7",
-          "id": "000000000007",
-          "extends": [
-            "playback_ir_base"
-          ]
-        },
-        {
-          "name": "camera8",
-          "id": "000000000008",
-          "extends": [
-            "playback_ir_base"
-          ]
-        },
-        {
-          "name": "camera9",
-          "id": "000000000009",
-          "extends": [
-            "playback_ir_base"
-          ]
-        },
-        {
-          "name": "camera10",
-          "id": "000000000010",
-          "extends": [
-            "playback_ir_base"
-          ]
-        },
-        {
-          "name": "camera11",
-          "id": "000000000011",
-          "extends": [
-            "playback_ir_base"
-          ]
-        },
-        {
-          "name": "camera12",
-          "id": "000000000012",
-          "extends": [
-            "playback_ir_base"
-          ]
-        },
-        {
-          "name": "camera13",
-          "id": "000000000013",
-          "extends": [
-            "playback_ir_base"
-          ]
-        },
-        {
-          "name": "camera14",
-          "id": "000000000014",
-          "extends": [
-            "playback_ir_base"
-          ]
-        },
-        {
-          "name": "camera15",
-          "id": "000000000015",
-          "extends": [
-            "playback_ir_base"
-          ]
-        },
-        {
-          "name": "camera16",
-          "id": "000000000016",
-          "extends": [
-            "playback_ir_base"
-          ]
-        },
-        {
-          "name": "camera17",
-          "id": "000000000017",
-          "extends": [
-            "playback_ir_base"
-          ]
-        },
-        {
-          "name": "camera18",
-          "id": "000000000018",
-          "extends": [
-            "playback_ir_base"
-          ]
-        },
-        {
-          "name": "camera19",
-          "id": "000000000019",
-          "extends": [
-            "playback_ir_base"
-          ]
-        },
-        {
-          "name": "camera20",
-          "id": "000000000020",
-          "extends": [
-            "playback_ir_base"
-          ]
-        }
-      ]
+      ],
+      "outputs": ["callback_image", "load_marker"]
     },
     {
       "name": "playback_panoptic_subgraph",
+      "db_path": "../data/panoptic",
+      "height": 1080,
+      "width": 1920,
+      "fps": 30,
       "nodes": [
         {
-          "name": "00_03",
-          "id": "00_03",
-          "extends": [
-            "playback_panoptic_base"
-          ]
+          "name": "load_panoptic",
+          "type": "load_panoptic"
         },
         {
-          "name": "00_06",
-          "id": "00_06",
-          "extends": [
-            "playback_panoptic_base"
-          ]
+          "name": "decode_jpeg",
+          "type": "decode_jpeg",
+          "inputs": { "default": "load_panoptic" }
         },
         {
-          "name": "00_12",
-          "id": "00_12",
-          "extends": [
-            "playback_panoptic_base"
-          ]
-        },
-        {
-          "name": "00_13",
-          "id": "00_13",
-          "extends": [
-            "playback_panoptic_base"
-          ]
-        },
-        {
-          "name": "00_23",
-          "id": "00_23",
-          "extends": [
-            "playback_panoptic_base"
-          ]
+          "name": "callback_image",
+          "type": "callback",
+          "inputs": { "default": "decode_jpeg" },
+          "callback_name": "image",
+          "callback_type": "image"
         }
-      ]
+      ],
+      "outputs": ["callback_image"]
+    },
+    {
+      "name": "playback_color_subgraph",
+      "db_path": "../data/data_20250713_1/capture.db",
+      "height": 540,
+      "width": 960,
+      "fps": 30,
+      "nodes": [
+        {
+          "name": "load_blob",
+          "type": "load_blob"
+        },
+        {
+          "name": "decode_jpeg",
+          "type": "decode_jpeg",
+          "inputs": { "default": "load_blob" }
+        },
+        {
+          "name": "callback_image",
+          "type": "callback",
+          "inputs": { "default": "decode_jpeg" },
+          "callback_name": "image",
+          "callback_type": "image"
+        },
+        {
+          "name": "load_marker",
+          "type": "load_marker"
+        }
+      ],
+      "outputs": ["callback_image", "load_marker"]
+    },
+    {
+      "name": "record_subgraph",
+      "db_path": "../data/data_20250506_1/capture.db",
+      "nodes": [
+        {
+          "name": "record",
+          "type": "record"
+        }
+      ],
+      "outputs": ["record"]
+    },
+    {
+      "name": "raspi_ir_cluster_master",
+      "height": 616,
+      "width": 820,
+      "fps": 90,
+      "stream": "infrared",
+      "format": "Y8_UINT",
+      "exposure": 5000,
+      "gain": 10,
+      "emitter_enabled": true,
+      "deploy_port": 31400,
+      "nodes": [
+        {
+          "name": "libcamera_capture",
+          "type": "libcamera_capture"
+        },
+        {
+          "name": "fifo",
+          "type": "fifo",
+          "inputs": { "default": "libcamera_capture" }
+        },
+        {
+          "name": "timestamp",
+          "type": "timestamp",
+          "inputs": { "default": "fifo" }
+        },
+        {
+          "name": "broadcast_talker",
+          "type": "broadcast_talker",
+          "inputs": { "default": "timestamp" },
+          "address": "192.168.0.255",
+          "port": 40000
+        },
+        {
+          "name": "scale",
+          "type": "scale",
+          "inputs": { "default": "fifo" },
+          "alpha": 1.1,
+          "beta": 0
+        },
+        {
+          "name": "gaussian_blur",
+          "type": "gaussian_blur",
+          "inputs": { "default": "scale" },
+          "kernel_width": 3,
+          "kernel_height": 3,
+          "sigma_x": 1.5,
+          "sigma_y": 1.5
+        },
+        {
+          "name": "mask",
+          "type": "mask",
+          "inputs": { "default": "gaussian_blur" }
+        },
+        {
+          "name": "fifo_image",
+          "type": "fifo",
+          "inputs": { "default": "mask" }
+        },
+        {
+          "name": "encode_jpeg",
+          "type": "encode_jpeg",
+          "inputs": { "default": "fifo_image" }
+        },
+        {
+          "name": "p2p_tcp_talker_image",
+          "type": "p2p_tcp_talker",
+          "inputs": { "default": "encode_jpeg" }
+        },
+        {
+          "name": "fifo_marker",
+          "type": "fifo",
+          "inputs": { "default": "mask" }
+        },
+        {
+          "name": "fast_blob_detector",
+          "type": "fast_blob_detector",
+          "inputs": { "default": "fifo_marker" },
+          "min_dist_between_blobs": 1,
+          "step_threshold": 5,
+          "min_threshold": 50,
+          "max_threshold": 100,
+          "min_area": 6,
+          "max_area": 1000,
+          "min_circularity": 0.8
+        },
+        {
+          "name": "p2p_tcp_talker_marker",
+          "type": "p2p_tcp_talker",
+          "inputs": { "default": "fast_blob_detector" }
+        }
+      ],
+      "outputs": ["p2p_tcp_talker_image", "p2p_tcp_talker_marker"]
+    },
+    {
+      "name": "raspi_ir_cluster_slave",
+      "height": 616,
+      "width": 820,
+      "fps": 90,
+      "stream": "infrared",
+      "format": "Y8_UINT",
+      "exposure": 5000,
+      "gain": 10,
+      "emitter_enabled": true,
+      "deploy_port": 31400,
+      "nodes": [
+        {
+          "name": "video_time_sync_control",
+          "type": "video_time_sync_control",
+          "gain": 0.1,
+          "interval": 11.111111,
+          "max_interval": 12.5,
+          "min_interval": 10.0
+        },
+        {
+          "name": "libcamera_capture",
+          "type": "libcamera_capture",
+          "inputs": { "interval": "video_time_sync_control" }
+        },
+        {
+          "name": "fifo",
+          "type": "fifo",
+          "inputs": { "default": "libcamera_capture" }
+        },
+        {
+          "name": "timestamp",
+          "type": "timestamp",
+          "inputs": { "default": "fifo" }
+        },
+        {
+          "name": "broadcast_listener",
+          "type": "broadcast_listener",
+          "address": "192.168.0.1",
+          "port": 40000
+        },
+        {
+          "name": "video_time_sync_control_update",
+          "type": "video_time_sync_control",
+          "inputs": { "default": "timestamp", "ref": "broadcast_listener" },
+          "gain": 0.1,
+          "interval": 11.111111,
+          "max_interval": 12.5,
+          "min_interval": 10.0
+        },
+        {
+          "name": "scale",
+          "type": "scale",
+          "inputs": { "default": "fifo" },
+          "alpha": 1.1,
+          "beta": 0
+        },
+        {
+          "name": "gaussian_blur",
+          "type": "gaussian_blur",
+          "inputs": { "default": "scale" },
+          "kernel_width": 3,
+          "kernel_height": 3,
+          "sigma_x": 1.5,
+          "sigma_y": 1.5
+        },
+        {
+          "name": "mask",
+          "type": "mask",
+          "inputs": { "default": "gaussian_blur" }
+        },
+        {
+          "name": "fifo_image",
+          "type": "fifo",
+          "inputs": { "default": "mask" }
+        },
+        {
+          "name": "encode_jpeg",
+          "type": "encode_jpeg",
+          "inputs": { "default": "fifo_image" }
+        },
+        {
+          "name": "p2p_tcp_talker_image",
+          "type": "p2p_tcp_talker",
+          "inputs": { "default": "encode_jpeg" }
+        },
+        {
+          "name": "fifo_marker",
+          "type": "fifo",
+          "inputs": { "default": "mask" }
+        },
+        {
+          "name": "fast_blob_detector",
+          "type": "fast_blob_detector",
+          "inputs": { "default": "fifo_marker" },
+          "min_dist_between_blobs": 1,
+          "step_threshold": 5,
+          "min_threshold": 50,
+          "max_threshold": 100,
+          "min_area": 6,
+          "max_area": 1000,
+          "min_circularity": 0.8
+        },
+        {
+          "name": "p2p_tcp_talker_marker",
+          "type": "p2p_tcp_talker",
+          "inputs": { "default": "fast_blob_detector" }
+        }
+      ],
+      "outputs": ["p2p_tcp_talker_image", "p2p_tcp_talker_marker"]
+    },
+    {
+      "name": "raspi_ir_receiver",
+      "endpoint_address": "192.168.0.254",
+      "fps": 90,
+      "width": 820,
+      "height": 616,
+      "nodes": [
+        {
+          "name": "p2p_tcp_listener_image",
+          "type": "p2p_tcp_listener"
+        },
+        {
+          "name": "decode_jpeg",
+          "type": "decode_jpeg",
+          "inputs": { "default": "p2p_tcp_listener_image" }
+        },
+        {
+          "name": "callback_image",
+          "type": "callback",
+          "inputs": { "default": "decode_jpeg" },
+          "callback_name": "image",
+          "callback_type": "image"
+        },
+        {
+          "name": "p2p_tcp_listener_marker",
+          "type": "p2p_tcp_listener"
+        }
+      ],
+      "outputs": ["callback_image", "p2p_tcp_listener_marker"]
+    },
+    {
+      "name": "raspi_color_cluster_master",
+      "height": 1296,
+      "width": 2304,
+      "fps": 30,
+      "stream": "color",
+      "format": "R8G8B8_UINT",
+      "exposure": 7000,
+      "gain": 10,
+      "emitter_enabled": false,
+      "resize_width": 960,
+      "resize_height": 540,
+      "deploy_port": 31400,
+      "nodes": [
+        {
+          "name": "libcamera_capture",
+          "type": "libcamera_capture"
+        },
+        {
+          "name": "fifo",
+          "type": "fifo",
+          "inputs": { "default": "libcamera_capture" }
+        },
+        {
+          "name": "timestamp",
+          "type": "timestamp",
+          "inputs": { "default": "fifo" }
+        },
+        {
+          "name": "broadcast_talker",
+          "type": "broadcast_talker",
+          "inputs": { "default": "timestamp" },
+          "address": "192.168.0.255",
+          "port": 40000
+        },
+        {
+          "name": "resize",
+          "type": "resize",
+          "inputs": { "default": "fifo" }
+        },
+        {
+          "name": "fifo_image",
+          "type": "fifo",
+          "inputs": { "default": "resize" }
+        },
+        {
+          "name": "encode_jpeg",
+          "type": "encode_jpeg",
+          "inputs": { "default": "fifo_image" }
+        },
+        {
+          "name": "p2p_tcp_talker_image",
+          "type": "p2p_tcp_talker",
+          "inputs": { "default": "encode_jpeg" }
+        },
+        {
+          "name": "fifo_marker",
+          "type": "fifo",
+          "inputs": { "default": "resize" }
+        },
+        {
+          "name": "detect_circle_grid",
+          "type": "detect_circle_grid",
+          "inputs": { "default": "fifo_marker" },
+          "min_threshold": 150,
+          "max_threshold": 200,
+          "threshold_step": 20,
+          "min_dist_between_blobs": 3.0,
+          "min_area": 5.0,
+          "max_area": 100.0,
+          "filter_by_area": true,
+          "min_circularity": 0.5,
+          "max_circularity": 1.0,
+          "filter_by_circularity": true,
+          "filter_by_inertia": false,
+          "filter_by_convexity": false,
+          "blob_color": 0,
+          "filter_by_color": true
+        },
+        {
+          "name": "p2p_tcp_talker_marker",
+          "type": "p2p_tcp_talker",
+          "inputs": { "default": "detect_circle_grid" }
+        }
+      ],
+      "outputs": ["p2p_tcp_talker_image", "p2p_tcp_talker_marker"]
+    },
+    {
+      "name": "raspi_color_cluster_slave",
+      "height": 1296,
+      "width": 2304,
+      "fps": 30,
+      "stream": "color",
+      "format": "R8G8B8_UINT",
+      "exposure": 7000,
+      "gain": 10,
+      "emitter_enabled": false,
+      "resize_width": 960,
+      "resize_height": 540,
+      "deploy_port": 31400,
+      "nodes": [
+        {
+          "name": "video_time_sync_control",
+          "type": "video_time_sync_control",
+          "gain": 0.05,
+          "interval": 33.333333,
+          "max_interval": 50.0,
+          "min_interval": 25.0
+        },
+        {
+          "name": "libcamera_capture",
+          "type": "libcamera_capture",
+          "inputs": { "interval": "video_time_sync_control" }
+        },
+        {
+          "name": "fifo",
+          "type": "fifo",
+          "inputs": { "default": "libcamera_capture" }
+        },
+        {
+          "name": "timestamp",
+          "type": "timestamp",
+          "inputs": { "default": "fifo" }
+        },
+        {
+          "name": "broadcast_listener",
+          "type": "broadcast_listener",
+          "address": "192.168.0.1",
+          "port": 40000
+        },
+        {
+          "name": "video_time_sync_control_update",
+          "type": "video_time_sync_control",
+          "inputs": { "default": "timestamp", "ref": "broadcast_listener" },
+          "gain": 0.05,
+          "interval": 33.333333,
+          "max_interval": 50.0,
+          "min_interval": 25.0
+        },
+        {
+          "name": "resize",
+          "type": "resize",
+          "inputs": { "default": "fifo" }
+        },
+        {
+          "name": "fifo_image",
+          "type": "fifo",
+          "inputs": { "default": "resize" }
+        },
+        {
+          "name": "encode_jpeg",
+          "type": "encode_jpeg",
+          "inputs": { "default": "fifo_image" }
+        },
+        {
+          "name": "p2p_tcp_talker_image",
+          "type": "p2p_tcp_talker",
+          "inputs": { "default": "encode_jpeg" }
+        },
+        {
+          "name": "fifo_marker",
+          "type": "fifo",
+          "inputs": { "default": "resize" }
+        },
+        {
+          "name": "detect_circle_grid",
+          "type": "detect_circle_grid",
+          "inputs": { "default": "fifo_marker" },
+          "min_threshold": 150,
+          "max_threshold": 200,
+          "threshold_step": 20,
+          "min_dist_between_blobs": 3.0,
+          "min_area": 5.0,
+          "max_area": 100.0,
+          "filter_by_area": true,
+          "min_circularity": 0.5,
+          "max_circularity": 1.0,
+          "filter_by_circularity": true,
+          "filter_by_inertia": false,
+          "filter_by_convexity": false,
+          "blob_color": 0,
+          "filter_by_color": true
+        },
+        {
+          "name": "p2p_tcp_talker_marker",
+          "type": "p2p_tcp_talker",
+          "inputs": { "default": "detect_circle_grid" }
+        }
+      ],
+      "outputs": ["p2p_tcp_talker_image", "p2p_tcp_talker_marker"]
+    },
+    {
+      "name": "raspi_color_receiver",
+      "endpoint_address": "192.168.0.254",
+      "fps": 30,
+      "width": 960,
+      "height": 540,
+      "image_port": 50101,
+      "marker_port": 50201,
+      "nodes": [
+        {
+          "name": "p2p_tcp_listener_image",
+          "type": "p2p_tcp_listener"
+        },
+        {
+          "name": "decode_jpeg",
+          "type": "decode_jpeg",
+          "inputs": { "default": "p2p_tcp_listener_image" }
+        },
+        {
+          "name": "callback_image",
+          "type": "callback",
+          "inputs": { "default": "decode_jpeg" },
+          "callback_name": "image",
+          "callback_type": "image"
+        },
+        {
+          "name": "p2p_tcp_listener_marker",
+          "type": "p2p_tcp_listener"
+        }
+      ],
+      "outputs": ["callback_image", "p2p_tcp_listener_marker"]
     }
   ],
   "pipelines": {
     "record_color": {
       "subgraphs": [
         {
-          "name": "record_color",
-          "extends": [
-            "record_color_subgraph"
+          "name": "camera101",
+          "extends": ["raspi_color_cluster_master"],
+          "address": "192.168.0.26",
+          "id": "000000000026"
+        },
+        {
+          "name": "camera101_receiver",
+          "extends": ["raspi_color_receiver"],
+          "nodes": [
+            {
+              "name": "p2p_tcp_listener_image",
+              "inputs": { "default": "camera101.p2p_tcp_talker_image" }
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera101"
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": { "default": "camera101.p2p_tcp_talker_marker" }
+            }
+          ]
+        },
+        {
+          "name": "record101",
+          "extends": ["record_subgraph"],
+          "nodes": [
+            {
+              "name": "record",
+              "inputs": { "default": "camera101_receiver.callback_image" }
+            }
+          ]
+        },
+        {
+          "name": "camera102",
+          "extends": ["raspi_color_cluster_slave"],
+          "address": "192.168.0.27",
+          "id": "000000000027"
+        },
+        {
+          "name": "camera102_receiver",
+          "extends": ["raspi_color_receiver"],
+          "nodes": [
+            {
+              "name": "p2p_tcp_listener_image",
+              "inputs": { "default": "camera102.p2p_tcp_talker_image" }
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera102"
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": { "default": "camera102.p2p_tcp_talker_marker" }
+            }
+          ]
+        },
+        {
+          "name": "record102",
+          "extends": ["record_subgraph"],
+          "nodes": [
+            {
+              "name": "record",
+              "inputs": { "default": "camera102_receiver.callback_image" }
+            }
+          ]
+        },
+        {
+          "name": "camera103",
+          "extends": ["raspi_color_cluster_slave"],
+          "address": "192.168.0.28",
+          "id": "000000000028"
+        },
+        {
+          "name": "camera103_receiver",
+          "extends": ["raspi_color_receiver"],
+          "nodes": [
+            {
+              "name": "p2p_tcp_listener_image",
+              "inputs": { "default": "camera103.p2p_tcp_talker_image" }
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera103"
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": { "default": "camera103.p2p_tcp_talker_marker" }
+            }
+          ]
+        },
+        {
+          "name": "record103",
+          "extends": ["record_subgraph"],
+          "nodes": [
+            {
+              "name": "record",
+              "inputs": { "default": "camera103_receiver.callback_image" }
+            }
+          ]
+        },
+        {
+          "name": "camera104",
+          "extends": ["raspi_color_cluster_slave"],
+          "address": "192.168.0.29",
+          "id": "000000000029"
+        },
+        {
+          "name": "camera104_receiver",
+          "extends": ["raspi_color_receiver"],
+          "nodes": [
+            {
+              "name": "p2p_tcp_listener_image",
+              "inputs": { "default": "camera104.p2p_tcp_talker_image" }
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera104"
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": { "default": "camera104.p2p_tcp_talker_marker" }
+            }
+          ]
+        },
+        {
+          "name": "record104",
+          "extends": ["record_subgraph"],
+          "nodes": [
+            {
+              "name": "record",
+              "inputs": { "default": "camera104_receiver.callback_image" }
+            }
+          ]
+        },
+        {
+          "name": "camera105",
+          "extends": ["raspi_color_cluster_slave"],
+          "address": "192.168.0.30",
+          "id": "000000000030"
+        },
+        {
+          "name": "camera105_receiver",
+          "extends": ["raspi_color_receiver"],
+          "nodes": [
+            {
+              "name": "p2p_tcp_listener_image",
+              "inputs": { "default": "camera105.p2p_tcp_talker_image" }
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera105"
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": { "default": "camera105.p2p_tcp_talker_marker" }
+            }
+          ]
+        },
+        {
+          "name": "record105",
+          "extends": ["record_subgraph"],
+          "nodes": [
+            {
+              "name": "record",
+              "inputs": { "default": "camera105_receiver.callback_image" }
+            }
+          ]
+        },
+        {
+          "name": "sync",
+          "nodes": [
+            {
+              "name": "approximate_time_sync_images",
+              "type": "approximate_time_sync",
+              "interval": 11.6,
+              "inputs": {
+                "camera101": "camera101_receiver.decode_jpeg",
+                "camera102": "camera102_receiver.decode_jpeg",
+                "camera103": "camera103_receiver.decode_jpeg",
+                "camera104": "camera104_receiver.decode_jpeg",
+                "camera105": "camera105_receiver.decode_jpeg"
+              }
+            },
+            {
+              "name": "callback_images",
+              "type": "callback",
+              "callback_name": "images",
+              "callback_type": "object",
+              "inputs": {
+                "default": "approximate_time_sync_images"
+              }
+            },
+            {
+              "name": "approximate_time_sync_markers",
+              "type": "approximate_time_sync",
+              "interval": 11.6,
+              "inputs": {
+                "camera101": "camera101_receiver.p2p_tcp_listener_marker",
+                "camera102": "camera102_receiver.p2p_tcp_listener_marker",
+                "camera103": "camera103_receiver.p2p_tcp_listener_marker",
+                "camera104": "camera104_receiver.p2p_tcp_listener_marker",
+                "camera105": "camera105_receiver.p2p_tcp_listener_marker"
+              }
+            },
+            {
+              "name": "callback_markers",
+              "type": "callback",
+              "callback_name": "markers",
+              "callback_type": "object",
+              "inputs": {
+                "default": "approximate_time_sync_markers"
+              }
+            }
           ]
         }
       ]
@@ -1032,19 +781,640 @@
     "record_ir": {
       "subgraphs": [
         {
-          "name": "record_ir",
-          "extends": [
-            "record_ir_subgraph"
-          ]
-        }
-      ]
-    },
-    "capture_color": {
-      "subgraphs": [
+          "name": "camera1",
+          "extends": ["raspi_ir_cluster_master"],
+          "address": "192.168.0.1",
+          "id": "000000000001"
+        },
         {
-          "name": "capture_color",
-          "extends": [
-            "capture_color_subgraph"
+          "name": "camera1_receiver",
+          "extends": ["raspi_ir_receiver"],
+          "nodes": [
+            { "name": "callback_image", "camera_name": "camera1" }
+          ]
+        },
+        {
+          "name": "record1",
+          "extends": ["record_subgraph"],
+          "nodes": [
+            {
+              "name": "record",
+              "inputs": { "default": "camera1_receiver.callback_image" }
+            }
+          ]
+        },
+        {
+          "name": "camera2",
+          "extends": ["raspi_ir_cluster_slave"],
+          "address": "192.168.0.2",
+          "id": "000000000002"
+        },
+        {
+          "name": "camera2_receiver",
+          "extends": ["raspi_ir_receiver"],
+          "nodes": [
+            { "name": "callback_image", "camera_name": "camera2" }
+          ]
+        },
+        {
+          "name": "record2",
+          "extends": ["record_subgraph"],
+          "nodes": [
+            {
+              "name": "record",
+              "inputs": { "default": "camera2_receiver.callback_image" }
+            }
+          ]
+        },
+        {
+          "name": "camera3",
+          "extends": ["raspi_ir_cluster_slave"],
+          "address": "192.168.0.3",
+          "id": "000000000003"
+        },
+        {
+          "name": "camera3_receiver",
+          "extends": ["raspi_ir_receiver"],
+          "nodes": [
+            { "name": "callback_image", "camera_name": "camera3" }
+          ]
+        },
+        {
+          "name": "record3",
+          "extends": ["record_subgraph"],
+          "nodes": [
+            {
+              "name": "record",
+              "inputs": { "default": "camera3_receiver.callback_image" }
+            }
+          ]
+        },
+        {
+          "name": "camera4",
+          "extends": ["raspi_ir_cluster_slave"],
+          "address": "192.168.0.4",
+          "id": "000000000004"
+        },
+        {
+          "name": "camera4_receiver",
+          "extends": ["raspi_ir_receiver"],
+          "nodes": [
+            { "name": "callback_image", "camera_name": "camera4" }
+          ]
+        },
+        {
+          "name": "record4",
+          "extends": ["record_subgraph"],
+          "nodes": [
+            {
+              "name": "record",
+              "inputs": { "default": "camera4_receiver.callback_image" }
+            }
+          ]
+        },
+        {
+          "name": "camera5",
+          "extends": ["raspi_ir_cluster_slave"],
+          "address": "192.168.0.5",
+          "id": "000000000005"
+        },
+        {
+          "name": "camera5_receiver",
+          "extends": ["raspi_ir_receiver"],
+          "nodes": [
+            { "name": "callback_image", "camera_name": "camera5" }
+          ]
+        },
+        {
+          "name": "record5",
+          "extends": ["record_subgraph"],
+          "nodes": [
+            {
+              "name": "record",
+              "inputs": { "default": "camera5_receiver.callback_image" }
+            }
+          ]
+        },
+        {
+          "name": "camera6",
+          "extends": ["raspi_ir_cluster_slave"],
+          "address": "192.168.0.6",
+          "id": "000000000006"
+        },
+        {
+          "name": "camera6_receiver",
+          "extends": ["raspi_ir_receiver"],
+          "nodes": [
+            { "name": "callback_image", "camera_name": "camera6" }
+          ]
+        },
+        {
+          "name": "record6",
+          "extends": ["record_subgraph"],
+          "nodes": [
+            {
+              "name": "record",
+              "inputs": { "default": "camera6_receiver.callback_image" }
+            }
+          ]
+        },
+        {
+          "name": "camera7",
+          "extends": ["raspi_ir_cluster_slave"],
+          "address": "192.168.0.7",
+          "id": "000000000007"
+        },
+        {
+          "name": "camera7_receiver",
+          "extends": ["raspi_ir_receiver"],
+          "nodes": [
+            { "name": "callback_image", "camera_name": "camera7" }
+          ]
+        },
+        {
+          "name": "record7",
+          "extends": ["record_subgraph"],
+          "nodes": [
+            {
+              "name": "record",
+              "inputs": { "default": "camera7_receiver.callback_image" }
+            }
+          ]
+        },
+        {
+          "name": "camera8",
+          "extends": ["raspi_ir_cluster_slave"],
+          "address": "192.168.0.8",
+          "id": "000000000008"
+        },
+        {
+          "name": "camera8_receiver",
+          "extends": ["raspi_ir_receiver"],
+          "nodes": [
+            { "name": "callback_image", "camera_name": "camera8" }
+          ]
+        },
+        {
+          "name": "record8",
+          "extends": ["record_subgraph"],
+          "nodes": [
+            {
+              "name": "record",
+              "inputs": { "default": "camera8_receiver.callback_image" }
+            }
+          ]
+        },
+        {
+          "name": "camera9",
+          "extends": ["raspi_ir_cluster_slave"],
+          "address": "192.168.0.9",
+          "id": "000000000009"
+        },
+        {
+          "name": "camera9_receiver",
+          "extends": ["raspi_ir_receiver"],
+          "nodes": [
+            { "name": "callback_image", "camera_name": "camera9" }
+          ]
+        },
+        {
+          "name": "record9",
+          "extends": ["record_subgraph"],
+          "nodes": [
+            {
+              "name": "record",
+              "inputs": { "default": "camera9_receiver.callback_image" }
+            }
+          ]
+        },
+        {
+          "name": "camera10",
+          "extends": ["raspi_ir_cluster_slave"],
+          "address": "192.168.0.10",
+          "id": "000000000010"
+        },
+        {
+          "name": "camera10_receiver",
+          "extends": ["raspi_ir_receiver"],
+          "nodes": [
+            { "name": "callback_image", "camera_name": "camera10" }
+          ]
+        },
+        {
+          "name": "record10",
+          "extends": ["record_subgraph"],
+          "nodes": [
+            {
+              "name": "record",
+              "inputs": { "default": "camera10_receiver.callback_image" }
+            }
+          ]
+        },
+        {
+          "name": "camera11",
+          "extends": ["raspi_ir_cluster_slave"],
+          "address": "192.168.0.11",
+          "id": "000000000011"
+        },
+        {
+          "name": "camera11_receiver",
+          "extends": ["raspi_ir_receiver"],
+          "nodes": [
+            { "name": "callback_image", "camera_name": "camera11" }
+          ]
+        },
+        {
+          "name": "record11",
+          "extends": ["record_subgraph"],
+          "nodes": [
+            {
+              "name": "record",
+              "inputs": { "default": "camera11_receiver.callback_image" }
+            }
+          ]
+        },
+        {
+          "name": "camera12",
+          "extends": ["raspi_ir_cluster_slave"],
+          "address": "192.168.0.12",
+          "id": "000000000012"
+        },
+        {
+          "name": "camera12_receiver",
+          "extends": ["raspi_ir_receiver"],
+          "nodes": [
+            { "name": "callback_image", "camera_name": "camera12" }
+          ]
+        },
+        {
+          "name": "record12",
+          "extends": ["record_subgraph"],
+          "nodes": [
+            {
+              "name": "record",
+              "inputs": { "default": "camera12_receiver.callback_image" }
+            }
+          ]
+        },
+        {
+          "name": "camera13",
+          "extends": ["raspi_ir_cluster_slave"],
+          "address": "192.168.0.13",
+          "id": "000000000013"
+        },
+        {
+          "name": "camera13_receiver",
+          "extends": ["raspi_ir_receiver"],
+          "nodes": [
+            { "name": "callback_image", "camera_name": "camera13" }
+          ]
+        },
+        {
+          "name": "record13",
+          "extends": ["record_subgraph"],
+          "nodes": [
+            {
+              "name": "record",
+              "inputs": { "default": "camera13_receiver.callback_image" }
+            }
+          ]
+        },
+        {
+          "name": "camera14",
+          "extends": ["raspi_ir_cluster_slave"],
+          "address": "192.168.0.14",
+          "id": "000000000014"
+        },
+        {
+          "name": "camera14_receiver",
+          "extends": ["raspi_ir_receiver"],
+          "nodes": [
+            { "name": "callback_image", "camera_name": "camera14" }
+          ]
+        },
+        {
+          "name": "record14",
+          "extends": ["record_subgraph"],
+          "nodes": [
+            {
+              "name": "record",
+              "inputs": { "default": "camera14_receiver.callback_image" }
+            }
+          ]
+        },
+        {
+          "name": "camera15",
+          "extends": ["raspi_ir_cluster_slave"],
+          "address": "192.168.0.15",
+          "id": "000000000015"
+        },
+        {
+          "name": "camera15_receiver",
+          "extends": ["raspi_ir_receiver"],
+          "nodes": [
+            { "name": "callback_image", "camera_name": "camera15" }
+          ]
+        },
+        {
+          "name": "record15",
+          "extends": ["record_subgraph"],
+          "nodes": [
+            {
+              "name": "record",
+              "inputs": { "default": "camera15_receiver.callback_image" }
+            }
+          ]
+        },
+        {
+          "name": "camera16",
+          "extends": ["raspi_ir_cluster_slave"],
+          "address": "192.168.0.16",
+          "id": "000000000016"
+        },
+        {
+          "name": "camera16_receiver",
+          "extends": ["raspi_ir_receiver"],
+          "nodes": [
+            { "name": "callback_image", "camera_name": "camera16" }
+          ]
+        },
+        {
+          "name": "record16",
+          "extends": ["record_subgraph"],
+          "nodes": [
+            {
+              "name": "record",
+              "inputs": { "default": "camera16_receiver.callback_image" }
+            }
+          ]
+        },
+        {
+          "name": "camera17",
+          "extends": ["raspi_ir_cluster_slave"],
+          "address": "192.168.0.17",
+          "id": "000000000017"
+        },
+        {
+          "name": "camera17_receiver",
+          "extends": ["raspi_ir_receiver"],
+          "nodes": [
+            { "name": "callback_image", "camera_name": "camera17" }
+          ]
+        },
+        {
+          "name": "record17",
+          "extends": ["record_subgraph"],
+          "nodes": [
+            {
+              "name": "record",
+              "inputs": { "default": "camera17_receiver.callback_image" }
+            }
+          ]
+        },
+        {
+          "name": "camera18",
+          "extends": ["raspi_ir_cluster_slave"],
+          "address": "192.168.0.18",
+          "id": "000000000018"
+        },
+        {
+          "name": "camera18_receiver",
+          "extends": ["raspi_ir_receiver"],
+          "nodes": [
+            { "name": "callback_image", "camera_name": "camera18" }
+          ]
+        },
+        {
+          "name": "record18",
+          "extends": ["record_subgraph"],
+          "nodes": [
+            {
+              "name": "record",
+              "inputs": { "default": "camera18_receiver.callback_image" }
+            }
+          ]
+        },
+        {
+          "name": "camera19",
+          "extends": ["raspi_ir_cluster_slave"],
+          "address": "192.168.0.19",
+          "id": "000000000019"
+        },
+        {
+          "name": "camera19_receiver",
+          "extends": ["raspi_ir_receiver"],
+          "nodes": [
+            { "name": "callback_image", "camera_name": "camera19" }
+          ]
+        },
+        {
+          "name": "record19",
+          "extends": ["record_subgraph"],
+          "nodes": [
+            {
+              "name": "record",
+              "inputs": { "default": "camera19_receiver.callback_image" }
+            }
+          ]
+        },
+        {
+          "name": "camera20",
+          "extends": ["raspi_ir_cluster_slave"],
+          "address": "192.168.0.20",
+          "id": "000000000020"
+        },
+        {
+          "name": "camera20_receiver",
+          "extends": ["raspi_ir_receiver"],
+          "nodes": [
+            { "name": "callback_image", "camera_name": "camera20" }
+          ]
+        },
+        {
+          "name": "record20",
+          "extends": ["record_subgraph"],
+          "nodes": [
+            {
+              "name": "record",
+              "inputs": { "default": "camera20_receiver.callback_image" }
+            }
+          ]
+        },
+        {
+          "name": "camera21",
+          "extends": ["raspi_ir_cluster_slave"],
+          "address": "192.168.0.21",
+          "id": "000000000021"
+        },
+        {
+          "name": "camera21_receiver",
+          "extends": ["raspi_ir_receiver"],
+          "nodes": [
+            { "name": "callback_image", "camera_name": "camera21" }
+          ]
+        },
+        {
+          "name": "record21",
+          "extends": ["record_subgraph"],
+          "nodes": [
+            {
+              "name": "record",
+              "inputs": { "default": "camera21_receiver.callback_image" }
+            }
+          ]
+        },
+        {
+          "name": "camera22",
+          "extends": ["raspi_ir_cluster_slave"],
+          "address": "192.168.0.22",
+          "id": "000000000022"
+        },
+        {
+          "name": "camera22_receiver",
+          "extends": ["raspi_ir_receiver"],
+          "nodes": [
+            { "name": "callback_image", "camera_name": "camera22" }
+          ]
+        },
+        {
+          "name": "record22",
+          "extends": ["record_subgraph"],
+          "nodes": [
+            {
+              "name": "record",
+              "inputs": { "default": "camera22_receiver.callback_image" }
+            }
+          ]
+        },
+        {
+          "name": "camera23",
+          "extends": ["raspi_ir_cluster_slave"],
+          "address": "192.168.0.23",
+          "id": "000000000023"
+        },
+        {
+          "name": "camera23_receiver",
+          "extends": ["raspi_ir_receiver"],
+          "nodes": [
+            { "name": "callback_image", "camera_name": "camera23" }
+          ]
+        },
+        {
+          "name": "record23",
+          "extends": ["record_subgraph"],
+          "nodes": [
+            {
+              "name": "record",
+              "inputs": { "default": "camera23_receiver.callback_image" }
+            }
+          ]
+        },
+        {
+          "name": "camera24",
+          "extends": ["raspi_ir_cluster_slave"],
+          "address": "192.168.0.24",
+          "id": "000000000024"
+        },
+        {
+          "name": "camera24_receiver",
+          "extends": ["raspi_ir_receiver"],
+          "nodes": [
+            { "name": "callback_image", "camera_name": "camera24" }
+          ]
+        },
+        {
+          "name": "record24",
+          "extends": ["record_subgraph"],
+          "nodes": [
+            {
+              "name": "record",
+              "inputs": { "default": "camera24_receiver.callback_image" }
+            }
+          ]
+        },
+        {
+          "name": "sync",
+          "nodes": [
+            {
+              "name": "approximate_time_sync_images",
+              "type": "approximate_time_sync",
+              "interval": 11.611,
+              "inputs": {
+                "camera1": "camera1_receiver.decode_jpeg",
+                "camera2": "camera2_receiver.decode_jpeg",
+                "camera3": "camera3_receiver.decode_jpeg",
+                "camera4": "camera4_receiver.decode_jpeg",
+                "camera5": "camera5_receiver.decode_jpeg",
+                "camera6": "camera6_receiver.decode_jpeg",
+                "camera7": "camera7_receiver.decode_jpeg",
+                "camera8": "camera8_receiver.decode_jpeg",
+                "camera9": "camera9_receiver.decode_jpeg",
+                "camera10": "camera10_receiver.decode_jpeg",
+                "camera11": "camera11_receiver.decode_jpeg",
+                "camera12": "camera12_receiver.decode_jpeg",
+                "camera13": "camera13_receiver.decode_jpeg",
+                "camera14": "camera14_receiver.decode_jpeg",
+                "camera15": "camera15_receiver.decode_jpeg",
+                "camera16": "camera16_receiver.decode_jpeg",
+                "camera17": "camera17_receiver.decode_jpeg",
+                "camera18": "camera18_receiver.decode_jpeg",
+                "camera19": "camera19_receiver.decode_jpeg",
+                "camera20": "camera20_receiver.decode_jpeg",
+                "camera21": "camera21_receiver.decode_jpeg",
+                "camera22": "camera22_receiver.decode_jpeg",
+                "camera23": "camera23_receiver.decode_jpeg",
+                "camera24": "camera24_receiver.decode_jpeg"
+              }
+            },
+            {
+              "name": "callback_images",
+              "type": "callback",
+              "callback_name": "images",
+              "callback_type": "object",
+              "inputs": {
+                "default": "approximate_time_sync_images"
+              }
+            },
+            {
+              "name": "approximate_time_sync_markers",
+              "type": "approximate_time_sync",
+              "interval": 11.611,
+              "inputs": {
+                "camera1": "camera1_receiver.p2p_tcp_listener_marker",
+                "camera2": "camera2_receiver.p2p_tcp_listener_marker",
+                "camera3": "camera3_receiver.p2p_tcp_listener_marker",
+                "camera4": "camera4_receiver.p2p_tcp_listener_marker",
+                "camera5": "camera5_receiver.p2p_tcp_listener_marker",
+                "camera6": "camera6_receiver.p2p_tcp_listener_marker",
+                "camera7": "camera7_receiver.p2p_tcp_listener_marker",
+                "camera8": "camera8_receiver.p2p_tcp_listener_marker",
+                "camera9": "camera9_receiver.p2p_tcp_listener_marker",
+                "camera10": "camera10_receiver.p2p_tcp_listener_marker",
+                "camera11": "camera11_receiver.p2p_tcp_listener_marker",
+                "camera12": "camera12_receiver.p2p_tcp_listener_marker",
+                "camera13": "camera13_receiver.p2p_tcp_listener_marker",
+                "camera14": "camera14_receiver.p2p_tcp_listener_marker",
+                "camera15": "camera15_receiver.p2p_tcp_listener_marker",
+                "camera16": "camera16_receiver.p2p_tcp_listener_marker",
+                "camera17": "camera17_receiver.p2p_tcp_listener_marker",
+                "camera18": "camera18_receiver.p2p_tcp_listener_marker",
+                "camera19": "camera19_receiver.p2p_tcp_listener_marker",
+                "camera20": "camera20_receiver.p2p_tcp_listener_marker",
+                "camera21": "camera21_receiver.p2p_tcp_listener_marker",
+                "camera22": "camera22_receiver.p2p_tcp_listener_marker",
+                "camera23": "camera23_receiver.p2p_tcp_listener_marker",
+                "camera24": "camera24_receiver.p2p_tcp_listener_marker"
+              }
+            },
+            {
+              "name": "callback_markers",
+              "type": "callback",
+              "callback_name": "markers",
+              "callback_type": "object",
+              "inputs": {
+                "default": "approximate_time_sync_markers"
+              }
+            }
           ]
         }
       ]
@@ -1052,19 +1422,571 @@
     "capture_ir": {
       "subgraphs": [
         {
-          "name": "capture_ir",
-          "extends": [
-            "capture_ir_subgraph"
+          "name": "camera1",
+          "extends": ["raspi_ir_cluster_master"],
+          "address": "192.168.0.1",
+          "id": "000000000001"
+        },
+        {
+          "name": "camera1_receiver",
+          "extends": ["raspi_ir_receiver"],
+          "nodes": [
+            { "name": "callback_image", "camera_name": "camera1" }
+          ]
+        },
+        {
+          "name": "camera2",
+          "extends": ["raspi_ir_cluster_slave"],
+          "address": "192.168.0.2",
+          "id": "000000000002"
+        },
+        {
+          "name": "camera2_receiver",
+          "extends": ["raspi_ir_receiver"],
+          "nodes": [
+            { "name": "callback_image", "camera_name": "camera2" }
+          ]
+        },
+        {
+          "name": "camera3",
+          "extends": ["raspi_ir_cluster_slave"],
+          "address": "192.168.0.3",
+          "id": "000000000003"
+        },
+        {
+          "name": "camera3_receiver",
+          "extends": ["raspi_ir_receiver"],
+          "nodes": [
+            { "name": "callback_image", "camera_name": "camera3" }
+          ]
+        },
+        {
+          "name": "camera4",
+          "extends": ["raspi_ir_cluster_slave"],
+          "address": "192.168.0.4",
+          "id": "000000000004"
+        },
+        {
+          "name": "camera4_receiver",
+          "extends": ["raspi_ir_receiver"],
+          "nodes": [
+            { "name": "callback_image", "camera_name": "camera4" }
+          ]
+        },
+        {
+          "name": "camera5",
+          "extends": ["raspi_ir_cluster_slave"],
+          "address": "192.168.0.5",
+          "id": "000000000005"
+        },
+        {
+          "name": "camera5_receiver",
+          "extends": ["raspi_ir_receiver"],
+          "nodes": [
+            { "name": "callback_image", "camera_name": "camera5" }
+          ]
+        },
+        {
+          "name": "camera6",
+          "extends": ["raspi_ir_cluster_slave"],
+          "address": "192.168.0.6",
+          "id": "000000000006"
+        },
+        {
+          "name": "camera6_receiver",
+          "extends": ["raspi_ir_receiver"],
+          "nodes": [
+            { "name": "callback_image", "camera_name": "camera6" }
+          ]
+        },
+        {
+          "name": "camera7",
+          "extends": ["raspi_ir_cluster_slave"],
+          "address": "192.168.0.7",
+          "id": "000000000007"
+        },
+        {
+          "name": "camera7_receiver",
+          "extends": ["raspi_ir_receiver"],
+          "nodes": [
+            { "name": "callback_image", "camera_name": "camera7" }
+          ]
+        },
+        {
+          "name": "camera8",
+          "extends": ["raspi_ir_cluster_slave"],
+          "address": "192.168.0.8",
+          "id": "000000000008"
+        },
+        {
+          "name": "camera8_receiver",
+          "extends": ["raspi_ir_receiver"],
+          "nodes": [
+            { "name": "callback_image", "camera_name": "camera8" }
+          ]
+        },
+        {
+          "name": "camera9",
+          "extends": ["raspi_ir_cluster_slave"],
+          "address": "192.168.0.9",
+          "id": "000000000009"
+        },
+        {
+          "name": "camera9_receiver",
+          "extends": ["raspi_ir_receiver"],
+          "nodes": [
+            { "name": "callback_image", "camera_name": "camera9" }
+          ]
+        },
+        {
+          "name": "camera10",
+          "extends": ["raspi_ir_cluster_slave"],
+          "address": "192.168.0.10",
+          "id": "000000000010"
+        },
+        {
+          "name": "camera10_receiver",
+          "extends": ["raspi_ir_receiver"],
+          "nodes": [
+            { "name": "callback_image", "camera_name": "camera10" }
+          ]
+        },
+        {
+          "name": "camera11",
+          "extends": ["raspi_ir_cluster_slave"],
+          "address": "192.168.0.11",
+          "id": "000000000011"
+        },
+        {
+          "name": "camera11_receiver",
+          "extends": ["raspi_ir_receiver"],
+          "nodes": [
+            { "name": "callback_image", "camera_name": "camera11" }
+          ]
+        },
+        {
+          "name": "camera12",
+          "extends": ["raspi_ir_cluster_slave"],
+          "address": "192.168.0.12",
+          "id": "000000000012"
+        },
+        {
+          "name": "camera12_receiver",
+          "extends": ["raspi_ir_receiver"],
+          "nodes": [
+            { "name": "callback_image", "camera_name": "camera12" }
+          ]
+        },
+        {
+          "name": "camera13",
+          "extends": ["raspi_ir_cluster_slave"],
+          "address": "192.168.0.13",
+          "id": "000000000013"
+        },
+        {
+          "name": "camera13_receiver",
+          "extends": ["raspi_ir_receiver"],
+          "nodes": [
+            { "name": "callback_image", "camera_name": "camera13" }
+          ]
+        },
+        {
+          "name": "camera14",
+          "extends": ["raspi_ir_cluster_slave"],
+          "address": "192.168.0.14",
+          "id": "000000000014"
+        },
+        {
+          "name": "camera14_receiver",
+          "extends": ["raspi_ir_receiver"],
+          "nodes": [
+            { "name": "callback_image", "camera_name": "camera14" }
+          ]
+        },
+        {
+          "name": "camera15",
+          "extends": ["raspi_ir_cluster_slave"],
+          "address": "192.168.0.15",
+          "id": "000000000015"
+        },
+        {
+          "name": "camera15_receiver",
+          "extends": ["raspi_ir_receiver"],
+          "nodes": [
+            { "name": "callback_image", "camera_name": "camera15" }
+          ]
+        },
+        {
+          "name": "camera16",
+          "extends": ["raspi_ir_cluster_slave"],
+          "address": "192.168.0.16",
+          "id": "000000000016"
+        },
+        {
+          "name": "camera16_receiver",
+          "extends": ["raspi_ir_receiver"],
+          "nodes": [
+            { "name": "callback_image", "camera_name": "camera16" }
+          ]
+        },
+        {
+          "name": "camera17",
+          "extends": ["raspi_ir_cluster_slave"],
+          "address": "192.168.0.17",
+          "id": "000000000017"
+        },
+        {
+          "name": "camera17_receiver",
+          "extends": ["raspi_ir_receiver"],
+          "nodes": [
+            { "name": "callback_image", "camera_name": "camera17" }
+          ]
+        },
+        {
+          "name": "camera18",
+          "extends": ["raspi_ir_cluster_slave"],
+          "address": "192.168.0.18",
+          "id": "000000000018"
+        },
+        {
+          "name": "camera18_receiver",
+          "extends": ["raspi_ir_receiver"],
+          "nodes": [
+            { "name": "callback_image", "camera_name": "camera18" }
+          ]
+        },
+        {
+          "name": "camera19",
+          "extends": ["raspi_ir_cluster_slave"],
+          "address": "192.168.0.19",
+          "id": "000000000019"
+        },
+        {
+          "name": "camera19_receiver",
+          "extends": ["raspi_ir_receiver"],
+          "nodes": [
+            { "name": "callback_image", "camera_name": "camera19" }
+          ]
+        },
+        {
+          "name": "camera20",
+          "extends": ["raspi_ir_cluster_slave"],
+          "address": "192.168.0.20",
+          "id": "000000000020"
+        },
+        {
+          "name": "camera20_receiver",
+          "extends": ["raspi_ir_receiver"],
+          "nodes": [
+            { "name": "callback_image", "camera_name": "camera20" }
+          ]
+        },
+        {
+          "name": "camera21",
+          "extends": ["raspi_ir_cluster_slave"],
+          "address": "192.168.0.21",
+          "id": "000000000021"
+        },
+        {
+          "name": "camera21_receiver",
+          "extends": ["raspi_ir_receiver"],
+          "nodes": [
+            { "name": "callback_image", "camera_name": "camera21" }
+          ]
+        },
+        {
+          "name": "camera22",
+          "extends": ["raspi_ir_cluster_slave"],
+          "address": "192.168.0.22",
+          "id": "000000000022"
+        },
+        {
+          "name": "camera22_receiver",
+          "extends": ["raspi_ir_receiver"],
+          "nodes": [
+            { "name": "callback_image", "camera_name": "camera22" }
+          ]
+        },
+        {
+          "name": "camera23",
+          "extends": ["raspi_ir_cluster_slave"],
+          "address": "192.168.0.23",
+          "id": "000000000023"
+        },
+        {
+          "name": "camera23_receiver",
+          "extends": ["raspi_ir_receiver"],
+          "nodes": [
+            { "name": "callback_image", "camera_name": "camera23" }
+          ]
+        },
+        {
+          "name": "camera24",
+          "extends": ["raspi_ir_cluster_slave"],
+          "address": "192.168.0.24",
+          "id": "000000000024"
+        },
+        {
+          "name": "camera24_receiver",
+          "extends": ["raspi_ir_receiver"],
+          "nodes": [
+            { "name": "callback_image", "camera_name": "camera24" }
+          ]
+        },
+        {
+          "name": "sync",
+          "nodes": [
+            {
+              "name": "approximate_time_sync_images",
+              "type": "approximate_time_sync",
+              "interval": 11.611,
+              "inputs": {
+                "camera1": "camera1_receiver.decode_jpeg",
+                "camera2": "camera2_receiver.decode_jpeg",
+                "camera3": "camera3_receiver.decode_jpeg",
+                "camera4": "camera4_receiver.decode_jpeg",
+                "camera5": "camera5_receiver.decode_jpeg",
+                "camera6": "camera6_receiver.decode_jpeg",
+                "camera7": "camera7_receiver.decode_jpeg",
+                "camera8": "camera8_receiver.decode_jpeg",
+                "camera9": "camera9_receiver.decode_jpeg",
+                "camera10": "camera10_receiver.decode_jpeg",
+                "camera11": "camera11_receiver.decode_jpeg",
+                "camera12": "camera12_receiver.decode_jpeg",
+                "camera13": "camera13_receiver.decode_jpeg",
+                "camera14": "camera14_receiver.decode_jpeg",
+                "camera15": "camera15_receiver.decode_jpeg",
+                "camera16": "camera16_receiver.decode_jpeg",
+                "camera17": "camera17_receiver.decode_jpeg",
+                "camera18": "camera18_receiver.decode_jpeg",
+                "camera19": "camera19_receiver.decode_jpeg",
+                "camera20": "camera20_receiver.decode_jpeg",
+                "camera21": "camera21_receiver.decode_jpeg",
+                "camera22": "camera22_receiver.decode_jpeg",
+                "camera23": "camera23_receiver.decode_jpeg",
+                "camera24": "camera24_receiver.decode_jpeg"
+              }
+            },
+            {
+              "name": "callback_images",
+              "type": "callback",
+              "callback_name": "images",
+              "callback_type": "object",
+              "inputs": {
+                "default": "approximate_time_sync_images"
+              }
+            },
+            {
+              "name": "approximate_time_sync_markers",
+              "type": "approximate_time_sync",
+              "interval": 11.611,
+              "inputs": {
+                "camera1": "camera1_receiver.p2p_tcp_listener_marker",
+                "camera2": "camera2_receiver.p2p_tcp_listener_marker",
+                "camera3": "camera3_receiver.p2p_tcp_listener_marker",
+                "camera4": "camera4_receiver.p2p_tcp_listener_marker",
+                "camera5": "camera5_receiver.p2p_tcp_listener_marker",
+                "camera6": "camera6_receiver.p2p_tcp_listener_marker",
+                "camera7": "camera7_receiver.p2p_tcp_listener_marker",
+                "camera8": "camera8_receiver.p2p_tcp_listener_marker",
+                "camera9": "camera9_receiver.p2p_tcp_listener_marker",
+                "camera10": "camera10_receiver.p2p_tcp_listener_marker",
+                "camera11": "camera11_receiver.p2p_tcp_listener_marker",
+                "camera12": "camera12_receiver.p2p_tcp_listener_marker",
+                "camera13": "camera13_receiver.p2p_tcp_listener_marker",
+                "camera14": "camera14_receiver.p2p_tcp_listener_marker",
+                "camera15": "camera15_receiver.p2p_tcp_listener_marker",
+                "camera16": "camera16_receiver.p2p_tcp_listener_marker",
+                "camera17": "camera17_receiver.p2p_tcp_listener_marker",
+                "camera18": "camera18_receiver.p2p_tcp_listener_marker",
+                "camera19": "camera19_receiver.p2p_tcp_listener_marker",
+                "camera20": "camera20_receiver.p2p_tcp_listener_marker",
+                "camera21": "camera21_receiver.p2p_tcp_listener_marker",
+                "camera22": "camera22_receiver.p2p_tcp_listener_marker",
+                "camera23": "camera23_receiver.p2p_tcp_listener_marker",
+                "camera24": "camera24_receiver.p2p_tcp_listener_marker"
+              }
+            },
+            {
+              "name": "callback_markers",
+              "type": "callback",
+              "callback_name": "markers",
+              "callback_type": "object",
+              "inputs": {
+                "default": "approximate_time_sync_markers"
+              }
+            }
           ]
         }
       ]
     },
-    "playback_color": {
+    "capture_color": {
       "subgraphs": [
         {
-          "name": "playback_color",
-          "extends": [
-            "playback_color_subgraph"
+          "name": "camera101",
+          "extends": ["raspi_color_cluster_master"],
+          "address": "192.168.0.26",
+          "id": "000000000026"
+        },
+        {
+          "name": "camera101_receiver",
+          "extends": ["raspi_color_receiver"],
+          "nodes": [
+            {
+              "name": "p2p_tcp_listener_image",
+              "inputs": { "default": "camera101.p2p_tcp_talker_image" }
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera101"
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": { "default": "camera101.p2p_tcp_talker_marker" }
+            }
+          ]
+        },
+        {
+          "name": "camera102",
+          "extends": ["raspi_color_cluster_slave"],
+          "address": "192.168.0.27",
+          "id": "000000000027"
+        },
+        {
+          "name": "camera102_receiver",
+          "extends": ["raspi_color_receiver"],
+          "nodes": [
+            {
+              "name": "p2p_tcp_listener_image",
+              "inputs": { "default": "camera102.p2p_tcp_talker_image" }
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera102"
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": { "default": "camera102.p2p_tcp_talker_marker" }
+            }
+          ]
+        },
+        {
+          "name": "camera103",
+          "extends": ["raspi_color_cluster_slave"],
+          "address": "192.168.0.28",
+          "id": "000000000028"
+        },
+        {
+          "name": "camera103_receiver",
+          "extends": ["raspi_color_receiver"],
+          "nodes": [
+            {
+              "name": "p2p_tcp_listener_image",
+              "inputs": { "default": "camera103.p2p_tcp_talker_image" }
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera103"
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": { "default": "camera103.p2p_tcp_talker_marker" }
+            }
+          ]
+        },
+        {
+          "name": "camera104",
+          "extends": ["raspi_color_cluster_slave"],
+          "address": "192.168.0.29",
+          "id": "000000000029"
+        },
+        {
+          "name": "camera104_receiver",
+          "extends": ["raspi_color_receiver"],
+          "nodes": [
+            {
+              "name": "p2p_tcp_listener_image",
+              "inputs": { "default": "camera104.p2p_tcp_talker_image" }
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera104"
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": { "default": "camera104.p2p_tcp_talker_marker" }
+            }
+          ]
+        },
+        {
+          "name": "camera105",
+          "extends": ["raspi_color_cluster_slave"],
+          "address": "192.168.0.30",
+          "id": "000000000030"
+        },
+        {
+          "name": "camera105_receiver",
+          "extends": ["raspi_color_receiver"],
+          "nodes": [
+            {
+              "name": "p2p_tcp_listener_image",
+              "inputs": { "default": "camera105.p2p_tcp_talker_image" }
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera105"
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": { "default": "camera105.p2p_tcp_talker_marker" }
+            }
+          ]
+        },
+        {
+          "name": "sync",
+          "nodes": [
+            {
+              "name": "approximate_time_sync_images",
+              "type": "approximate_time_sync",
+              "interval": 11.6,
+              "inputs": {
+                "camera101": "camera101_receiver.decode_jpeg",
+                "camera102": "camera102_receiver.decode_jpeg",
+                "camera103": "camera103_receiver.decode_jpeg",
+                "camera104": "camera104_receiver.decode_jpeg",
+                "camera105": "camera105_receiver.decode_jpeg"
+              }
+            },
+            {
+              "name": "callback_images",
+              "type": "callback",
+              "callback_name": "images",
+              "callback_type": "object",
+              "inputs": {
+                "default": "approximate_time_sync_images"
+              }
+            },
+            {
+              "name": "approximate_time_sync_markers",
+              "type": "approximate_time_sync",
+              "interval": 11.6,
+              "inputs": {
+                "camera101": "camera101_receiver.p2p_tcp_listener_marker",
+                "camera102": "camera102_receiver.p2p_tcp_listener_marker",
+                "camera103": "camera103_receiver.p2p_tcp_listener_marker",
+                "camera104": "camera104_receiver.p2p_tcp_listener_marker",
+                "camera105": "camera105_receiver.p2p_tcp_listener_marker"
+              }
+            },
+            {
+              "name": "callback_markers",
+              "type": "callback",
+              "callback_name": "markers",
+              "callback_type": "object",
+              "inputs": {
+                "default": "approximate_time_sync_markers"
+              }
+            }
           ]
         }
       ]
@@ -1072,9 +1994,381 @@
     "playback_ir": {
       "subgraphs": [
         {
-          "name": "playback_ir",
-          "extends": [
-            "playback_ir_subgraph"
+          "name": "camera1",
+          "extends": ["playback_subgraph"],
+          "id": "000000000001",
+          "nodes": [
+            { "name": "load_blob", "topic_name": "image_1" },
+            { "name": "load_marker", "topic_name": "marker_1" },
+            { "name": "callback_image", "camera_name": "camera1" }
+          ]
+        },
+        {
+          "name": "camera2",
+          "extends": ["playback_subgraph"],
+          "id": "000000000002",
+          "nodes": [
+            { "name": "load_blob", "topic_name": "image_2" },
+            { "name": "load_marker", "topic_name": "marker_2" },
+            { "name": "callback_image", "camera_name": "camera2" }
+          ]
+        },
+        {
+          "name": "camera3",
+          "extends": ["playback_subgraph"],
+          "id": "000000000003",
+          "nodes": [
+            { "name": "load_blob", "topic_name": "image_3" },
+            { "name": "load_marker", "topic_name": "marker_3" },
+            { "name": "callback_image", "camera_name": "camera3" }
+          ]
+        },
+        {
+          "name": "camera4",
+          "extends": ["playback_subgraph"],
+          "id": "000000000004",
+          "nodes": [
+            { "name": "load_blob", "topic_name": "image_4" },
+            { "name": "load_marker", "topic_name": "marker_4" },
+            { "name": "callback_image", "camera_name": "camera4" }
+          ]
+        },
+        {
+          "name": "camera5",
+          "extends": ["playback_subgraph"],
+          "id": "000000000005",
+          "nodes": [
+            { "name": "load_blob", "topic_name": "image_5" },
+            { "name": "load_marker", "topic_name": "marker_5" },
+            { "name": "callback_image", "camera_name": "camera5" }
+          ]
+        },
+        {
+          "name": "camera6",
+          "extends": ["playback_subgraph"],
+          "id": "000000000006",
+          "nodes": [
+            { "name": "load_blob", "topic_name": "image_6" },
+            { "name": "load_marker", "topic_name": "marker_6" },
+            { "name": "callback_image", "camera_name": "camera6" }
+          ]
+        },
+        {
+          "name": "camera7",
+          "extends": ["playback_subgraph"],
+          "id": "000000000007",
+          "nodes": [
+            { "name": "load_blob", "topic_name": "image_7" },
+            { "name": "load_marker", "topic_name": "marker_7" },
+            { "name": "callback_image", "camera_name": "camera7" }
+          ]
+        },
+        {
+          "name": "camera8",
+          "extends": ["playback_subgraph"],
+          "id": "000000000008",
+          "nodes": [
+            { "name": "load_blob", "topic_name": "image_8" },
+            { "name": "load_marker", "topic_name": "marker_8" },
+            { "name": "callback_image", "camera_name": "camera8" }
+          ]
+        },
+        {
+          "name": "camera9",
+          "extends": ["playback_subgraph"],
+          "id": "000000000009",
+          "nodes": [
+            { "name": "load_blob", "topic_name": "image_9" },
+            { "name": "load_marker", "topic_name": "marker_9" },
+            { "name": "callback_image", "camera_name": "camera9" }
+          ]
+        },
+        {
+          "name": "camera10",
+          "extends": ["playback_subgraph"],
+          "id": "000000000010",
+          "nodes": [
+            { "name": "load_blob", "topic_name": "image_10" },
+            { "name": "load_marker", "topic_name": "marker_10" },
+            { "name": "callback_image", "camera_name": "camera10" }
+          ]
+        },
+        {
+          "name": "camera11",
+          "extends": ["playback_subgraph"],
+          "id": "000000000011",
+          "nodes": [
+            { "name": "load_blob", "topic_name": "image_11" },
+            { "name": "load_marker", "topic_name": "marker_11" },
+            { "name": "callback_image", "camera_name": "camera11" }
+          ]
+        },
+        {
+          "name": "camera12",
+          "extends": ["playback_subgraph"],
+          "id": "000000000012",
+          "nodes": [
+            { "name": "load_blob", "topic_name": "image_12" },
+            { "name": "load_marker", "topic_name": "marker_12" },
+            { "name": "callback_image", "camera_name": "camera12" }
+          ]
+        },
+        {
+          "name": "camera13",
+          "extends": ["playback_subgraph"],
+          "id": "000000000013",
+          "nodes": [
+            { "name": "load_blob", "topic_name": "image_13" },
+            { "name": "load_marker", "topic_name": "marker_13" },
+            { "name": "callback_image", "camera_name": "camera13" }
+          ]
+        },
+        {
+          "name": "camera14",
+          "extends": ["playback_subgraph"],
+          "id": "000000000014",
+          "nodes": [
+            { "name": "load_blob", "topic_name": "image_14" },
+            { "name": "load_marker", "topic_name": "marker_14" },
+            { "name": "callback_image", "camera_name": "camera14" }
+          ]
+        },
+        {
+          "name": "camera15",
+          "extends": ["playback_subgraph"],
+          "id": "000000000015",
+          "nodes": [
+            { "name": "load_blob", "topic_name": "image_15" },
+            { "name": "load_marker", "topic_name": "marker_15" },
+            { "name": "callback_image", "camera_name": "camera15" }
+          ]
+        },
+        {
+          "name": "camera16",
+          "extends": ["playback_subgraph"],
+          "id": "000000000016",
+          "nodes": [
+            { "name": "load_blob", "topic_name": "image_16" },
+            { "name": "load_marker", "topic_name": "marker_16" },
+            { "name": "callback_image", "camera_name": "camera16" }
+          ]
+        },
+        {
+          "name": "camera17",
+          "extends": ["playback_subgraph"],
+          "id": "000000000017",
+          "nodes": [
+            { "name": "load_blob", "topic_name": "image_17" },
+            { "name": "load_marker", "topic_name": "marker_17" },
+            { "name": "callback_image", "camera_name": "camera17" }
+          ]
+        },
+        {
+          "name": "camera18",
+          "extends": ["playback_subgraph"],
+          "id": "000000000018",
+          "nodes": [
+            { "name": "load_blob", "topic_name": "image_18" },
+            { "name": "load_marker", "topic_name": "marker_18" },
+            { "name": "callback_image", "camera_name": "camera18" }
+          ]
+        },
+        {
+          "name": "camera19",
+          "extends": ["playback_subgraph"],
+          "id": "000000000019",
+          "nodes": [
+            { "name": "load_blob", "topic_name": "image_19" },
+            { "name": "load_marker", "topic_name": "marker_19" },
+            { "name": "callback_image", "camera_name": "camera19" }
+          ]
+        },
+        {
+          "name": "camera20",
+          "extends": ["playback_subgraph"],
+          "id": "000000000020",
+          "nodes": [
+            { "name": "load_blob", "topic_name": "image_20" },
+            { "name": "load_marker", "topic_name": "marker_20" },
+            { "name": "callback_image", "camera_name": "camera20" }
+          ]
+        },
+        {
+          "name": "sync",
+          "nodes": [
+            {
+              "name": "approximate_time_sync_images",
+              "type": "approximate_time_sync",
+              "interval": 11.611,
+              "inputs": {
+                "camera1": "camera1.decode_jpeg",
+                "camera2": "camera2.decode_jpeg",
+                "camera3": "camera3.decode_jpeg",
+                "camera4": "camera4.decode_jpeg",
+                "camera5": "camera5.decode_jpeg",
+                "camera6": "camera6.decode_jpeg",
+                "camera7": "camera7.decode_jpeg",
+                "camera8": "camera8.decode_jpeg",
+                "camera9": "camera9.decode_jpeg",
+                "camera10": "camera10.decode_jpeg",
+                "camera11": "camera11.decode_jpeg",
+                "camera12": "camera12.decode_jpeg",
+                "camera13": "camera13.decode_jpeg",
+                "camera14": "camera14.decode_jpeg",
+                "camera15": "camera15.decode_jpeg",
+                "camera16": "camera16.decode_jpeg",
+                "camera17": "camera17.decode_jpeg",
+                "camera18": "camera18.decode_jpeg",
+                "camera19": "camera19.decode_jpeg",
+                "camera20": "camera20.decode_jpeg"
+              }
+            },
+            {
+              "name": "callback_images",
+              "type": "callback",
+              "callback_name": "images",
+              "callback_type": "object",
+              "inputs": {
+                "default": "approximate_time_sync_images"
+              }
+            },
+            {
+              "name": "approximate_time_sync_markers",
+              "type": "approximate_time_sync",
+              "interval": 11.611,
+              "inputs": {
+                "camera1": "camera1.load_marker",
+                "camera2": "camera2.load_marker",
+                "camera3": "camera3.load_marker",
+                "camera4": "camera4.load_marker",
+                "camera5": "camera5.load_marker",
+                "camera6": "camera6.load_marker",
+                "camera7": "camera7.load_marker",
+                "camera8": "camera8.load_marker",
+                "camera9": "camera9.load_marker",
+                "camera10": "camera10.load_marker",
+                "camera11": "camera11.load_marker",
+                "camera12": "camera12.load_marker",
+                "camera13": "camera13.load_marker",
+                "camera14": "camera14.load_marker",
+                "camera15": "camera15.load_marker",
+                "camera16": "camera16.load_marker",
+                "camera17": "camera17.load_marker",
+                "camera18": "camera18.load_marker",
+                "camera19": "camera19.load_marker",
+                "camera20": "camera20.load_marker"
+              }
+            },
+            {
+              "name": "callback_markers",
+              "type": "callback",
+              "callback_name": "markers",
+              "callback_type": "object",
+              "inputs": {
+                "default": "approximate_time_sync_markers"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "playback_color": {
+      "subgraphs": [
+        {
+          "name": "camera101",
+          "extends": ["playback_color_subgraph"],
+          "id": "000000000026",
+          "nodes": [
+            { "name": "load_blob", "topic_name": "image_101" },
+            { "name": "load_marker", "topic_name": "marker_101" },
+            { "name": "callback_image", "camera_name": "camera101" }
+          ]
+        },
+        {
+          "name": "camera102",
+          "extends": ["playback_color_subgraph"],
+          "id": "000000000027",
+          "nodes": [
+            { "name": "load_blob", "topic_name": "image_102" },
+            { "name": "load_marker", "topic_name": "marker_102" },
+            { "name": "callback_image", "camera_name": "camera102" }
+          ]
+        },
+        {
+          "name": "camera103",
+          "extends": ["playback_color_subgraph"],
+          "id": "000000000028",
+          "nodes": [
+            { "name": "load_blob", "topic_name": "image_103" },
+            { "name": "load_marker", "topic_name": "marker_103" },
+            { "name": "callback_image", "camera_name": "camera103" }
+          ]
+        },
+        {
+          "name": "camera104",
+          "extends": ["playback_color_subgraph"],
+          "id": "000000000029",
+          "nodes": [
+            { "name": "load_blob", "topic_name": "image_104" },
+            { "name": "load_marker", "topic_name": "marker_104" },
+            { "name": "callback_image", "camera_name": "camera104" }
+          ]
+        },
+        {
+          "name": "camera105",
+          "extends": ["playback_color_subgraph"],
+          "id": "000000000030",
+          "nodes": [
+            { "name": "load_blob", "topic_name": "image_105" },
+            { "name": "load_marker", "topic_name": "marker_105" },
+            { "name": "callback_image", "camera_name": "camera105" }
+          ]
+        },
+        {
+          "name": "sync",
+          "nodes": [
+            {
+              "name": "approximate_time_sync_images",
+              "type": "approximate_time_sync",
+              "interval": 33.833,
+              "inputs": {
+                "camera101": "camera101.decode_jpeg",
+                "camera102": "camera102.decode_jpeg",
+                "camera103": "camera103.decode_jpeg",
+                "camera104": "camera104.decode_jpeg",
+                "camera105": "camera105.decode_jpeg"
+              }
+            },
+            {
+              "name": "callback_images",
+              "type": "callback",
+              "callback_name": "images",
+              "callback_type": "object",
+              "inputs": {
+                "default": "approximate_time_sync_images"
+              }
+            },
+            {
+              "name": "approximate_time_sync_markers",
+              "type": "approximate_time_sync",
+              "interval": 33.833,
+              "inputs": {
+                "camera101": "camera101.load_marker",
+                "camera102": "camera102.load_marker",
+                "camera103": "camera103.load_marker",
+                "camera104": "camera104.load_marker",
+                "camera105": "camera105.load_marker"
+              }
+            },
+            {
+              "name": "callback_markers",
+              "type": "callback",
+              "callback_name": "markers",
+              "callback_type": "object",
+              "inputs": {
+                "default": "approximate_time_sync_markers"
+              }
+            }
           ]
         }
       ]
@@ -1082,9 +2376,74 @@
     "playback_panoptic": {
       "subgraphs": [
         {
-          "name": "playback_panoptic",
-          "extends": [
-            "playback_panoptic_subgraph"
+          "name": "00_03",
+          "extends": ["playback_panoptic_subgraph"],
+          "id": "00_03",
+          "nodes": [
+            { "name": "load_panoptic", "topic_name": "00_03" },
+            { "name": "callback_image", "camera_name": "00_03" }
+          ]
+        },
+        {
+          "name": "00_06",
+          "extends": ["playback_panoptic_subgraph"],
+          "id": "00_06",
+          "nodes": [
+            { "name": "load_panoptic", "topic_name": "00_06" },
+            { "name": "callback_image", "camera_name": "00_06" }
+          ]
+        },
+        {
+          "name": "00_12",
+          "extends": ["playback_panoptic_subgraph"],
+          "id": "00_12",
+          "nodes": [
+            { "name": "load_panoptic", "topic_name": "00_12" },
+            { "name": "callback_image", "camera_name": "00_12" }
+          ]
+        },
+        {
+          "name": "00_13",
+          "extends": ["playback_panoptic_subgraph"],
+          "id": "00_13",
+          "nodes": [
+            { "name": "load_panoptic", "topic_name": "00_13" },
+            { "name": "callback_image", "camera_name": "00_13" }
+          ]
+        },
+        {
+          "name": "00_23",
+          "extends": ["playback_panoptic_subgraph"],
+          "id": "00_23",
+          "nodes": [
+            { "name": "load_panoptic", "topic_name": "00_23" },
+            { "name": "callback_image", "camera_name": "00_23" }
+          ]
+        },
+        {
+          "name": "sync",
+          "nodes": [
+            {
+              "name": "approximate_time_sync_images",
+              "type": "approximate_time_sync",
+              "interval": 33.833,
+              "inputs": {
+                "00_03": "00_03.decode_jpeg",
+                "00_06": "00_06.decode_jpeg",
+                "00_12": "00_12.decode_jpeg",
+                "00_13": "00_13.decode_jpeg",
+                "00_23": "00_23.decode_jpeg"
+              }
+            },
+            {
+              "name": "callback_images",
+              "type": "callback",
+              "callback_name": "images",
+              "callback_type": "object",
+              "inputs": {
+                "default": "approximate_time_sync_images"
+              }
+            }
           ]
         }
       ]

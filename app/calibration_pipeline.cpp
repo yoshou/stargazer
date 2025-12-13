@@ -9,6 +9,7 @@
 #include <unordered_set>
 
 #include "calibration.hpp"
+#include "callback_node.hpp"
 #include "glm_serialize.hpp"
 #include "graph_proc.h"
 #include "graph_proc_cv.h"
@@ -450,51 +451,6 @@ class calibration_node : public graph_node {
 
 COALSACK_REGISTER_NODE(calibration_node, graph_node)
 
-class callback_node;
-
-class callback_list : public resource_base {
-  using callback_func = std::function<void(const callback_node*, std::string, graph_message_ptr)>;
-  std::vector<callback_func> callbacks;
-
- public:
-  virtual std::string get_name() const { return "callback_list"; }
-
-  void add(callback_func callback) { callbacks.push_back(callback); }
-
-  void invoke(const callback_node* node, std::string input_name, graph_message_ptr message) const {
-    for (auto& callback : callbacks) {
-      callback(node, input_name, message);
-    }
-  }
-};
-
-class callback_node : public graph_node {
-  std::string name;
-
- public:
-  callback_node() : graph_node() {}
-
-  virtual std::string get_proc_name() const override { return "callback"; }
-
-  void set_name(const std::string& value) { name = value; }
-  std::string get_name() const { return name; }
-
-  template <typename Archive>
-  void serialize(Archive& archive) {
-    archive(name);
-  }
-
-  virtual void process(std::string input_name, graph_message_ptr message) override {
-    if (const auto resource = resources->get("callback_list")) {
-      if (const auto callbacks = std::dynamic_pointer_cast<callback_list>(resource)) {
-        callbacks->invoke(this, input_name, message);
-      }
-    }
-  }
-};
-
-COALSACK_REGISTER_NODE(callback_node, graph_node)
-
 class object_map_node : public graph_node {
  public:
   object_map_node() : graph_node() {}
@@ -697,13 +653,13 @@ class calibration_pipeline::impl {
     n2->set_input(calib_node->get_output());
     g->add_node(n2);
 
-    n2->set_name("cameras");
+    n2->set_callback_name("cameras");
 
     const auto callbacks = std::make_shared<callback_list>();
 
     callbacks->add(
         [this](const callback_node* node, std::string input_name, graph_message_ptr message) {
-          if (node->get_name() == "cameras") {
+          if (node->get_callback_name() == "cameras") {
             if (auto obj_msg = std::dynamic_pointer_cast<object_message>(message)) {
               for (const auto& [name, field] : obj_msg->get_fields()) {
                 if (auto camera_msg = std::dynamic_pointer_cast<camera_message>(field)) {
@@ -1058,7 +1014,7 @@ class intrinsic_calibration_pipeline::impl {
     n2->set_input(calib_node->get_output());
     g->add_node(n2);
 
-    n2->set_name("camera");
+    n2->set_callback_name("camera");
 
     const auto callbacks = std::make_shared<callback_list>();
 
@@ -1571,13 +1527,13 @@ class axis_calibration_pipeline::impl {
     n2->set_input(calib_node->get_output());
     g->add_node(n2);
 
-    n2->set_name("scene");
+    n2->set_callback_name("scene");
 
     const auto callbacks = std::make_shared<callback_list>();
 
     callbacks->add(
         [this](const callback_node* node, std::string input_name, graph_message_ptr message) {
-          if (node->get_name() == "scene") {
+          if (node->get_callback_name() == "scene") {
             if (auto scene_msg = std::dynamic_pointer_cast<scene_message>(message)) {
               for (const auto& f : calibrated) {
                 f(scene_msg->get_scene());
