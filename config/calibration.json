@@ -101,14 +101,168 @@
       "name": "calibration_ir_subgraph",
       "nodes": [
         {
-          "name": "calibration",
-          "only_extrinsic": false,
-          "robust": true,
-          "type": "calibration"
+          "name": "frame_number_numbering",
+          "type": "frame_number_numbering"
         },
         {
-          "name": "detector",
-          "type": "three_point_bar_calibration_target_detector"
+          "name": "object_map",
+          "type": "object_map",
+          "inputs": { "default": "frame_number_numbering" },
+          "outputs": ["camera1", "camera2", "camera3", "camera4", "camera5", "camera6", "camera7", "camera8", "camera9", "camera10", "camera11", "camera12", "camera13", "camera14", "camera15", "camera16", "camera17", "camera18", "camera19", "camera20"]
+        },
+        {
+          "name": "detector_camera1",
+          "type": "three_point_bar_calibration_target_detector",
+          "inputs": { "default": "object_map:camera1" },
+          "camera_name": "camera1"
+        },
+        {
+          "name": "detector_camera2",
+          "type": "three_point_bar_calibration_target_detector",
+          "inputs": { "default": "object_map:camera2" },
+          "camera_name": "camera2"
+        },
+        {
+          "name": "detector_camera3",
+          "type": "three_point_bar_calibration_target_detector",
+          "inputs": { "default": "object_map:camera3" },
+          "camera_name": "camera3"
+        },
+        {
+          "name": "detector_camera4",
+          "type": "three_point_bar_calibration_target_detector",
+          "inputs": { "default": "object_map:camera4" },
+          "camera_name": "camera4"
+        },
+        {
+          "name": "detector_camera5",
+          "type": "three_point_bar_calibration_target_detector",
+          "inputs": { "default": "object_map:camera5" },
+          "camera_name": "camera5"
+        },
+        {
+          "name": "detector_camera6",
+          "type": "three_point_bar_calibration_target_detector",
+          "inputs": { "default": "object_map:camera6" },
+          "camera_name": "camera6"
+        },
+        {
+          "name": "detector_camera7",
+          "type": "three_point_bar_calibration_target_detector",
+          "inputs": { "default": "object_map:camera7" },
+          "camera_name": "camera7"
+        },
+        {
+          "name": "detector_camera8",
+          "type": "three_point_bar_calibration_target_detector",
+          "inputs": { "default": "object_map:camera8" },
+          "camera_name": "camera8"
+        },
+        {
+          "name": "detector_camera9",
+          "type": "three_point_bar_calibration_target_detector",
+          "inputs": { "default": "object_map:camera9" },
+          "camera_name": "camera9"
+        },
+        {
+          "name": "detector_camera10",
+          "type": "three_point_bar_calibration_target_detector",
+          "inputs": { "default": "object_map:camera10" },
+          "camera_name": "camera10"
+        },
+        {
+          "name": "detector_camera11",
+          "type": "three_point_bar_calibration_target_detector",
+          "inputs": { "default": "object_map:camera11" },
+          "camera_name": "camera11"
+        },
+        {
+          "name": "detector_camera12",
+          "type": "three_point_bar_calibration_target_detector",
+          "inputs": { "default": "object_map:camera12" },
+          "camera_name": "camera12"
+        },
+        {
+          "name": "detector_camera13",
+          "type": "three_point_bar_calibration_target_detector",
+          "inputs": { "default": "object_map:camera13" },
+          "camera_name": "camera13"
+        },
+        {
+          "name": "detector_camera14",
+          "type": "three_point_bar_calibration_target_detector",
+          "inputs": { "default": "object_map:camera14" },
+          "camera_name": "camera14"
+        },
+        {
+          "name": "detector_camera15",
+          "type": "three_point_bar_calibration_target_detector",
+          "inputs": { "default": "object_map:camera15" },
+          "camera_name": "camera15"
+        },
+        {
+          "name": "detector_camera16",
+          "type": "three_point_bar_calibration_target_detector",
+          "inputs": { "default": "object_map:camera16" },
+          "camera_name": "camera16"
+        },
+        {
+          "name": "detector_camera17",
+          "type": "three_point_bar_calibration_target_detector",
+          "inputs": { "default": "object_map:camera17" },
+          "camera_name": "camera17"
+        },
+        {
+          "name": "detector_camera18",
+          "type": "three_point_bar_calibration_target_detector",
+          "inputs": { "default": "object_map:camera18" },
+          "camera_name": "camera18"
+        },
+        {
+          "name": "detector_camera19",
+          "type": "three_point_bar_calibration_target_detector",
+          "inputs": { "default": "object_map:camera19" },
+          "camera_name": "camera19"
+        },
+        {
+          "name": "detector_camera20",
+          "type": "three_point_bar_calibration_target_detector",
+          "inputs": { "default": "object_map:camera20" },
+          "camera_name": "camera20"
+        },
+        {
+          "name": "calibration",
+          "type": "calibration",
+          "only_extrinsic": false,
+          "robust": true,
+          "inputs": {
+            "camera1": "detector_camera1",
+            "camera2": "detector_camera2",
+            "camera3": "detector_camera3",
+            "camera4": "detector_camera4",
+            "camera5": "detector_camera5",
+            "camera6": "detector_camera6",
+            "camera7": "detector_camera7",
+            "camera8": "detector_camera8",
+            "camera9": "detector_camera9",
+            "camera10": "detector_camera10",
+            "camera11": "detector_camera11",
+            "camera12": "detector_camera12",
+            "camera13": "detector_camera13",
+            "camera14": "detector_camera14",
+            "camera15": "detector_camera15",
+            "camera16": "detector_camera16",
+            "camera17": "detector_camera17",
+            "camera18": "detector_camera18",
+            "camera19": "detector_camera19",
+            "camera20": "detector_camera20"
+          }
+        },
+        {
+          "name": "callback_cameras",
+          "type": "callback",
+          "callback_name": "cameras",
+          "inputs": { "default": "calibration" }
         }
       ]
     },
@@ -116,14 +270,113 @@
       "name": "calibration_color_subgraph",
       "nodes": [
         {
-          "name": "calibration",
-          "only_extrinsic": true,
-          "robust": false,
-          "type": "calibration"
+          "name": "frame_number_numbering",
+          "type": "frame_number_numbering"
         },
         {
-          "name": "detector",
-          "type": "pattern_board_calibration_target_detector"
+          "name": "object_map",
+          "type": "object_map",
+          "inputs": { "default": "frame_number_numbering" },
+          "outputs": ["camera101", "camera102", "camera103", "camera104", "camera105"]
+        },
+        {
+          "name": "detector_camera101",
+          "type": "pattern_board_calibration_target_detector",
+          "inputs": { "default": "object_map:camera101" },
+          "camera_name": "camera101"
+        },
+        {
+          "name": "detector_camera102",
+          "type": "pattern_board_calibration_target_detector",
+          "inputs": { "default": "object_map:camera102" },
+          "camera_name": "camera102"
+        },
+        {
+          "name": "detector_camera103",
+          "type": "pattern_board_calibration_target_detector",
+          "inputs": { "default": "object_map:camera103" },
+          "camera_name": "camera103"
+        },
+        {
+          "name": "detector_camera104",
+          "type": "pattern_board_calibration_target_detector",
+          "inputs": { "default": "object_map:camera104" },
+          "camera_name": "camera104"
+        },
+        {
+          "name": "detector_camera105",
+          "type": "pattern_board_calibration_target_detector",
+          "inputs": { "default": "object_map:camera105" },
+          "camera_name": "camera105"
+        },
+        {
+          "name": "calibration",
+          "type": "calibration",
+          "only_extrinsic": true,
+          "robust": false,
+          "inputs": {
+            "camera101": "detector_camera101",
+            "camera102": "detector_camera102",
+            "camera103": "detector_camera103",
+            "camera104": "detector_camera104",
+            "camera105": "detector_camera105"
+          }
+        },
+        {
+          "name": "callback_cameras",
+          "type": "callback",
+          "callback_name": "cameras",
+          "inputs": { "default": "calibration" }
+        }
+      ]
+    },
+    {
+      "name": "intrinsic_calibration_subgraph",
+      "nodes": [
+        {
+          "name": "frame_number_numbering",
+          "type": "frame_number_numbering"
+        },
+        {
+          "name": "object_mux",
+          "type": "object_mux",
+          "inputs": { "default": "frame_number_numbering" }
+        },
+        {
+          "name": "intrinsic_calibration",
+          "type": "intrinsic_calibration",
+          "inputs": { "default": "object_mux" }
+        },
+        {
+          "name": "callback_camera",
+          "type": "callback",
+          "callback_name": "camera",
+          "inputs": { "default": "intrinsic_calibration" }
+        }
+      ]
+    },
+    {
+      "name": "axis_calibration_subgraph",
+      "nodes": [
+        {
+          "name": "frame_number_numbering",
+          "type": "frame_number_numbering"
+        },
+        {
+          "name": "object_mux",
+          "type": "object_mux",
+          "inputs": { "default": "frame_number_numbering" }
+        },
+        {
+          "name": "axis_calibration",
+          "type": "axis_calibration",
+          "inputs": { "default": "object_mux" }
+        },
+        {
+          "name": "callback_scene",
+          "type": "callback",
+          "callback_name": "scene",
+          "inputs": { "default": "axis_calibration" }
         }
       ]
     },
@@ -2493,8 +2746,26 @@
           "extends": ["calibration_color_subgraph"]
         }
       ]
+    },
+    "intrinsic_calibration": {
+      "subgraphs": [
+        {
+          "name": "intrinsic_calibration",
+          "extends": ["intrinsic_calibration_subgraph"]
+        }
+      ]
+    },
+    "axis_calibration": {
+      "subgraphs": [
+        {
+          "name": "axis_calibration",
+          "extends": ["axis_calibration_subgraph"]
+        }
+      ]
     }
   },
-  "pipeline": "playback_color",
-  "static_pipeline": "calibration_color"
+  "pipeline": "playback_ir",
+  "extrinsic_calibration_pipeline": "calibration_ir",
+  "intrinsic_calibration_pipeline": "intrinsic_calibration",
+  "axis_calibration_pipeline": "axis_calibration"
 }

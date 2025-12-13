@@ -51,6 +51,10 @@ enum class node_type {
   charuco_detector,
   depthai_color_camera,
   rs_d435,
+  object_map,
+  object_mux,
+  intrinsic_calibration,
+  axis_calibration,
 };
 
 using node_param_t = std::variant<std::string, std::int64_t, double, float, bool>;

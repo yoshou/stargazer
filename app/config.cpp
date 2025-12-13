@@ -104,6 +104,14 @@ static node_type get_node_type(const std::string& type) {
     return node_type::depthai_color_camera;
   } else if (type == "rs_d435") {
     return node_type::rs_d435;
+  } else if (type == "object_map") {
+    return node_type::object_map;
+  } else if (type == "object_mux") {
+    return node_type::object_mux;
+  } else if (type == "intrinsic_calibration") {
+    return node_type::intrinsic_calibration;
+  } else if (type == "axis_calibration") {
+    return node_type::axis_calibration;
   }
   throw std::runtime_error("Invalid node type");
 }
@@ -188,6 +196,14 @@ static std::string get_node_type_name(node_type type) {
       return "depthai_color_camera";
     case node_type::rs_d435:
       return "rs_d435";
+    case node_type::object_map:
+      return "object_map";
+    case node_type::object_mux:
+      return "object_mux";
+    case node_type::intrinsic_calibration:
+      return "intrinsic_calibration";
+    case node_type::axis_calibration:
+      return "axis_calibration";
   }
   throw std::runtime_error("Invalid node type");
 }
@@ -299,6 +315,20 @@ configuration::configuration(const std::string& path) : path(path) {
     if (j.contains("static_pipeline")) {
       pipeline_names.insert(
           std::make_pair("static_pipeline", j["static_pipeline"].get<std::string>()));
+    }
+
+    // Load additional pipeline references (e.g., calibration pipelines)
+    if (j.contains("extrinsic_calibration_pipeline")) {
+      pipeline_names.insert(std::make_pair("extrinsic_calibration_pipeline",
+                                           j["extrinsic_calibration_pipeline"].get<std::string>()));
+    }
+    if (j.contains("intrinsic_calibration_pipeline")) {
+      pipeline_names.insert(std::make_pair("intrinsic_calibration_pipeline",
+                                           j["intrinsic_calibration_pipeline"].get<std::string>()));
+    }
+    if (j.contains("axis_calibration_pipeline")) {
+      pipeline_names.insert(std::make_pair("axis_calibration_pipeline",
+                                           j["axis_calibration_pipeline"].get<std::string>()));
     }
 
     for (const auto& [pipeline_name, pipeline_json] : j["pipelines"].items()) {
