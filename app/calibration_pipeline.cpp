@@ -492,6 +492,12 @@ axis_calibration_pipeline::axis_calibration_pipeline(std::shared_ptr<parameters_
 
 axis_calibration_pipeline::~axis_calibration_pipeline() = default;
 
+void axis_calibration_pipeline::add_calibrated(std::function<void(const scene_t&)> f) {
+  pimpl->add_calibrated(f);
+}
+
+void axis_calibration_pipeline::clear_calibrated() { pimpl->clear_calibrated(); }
+
 void axis_calibration_pipeline::set_camera(const std::string& name, const camera_t& camera) {
   pimpl->cameras[name] = camera;
 }
