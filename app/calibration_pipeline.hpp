@@ -78,6 +78,9 @@ class axis_calibration_pipeline {
   axis_calibration_pipeline(std::shared_ptr<stargazer::parameters_t> parameters);
   virtual ~axis_calibration_pipeline();
 
+  void add_calibrated(std::function<void(const stargazer::scene_t&)> f);
+  void clear_calibrated();
+
   void set_camera(const std::string& name, const stargazer::camera_t& camera);
 
   size_t get_camera_size() const;

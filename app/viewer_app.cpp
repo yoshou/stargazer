@@ -1109,6 +1109,7 @@ class viewer_app : public window_base {
     calib->add_calibrated([&](const std::unordered_map<std::string, camera_t>& cameras) {
       for (const auto& [name, camera] : cameras) {
         multiview_point_reconstruction_pipeline_->set_camera(name, camera);
+        multiview_image_reconstruction_pipeline_->set_camera(name, camera);
       }
     });
 
@@ -1133,6 +1134,11 @@ class viewer_app : public window_base {
     }
 
     axis_calib = std::make_unique<axis_calibration_pipeline>(parameters);
+
+    axis_calib->add_calibrated([&](const scene_t& scene) {
+      multiview_point_reconstruction_pipeline_->set_axis(scene.axis);
+      multiview_image_reconstruction_pipeline_->set_axis(scene.axis);
+    });
 
     for (const auto& device : calibration_config->get_node_infos()) {
       if (device.is_camera()) {
