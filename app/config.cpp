@@ -74,6 +74,44 @@ static node_type get_node_type(const std::string& type) {
     return node_type::frame_demux;
   } else if (type == "dump_se3") {
     return node_type::dump_se3;
+  } else if (type == "libcamera_capture") {
+    return node_type::libcamera_capture;
+  } else if (type == "timestamp") {
+    return node_type::timestamp;
+  } else if (type == "broadcast_talker") {
+    return node_type::broadcast_talker;
+  } else if (type == "broadcast_listener") {
+    return node_type::broadcast_listener;
+  } else if (type == "encode_jpeg") {
+    return node_type::encode_jpeg;
+  } else if (type == "decode_jpeg") {
+    return node_type::decode_jpeg;
+  } else if (type == "scale") {
+    return node_type::scale;
+  } else if (type == "resize") {
+    return node_type::resize;
+  } else if (type == "gaussian_blur") {
+    return node_type::gaussian_blur;
+  } else if (type == "mask") {
+    return node_type::mask;
+  } else if (type == "p2p_tcp_talker") {
+    return node_type::p2p_tcp_talker;
+  } else if (type == "p2p_tcp_listener") {
+    return node_type::p2p_tcp_listener;
+  } else if (type == "fifo") {
+    return node_type::fifo;
+  } else if (type == "video_time_sync_control") {
+    return node_type::video_time_sync_control;
+  } else if (type == "fast_blob_detector") {
+    return node_type::fast_blob_detector;
+  } else if (type == "detect_circle_grid") {
+    return node_type::detect_circle_grid;
+  } else if (type == "load_blob") {
+    return node_type::load_blob;
+  } else if (type == "load_marker") {
+    return node_type::load_marker;
+  } else if (type == "load_panoptic") {
+    return node_type::load_panoptic;
   }
   throw std::runtime_error("Invalid node type");
 }
@@ -128,8 +166,59 @@ static std::string get_node_type_name(node_type type) {
       return "frame_demux";
     case node_type::dump_se3:
       return "dump_se3";
+    case node_type::libcamera_capture:
+      return "libcamera_capture";
+    case node_type::timestamp:
+      return "timestamp";
+    case node_type::broadcast_talker:
+      return "broadcast_talker";
+    case node_type::broadcast_listener:
+      return "broadcast_listener";
+    case node_type::encode_jpeg:
+      return "encode_jpeg";
+    case node_type::decode_jpeg:
+      return "decode_jpeg";
+    case node_type::scale:
+      return "scale";
+    case node_type::resize:
+      return "resize";
+    case node_type::gaussian_blur:
+      return "gaussian_blur";
+    case node_type::mask:
+      return "mask";
+    case node_type::p2p_tcp_talker:
+      return "p2p_tcp_talker";
+    case node_type::p2p_tcp_listener:
+      return "p2p_tcp_listener";
+    case node_type::fifo:
+      return "fifo";
+    case node_type::video_time_sync_control:
+      return "video_time_sync_control";
+    case node_type::fast_blob_detector:
+      return "fast_blob_detector";
+    case node_type::detect_circle_grid:
+      return "detect_circle_grid";
+    case node_type::load_blob:
+      return "load_blob";
+    case node_type::load_marker:
+      return "load_marker";
+    case node_type::load_panoptic:
+      return "load_panoptic";
   }
   throw std::runtime_error("Invalid node type");
+}
+
+static node_param_t json_to_param(const nlohmann::json& value) {
+  if (value.is_string()) {
+    return value.get<std::string>();
+  } else if (value.is_boolean()) {
+    return value.get<bool>();
+  } else if (value.is_number_integer()) {
+    return value.get<std::int64_t>();
+  } else if (value.is_number_float()) {
+    return value.get<double>();
+  }
+  throw std::runtime_error("Unsupported JSON parameter type");
 }
 
 configuration::configuration(const std::string& path) : path(path) {
@@ -160,7 +249,7 @@ configuration::configuration(const std::string& path) : path(path) {
               node->extends.push_back(nodes.at(extend));
             }
           } else {
-            node->params[key] = value.get<node_param_t>();
+            node->params[key] = json_to_param(value);
           }
         }
         if (nodes.find(node->name) != nodes.end()) {
@@ -200,7 +289,7 @@ configuration::configuration(const std::string& path) : path(path) {
                   node.extends.push_back(nodes.at(extend));
                 }
               } else {
-                node.params[key] = value.get<node_param_t>();
+                node.params[key] = json_to_param(value);
               }
             }
             subgraph.nodes.push_back(node);
@@ -214,7 +303,7 @@ configuration::configuration(const std::string& path) : path(path) {
         // Subgraph-level parameters (e.g., db_path, fps, etc.)
         for (const auto& [key, value] : j_subgraph.items()) {
           if (key != "name" && key != "nodes" && key != "outputs" && key != "extends") {
-            subgraph.params[key] = value.get<node_param_t>();
+            subgraph.params[key] = json_to_param(value);
           }
         }
 
@@ -250,7 +339,7 @@ configuration::configuration(const std::string& path) : path(path) {
           // Instance-specific parameters (override template params)
           for (const auto& [key, value] : j_sg.items()) {
             if (key != "name" && key != "extends" && key != "nodes" && key != "outputs") {
-              sg_instance.params[key] = value.get<node_param_t>();
+              sg_instance.params[key] = json_to_param(value);
             }
           }
 
@@ -276,7 +365,7 @@ configuration::configuration(const std::string& path) : path(path) {
                     node.extends.push_back(nodes.at(extend));
                   }
                 } else {
-                  node.params[key] = value.get<node_param_t>();
+                  node.params[key] = json_to_param(value);
                 }
               }
               sg_instance.nodes.push_back(node);

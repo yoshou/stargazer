@@ -128,6 +128,11 @@ class texture_buffer {
   int width;
   int height;
 
+  // Reusable staging resources
+  vk::UniqueBuffer staging_buffer;
+  vk::UniqueDeviceMemory staging_memory;
+  vk::DeviceSize staging_buffer_size;
+
  public:
   void* get_handle() const { return (void*)(intptr_t)descriptor_set; }
 

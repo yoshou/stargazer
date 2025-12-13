@@ -7,6 +7,7 @@
 #include <nlohmann/json.hpp>
 #include <regex>
 
+#include "callback_node.hpp"
 #include "ext/graph_proc_cv_ext.h"
 #include "ext/graph_proc_depthai.h"
 #include "ext/graph_proc_jpeg.h"
@@ -634,51 +635,6 @@ class local_server {
   void add_resource(std::shared_ptr<resource_base> resource) { resources->add(resource); }
 };
 
-class callback_node;
-
-class callback_list : public resource_base {
-  using callback_func = std::function<void(const callback_node*, std::string, graph_message_ptr)>;
-  std::vector<callback_func> callbacks;
-
- public:
-  virtual std::string get_name() const { return "callback_list"; }
-
-  void add(callback_func callback) { callbacks.push_back(callback); }
-
-  void invoke(const callback_node* node, std::string input_name, graph_message_ptr message) const {
-    for (auto& callback : callbacks) {
-      callback(node, input_name, message);
-    }
-  }
-};
-
-class callback_node : public graph_node {
-  std::string name;
-
- public:
-  callback_node() : graph_node() {}
-
-  virtual std::string get_proc_name() const override { return "callback"; }
-
-  void set_name(const std::string& value) { name = value; }
-  std::string get_name() const { return name; }
-
-  template <typename Archive>
-  void serialize(Archive& archive) {
-    archive(name);
-  }
-
-  virtual void process(std::string input_name, graph_message_ptr message) override {
-    if (const auto resource = resources->get("callback_list")) {
-      if (const auto callbacks = std::dynamic_pointer_cast<callback_list>(resource)) {
-        callbacks->invoke(this, input_name, message);
-      }
-    }
-  }
-};
-
-COALSACK_REGISTER_NODE(callback_node, graph_node)
-
 class dump_blob_node : public graph_node {
   std::string db_path;
   std::string name;
@@ -1105,7 +1061,7 @@ class load_blob_node : public graph_node {
 
   void set_db_path(std::string value) { db_path = value; }
 
-  void set_name(std::string value) { name = value; }
+  void set_topic_name(std::string value) { name = value; }
 
   void set_stream(stream_type value) { stream = value; }
 
@@ -1264,7 +1220,7 @@ class load_marker_node : public graph_node {
 
   void set_db_path(std::string value) { db_path = value; }
 
-  void set_name(std::string value) { name = value; }
+  void set_topic_name(std::string value) { name = value; }
 
   void set_stream(stream_type value) { stream = value; }
 
@@ -1433,7 +1389,7 @@ class load_panoptic_node : public graph_node {
 
   void set_db_path(std::string value) { db_path = value; }
 
-  void set_name(std::string value) { name = value; }
+  void set_topic_name(std::string value) { name = value; }
 
   void set_stream(stream_type value) { stream = value; }
 
@@ -1511,135 +1467,549 @@ class load_panoptic_node : public graph_node {
 
 COALSACK_REGISTER_NODE(load_panoptic_node, graph_node)
 
-static void genenerate_common_nodes(
-    const std::vector<node_info>& node_infos, std::shared_ptr<subgraph> g, int& sync_fps,
-    std::vector<std::shared_ptr<remote_cluster>>& clusters, std::map<std::string, cv::Mat>& masks,
-    std::map<std::string, std::shared_ptr<mask_node>>& mask_nodes,
-    std::unordered_map<std::string, std::shared_ptr<graph_node>>& rcv_nodes,
-    std::unordered_map<std::string, std::shared_ptr<graph_node>>& rcv_marker_nodes,
-    std::unordered_map<std::string, std::shared_ptr<graph_node>>& rcv_blob_nodes) {
-  size_t num_raspi = 0;
-
-  for (std::size_t i = 0; i < node_infos.size(); i++) {
-    if ((node_infos[i].get_type() == node_type::raspi) ||
-        (node_infos[i].get_type() == node_type::raspi_color)) {
-      num_raspi++;
+static void build_graph_from_json(
+    const std::vector<node_info>& node_infos,
+    std::map<std::string, std::shared_ptr<subgraph>>& subgraphs,
+    std::unordered_map<std::string, std::shared_ptr<graph_node>>& node_map) {
+  // Create nodes
+  for (const auto& info : node_infos) {
+    // Skip if node already exists in the global map
+    if (node_map.find(info.name) != node_map.end()) {
+      continue;
     }
-  }
 
-  bool is_master = num_raspi >= 2;
+    graph_node_ptr node;
 
-  for (std::size_t i = 0; i < node_infos.size(); i++) {
-    std::shared_ptr<remote_cluster> cluster;
-
-    if (node_infos[i].get_type() == node_type::raspi) {
-      const auto fps = static_cast<int32_t>(node_infos[i].get_param<int64_t>("fps"));
-      sync_fps = std::min(sync_fps, fps);
-      std::shared_ptr<image> mask_img;
-      if (masks.find(node_infos[i].name) != masks.end()) {
-        const auto& mask = masks.at(node_infos[i].name);
-        mask_img.reset(
-            new image(mask.cols, mask.rows, CV_8UC1, mask.step, (const uint8_t*)mask.data));
+    switch (info.get_type()) {
+      case node_type::libcamera_capture: {
+        auto n = std::make_shared<libcamera_capture_node>();
+        if (info.contains_param("stream")) {
+          const auto stream_str = info.get_param<std::string>("stream");
+          if (stream_str == "COLOR") {
+            n->set_stream(stream_type::COLOR);
+          } else if (stream_str == "INFRARED") {
+            n->set_stream(stream_type::INFRARED);
+          }
+        }
+        if (info.contains_param("fps")) {
+          n->set_fps(static_cast<int>(info.get_param<std::int64_t>("fps")));
+        }
+        if (info.contains_param("width")) {
+          n->set_width(static_cast<int>(info.get_param<std::int64_t>("width")));
+        }
+        if (info.contains_param("height")) {
+          n->set_height(static_cast<int>(info.get_param<std::int64_t>("height")));
+        }
+        if (info.contains_param("format")) {
+          const auto format_str = info.get_param<std::string>("format");
+          if (format_str == "Y8_UINT") {
+            n->set_format(image_format::Y8_UINT);
+          } else if (format_str == "R8G8B8_UINT") {
+            n->set_format(image_format::R8G8B8_UINT);
+          }
+        }
+        if (info.contains_param("exposure")) {
+          n->set_option(libcamera_capture_node::option::exposure,
+                        static_cast<int>(info.get_param<std::int64_t>("exposure")));
+        }
+        if (info.contains_param("gain")) {
+          n->set_option(libcamera_capture_node::option::gain,
+                        static_cast<int>(info.get_param<std::int64_t>("gain")));
+        }
+        if (info.contains_param("emitter_enabled")) {
+          n->set_emitter_enabled(info.get_param<bool>("emitter_enabled"));
+        }
+        node = n;
+        break;
       }
-      cluster = std::make_shared<remote_cluster_raspi>(fps, mask_img.get(), is_master);
-      is_master = false;
-      mask_nodes.insert(std::make_pair(node_infos[i].name, cluster->mask_node_));
-      clusters.emplace_back(cluster);
-    } else if (node_infos[i].get_type() == node_type::raspi_color) {
-      const auto fps = static_cast<int32_t>(node_infos[i].get_param<int64_t>("fps"));
-      sync_fps = std::min(sync_fps, fps);
-      cluster = std::make_shared<remote_cluster_raspi_color_v3>(fps, is_master);
-      is_master = false;
-      clusters.emplace_back(cluster);
-    } else if (node_infos[i].get_type() == node_type::depthai_color) {
-      const auto fps = static_cast<int32_t>(node_infos[i].get_param<int64_t>("fps"));
-      sync_fps = std::min(sync_fps, fps);
-      cluster = std::make_unique<remote_cluster_depthai_color>(fps);
-      clusters.emplace_back(cluster);
-    } else if (node_infos[i].get_type() == node_type::rs_d435) {
-      const auto fps = static_cast<int32_t>(node_infos[i].get_param<int64_t>("fps"));
-      sync_fps = std::min(sync_fps, fps);
-      constexpr int exposure = 5715;
-      constexpr int gain = 248;
-      constexpr int laser_power = 150;
-      constexpr bool with_image = true;
-      constexpr bool emitter_enabled = false;
-      cluster = std::make_unique<remote_cluster_rs_d435>(fps, exposure, gain, laser_power,
-                                                         with_image, emitter_enabled);
-      clusters.emplace_back(cluster);
-    } else if (node_infos[i].get_type() == node_type::rs_d435_color) {
-      const auto fps = static_cast<int32_t>(node_infos[i].get_param<int64_t>("fps"));
-      sync_fps = std::min(sync_fps, fps);
-      cluster = std::make_unique<remote_cluster_rs_d435_color>(fps);
-      clusters.emplace_back(cluster);
-    } else if (node_infos[i].get_type() == node_type::playback) {
-      const auto fps = static_cast<int32_t>(node_infos[i].get_param<int64_t>("fps"));
-      sync_fps = std::min(sync_fps, fps);
-      clusters.push_back(nullptr);
-    } else if (node_infos[i].get_type() == node_type::panoptic) {
-      const auto fps = static_cast<int32_t>(node_infos[i].get_param<int64_t>("fps"));
-      sync_fps = std::min(sync_fps, fps);
-      clusters.push_back(nullptr);
+      case node_type::timestamp: {
+        auto n = std::make_shared<timestamp_node>();
+        node = n;
+        break;
+      }
+      case node_type::broadcast_talker: {
+        auto n = std::make_shared<broadcast_talker_node>();
+        if (info.contains_param("address") && info.contains_param("port")) {
+          const auto address = info.get_param<std::string>("address");
+          const auto port = static_cast<uint16_t>(info.get_param<std::int64_t>("port"));
+          n->set_endpoint(address, port);
+        }
+        node = n;
+        break;
+      }
+      case node_type::broadcast_listener: {
+        auto n = std::make_shared<broadcast_listener_node>();
+        if (info.contains_param("address") && info.contains_param("port")) {
+          const auto address = info.get_param<std::string>("address");
+          const auto port = static_cast<uint16_t>(info.get_param<std::int64_t>("port"));
+          n->set_endpoint(address, port);
+        }
+        node = n;
+        break;
+      }
+      case node_type::encode_jpeg: {
+        auto n = std::make_shared<encode_jpeg_node>();
+        node = n;
+        break;
+      }
+      case node_type::decode_jpeg: {
+        auto n = std::make_shared<decode_jpeg_node>();
+        node = n;
+        break;
+      }
+      case node_type::scale: {
+        auto n = std::make_shared<scale_node>();
+        if (info.contains_param("alpha")) {
+          n->set_alpha(info.get_param<double>("alpha"));
+        }
+        if (info.contains_param("beta")) {
+          n->set_beta(info.get_param<double>("beta"));
+        }
+        node = n;
+        break;
+      }
+      case node_type::resize: {
+        auto n = std::make_shared<resize_node>();
+        if (info.contains_param("width")) {
+          n->set_width(static_cast<int>(info.get_param<std::int64_t>("width")));
+        }
+        if (info.contains_param("height")) {
+          n->set_height(static_cast<int>(info.get_param<std::int64_t>("height")));
+        }
+        node = n;
+        break;
+      }
+      case node_type::gaussian_blur: {
+        auto n = std::make_shared<gaussian_blur_node>();
+        if (info.contains_param("kernel_width")) {
+          n->set_kernel_width(static_cast<int>(info.get_param<std::int64_t>("kernel_width")));
+        }
+        if (info.contains_param("kernel_height")) {
+          n->set_kernel_height(static_cast<int>(info.get_param<std::int64_t>("kernel_height")));
+        }
+        if (info.contains_param("sigma_x")) {
+          n->set_sigma_x(info.get_param<double>("sigma_x"));
+        }
+        if (info.contains_param("sigma_y")) {
+          n->set_sigma_y(info.get_param<double>("sigma_y"));
+        }
+        node = n;
+        break;
+      }
+      case node_type::mask: {
+        auto n = std::make_shared<mask_node>();
+        node = n;
+        break;
+      }
+      case node_type::p2p_tcp_talker: {
+        auto n = std::make_shared<p2p_tcp_talker_node>();
+        node = n;
+        break;
+      }
+      case node_type::p2p_tcp_listener: {
+        auto n = std::make_shared<p2p_tcp_listener_node>();
+        // Use endpoint_address/endpoint_port parameters
+        if (info.contains_param("endpoint_address")) {
+          const auto address = info.get_param<std::string>("endpoint_address");
+          const auto port =
+              info.contains_param("endpoint_port")
+                  ? static_cast<uint16_t>(info.get_param<std::int64_t>("endpoint_port"))
+                  : 0;  // Port 0 for dynamic allocation
+          n->set_endpoint(address, port);
+        } else {
+          // Default: bind to any interface with dynamic port
+          n->set_endpoint("", 0);
+        }
+        node = n;
+        break;
+      }
+      case node_type::fifo: {
+        auto n = std::make_shared<fifo_node>();
+        if (info.contains_param("max_size")) {
+          n->set_max_size(static_cast<size_t>(info.get_param<std::int64_t>("max_size")));
+        }
+        node = n;
+        break;
+      }
+      case node_type::video_time_sync_control: {
+        auto n = std::make_shared<video_time_sync_control_node>();
+        if (info.contains_param("gain")) {
+          n->set_gain(info.get_param<double>("gain"));
+        }
+        if (info.contains_param("interval")) {
+          n->set_interval(info.get_param<double>("interval"));
+        }
+        if (info.contains_param("max_interval")) {
+          n->set_max_interval(info.get_param<double>("max_interval"));
+        }
+        if (info.contains_param("min_interval")) {
+          n->set_min_interval(info.get_param<double>("min_interval"));
+        }
+        node = n;
+        break;
+      }
+      case node_type::fast_blob_detector: {
+        auto n = std::make_shared<fast_blob_detector_node>();
+        auto params = n->get_parameters();
+        if (info.contains_param("min_dist_between_blobs")) {
+          params.min_dist_between_blobs =
+              static_cast<float>(info.get_param<double>("min_dist_between_blobs"));
+        }
+        if (info.contains_param("step_threshold")) {
+          params.step_threshold = info.get_param<double>("step_threshold");
+        }
+        if (info.contains_param("min_threshold")) {
+          params.min_threshold = info.get_param<double>("min_threshold");
+        }
+        if (info.contains_param("max_threshold")) {
+          params.max_threshold = info.get_param<double>("max_threshold");
+        }
+        if (info.contains_param("min_area")) {
+          params.min_area = info.get_param<double>("min_area");
+        }
+        if (info.contains_param("max_area")) {
+          params.max_area = info.get_param<double>("max_area");
+        }
+        if (info.contains_param("min_circularity")) {
+          params.min_circularity = info.get_param<double>("min_circularity");
+        }
+        if (info.contains_param("max_circularity")) {
+          params.max_circularity = info.get_param<double>("max_circularity");
+        }
+        if (info.contains_param("min_repeatability")) {
+          params.min_repeatability =
+              static_cast<std::int32_t>(info.get_param<std::int64_t>("min_repeatability"));
+        }
+        n->set_parameters(params);
+        node = n;
+        break;
+      }
+      case node_type::detect_circle_grid: {
+        auto n = std::make_shared<detect_circle_grid_node>();
+        auto& params = n->get_parameters();
+        if (info.contains_param("min_dist_between_blobs")) {
+          params.min_dist_between_blobs =
+              static_cast<float>(info.get_param<double>("min_dist_between_blobs"));
+        }
+        if (info.contains_param("threshold_step")) {
+          params.threshold_step = static_cast<float>(info.get_param<double>("threshold_step"));
+        }
+        if (info.contains_param("min_threshold")) {
+          params.min_threshold = static_cast<float>(info.get_param<double>("min_threshold"));
+        }
+        if (info.contains_param("max_threshold")) {
+          params.max_threshold = static_cast<float>(info.get_param<double>("max_threshold"));
+        }
+        if (info.contains_param("min_area")) {
+          params.min_area = static_cast<float>(info.get_param<double>("min_area"));
+        }
+        if (info.contains_param("max_area")) {
+          params.max_area = static_cast<float>(info.get_param<double>("max_area"));
+        }
+        if (info.contains_param("min_circularity")) {
+          params.min_circularity = static_cast<float>(info.get_param<double>("min_circularity"));
+        }
+        if (info.contains_param("max_circularity")) {
+          params.max_circularity = static_cast<float>(info.get_param<double>("max_circularity"));
+        }
+        if (info.contains_param("filter_by_area")) {
+          params.filter_by_area = info.get_param<bool>("filter_by_area");
+        }
+        if (info.contains_param("filter_by_circularity")) {
+          params.filter_by_circularity = info.get_param<bool>("filter_by_circularity");
+        }
+        if (info.contains_param("filter_by_inertia")) {
+          params.filter_by_inertia = info.get_param<bool>("filter_by_inertia");
+        }
+        if (info.contains_param("filter_by_convexity")) {
+          params.filter_by_convexity = info.get_param<bool>("filter_by_convexity");
+        }
+        if (info.contains_param("filter_by_color")) {
+          params.filter_by_color = info.get_param<bool>("filter_by_color");
+        }
+        if (info.contains_param("blob_color")) {
+          params.blob_color = static_cast<uint8_t>(info.get_param<std::int64_t>("blob_color"));
+        }
+        if (info.contains_param("min_repeatability")) {
+          params.min_repeatability =
+              static_cast<size_t>(info.get_param<std::int64_t>("min_repeatability"));
+        }
+        if (info.contains_param("min_inertia_ratio")) {
+          params.min_inertia_ratio =
+              static_cast<float>(info.get_param<double>("min_inertia_ratio"));
+        }
+        if (info.contains_param("max_inertia_ratio")) {
+          params.max_inertia_ratio =
+              static_cast<float>(info.get_param<double>("max_inertia_ratio"));
+        }
+        if (info.contains_param("min_convexity")) {
+          params.min_convexity = static_cast<float>(info.get_param<double>("min_convexity"));
+        }
+        if (info.contains_param("max_convexity")) {
+          params.max_convexity = static_cast<float>(info.get_param<double>("max_convexity"));
+        }
+        node = n;
+        break;
+      }
+      case node_type::load_blob: {
+        auto n = std::make_shared<load_blob_node>();
+        if (info.contains_param("db_path")) {
+          n->set_db_path(info.get_param<std::string>("db_path"));
+        }
+        if (info.contains_param("topic_name")) {
+          n->set_topic_name(info.get_param<std::string>("topic_name"));
+        }
+        node = n;
+        break;
+      }
+      case node_type::load_marker: {
+        auto n = std::make_shared<load_marker_node>();
+        if (info.contains_param("db_path")) {
+          n->set_db_path(info.get_param<std::string>("db_path"));
+        }
+        if (info.contains_param("topic_name")) {
+          n->set_topic_name(info.get_param<std::string>("topic_name"));
+        }
+        node = n;
+        break;
+      }
+      case node_type::load_panoptic: {
+        auto n = std::make_shared<load_panoptic_node>();
+        if (info.contains_param("db_path")) {
+          n->set_db_path(info.get_param<std::string>("db_path"));
+        }
+        if (info.contains_param("topic_name")) {
+          n->set_topic_name(info.get_param<std::string>("topic_name"));
+        }
+        if (info.contains_param("fps")) {
+          n->set_fps(static_cast<int>(info.get_param<double>("fps")));
+        }
+        node = n;
+        break;
+      }
+      case node_type::approximate_time_sync: {
+        auto n = std::make_shared<approximate_time_sync_node>();
+        if (info.contains_param("interval")) {
+          n->get_config().set_interval(info.get_param<double>("interval"));
+        }
+        node = n;
+        break;
+      }
+      case node_type::callback: {
+        auto n = std::make_shared<callback_node>();
+
+        // Get callback_name from parameter (required)
+        if (!info.contains_param("callback_name")) {
+          throw std::runtime_error("callback_name parameter is required for callback node: " +
+                                   info.name);
+        }
+        n->set_callback_name(info.get_param<std::string>("callback_name"));
+
+        if (info.contains_param("camera_name")) {
+          n->set_camera_name(info.get_param<std::string>("camera_name"));
+        }
+
+        // Get callback type from parameter (required)
+        if (!info.contains_param("callback_type")) {
+          throw std::runtime_error("callback_type parameter is required for callback node: " +
+                                   info.name);
+        }
+        const auto type_str = info.get_param<std::string>("callback_type");
+        callback_node::callback_type cb_type = callback_node::callback_type::unknown;
+        if (type_str == "image") {
+          cb_type = callback_node::callback_type::image;
+        } else if (type_str == "marker") {
+          cb_type = callback_node::callback_type::marker;
+        } else if (type_str == "object") {
+          cb_type = callback_node::callback_type::object;
+        } else {
+          throw std::runtime_error("Unknown callback_type: " + type_str);
+        }
+        n->set_callback_type(cb_type);
+        node = n;
+        break;
+      }
+      default:
+        throw std::runtime_error("Unknown node type: " + info.name);
     }
 
-    if (cluster && cluster->encoded_image_output) {
-      std::shared_ptr<p2p_tcp_listener_node> n1(new p2p_tcp_listener_node());
-      n1->set_input(cluster->encoded_image_output);
-      n1->set_endpoint(node_infos[i].get_param<std::string>("gateway"), 0);
-      g->add_node(n1);
+    node_map[info.name] = node;
 
-      rcv_blob_nodes[node_infos[i].name] = n1;
-
-      std::shared_ptr<decode_image_node> n7(new decode_image_node());
-      n7->set_input(n1->get_output());
-      g->add_node(n7);
-
-      rcv_nodes[node_infos[i].name] = n7;
-    } else if (node_infos[i].get_type() == node_type::playback) {
-      std::shared_ptr<load_blob_node> n1(new load_blob_node());
-      const auto id = node_infos[i].get_param<std::string>("id");
-      n1->set_name(std::regex_replace(id, std::regex("camera"), "image_"));
-      n1->set_db_path(node_infos[i].get_param<std::string>("db_path"));
-      g->add_node(n1);
-
-      rcv_blob_nodes[node_infos[i].name] = n1;
-
-      std::shared_ptr<decode_image_node> n7(new decode_image_node());
-      n7->set_input(n1->get_output());
-      g->add_node(n7);
-
-      rcv_nodes[node_infos[i].name] = n7;
-    } else if (node_infos[i].get_type() == node_type::panoptic) {
-      std::shared_ptr<load_panoptic_node> n1(new load_panoptic_node());
-      n1->set_name(node_infos[i].get_param<std::string>("id"));
-      n1->set_db_path(node_infos[i].get_param<std::string>("db_path"));
-      g->add_node(n1);
-
-      rcv_blob_nodes[node_infos[i].name] = n1;
-
-      std::shared_ptr<decode_image_node> n7(new decode_image_node());
-      n7->set_input(n1->get_output());
-      g->add_node(n7);
-
-      rcv_nodes[node_infos[i].name] = n7;
-    }
-
-    if (cluster && cluster->marker_output) {
-      std::shared_ptr<p2p_tcp_listener_node> n2(new p2p_tcp_listener_node());
-      n2->set_input(cluster->marker_output);
-      n2->set_endpoint(node_infos[i].get_param<std::string>("gateway"), 0);
-      g->add_node(n2);
-
-      rcv_marker_nodes[node_infos[i].name] = n2;
-    } else if (node_infos[i].get_type() == node_type::playback) {
-      std::shared_ptr<load_marker_node> n1(new load_marker_node());
-      n1->set_name(std::regex_replace(node_infos[i].name, std::regex("camera"), "marker_"));
-      n1->set_db_path(node_infos[i].get_param<std::string>("db_path"));
-      g->add_node(n1);
-
-      rcv_marker_nodes[node_infos[i].name] = n1;
+    // Add node to the appropriate subgraph
+    if (subgraphs.find(info.subgraph_instance) != subgraphs.end()) {
+      subgraphs[info.subgraph_instance]->add_node(node);
     }
   }
+
+  // Connect nodes
+  for (const auto& info : node_infos) {
+    if (info.inputs.empty()) {
+      continue;
+    }
+
+    auto target_node = node_map.at(info.name);
+
+    for (const auto& [input_name, source_name] : info.inputs) {
+      size_t pos = source_name.find(':');
+      if (pos != std::string::npos) {
+        auto node_name = source_name.substr(0, pos);
+        auto output_name = source_name.substr(pos + 1);
+        auto source_node = node_map.at(node_name);
+        target_node->set_input(source_node->get_output(output_name), input_name);
+      } else {
+        auto source_node = node_map.at(source_name);
+        target_node->set_input(source_node->get_output(), input_name);
+      }
+    }
+  }
+
+  // Log subgraphs and their nodes
+  std::cout << "=== Capture Pipeline Graph Structure ===" << std::endl;
+  for (const auto& [subgraph_name, subgraph_ptr] : subgraphs) {
+    std::cout << "Subgraph: " << subgraph_name << std::endl;
+
+    // Collect nodes belonging to this subgraph
+    std::vector<std::string> nodes_in_subgraph;
+    for (const auto& info : node_infos) {
+      if (info.subgraph_instance == subgraph_name) {
+        nodes_in_subgraph.push_back(info.name);
+      }
+    }
+
+    std::cout << "  Nodes (" << nodes_in_subgraph.size() << "):" << std::endl;
+    for (const auto& node_name : nodes_in_subgraph) {
+      const auto& info = *std::find_if(
+          node_infos.begin(), node_infos.end(),
+          [&node_name](const stargazer::node_info& i) { return i.name == node_name; });
+      std::cout << "    - " << node_name << " (type: ";
+
+      // Print node type name
+      switch (info.get_type()) {
+        case node_type::libcamera_capture:
+          std::cout << "libcamera_capture";
+          break;
+        case node_type::timestamp:
+          std::cout << "timestamp";
+          break;
+        case node_type::broadcast_talker:
+          std::cout << "broadcast_talker";
+          break;
+        case node_type::broadcast_listener:
+          std::cout << "broadcast_listener";
+          break;
+        case node_type::encode_jpeg:
+          std::cout << "encode_jpeg";
+          break;
+        case node_type::decode_jpeg:
+          std::cout << "decode_jpeg";
+          break;
+        case node_type::scale:
+          std::cout << "scale";
+          break;
+        case node_type::resize:
+          std::cout << "resize";
+          break;
+        case node_type::gaussian_blur:
+          std::cout << "gaussian_blur";
+          break;
+        case node_type::mask:
+          std::cout << "mask";
+          break;
+        case node_type::p2p_tcp_talker:
+          std::cout << "p2p_tcp_talker";
+          break;
+        case node_type::p2p_tcp_listener:
+          std::cout << "p2p_tcp_listener";
+          break;
+        case node_type::fifo:
+          std::cout << "fifo";
+          break;
+        case node_type::video_time_sync_control:
+          std::cout << "video_time_sync_control";
+          break;
+        case node_type::fast_blob_detector:
+          std::cout << "fast_blob_detector";
+          break;
+        case node_type::detect_circle_grid:
+          std::cout << "detect_circle_grid";
+          break;
+        case node_type::load_blob:
+          std::cout << "load_blob";
+          break;
+        case node_type::load_marker:
+          std::cout << "load_marker";
+          break;
+        case node_type::load_panoptic:
+          std::cout << "load_panoptic";
+          break;
+        case node_type::approximate_time_sync:
+          std::cout << "approximate_time_sync";
+          break;
+        case node_type::callback:
+          std::cout << "callback";
+          break;
+        default:
+          std::cout << "unknown";
+          break;
+      }
+
+      std::cout << ")" << std::endl;
+
+      // Print node parameters
+      if (info.contains_param("fps")) {
+        std::cout << "      fps: " << info.get_param<double>("fps") << std::endl;
+      }
+      if (info.contains_param("interval")) {
+        std::cout << "      interval: " << info.get_param<double>("interval") << std::endl;
+      }
+      if (info.contains_param("num_threads")) {
+        std::cout << "      num_threads: " << info.get_param<std::int64_t>("num_threads")
+                  << std::endl;
+      }
+
+      // Print callback node details
+      if (info.get_type() == node_type::callback) {
+        auto node_it = node_map.find(node_name);
+        if (node_it != node_map.end()) {
+          auto callback_node_ptr = std::dynamic_pointer_cast<callback_node>(node_it->second);
+          if (callback_node_ptr) {
+            std::cout << "      callback_name: " << callback_node_ptr->get_callback_name()
+                      << std::endl;
+            if (!callback_node_ptr->get_camera_name().empty()) {
+              std::cout << "      camera_name: " << callback_node_ptr->get_camera_name()
+                        << std::endl;
+            }
+            std::cout << "      callback_type: ";
+            switch (callback_node_ptr->get_callback_type()) {
+              case callback_node::callback_type::image:
+                std::cout << "image";
+                break;
+              case callback_node::callback_type::marker:
+                std::cout << "marker";
+                break;
+              case callback_node::callback_type::object:
+                std::cout << "object";
+                break;
+              default:
+                std::cout << "unknown";
+                break;
+            }
+            std::cout << std::endl;
+          }
+        }
+      }
+
+      // Print inputs if any
+      if (!info.inputs.empty()) {
+        std::cout << "      inputs:" << std::endl;
+        for (const auto& [input_name, source_name] : info.inputs) {
+          std::cout << "        " << input_name << " <- " << source_name << std::endl;
+        }
+      }
+    }
+    std::cout << std::endl;
+  }
+  std::cout << "========================================" << std::endl;
 }
 
 class capture_pipeline::impl {
@@ -1684,43 +2054,33 @@ class capture_pipeline::impl {
     image_received.clear();
   }
 
-  void run(const node_info& info) {
-    std::vector<node_info> node_infos = {info};
+  void run(const std::vector<node_info>& infos) {
+    std::vector<node_info> node_infos = infos;
 
-    int sync_fps = 90;
-
-    std::shared_ptr<subgraph> g(new subgraph());
-
-    std::unordered_map<std::string, std::shared_ptr<graph_node>> rcv_nodes;
-    std::unordered_map<std::string, std::shared_ptr<graph_node>> rcv_marker_nodes;
-    std::unordered_map<std::string, std::shared_ptr<graph_node>> rcv_blob_nodes;
-    std::vector<std::shared_ptr<remote_cluster>> clusters;
-
-    genenerate_common_nodes(node_infos, g, sync_fps, clusters, masks, mask_nodes, rcv_nodes,
-                            rcv_marker_nodes, rcv_blob_nodes);
-
-    for (const auto& [name, recv_node] : rcv_nodes) {
-      std::shared_ptr<callback_node> n8(new callback_node());
-      n8->set_input(recv_node->get_output());
-      g->add_node(n8);
-
-      n8->set_name("image#" + name);
+    // Group nodes by subgraph instance
+    std::map<std::string, std::vector<node_info>> nodes_by_subgraph;
+    for (const auto& info : node_infos) {
+      std::string subgraph_name =
+          info.subgraph_instance.empty() ? "default" : info.subgraph_instance;
+      nodes_by_subgraph[subgraph_name].push_back(info);
     }
-    for (const auto& [name, recv_node] : rcv_marker_nodes) {
-      std::shared_ptr<callback_node> n8(new callback_node());
-      n8->set_input(recv_node->get_output());
-      g->add_node(n8);
 
-      n8->set_name("marker#" + name);
+    // Create empty subgraphs
+    std::map<std::string, std::shared_ptr<subgraph>> subgraphs;
+    for (const auto& [subgraph_name, nodes] : nodes_by_subgraph) {
+      subgraphs[subgraph_name] = std::make_shared<subgraph>();
     }
+
+    std::unordered_map<std::string, std::shared_ptr<graph_node>> node_map;
+    build_graph_from_json(node_infos, subgraphs, node_map);
 
     const auto callbacks = std::make_shared<callback_list>();
 
     callbacks->add(
         [this](const callback_node* node, std::string input_name, graph_message_ptr message) {
-          if (node->get_name().find_first_of("image#") == 0) {
-            const auto camera_name = node->get_name().substr(6);
+          const auto callback_type = node->get_callback_type();
 
+          if (callback_type == callback_node::callback_type::image) {
             if (auto frame_msg = std::dynamic_pointer_cast<frame_message<image>>(message)) {
               {
                 std::lock_guard lock(frame_mtx);
@@ -1754,9 +2114,7 @@ class capture_pipeline::impl {
               }
             }
           }
-          if (node->get_name().find_first_of("marker#") == 0) {
-            const auto camera_name = node->get_name().substr(6);
-
+          if (callback_type == callback_node::callback_type::marker) {
             if (auto frame_msg = std::dynamic_pointer_cast<keypoint_frame_message>(message)) {
               {
                 std::lock_guard lock(frame_mtx);
@@ -1793,13 +2151,30 @@ class capture_pipeline::impl {
     server.add_resource(callbacks);
     server.run();
 
-    for (std::size_t i = 0; i < clusters.size(); i++) {
-      if (clusters[i]) {
-        client.deploy(io_context, node_infos[i].get_param<std::string>("address"), 31400,
-                      clusters[i]->g);
+    // Deploy all subgraphs
+    std::cout << "=== Deploying Subgraphs ===" << std::endl;
+    for (const auto& [subgraph_name, graph] : subgraphs) {
+      // Check if this subgraph should be deployed remotely
+      std::string deploy_address = "127.0.0.1";
+      uint16_t deploy_port = server.get_port();
+
+      for (const auto& node_info : node_infos) {
+        if (node_info.subgraph_instance == subgraph_name) {
+          if (node_info.contains_param("address")) {
+            deploy_address = node_info.get_param<std::string>("address");
+          }
+          if (node_info.contains_param("deploy_port")) {
+            deploy_port = static_cast<uint16_t>(node_info.get_param<std::int64_t>("deploy_port"));
+          }
+        }
       }
+
+      std::cout << "Subgraph: " << subgraph_name << std::endl;
+      std::cout << "  Deploy address: " << deploy_address << ":" << deploy_port << std::endl;
+
+      client.deploy(io_context, deploy_address, deploy_port, graph);
     }
-    client.deploy(io_context, "127.0.0.1", server.get_port(), g);
+    std::cout << "===========================" << std::endl;
 
     io_thread.reset(new std::thread([this] { io_context.run(); }));
 
@@ -1856,7 +2231,7 @@ class capture_pipeline::impl {
 capture_pipeline::capture_pipeline() : pimpl(new impl()) {}
 capture_pipeline::~capture_pipeline() = default;
 
-void capture_pipeline::run(const node_info& info) { pimpl->run(info); }
+void capture_pipeline::run(const std::vector<node_info>& infos) { pimpl->run(infos); }
 
 void capture_pipeline::stop() { pimpl->stop(); }
 cv::Mat capture_pipeline::get_frame() const { return pimpl->get_frame(); }
@@ -1920,97 +2295,101 @@ class multiview_capture_pipeline::impl {
   impl(const std::map<std::string, cv::Mat>& masks) : server(0), masks(masks) {}
 
   void run(const std::vector<node_info>& infos) {
-    int sync_fps = 90;
     std::vector<node_info> node_infos = infos;
 
-    std::shared_ptr<subgraph> g(new subgraph());
-
-    std::unordered_map<std::string, std::shared_ptr<graph_node>> rcv_nodes;
-    std::unordered_map<std::string, std::shared_ptr<graph_node>> rcv_marker_nodes;
-    std::unordered_map<std::string, std::shared_ptr<graph_node>> rcv_blob_nodes;
-    std::vector<std::shared_ptr<remote_cluster>> clusters;
-
-    genenerate_common_nodes(node_infos, g, sync_fps, clusters, masks, mask_nodes, rcv_nodes,
-                            rcv_marker_nodes, rcv_blob_nodes);
-
-    for (std::size_t i = 0; i < node_infos.size(); i++) {
-      if (node_infos[i].get_type() == node_type::record) {
-        {
-          const auto& input = node_infos[i].inputs.at("default");
-          if (rcv_blob_nodes.find(input) != rcv_blob_nodes.end()) {
-            const auto& n = rcv_blob_nodes[input];
-            if (n) {
-              std::shared_ptr<fifo_node> n12(new fifo_node());
-              n12->set_max_size(1000);
-              n12->set_input(n->get_output());
-              g->add_node(n12);
-
-              std::shared_ptr<dump_blob_node> n5(new dump_blob_node());
-              n5->set_input(n12->get_output());
-              n5->set_name(std::regex_replace(node_infos[i].name, std::regex("record"), "image_"));
-              n5->set_db_path(node_infos[i].get_param<std::string>("db_path"));
-              g->add_node(n5);
-            }
-          }
-        }
-
-        {
-          const auto& input = node_infos[i].inputs.at("default");
-          if (rcv_marker_nodes.find(input) != rcv_marker_nodes.end()) {
-            const auto& n = rcv_marker_nodes[input];
-            if (n) {
-              std::shared_ptr<fifo_node> n12(new fifo_node());
-              n12->set_max_size(1000);
-              n12->set_input(n->get_output());
-              g->add_node(n12);
-
-              std::shared_ptr<dump_keypoint_node> n5(new dump_keypoint_node());
-              n5->set_input(n12->get_output());
-              n5->set_name(std::regex_replace(node_infos[i].name, std::regex("record"), "marker_"));
-              n5->set_db_path(node_infos[i].get_param<std::string>("db_path"));
-              g->add_node(n5);
-            }
-          }
-        }
-      }
+    // Group nodes by subgraph instance
+    std::map<std::string, std::vector<node_info>> nodes_by_subgraph;
+    for (const auto& info : node_infos) {
+      nodes_by_subgraph[info.subgraph_instance].push_back(info);
     }
 
-    std::shared_ptr<approximate_time_sync_node> n3(new approximate_time_sync_node());
-    for (const auto& [name, recv_node] : rcv_nodes) {
-      if (recv_node) {
-        n3->set_input(recv_node->get_output(), name);
-      }
+    // Create a global node map shared across all subgraphs
+    std::unordered_map<std::string, std::shared_ptr<graph_node>> global_node_map;
+
+    // Create empty subgraphs first
+    std::map<std::string, std::shared_ptr<subgraph>> subgraphs;
+    for (const auto& [subgraph_name, nodes] : nodes_by_subgraph) {
+      subgraphs[subgraph_name] = std::make_shared<subgraph>();
     }
-    // Allow fps variation
-    n3->get_config().set_interval(1000.0 / sync_fps + 0.5);
-    g->add_node(n3);
 
-    std::shared_ptr<callback_node> n8(new callback_node());
-    n8->set_input(n3->get_output());
-    n8->set_name("images");
-    g->add_node(n8);
-
-    std::shared_ptr<approximate_time_sync_node> n6(new approximate_time_sync_node());
-    for (const auto& [name, recv_node] : rcv_marker_nodes) {
-      if (recv_node) {
-        n6->set_input(recv_node->get_output(), name);
-      }
-    }
-    // Allow fps variation
-    n6->get_config().set_interval(1000.0 / sync_fps + 0.5);
-    g->add_node(n6);
-
-    std::shared_ptr<callback_node> n9(new callback_node());
-    n9->set_input(n6->get_output());
-    n9->set_name("markers");
-    g->add_node(n9);
+    // Build all subgraphs in one pass
+    build_graph_from_json(node_infos, subgraphs, global_node_map);
 
     const auto callbacks = std::make_shared<callback_list>();
 
     callbacks->add([this](const callback_node* node, std::string input_name,
                           graph_message_ptr message) {
-      if (node->get_name() == "images") {
+      const auto& callback_name = node->get_callback_name();
+      const auto& camera_name = node->get_camera_name();
+      const auto callback_type = node->get_callback_type();
+
+      // Handle individual image callback
+      if (callback_name == "image") {
+        if (auto image_msg = std::dynamic_pointer_cast<frame_message<image>>(message)) {
+          const auto& img = image_msg->get_data();
+
+          int type = -1;
+          if (image_msg->get_profile()) {
+            auto format = image_msg->get_profile()->get_format();
+            type = stream_format_to_cv_type(format);
+          }
+
+          if (type < 0) {
+            throw std::logic_error("Unknown image format");
+          }
+
+          cv::Mat frame = cv::Mat(img.get_height(), img.get_width(), type, (uchar*)img.get_data(),
+                                  img.get_stride())
+                              .clone();
+
+          {
+            std::lock_guard lock(frames_mtx);
+            this->frames[camera_name] = frame;
+          }
+        }
+      } else if (callback_name == "marker") {
+        {
+          std::lock_guard lock(marker_collecting_clusters_mtx);
+          if (marker_collecting_clusters.empty() ||
+              marker_collecting_clusters.find(camera_name) == marker_collecting_clusters.end()) {
+            return;
+          }
+        }
+
+        if (const auto keypoints_msg = std::dynamic_pointer_cast<keypoint_frame_message>(message)) {
+          const auto& keypoints = keypoints_msg->get_data();
+
+          marker_frame_data frame_data;
+          for (const auto& keypoint : keypoints) {
+            marker_data kp;
+            kp.x = keypoint.pt_x;
+            kp.y = keypoint.pt_y;
+            kp.r = keypoint.size;
+            frame_data.markers.push_back(kp);
+          }
+
+          frame_data.timestamp = keypoints_msg->get_timestamp();
+          frame_data.frame_number = keypoints_msg->get_frame_number();
+
+          std::vector<std::function<void(const std::map<std::string, marker_frame_data>&)>>
+              marker_received;
+          {
+            std::lock_guard lock(frame_received_mtx);
+            marker_received = this->marker_received;
+          }
+
+          for (const auto& f : marker_received) {
+            std::map<std::string, marker_frame_data> frames_map;
+            frames_map[camera_name] = frame_data;
+            f(frames_map);
+          }
+        }
+      }
+
+      // Keep old format support for backward compatibility
+      if (callback_name == "images") {
         if (auto obj_msg = std::dynamic_pointer_cast<object_message>(message)) {
+          // Use local variable for aggregated images, don't update this->frames
           std::map<std::string, cv::Mat> frames;
           for (const auto& [name, field] : obj_msg->get_fields()) {
             if (auto image_msg = std::dynamic_pointer_cast<frame_message<image>>(field)) {
@@ -2033,11 +2412,7 @@ class multiview_capture_pipeline::impl {
             }
           }
 
-          {
-            std::lock_guard lock(frames_mtx);
-            this->frames = frames;
-          }
-
+          // Don't update this->frames here - it's for individual image display only
           std::vector<std::function<void(const std::map<std::string, cv::Mat>&)>> image_received;
           {
             std::lock_guard lock(image_received_mtx);
@@ -2048,7 +2423,7 @@ class multiview_capture_pipeline::impl {
             f(frames);
           }
         }
-      } else if (node->get_name() == "markers") {
+      } else if (node->get_callback_name() == "markers") {
         {
           std::lock_guard lock(marker_collecting_clusters_mtx);
           if (marker_collecting_clusters.empty()) {
@@ -2056,6 +2431,7 @@ class multiview_capture_pipeline::impl {
           }
         }
         if (auto obj_msg = std::dynamic_pointer_cast<object_message>(message)) {
+          // Use local variable for aggregated markers
           std::map<std::string, marker_frame_data> frames;
           for (const auto& [name, field] : obj_msg->get_fields()) {
             {
@@ -2101,13 +2477,183 @@ class multiview_capture_pipeline::impl {
     server.add_resource(callbacks);
     server.run();
 
-    for (std::size_t i = 0; i < clusters.size(); i++) {
-      if (clusters[i]) {
-        client.deploy(io_context, node_infos[i].get_param<std::string>("address"), 31400,
-                      clusters[i]->g);
+    // Build dependency graph for subgraphs based on p2p connections
+    // subgraph_dependencies[target] = {source1, source2, ...}
+    std::map<std::string, std::set<std::string>> subgraph_dependencies;
+
+    for (const auto& info : node_infos) {
+      const auto& target_subgraph = info.subgraph_instance;
+
+      for (const auto& [input_name, source_name] : info.inputs) {
+        // Extract node name from source (might be "node" or "node:output")
+        size_t pos = source_name.find(':');
+        std::string source_node_name =
+            (pos != std::string::npos) ? source_name.substr(0, pos) : source_name;
+
+        // Find which subgraph the source node belongs to
+        for (const auto& source_info : node_infos) {
+          if (source_info.name == source_node_name) {
+            const auto& source_subgraph = source_info.subgraph_instance;
+            if (source_subgraph != target_subgraph) {
+              // Cross-subgraph dependency found
+              subgraph_dependencies[target_subgraph].insert(source_subgraph);
+            }
+            break;
+          }
+        }
       }
     }
-    client.deploy(io_context, "127.0.0.1", server.get_port(), g);
+
+    // Step 1: Get deploy address for each subgraph
+    std::map<std::string, std::pair<std::string, uint16_t>> subgraph_deploy_info;
+
+    for (const auto& [subgraph_name, graph] : subgraphs) {
+      std::string deploy_address = "127.0.0.1";
+      uint16_t deploy_port = server.get_port();
+
+      for (const auto& info : nodes_by_subgraph[subgraph_name]) {
+        if (info.contains_param("address")) {
+          deploy_address = info.get_param<std::string>("address");
+        }
+        if (info.contains_param("deploy_port")) {
+          deploy_port = static_cast<uint16_t>(info.get_param<std::int64_t>("deploy_port"));
+        }
+      }
+
+      subgraph_deploy_info[subgraph_name] = std::make_pair(deploy_address, deploy_port);
+    }
+
+    // Step 2: Group subgraphs by deploy address and create merged subgraphs
+    std::map<std::pair<std::string, uint16_t>, std::vector<std::string>> address_groups;
+
+    for (const auto& [subgraph_name, deploy_key] : subgraph_deploy_info) {
+      address_groups[deploy_key].push_back(subgraph_name);
+    }
+
+    // Create merged subgraphs and mapping from original to merged group name
+    std::map<std::string, std::shared_ptr<subgraph>> deploy_subgraphs;
+    std::map<std::string, std::string> original_to_merged;
+    std::map<std::string, std::pair<std::string, uint16_t>> merged_deploy_info;
+    std::map<std::string, std::vector<std::string>> merged_subgraph_members;
+
+    for (const auto& [deploy_key, subgraph_names] : address_groups) {
+      if (subgraph_names.size() == 1) {
+        // Single subgraph - no merge needed
+        const auto& name = subgraph_names[0];
+        deploy_subgraphs[name] = subgraphs[name];
+        original_to_merged[name] = name;
+        merged_deploy_info[name] = deploy_key;
+        merged_subgraph_members[name] = {name};
+      } else {
+        // Multiple subgraphs - merge them
+        auto merged = std::make_shared<subgraph>();
+        std::string merged_name = "merged_" + std::to_string(deploy_key.second);
+
+        for (const auto& name : subgraph_names) {
+          merged->merge(*subgraphs[name]);
+          original_to_merged[name] = merged_name;
+        }
+
+        deploy_subgraphs[merged_name] = merged;
+        merged_deploy_info[merged_name] = deploy_key;
+        merged_subgraph_members[merged_name] = subgraph_names;
+      }
+    }
+
+    // Step 3: Build dependency graph based on merged subgraphs
+    std::map<std::string, std::set<std::string>> merged_dependencies;
+
+    for (const auto& info : node_infos) {
+      const auto& target_subgraph = info.subgraph_instance;
+      const auto& target_merged = original_to_merged[target_subgraph];
+
+      for (const auto& [input_name, source_name] : info.inputs) {
+        size_t pos = source_name.find(':');
+        std::string source_node_name =
+            (pos != std::string::npos) ? source_name.substr(0, pos) : source_name;
+
+        for (const auto& source_info : node_infos) {
+          if (source_info.name == source_node_name) {
+            const auto& source_subgraph = source_info.subgraph_instance;
+            const auto& source_merged = original_to_merged[source_subgraph];
+
+            if (source_merged != target_merged) {
+              merged_dependencies[target_merged].insert(source_merged);
+            }
+            break;
+          }
+        }
+      }
+    }
+
+    // Step 4: Topological sort on merged subgraphs
+    std::vector<std::string> deploy_order;
+    std::set<std::string> deployed;
+    std::set<std::string> visiting;
+
+    std::function<void(const std::string&)> visit = [&](const std::string& merged_name) {
+      if (deployed.count(merged_name)) return;
+      if (visiting.count(merged_name)) {
+        throw std::runtime_error("Circular dependency detected in subgraph dependencies");
+      }
+
+      visiting.insert(merged_name);
+
+      if (merged_dependencies.count(merged_name)) {
+        for (const auto& dep : merged_dependencies[merged_name]) {
+          visit(dep);
+        }
+      }
+
+      visiting.erase(merged_name);
+      deployed.insert(merged_name);
+      deploy_order.push_back(merged_name);
+    };
+
+    for (const auto& [merged_name, graph] : deploy_subgraphs) {
+      visit(merged_name);
+    }
+
+    // Step 5: Deploy in topological order
+    std::cout << "=== Deploying Subgraphs ===" << std::endl;
+
+    for (const auto& merged_name : deploy_order) {
+      const auto& [deploy_address, deploy_port] = merged_deploy_info[merged_name];
+      const auto& members = merged_subgraph_members[merged_name];
+
+      if (members.size() == 1) {
+        std::cout << "Subgraph: " << members[0] << std::endl;
+      } else {
+        std::cout << "Merged subgraph (";
+        for (size_t i = 0; i < members.size(); ++i) {
+          if (i > 0) std::cout << " + ";
+          std::cout << members[i];
+        }
+        std::cout << ")" << std::endl;
+      }
+
+      std::cout << "  Deploy address: " << deploy_address << ":" << deploy_port << std::endl;
+
+      if (merged_dependencies.count(merged_name) && !merged_dependencies[merged_name].empty()) {
+        std::cout << "  Dependencies: ";
+        bool first = true;
+        for (const auto& dep : merged_dependencies[merged_name]) {
+          if (!first) std::cout << ", ";
+          const auto& dep_members = merged_subgraph_members[dep];
+          if (dep_members.size() == 1) {
+            std::cout << dep_members[0];
+          } else {
+            std::cout << dep;
+          }
+          first = false;
+        }
+        std::cout << std::endl;
+      }
+
+      client.deploy(io_context, deploy_address, deploy_port, deploy_subgraphs[merged_name]);
+    }
+
+    std::cout << "===========================" << std::endl;
 
     io_thread.reset(new std::thread([this] { io_context.run(); }));
 

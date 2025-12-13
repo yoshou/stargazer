@@ -13,6 +13,7 @@
 #include <nlohmann/json.hpp>
 #include <regex>
 
+#include "callback_node.hpp"
 #include "capture_pipeline.hpp"
 #include "correspondance.hpp"
 #include "glm_json.hpp"
@@ -296,51 +297,6 @@ COALSACK_REGISTER_NODE(grpc_server_node, graph_node)
 
 COALSACK_REGISTER_MESSAGE(frame_message<object_message>, coalsack::frame_message_base)
 
-class callback_node;
-
-class callback_list : public resource_base {
-  using callback_func = std::function<void(const callback_node*, std::string, graph_message_ptr)>;
-  std::vector<callback_func> callbacks;
-
- public:
-  virtual std::string get_name() const { return "callback_list"; }
-
-  void add(callback_func callback) { callbacks.push_back(callback); }
-
-  void invoke(const callback_node* node, std::string input_name, graph_message_ptr message) const {
-    for (auto& callback : callbacks) {
-      callback(node, input_name, message);
-    }
-  }
-};
-
-class callback_node : public graph_node {
-  std::string name;
-
- public:
-  callback_node() : graph_node() {}
-
-  virtual std::string get_proc_name() const override { return "callback"; }
-
-  void set_name(const std::string& value) { name = value; }
-  std::string get_name() const { return name; }
-
-  template <typename Archive>
-  void serialize(Archive& archive) {
-    archive(name);
-  }
-
-  virtual void process(std::string input_name, graph_message_ptr message) override {
-    if (const auto resource = resources->get("callback_list")) {
-      if (const auto callbacks = std::dynamic_pointer_cast<callback_list>(resource)) {
-        callbacks->invoke(this, input_name, message);
-      }
-    }
-  }
-};
-
-COALSACK_REGISTER_NODE(callback_node, graph_node)
-
 class camera_message : public graph_message {
   camera_t camera;
 
@@ -543,7 +499,7 @@ class multiview_point_reconstruction_pipeline::impl {
     n2->set_input(n5->get_output());
     g->add_node(n2);
 
-    n2->set_name("markers");
+    n2->set_callback_name("markers");
 
     std::shared_ptr<grpc_server_node> n3(new grpc_server_node());
     n3->set_input(n5->get_output(), "sphere");
@@ -553,7 +509,7 @@ class multiview_point_reconstruction_pipeline::impl {
 
     callbacks->add(
         [this](const callback_node* node, std::string input_name, graph_message_ptr message) {
-          if (node->get_name() == "markers") {
+          if (node->get_callback_name() == "markers") {
             if (const auto markers_msg = std::dynamic_pointer_cast<float3_list_message>(message)) {
               std::vector<glm::vec3> markers;
               for (const auto& marker : markers_msg->get_data()) {
@@ -1478,6 +1434,35 @@ class multiview_image_reconstruction_pipeline::impl {
   }
 
   void run(const std::vector<node_info>& infos) {
+    std::cout << "=== Reconstruction Pipeline Graph Structure ===" << std::endl;
+    for (const auto& info : infos) {
+      std::cout << "Node: " << info.name << " (type: " << static_cast<int>(info.get_type()) << ")"
+                << std::endl;
+
+      // Print node parameters
+      if (info.contains_param("fps")) {
+        std::cout << "  fps: " << info.get_param<double>("fps") << std::endl;
+      }
+      if (info.contains_param("interval")) {
+        std::cout << "  interval: " << info.get_param<double>("interval") << std::endl;
+      }
+      if (info.contains_param("num_threads")) {
+        std::cout << "  num_threads: " << info.get_param<std::int64_t>("num_threads") << std::endl;
+      }
+      if (info.contains_param("callback_name")) {
+        std::cout << "  callback_name: " << info.get_param<std::string>("callback_name")
+                  << std::endl;
+      }
+
+      for (const auto& [input_name, source_name] : info.inputs) {
+        std::cout << "  Input '" << input_name << "' <- '" << source_name << "'" << std::endl;
+      }
+      for (const auto& output_name : info.outputs) {
+        std::cout << "  Output: '" << output_name << "'" << std::endl;
+      }
+    }
+    std::cout << "==============================================" << std::endl;
+
     std::shared_ptr<subgraph> g(new subgraph());
 
     std::unordered_map<std::string, graph_node_ptr> node_map;
@@ -1526,7 +1511,7 @@ class multiview_image_reconstruction_pipeline::impl {
         case node_type::callback: {
           auto n = std::make_shared<callback_node>();
           if (info.contains_param("callback_name")) {
-            n->set_name(info.get_param<std::string>("callback_name"));
+            n->set_callback_name(info.get_param<std::string>("callback_name"));
           }
           node = n;
           break;
@@ -1591,7 +1576,7 @@ class multiview_image_reconstruction_pipeline::impl {
 
     callbacks->add(
         [this](const callback_node* node, std::string input_name, graph_message_ptr message) {
-          if (node->get_name() == "markers") {
+          if (node->get_callback_name() == "markers") {
             if (const auto markers_msg = std::dynamic_pointer_cast<float3_list_message>(message)) {
               std::vector<glm::vec3> markers;
               for (const auto& marker : markers_msg->get_data()) {
