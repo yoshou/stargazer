@@ -56,6 +56,9 @@ class multiview_point_reconstruction_pipeline::impl {
   std::shared_ptr<epipolar_reconstruct_node> reconstruct_node;
   std::shared_ptr<graph_node> input_node;
 
+  std::map<std::string, camera_t> cameras;
+  glm::mat4 axis;
+
  public:
   void add_markers_received(std::function<void(const std::vector<glm::vec3>&)> f) {
     std::lock_guard lock(markers_mtx);
@@ -68,26 +71,27 @@ class multiview_point_reconstruction_pipeline::impl {
   }
 
   impl()
-      : graph(), running(false), markers(), markers_received(), reconstruct_node(), input_node() {}
+      : graph(),
+        running(false),
+        markers(),
+        markers_received(),
+        reconstruct_node(),
+        input_node(),
+        cameras(),
+        axis(1.0f) {}
 
   void set_camera(const std::string& name, const camera_t& camera) {
-    auto camera_msg = std::make_shared<camera_message>(camera);
-    camera_msg->set_camera(camera);
-
-    auto obj_msg = std::make_shared<object_message>();
-    obj_msg->add_field(name, camera_msg);
-
+    cameras[name] = camera;
     if (reconstruct_node) {
-      graph.process(reconstruct_node.get(), "cameras", obj_msg);
+      std::map<std::string, camera_t> updated_cameras = cameras;
+      reconstruct_node->set_cameras(updated_cameras);
     }
   }
 
-  void set_axis(const glm::mat4& axis) {
-    auto mat4_msg = std::make_shared<mat4_message>();
-    mat4_msg->set_data(axis);
-
+  void set_axis(const glm::mat4& new_axis) {
+    axis = new_axis;
     if (reconstruct_node) {
-      graph.process(reconstruct_node.get(), "axis", mat4_msg);
+      reconstruct_node->set_axis(axis);
     }
   }
 
@@ -117,37 +121,47 @@ class multiview_point_reconstruction_pipeline::impl {
     }
   }
 
-  void run() {
-    std::shared_ptr<subgraph> g(new subgraph());
+  void run(const std::vector<node_info>& infos) {
+    // Group nodes by subgraph instance
+    std::map<std::string, std::vector<node_info>> nodes_by_subgraph;
+    for (const auto& info : infos) {
+      nodes_by_subgraph[info.subgraph_instance].push_back(info);
+    }
 
-    std::shared_ptr<frame_number_numbering_node> n4(new frame_number_numbering_node());
-    g->add_node(n4);
+    // Create empty subgraphs first
+    std::map<std::string, std::shared_ptr<subgraph>> subgraphs;
+    for (const auto& [subgraph_name, nodes] : nodes_by_subgraph) {
+      subgraphs[subgraph_name] = std::make_shared<subgraph>();
+    }
 
-    input_node = n4;
+    std::unordered_map<std::string, graph_node_ptr> node_map;
 
-    std::shared_ptr<parallel_queue_node> n6(new parallel_queue_node());
-    n6->set_input(n4->get_output());
-    g->add_node(n6);
+    // Build graph using common function
+    stargazer::build_graph_from_json(infos, subgraphs, node_map);
 
-    std::shared_ptr<epipolar_reconstruct_node> n1(new epipolar_reconstruct_node());
-    n1->set_input(n6->get_output());
-    g->add_node(n1);
-
-    reconstruct_node = n1;
-
-    std::shared_ptr<frame_number_ordering_node> n5(new frame_number_ordering_node());
-    n5->set_input(n1->get_output());
-    g->add_node(n5);
-
-    std::shared_ptr<callback_node> n2(new callback_node());
-    n2->set_input(n5->get_output());
-    g->add_node(n2);
-
-    n2->set_callback_name("markers");
-
-    std::shared_ptr<grpc_server_node> n3(new grpc_server_node());
-    n3->set_input(n5->get_output(), "sphere");
-    g->add_node(n3);
+    // Extract specific nodes from the graph
+    for (const auto& info : infos) {
+      if (info.get_type() == node_type::frame_number_numbering) {
+        if (input_node) {
+          spdlog::warn("Multiple frame_number_numbering nodes found, using the first one");
+        } else {
+          input_node =
+              std::dynamic_pointer_cast<frame_number_numbering_node>(node_map.at(info.name));
+        }
+      } else if (info.get_type() == node_type::epipolar_reconstruction) {
+        if (reconstruct_node) {
+          spdlog::warn("Multiple epipolar_reconstruction nodes found, using the first one");
+        } else {
+          reconstruct_node =
+              std::dynamic_pointer_cast<epipolar_reconstruct_node>(node_map.at(info.name));
+          // Set cameras and axis for reconstruction node
+          if (reconstruct_node) {
+            reconstruct_node->set_cameras(cameras);
+            reconstruct_node->set_axis(axis);
+          }
+        }
+      }
+    }
 
     const auto callbacks = std::make_shared<callback_list>();
 
@@ -172,7 +186,10 @@ class multiview_point_reconstruction_pipeline::impl {
           }
         });
 
-    graph.deploy(g);
+    // Deploy all subgraphs
+    for (const auto& [subgraph_name, subgraph_ptr] : subgraphs) {
+      graph.deploy(subgraph_ptr);
+    }
     graph.get_resources()->add(callbacks);
     graph.run();
 
@@ -204,7 +221,9 @@ void multiview_point_reconstruction_pipeline::push_frame(const frame_type& frame
   pimpl->push_frame(frame);
 }
 
-void multiview_point_reconstruction_pipeline::run() { pimpl->run(); }
+void multiview_point_reconstruction_pipeline::run(const std::vector<node_info>& infos) {
+  pimpl->run(infos);
+}
 
 void multiview_point_reconstruction_pipeline::stop() { pimpl->stop(); }
 
@@ -234,6 +253,9 @@ class multiview_image_reconstruction_pipeline::impl {
   std::shared_ptr<image_reconstruct_node> reconstruct_node;
   std::shared_ptr<graph_node> input_node;
 
+  std::map<std::string, camera_t> cameras;
+  glm::mat4 axis;
+
  public:
   void add_markers_received(std::function<void(const std::vector<glm::vec3>&)> f) {
     std::lock_guard lock(markers_mtx);
@@ -246,26 +268,27 @@ class multiview_image_reconstruction_pipeline::impl {
   }
 
   impl()
-      : graph(), running(false), markers(), markers_received(), reconstruct_node(), input_node() {}
+      : graph(),
+        running(false),
+        markers(),
+        markers_received(),
+        reconstruct_node(),
+        input_node(),
+        cameras(),
+        axis(1.0f) {}
 
   void set_camera(const std::string& name, const camera_t& camera) {
-    auto camera_msg = std::make_shared<camera_message>(camera);
-    camera_msg->set_camera(camera);
-
-    auto obj_msg = std::make_shared<object_message>();
-    obj_msg->add_field(name, camera_msg);
-
+    cameras[name] = camera;
     if (reconstruct_node) {
-      graph.process(reconstruct_node.get(), "cameras", obj_msg);
+      std::map<std::string, camera_t> updated_cameras = cameras;
+      reconstruct_node->set_cameras(updated_cameras);
     }
   }
 
-  void set_axis(const glm::mat4& axis) {
-    auto mat4_msg = std::make_shared<mat4_message>();
-    mat4_msg->set_data(axis);
-
+  void set_axis(const glm::mat4& new_axis) {
+    axis = new_axis;
     if (reconstruct_node) {
-      graph.process(reconstruct_node.get(), "axis", mat4_msg);
+      reconstruct_node->set_axis(axis);
     }
   }
 
@@ -312,39 +335,19 @@ class multiview_image_reconstruction_pipeline::impl {
   }
 
   void run(const std::vector<node_info>& infos) {
-    std::cout << "=== Reconstruction Pipeline Graph Structure ===" << std::endl;
+    // Group nodes by subgraph instance
+    std::map<std::string, std::vector<node_info>> nodes_by_subgraph;
     for (const auto& info : infos) {
-      std::cout << "Node: " << info.name << " (type: " << static_cast<int>(info.get_type()) << ")"
-                << std::endl;
-
-      // Print node parameters
-      if (info.contains_param("fps")) {
-        std::cout << "  fps: " << info.get_param<double>("fps") << std::endl;
-      }
-      if (info.contains_param("interval")) {
-        std::cout << "  interval: " << info.get_param<double>("interval") << std::endl;
-      }
-      if (info.contains_param("num_threads")) {
-        std::cout << "  num_threads: " << info.get_param<std::int64_t>("num_threads") << std::endl;
-      }
-      if (info.contains_param("callback_name")) {
-        std::cout << "  callback_name: " << info.get_param<std::string>("callback_name")
-                  << std::endl;
-      }
-
-      for (const auto& [input_name, source_name] : info.inputs) {
-        std::cout << "  Input '" << input_name << "' <- '" << source_name << "'" << std::endl;
-      }
-      for (const auto& output_name : info.outputs) {
-        std::cout << "  Output: '" << output_name << "'" << std::endl;
-      }
+      nodes_by_subgraph[info.subgraph_instance].push_back(info);
     }
-    std::cout << "==============================================" << std::endl;
 
-    std::shared_ptr<subgraph> g(new subgraph());
-    std::unordered_map<std::string, graph_node_ptr> node_map;
+    // Create empty subgraphs first
     std::map<std::string, std::shared_ptr<subgraph>> subgraphs;
-    subgraphs[""] = g;
+    for (const auto& [subgraph_name, nodes] : nodes_by_subgraph) {
+      subgraphs[subgraph_name] = std::make_shared<subgraph>();
+    }
+
+    std::unordered_map<std::string, graph_node_ptr> node_map;
 
     // Build graph using common function
     stargazer::build_graph_from_json(infos, subgraphs, node_map);
@@ -352,16 +355,56 @@ class multiview_image_reconstruction_pipeline::impl {
     // Extract specific nodes from the graph
     for (const auto& info : infos) {
       if (info.get_type() == node_type::frame_number_numbering) {
-        input_node = std::dynamic_pointer_cast<frame_number_numbering_node>(node_map.at(info.name));
+        if (input_node) {
+          spdlog::warn("Multiple frame_number_numbering nodes found, using the first one");
+        } else {
+          input_node =
+              std::dynamic_pointer_cast<frame_number_numbering_node>(node_map.at(info.name));
+        }
       } else if (info.get_type() == node_type::voxelpose_reconstruction) {
-        reconstruct_node =
-            std::dynamic_pointer_cast<voxelpose_reconstruct_node>(node_map.at(info.name));
+        if (reconstruct_node) {
+          spdlog::warn("Multiple reconstruction nodes found, using the first one");
+        } else {
+          reconstruct_node =
+              std::dynamic_pointer_cast<voxelpose_reconstruct_node>(node_map.at(info.name));
+          // Set cameras and axis for reconstruction node
+          if (reconstruct_node) {
+            reconstruct_node->set_cameras(cameras);
+            reconstruct_node->set_axis(axis);
+          }
+        }
       } else if (info.get_type() == node_type::mvpose_reconstruction) {
-        reconstruct_node =
-            std::dynamic_pointer_cast<mvpose_reconstruct_node>(node_map.at(info.name));
+        if (reconstruct_node) {
+          spdlog::warn("Multiple reconstruction nodes found, using the first one");
+        } else {
+          reconstruct_node =
+              std::dynamic_pointer_cast<mvpose_reconstruct_node>(node_map.at(info.name));
+          // Set cameras and axis for reconstruction node
+          if (reconstruct_node) {
+            reconstruct_node->set_cameras(cameras);
+            reconstruct_node->set_axis(axis);
+          }
+        }
       } else if (info.get_type() == node_type::mvp_reconstruction) {
-        reconstruct_node = std::dynamic_pointer_cast<mvp_reconstruct_node>(node_map.at(info.name));
+        if (reconstruct_node) {
+          spdlog::warn("Multiple reconstruction nodes found, using the first one");
+        } else {
+          reconstruct_node =
+              std::dynamic_pointer_cast<mvp_reconstruct_node>(node_map.at(info.name));
+          // Set cameras and axis for reconstruction node
+          if (reconstruct_node) {
+            reconstruct_node->set_cameras(cameras);
+            reconstruct_node->set_axis(axis);
+          }
+        }
       }
+    }
+
+    if (!input_node) {
+      spdlog::warn("frame_number_numbering node not found in image reconstruction pipeline");
+    }
+    if (!reconstruct_node) {
+      spdlog::warn("reconstruction node not found in image reconstruction pipeline");
     }
 
     const auto callbacks = std::make_shared<callback_list>();
@@ -387,7 +430,10 @@ class multiview_image_reconstruction_pipeline::impl {
           }
         });
 
-    graph.deploy(g);
+    // Deploy all subgraphs
+    for (const auto& [subgraph_name, subgraph_ptr] : subgraphs) {
+      graph.deploy(subgraph_ptr);
+    }
     graph.get_resources()->add(callbacks);
     graph.run();
 

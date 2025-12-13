@@ -21,6 +21,7 @@ using namespace coalsack;
 class voxelpose_reconstruct_node : public image_reconstruct_node {
   mutable std::mutex cameras_mtx;
   std::map<std::string, camera_t> cameras;
+  mutable std::mutex axis_mtx;
   glm::mat4 axis;
   graph_edge_ptr output;
 
@@ -37,6 +38,16 @@ class voxelpose_reconstruct_node : public image_reconstruct_node {
   }
 
   virtual std::string get_proc_name() const override { return "voxelpose_reconstruct"; }
+
+  void set_cameras(const std::map<std::string, camera_t>& new_cameras) override {
+    std::lock_guard lock(cameras_mtx);
+    cameras = new_cameras;
+  }
+
+  void set_axis(const glm::mat4& new_axis) override {
+    std::lock_guard lock(axis_mtx);
+    axis = new_axis;
+  }
 
   template <typename Archive>
   void serialize(Archive& archive) {
@@ -139,6 +150,7 @@ class voxelpose_reconstruct_node : public image_reconstruct_node {
     }
     if (input_name == "axis") {
       if (auto mat4_msg = std::dynamic_pointer_cast<mat4_message>(message)) {
+        std::lock_guard lock(axis_mtx);
         axis = mat4_msg->get_data();
       }
 
@@ -149,9 +161,14 @@ class voxelpose_reconstruct_node : public image_reconstruct_node {
       const auto obj_msg = frame_msg->get_data();
 
       std::map<std::string, camera_t> cameras;
+      glm::mat4 axis;
       {
         std::lock_guard lock(cameras_mtx);
         cameras = this->cameras;
+      }
+      {
+        std::lock_guard lock(axis_mtx);
+        axis = this->axis;
       }
 
       std::map<std::string, cv::Mat> images;

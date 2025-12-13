@@ -13,6 +13,7 @@ using namespace coalsack;
 class epipolar_reconstruct_node : public graph_node {
   mutable std::mutex cameras_mtx;
   std::map<std::string, camera_t> cameras;
+  mutable std::mutex axis_mtx;
   glm::mat4 axis;
   graph_edge_ptr output;
 
@@ -23,6 +24,16 @@ class epipolar_reconstruct_node : public graph_node {
   }
 
   virtual std::string get_proc_name() const override { return "epipolar_reconstruct"; }
+
+  void set_cameras(const std::map<std::string, camera_t>& new_cameras) {
+    std::lock_guard lock(cameras_mtx);
+    cameras = new_cameras;
+  }
+
+  void set_axis(const glm::mat4& new_axis) {
+    std::lock_guard lock(axis_mtx);
+    axis = new_axis;
+  }
 
   template <typename Archive>
   void serialize(Archive& archive) {
@@ -44,6 +55,7 @@ class epipolar_reconstruct_node : public graph_node {
     }
     if (input_name == "axis") {
       if (auto mat4_msg = std::dynamic_pointer_cast<mat4_message>(message)) {
+        std::lock_guard lock(axis_mtx);
         axis = mat4_msg->get_data();
       }
 
@@ -57,9 +69,14 @@ class epipolar_reconstruct_node : public graph_node {
       std::vector<camera_t> camera_list;
 
       std::map<std::string, camera_t> cameras;
+      glm::mat4 axis;
       {
         std::lock_guard lock(cameras_mtx);
         cameras = this->cameras;
+      }
+      {
+        std::lock_guard lock(axis_mtx);
+        axis = this->axis;
       }
 
       for (const auto& [name, field] : obj_msg.get_fields()) {
