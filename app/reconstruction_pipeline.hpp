@@ -24,7 +24,7 @@ class multiview_point_reconstruction_pipeline {
   virtual ~multiview_point_reconstruction_pipeline();
 
   void push_frame(const frame_type& frame);
-  void run();
+  void run(const std::vector<stargazer::node_info>& infos);
   void stop();
 
   std::vector<glm::vec3> get_markers() const;

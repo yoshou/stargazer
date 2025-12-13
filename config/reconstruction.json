@@ -91,6 +91,41 @@
       ]
     },
     {
+      "name": "epipolar_reconstruction_subgraph",
+      "nodes": [
+        {
+          "name": "frame_number_numbering",
+          "type": "frame_number_numbering"
+        },
+        {
+          "name": "parallel_queue",
+          "type": "parallel_queue",
+          "inputs": { "default": "frame_number_numbering" }
+        },
+        {
+          "name": "epipolar_reconstruction",
+          "type": "epipolar_reconstruction",
+          "inputs": { "default": "parallel_queue" }
+        },
+        {
+          "name": "frame_number_ordering",
+          "type": "frame_number_ordering",
+          "inputs": { "default": "epipolar_reconstruction" }
+        },
+        {
+          "name": "callback_markers",
+          "type": "callback",
+          "callback_name": "markers",
+          "inputs": { "default": "frame_number_ordering" }
+        },
+        {
+          "name": "grpc_server",
+          "type": "grpc_server",
+          "inputs": { "sphere": "frame_number_ordering" }
+        }
+      ]
+    },
+    {
       "name": "playback_panoptic_subgraph",
       "db_path": "../data/panoptic",
       "height": 1080,
@@ -2624,8 +2659,17 @@
           "extends": ["mvp_reconstruction_subgraph"]
         }
       ]
+    },
+    "epipolar_reconstruction": {
+      "subgraphs": [
+        {
+          "name": "epipolar_reconstruction",
+          "extends": ["epipolar_reconstruction_subgraph"]
+        }
+      ]
     }
   },
-  "pipeline": "playback_panoptic",
-  "static_pipeline": "voxelpose_reconstruction"
+  "pipeline": "playback_ir",
+  "image_reconstruction_pipeline": "voxelpose_reconstruction",
+  "point_reconstruction_pipeline": "epipolar_reconstruction"
 }

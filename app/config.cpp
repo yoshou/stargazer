@@ -330,6 +330,14 @@ configuration::configuration(const std::string& path) : path(path) {
       pipeline_names.insert(std::make_pair("axis_calibration_pipeline",
                                            j["axis_calibration_pipeline"].get<std::string>()));
     }
+    if (j.contains("image_reconstruction_pipeline")) {
+      pipeline_names.insert(std::make_pair("image_reconstruction_pipeline",
+                                           j["image_reconstruction_pipeline"].get<std::string>()));
+    }
+    if (j.contains("point_reconstruction_pipeline")) {
+      pipeline_names.insert(std::make_pair("point_reconstruction_pipeline",
+                                           j["point_reconstruction_pipeline"].get<std::string>()));
+    }
 
     for (const auto& [pipeline_name, pipeline_json] : j["pipelines"].items()) {
       pipeline_def pipeline;

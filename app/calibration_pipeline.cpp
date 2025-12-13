@@ -86,10 +86,19 @@ class calibration_pipeline::impl {
   }
 
   void run(const std::vector<node_info>& infos) {
-    std::shared_ptr<subgraph> g(new subgraph());
-    std::unordered_map<std::string, graph_node_ptr> node_map;
+    // Group nodes by subgraph instance
+    std::map<std::string, std::vector<node_info>> nodes_by_subgraph;
+    for (const auto& info : infos) {
+      nodes_by_subgraph[info.subgraph_instance].push_back(info);
+    }
+
+    // Create empty subgraphs first
     std::map<std::string, std::shared_ptr<subgraph>> subgraphs;
-    subgraphs[""] = g;
+    for (const auto& [subgraph_name, nodes] : nodes_by_subgraph) {
+      subgraphs[subgraph_name] = std::make_shared<subgraph>();
+    }
+
+    std::unordered_map<std::string, graph_node_ptr> node_map;
 
     // Build graph using common function
     stargazer::build_graph_from_json(infos, subgraphs, node_map);
@@ -143,7 +152,10 @@ class calibration_pipeline::impl {
           }
         });
 
-    graph.deploy(g);
+    // Deploy all subgraphs
+    for (const auto& [subgraph_name, subgraph_ptr] : subgraphs) {
+      graph.deploy(subgraph_ptr);
+    }
     graph.get_resources()->add(callbacks);
     graph.run();
 
@@ -232,10 +244,19 @@ class intrinsic_calibration_pipeline::impl {
   impl() = default;
 
   void run(const std::vector<node_info>& infos) {
-    std::shared_ptr<subgraph> g(new subgraph());
-    std::unordered_map<std::string, graph_node_ptr> node_map;
+    // Group nodes by subgraph instance
+    std::map<std::string, std::vector<node_info>> nodes_by_subgraph;
+    for (const auto& info : infos) {
+      nodes_by_subgraph[info.subgraph_instance].push_back(info);
+    }
+
+    // Create empty subgraphs first
     std::map<std::string, std::shared_ptr<subgraph>> subgraphs;
-    subgraphs[""] = g;
+    for (const auto& [subgraph_name, nodes] : nodes_by_subgraph) {
+      subgraphs[subgraph_name] = std::make_shared<subgraph>();
+    }
+
+    std::unordered_map<std::string, graph_node_ptr> node_map;
 
     // Build graph using common function
     stargazer::build_graph_from_json(infos, subgraphs, node_map);
@@ -259,7 +280,10 @@ class intrinsic_calibration_pipeline::impl {
     callbacks->add(
         [](const callback_node* node, std::string input_name, graph_message_ptr message) {});
 
-    graph.deploy(g);
+    // Deploy all subgraphs
+    for (const auto& [subgraph_name, subgraph_ptr] : subgraphs) {
+      graph.deploy(subgraph_ptr);
+    }
     graph.get_resources()->add(callbacks);
     graph.run();
 
@@ -382,10 +406,19 @@ class axis_calibration_pipeline::impl {
   }
 
   void run(const std::vector<node_info>& infos) {
-    std::shared_ptr<subgraph> g(new subgraph());
-    std::unordered_map<std::string, graph_node_ptr> node_map;
+    // Group nodes by subgraph instance
+    std::map<std::string, std::vector<node_info>> nodes_by_subgraph;
+    for (const auto& info : infos) {
+      nodes_by_subgraph[info.subgraph_instance].push_back(info);
+    }
+
+    // Create empty subgraphs first
     std::map<std::string, std::shared_ptr<subgraph>> subgraphs;
-    subgraphs[""] = g;
+    for (const auto& [subgraph_name, nodes] : nodes_by_subgraph) {
+      subgraphs[subgraph_name] = std::make_shared<subgraph>();
+    }
+
+    std::unordered_map<std::string, graph_node_ptr> node_map;
 
     // Build graph using common function
     stargazer::build_graph_from_json(infos, subgraphs, node_map);
@@ -421,7 +454,10 @@ class axis_calibration_pipeline::impl {
           }
         });
 
-    graph.deploy(g);
+    // Deploy all subgraphs
+    for (const auto& [subgraph_name, subgraph_ptr] : subgraphs) {
+      graph.deploy(subgraph_ptr);
+    }
     graph.get_resources()->add(callbacks);
     graph.run();
 

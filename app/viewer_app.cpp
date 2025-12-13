@@ -1067,7 +1067,6 @@ class viewer_app : public window_base {
 
     multiview_point_reconstruction_pipeline_ =
         std::make_unique<multiview_point_reconstruction_pipeline>();
-    multiview_point_reconstruction_pipeline_->run();
 
     {
       const auto& scene = std::get<scene_t>(parameters->at("scene"));
@@ -1083,10 +1082,13 @@ class viewer_app : public window_base {
       }
     }
 
+    multiview_point_reconstruction_pipeline_->run(
+        reconstruction_config->get_node_infos("point_reconstruction_pipeline"));
+
     multiview_image_reconstruction_pipeline_ =
         std::make_unique<multiview_image_reconstruction_pipeline>();
     multiview_image_reconstruction_pipeline_->run(
-        reconstruction_config->get_node_infos("static_pipeline"));
+        reconstruction_config->get_node_infos("image_reconstruction_pipeline"));
 
     {
       const auto& scene = std::get<scene_t>(parameters->at("scene"));
