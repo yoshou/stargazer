@@ -623,7 +623,12 @@
         { "name": "reconstruct", "type": "voxelpose_reconstruction", "inputs": { "default": "queue" } },
         { "name": "ordering", "type": "frame_number_ordering", "inputs": { "default": "reconstruct" } },
         { "name": "callback", "type": "callback", "callback_name": "markers", "inputs": { "default": "ordering" } },
-        { "name": "grpc_server", "type": "grpc_server", "address": "0.0.0.0:50052", "inputs": { "sphere": "ordering" } },
+        { "name": "grpc_server", "type": "grpc_server", "address": "0.0.0.0:50052", "inputs": { "sphere": "ordering" } }
+      ]
+    },
+    {
+      "name": "imu_subgraph",
+      "nodes": [
         { "name": "imu_server", "type": "grpc_server", "address": "0.0.0.0:50053" },
         { "name": "demux", "type": "frame_demux", "outputs": ["imu1", "imu2", "imu3", "imu4", "imu5", "imu6"], "inputs": { "default": "imu_server" } },
         { "name": "dump_imu_1", "type": "dump_se3", "db_path": "../data/imu.db", "topic_name": "imu1", "inputs": { "imu1": "demux:imu1" } },
