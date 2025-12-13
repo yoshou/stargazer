@@ -34,7 +34,7 @@ using namespace stargazer::calibration;
 using namespace stargazer::reconstruction;
 using namespace coalsack;
 
-class calibration_pipeline::impl {
+class extrinsic_calibration_pipeline::impl {
  public:
   graph_proc graph;
 
@@ -183,54 +183,57 @@ class calibration_pipeline::impl {
   }
 };
 
-calibration_pipeline::calibration_pipeline() : pimpl(std::make_unique<impl>()) {}
+extrinsic_calibration_pipeline::extrinsic_calibration_pipeline()
+    : pimpl(std::make_unique<impl>()) {}
 
-calibration_pipeline::~calibration_pipeline() = default;
+extrinsic_calibration_pipeline::~extrinsic_calibration_pipeline() = default;
 
-void calibration_pipeline::set_camera(const std::string& name, const camera_t& camera) {
+void extrinsic_calibration_pipeline::set_camera(const std::string& name, const camera_t& camera) {
   pimpl->cameras[name] = camera;
 }
 
-size_t calibration_pipeline::get_camera_size() const { return pimpl->cameras.size(); }
+size_t extrinsic_calibration_pipeline::get_camera_size() const { return pimpl->cameras.size(); }
 
-const std::unordered_map<std::string, camera_t>& calibration_pipeline::get_cameras() const {
+const std::unordered_map<std::string, camera_t>& extrinsic_calibration_pipeline::get_cameras()
+    const {
   return pimpl->cameras;
 }
 
-std::unordered_map<std::string, camera_t>& calibration_pipeline::get_cameras() {
+std::unordered_map<std::string, camera_t>& extrinsic_calibration_pipeline::get_cameras() {
   return pimpl->cameras;
 }
 
-void calibration_pipeline::run(const std::vector<node_info>& infos) { pimpl->run(infos); }
+void extrinsic_calibration_pipeline::run(const std::vector<node_info>& infos) { pimpl->run(infos); }
 
-void calibration_pipeline::stop() { pimpl->stop(); }
+void extrinsic_calibration_pipeline::stop() { pimpl->stop(); }
 
-void calibration_pipeline::add_calibrated(
+void extrinsic_calibration_pipeline::add_calibrated(
     std::function<void(const std::unordered_map<std::string, camera_t>&)> callback) {
   pimpl->add_calibrated(callback);
 }
 
-void calibration_pipeline::clear_calibrated() { pimpl->clear_calibrated(); }
+void extrinsic_calibration_pipeline::clear_calibrated() { pimpl->clear_calibrated(); }
 
-size_t calibration_pipeline::get_num_frames(std::string name) const {
+size_t extrinsic_calibration_pipeline::get_num_frames(std::string name) const {
   return pimpl->get_num_frames(name);
 }
 
-const std::vector<observed_points_t> calibration_pipeline::get_observed_points(
+const std::vector<observed_points_t> extrinsic_calibration_pipeline::get_observed_points(
     std::string name) const {
   return pimpl->get_observed_points(name);
 }
 
-const std::unordered_map<std::string, camera_t>& calibration_pipeline::get_calibrated_cameras()
-    const {
+const std::unordered_map<std::string, camera_t>&
+extrinsic_calibration_pipeline::get_calibrated_cameras() const {
   return pimpl->calibrated_cameras;
 }
 
-void calibration_pipeline::push_frame(const std::map<std::string, std::vector<point_data>>& frame) {
+void extrinsic_calibration_pipeline::push_frame(
+    const std::map<std::string, std::vector<point_data>>& frame) {
   pimpl->push_frame(frame);
 }
 
-void calibration_pipeline::calibrate() { pimpl->calibrate(pimpl->cameras); }
+void extrinsic_calibration_pipeline::calibrate() { pimpl->calibrate(pimpl->cameras); }
 
 class intrinsic_calibration_pipeline::impl {
  public:
