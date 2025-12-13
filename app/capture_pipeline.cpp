@@ -820,29 +820,157 @@ class capture_pipeline::impl {
     server.add_resource(callbacks);
     server.run();
 
-    // Deploy all subgraphs
-    std::cout << "=== Deploying Subgraphs ===" << std::endl;
+    // Step 1: Get deploy address for each subgraph
+    std::map<std::string, std::pair<std::string, uint16_t>> subgraph_deploy_info;
+
     for (const auto& [subgraph_name, graph] : subgraphs) {
-      // Check if this subgraph should be deployed remotely
       std::string deploy_address = "127.0.0.1";
       uint16_t deploy_port = server.get_port();
 
-      for (const auto& node_info : node_infos) {
-        if (node_info.subgraph_instance == subgraph_name) {
-          if (node_info.contains_param("address")) {
-            deploy_address = node_info.get_param<std::string>("address");
-          }
-          if (node_info.contains_param("deploy_port")) {
-            deploy_port = static_cast<uint16_t>(node_info.get_param<std::int64_t>("deploy_port"));
-          }
+      for (const auto& info : nodes_by_subgraph[subgraph_name]) {
+        if (info.contains_param("address")) {
+          deploy_address = info.get_param<std::string>("address");
+        }
+        if (info.contains_param("deploy_port")) {
+          deploy_port = static_cast<uint16_t>(info.get_param<std::int64_t>("deploy_port"));
         }
       }
 
-      std::cout << "Subgraph: " << subgraph_name << std::endl;
+      subgraph_deploy_info[subgraph_name] = std::make_pair(deploy_address, deploy_port);
+    }
+
+    // Step 2: Group subgraphs by deploy address and create merged subgraphs
+    std::map<std::pair<std::string, uint16_t>, std::vector<std::string>> address_groups;
+
+    for (const auto& [subgraph_name, deploy_key] : subgraph_deploy_info) {
+      address_groups[deploy_key].push_back(subgraph_name);
+    }
+
+    // Create merged subgraphs and mapping from original to merged group name
+    std::map<std::string, std::shared_ptr<subgraph>> deploy_subgraphs;
+    std::map<std::string, std::string> original_to_merged;
+    std::map<std::string, std::pair<std::string, uint16_t>> merged_deploy_info;
+    std::map<std::string, std::vector<std::string>> merged_subgraph_members;
+
+    for (const auto& [deploy_key, subgraph_names] : address_groups) {
+      if (subgraph_names.size() == 1) {
+        // Single subgraph - no merge needed
+        const auto& name = subgraph_names[0];
+        deploy_subgraphs[name] = subgraphs[name];
+        original_to_merged[name] = name;
+        merged_deploy_info[name] = deploy_key;
+        merged_subgraph_members[name] = {name};
+      } else {
+        // Multiple subgraphs - merge them
+        auto merged = std::make_shared<subgraph>();
+        std::string merged_name = "merged_" + std::to_string(deploy_key.second);
+
+        for (const auto& name : subgraph_names) {
+          merged->merge(*subgraphs[name]);
+          original_to_merged[name] = merged_name;
+        }
+
+        deploy_subgraphs[merged_name] = merged;
+        merged_deploy_info[merged_name] = deploy_key;
+        merged_subgraph_members[merged_name] = subgraph_names;
+      }
+    }
+
+    // Step 3: Build dependency graph based on merged subgraphs
+    std::map<std::string, std::set<std::string>> merged_dependencies;
+
+    for (const auto& info : node_infos) {
+      const auto& target_subgraph =
+          info.subgraph_instance.empty() ? "default" : info.subgraph_instance;
+      const auto& target_merged = original_to_merged[target_subgraph];
+
+      for (const auto& [input_name, source_name] : info.inputs) {
+        size_t pos = source_name.find(':');
+        std::string source_node_name =
+            (pos != std::string::npos) ? source_name.substr(0, pos) : source_name;
+
+        for (const auto& source_info : node_infos) {
+          if (source_info.name == source_node_name) {
+            const auto& source_subgraph =
+                source_info.subgraph_instance.empty() ? "default" : source_info.subgraph_instance;
+            const auto& source_merged = original_to_merged[source_subgraph];
+
+            if (source_merged != target_merged) {
+              merged_dependencies[target_merged].insert(source_merged);
+            }
+            break;
+          }
+        }
+      }
+    }
+
+    // Step 4: Topological sort on merged subgraphs
+    std::vector<std::string> deploy_order;
+    std::set<std::string> deployed;
+    std::set<std::string> visiting;
+
+    std::function<void(const std::string&)> visit = [&](const std::string& merged_name) {
+      if (deployed.count(merged_name)) return;
+      if (visiting.count(merged_name)) {
+        throw std::runtime_error("Circular dependency detected in subgraph dependencies");
+      }
+
+      visiting.insert(merged_name);
+
+      if (merged_dependencies.count(merged_name)) {
+        for (const auto& dep : merged_dependencies[merged_name]) {
+          visit(dep);
+        }
+      }
+
+      visiting.erase(merged_name);
+      deployed.insert(merged_name);
+      deploy_order.push_back(merged_name);
+    };
+
+    for (const auto& [merged_name, graph] : deploy_subgraphs) {
+      visit(merged_name);
+    }
+
+    // Step 5: Deploy in topological order
+    std::cout << "=== Deploying Subgraphs ===" << std::endl;
+
+    for (const auto& merged_name : deploy_order) {
+      const auto& [deploy_address, deploy_port] = merged_deploy_info[merged_name];
+      const auto& members = merged_subgraph_members[merged_name];
+
+      if (members.size() == 1) {
+        std::cout << "Subgraph: " << members[0] << std::endl;
+      } else {
+        std::cout << "Merged subgraph (";
+        for (size_t i = 0; i < members.size(); ++i) {
+          if (i > 0) std::cout << " + ";
+          std::cout << members[i];
+        }
+        std::cout << ")" << std::endl;
+      }
+
       std::cout << "  Deploy address: " << deploy_address << ":" << deploy_port << std::endl;
 
-      client.deploy(io_context, deploy_address, deploy_port, graph);
+      if (merged_dependencies.count(merged_name) && !merged_dependencies[merged_name].empty()) {
+        std::cout << "  Dependencies: ";
+        bool first = true;
+        for (const auto& dep : merged_dependencies[merged_name]) {
+          if (!first) std::cout << ", ";
+          const auto& dep_members = merged_subgraph_members[dep];
+          if (dep_members.size() == 1) {
+            std::cout << dep_members[0];
+          } else {
+            std::cout << dep;
+          }
+          first = false;
+        }
+        std::cout << std::endl;
+      }
+
+      client.deploy(io_context, deploy_address, deploy_port, deploy_subgraphs[merged_name]);
     }
+
     std::cout << "===========================" << std::endl;
 
     io_thread.reset(new std::thread([this] { io_context.run(); }));
