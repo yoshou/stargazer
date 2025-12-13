@@ -17,29 +17,6 @@ struct marker_frame_data {
   uint64_t frame_number;
 };
 
-class capture_pipeline {
-  class impl;
-
-  std::unique_ptr<impl> pimpl;
-
- public:
-  capture_pipeline();
-  virtual ~capture_pipeline();
-
-  void run(const std::vector<stargazer::node_info>& infos);
-  void stop();
-
-  void set_mask(cv::Mat mask);
-
-  cv::Mat get_frame() const;
-  std::unordered_map<int, cv::Point2f> get_markers() const;
-
-  void add_marker_received(std::function<void(const marker_frame_data&)> f);
-  void clear_marker_received();
-  void add_image_received(std::function<void(const cv::Mat&)> f);
-  void clear_image_received();
-};
-
 class multiview_capture_pipeline {
   class impl;
 
