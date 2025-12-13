@@ -28,21 +28,7 @@ struct adl_serializer<std::variant<Ts...>> {
 
 namespace stargazer {
 static node_type get_node_type(const std::string& type) {
-  if (type == "raspi") {
-    return node_type::raspi;
-  } else if (type == "raspi_color") {
-    return node_type::raspi_color;
-  } else if (type == "rs_d435") {
-    return node_type::rs_d435;
-  } else if (type == "rs_d435_color") {
-    return node_type::rs_d435_color;
-  } else if (type == "depthai_color") {
-    return node_type::depthai_color;
-  } else if (type == "playback") {
-    return node_type::playback;
-  } else if (type == "panoptic") {
-    return node_type::panoptic;
-  } else if (type == "record") {
+  if (type == "record") {
     return node_type::record;
   } else if (type == "calibration") {
     return node_type::calibration;
@@ -120,20 +106,6 @@ static std::string get_node_type_name(node_type type) {
   switch (type) {
     case node_type::unknown:
       throw std::runtime_error("Invalid node type");
-    case node_type::raspi:
-      return "raspi";
-    case node_type::raspi_color:
-      return "raspi_color";
-    case node_type::rs_d435:
-      return "rs_d435";
-    case node_type::rs_d435_color:
-      return "rs_d435_color";
-    case node_type::depthai_color:
-      return "depthai_color";
-    case node_type::playback:
-      return "playback";
-    case node_type::panoptic:
-      return "panoptic";
     case node_type::record:
       return "record";
     case node_type::calibration:

@@ -13,13 +13,6 @@
 namespace stargazer {
 enum class node_type {
   unknown,
-  raspi,
-  raspi_color,
-  depthai_color,
-  rs_d435,
-  rs_d435_color,
-  playback,
-  panoptic,
   record,
   calibration,
   pattern_board_calibration_target_detector,
@@ -160,12 +153,6 @@ class node_info {
 
   bool is_camera() const {
     const auto type = get_type();
-    if (type == node_type::raspi || type == node_type::raspi_color ||
-        type == node_type::depthai_color || type == node_type::rs_d435 ||
-        type == node_type::rs_d435_color || type == node_type::playback ||
-        type == node_type::panoptic) {
-      return true;
-    }
     // For callback nodes, check if it's an image callback with camera_name set
     if (type == node_type::callback) {
       // Check callback_type parameter ("image")
@@ -178,13 +165,6 @@ class node_info {
 
   std::string get_camera_name() const {
     const auto type = get_type();
-    // For old format nodes, use node name directly
-    if (type == node_type::raspi || type == node_type::raspi_color ||
-        type == node_type::depthai_color || type == node_type::rs_d435 ||
-        type == node_type::rs_d435_color || type == node_type::playback ||
-        type == node_type::panoptic) {
-      return name;
-    }
     // For callback nodes, use camera_name parameter
     if (type == node_type::callback && contains_param("camera_name")) {
       return get_param<std::string>("camera_name");
