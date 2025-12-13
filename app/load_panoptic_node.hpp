@@ -7,6 +7,7 @@
 #include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <opencv2/core.hpp>
 #include <thread>
 
 #include "graph_proc.h"
