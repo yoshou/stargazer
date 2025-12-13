@@ -681,7 +681,7 @@ static void build_graph_from_json(
   std::cout << "========================================" << std::endl;
 }
 
-class multiview_capture_pipeline::impl {
+class capture_pipeline::impl {
   local_server server;
   asio::io_context io_context;
   graph_proc_client client;
@@ -1170,37 +1170,32 @@ class multiview_capture_pipeline::impl {
   }
 };
 
-multiview_capture_pipeline::multiview_capture_pipeline()
-    : pimpl(new impl(std::map<std::string, cv::Mat>())) {}
-multiview_capture_pipeline::multiview_capture_pipeline(const std::map<std::string, cv::Mat>& masks)
+capture_pipeline::capture_pipeline() : pimpl(new impl(std::map<std::string, cv::Mat>())) {}
+capture_pipeline::capture_pipeline(const std::map<std::string, cv::Mat>& masks)
     : pimpl(new impl(masks)) {}
-multiview_capture_pipeline::~multiview_capture_pipeline() = default;
+capture_pipeline::~capture_pipeline() = default;
 
-void multiview_capture_pipeline::run(const std::vector<node_info>& infos) { pimpl->run(infos); }
+void capture_pipeline::run(const std::vector<node_info>& infos) { pimpl->run(infos); }
 
-void multiview_capture_pipeline::stop() { pimpl->stop(); }
-std::map<std::string, cv::Mat> multiview_capture_pipeline::get_frames() const {
-  return pimpl->get_frames();
-}
-void multiview_capture_pipeline::gen_mask() { pimpl->gen_mask(); }
-void multiview_capture_pipeline::clear_mask() { pimpl->clear_mask(); }
-std::map<std::string, cv::Mat> multiview_capture_pipeline::get_masks() const {
-  return pimpl->get_masks();
-}
+void capture_pipeline::stop() { pimpl->stop(); }
+std::map<std::string, cv::Mat> capture_pipeline::get_frames() const { return pimpl->get_frames(); }
+void capture_pipeline::gen_mask() { pimpl->gen_mask(); }
+void capture_pipeline::clear_mask() { pimpl->clear_mask(); }
+std::map<std::string, cv::Mat> capture_pipeline::get_masks() const { return pimpl->get_masks(); }
 
-void multiview_capture_pipeline::enable_marker_collecting(std::string name) {
+void capture_pipeline::enable_marker_collecting(std::string name) {
   pimpl->enable_marker_collecting(name);
 }
-void multiview_capture_pipeline::disable_marker_collecting(std::string name) {
+void capture_pipeline::disable_marker_collecting(std::string name) {
   pimpl->disable_marker_collecting(name);
 }
-void multiview_capture_pipeline::add_marker_received(
+void capture_pipeline::add_marker_received(
     std::function<void(const std::map<std::string, marker_frame_data>&)> f) {
   pimpl->add_marker_received(f);
 }
-void multiview_capture_pipeline::clear_marker_received() { pimpl->clear_marker_received(); }
-void multiview_capture_pipeline::add_image_received(
+void capture_pipeline::clear_marker_received() { pimpl->clear_marker_received(); }
+void capture_pipeline::add_image_received(
     std::function<void(const std::map<std::string, cv::Mat>&)> f) {
   pimpl->add_image_received(f);
 }
-void multiview_capture_pipeline::clear_image_received() { pimpl->clear_image_received(); }
+void capture_pipeline::clear_image_received() { pimpl->clear_image_received(); }
