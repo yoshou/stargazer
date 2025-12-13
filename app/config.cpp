@@ -98,6 +98,12 @@ static node_type get_node_type(const std::string& type) {
     return node_type::load_marker;
   } else if (type == "load_panoptic") {
     return node_type::load_panoptic;
+  } else if (type == "charuco_detector") {
+    return node_type::charuco_detector;
+  } else if (type == "depthai_color_camera") {
+    return node_type::depthai_color_camera;
+  } else if (type == "rs_d435") {
+    return node_type::rs_d435;
   }
   throw std::runtime_error("Invalid node type");
 }
@@ -176,6 +182,12 @@ static std::string get_node_type_name(node_type type) {
       return "load_marker";
     case node_type::load_panoptic:
       return "load_panoptic";
+    case node_type::charuco_detector:
+      return "charuco_detector";
+    case node_type::depthai_color_camera:
+      return "depthai_color_camera";
+    case node_type::rs_d435:
+      return "rs_d435";
   }
   throw std::runtime_error("Invalid node type");
 }

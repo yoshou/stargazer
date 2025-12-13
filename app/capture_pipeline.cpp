@@ -24,585 +24,6 @@
 using namespace coalsack;
 using namespace stargazer;
 
-using encode_image_node = encode_jpeg_node;
-using decode_image_node = decode_jpeg_node;
-
-class remote_cluster {
- public:
-  std::shared_ptr<subgraph> g;
-  graph_edge_ptr encoded_image_output;
-  graph_edge_ptr marker_output;
-  std::shared_ptr<mask_node> mask_node_;
-};
-
-class remote_cluster_raspi : public remote_cluster {
- public:
-  explicit remote_cluster_raspi(int fps, const image* mask, bool is_master = false,
-                                bool emitter_enabled = true) {
-    constexpr bool with_image = true;
-    constexpr bool with_marker = true;
-
-    g.reset(new subgraph());
-
-    // Camera Module v2
-    const int width = 820;
-    const int height = 616;
-    // Camera Module 3 Wide
-    // const int width = 1536;
-    // const int height = 864;
-
-    std::shared_ptr<video_time_sync_control_node> n13(new video_time_sync_control_node());
-
-    std::shared_ptr<libcamera_capture_node> n1(new libcamera_capture_node());
-    n1->set_stream(stream_type::INFRARED);
-    n1->set_option(libcamera_capture_node::option::exposure, 5000);
-    n1->set_option(libcamera_capture_node::option::gain, 10);
-
-    n1->set_fps(fps);
-    n1->set_width(width);
-    n1->set_height(height);
-    n1->set_format(image_format::Y8_UINT);
-    n1->set_emitter_enabled(emitter_enabled);
-
-    if (!is_master) {
-      n1->set_input(n13->get_output(), "interval");
-    }
-
-    g->add_node(n1);
-
-    std::shared_ptr<fifo_node> n7(new fifo_node());
-    n7->set_input(n1->get_output());
-    g->add_node(n7);
-
-    if (is_master) {
-      std::shared_ptr<timestamp_node> n11(new timestamp_node());
-      n11->set_input(n7->get_output());
-      g->add_node(n11);
-
-      // Noise in camera image on some units.
-      std::shared_ptr<broadcast_talker_node> n12(new broadcast_talker_node());
-      n12->set_input(n11->get_output());
-      n12->set_endpoint("192.168.0.255", 40000);
-      g->add_node(n12);
-    } else {
-      std::shared_ptr<timestamp_node> n11(new timestamp_node());
-      n11->set_input(n7->get_output());
-      g->add_node(n11);
-
-      std::shared_ptr<broadcast_listener_node> n12(new broadcast_listener_node());
-      n12->set_endpoint("192.168.0.1", 40000);
-      g->add_node(n12);
-
-      n13->set_input(n11->get_output());
-      n13->set_input(n12->get_output(), "ref");
-      n13->set_gain(0.1);
-      n13->set_interval(1000.0 / fps);
-      n13->set_max_interval(1000.0 / (fps - 10));
-      n13->set_min_interval(1000.0 / (fps + 10));
-      g->add_node(n13);
-    }
-
-    std::shared_ptr<scale_node> n10(new scale_node());
-    n10->set_input(n7->get_output());
-
-    // constexpr auto scale = 3.5;
-    // constexpr auto bias = -50.0;
-    constexpr auto scale = 1.1;
-    constexpr auto bias = 0;
-
-    n10->set_alpha(scale);
-    n10->set_beta(bias);
-    g->add_node(n10);
-
-    std::shared_ptr<gaussian_blur_node> n8(new gaussian_blur_node());
-    n8->set_input(n10->get_output());
-    n8->set_kernel_width(3);
-    n8->set_kernel_height(3);
-    n8->set_sigma_x(1.5);
-    n8->set_sigma_y(1.5);
-    g->add_node(n8);
-
-    coalsack::graph_edge_ptr preprocessed_image = n8->get_output();
-    {
-      mask_node_.reset(new coalsack::mask_node());
-      mask_node_->set_input(preprocessed_image);
-      if (mask) {
-        mask_node_->set_mask(*mask);
-      } else {
-        cv::Mat img(height, width, CV_8UC1, cv::Scalar(255));
-        image mask_img(img.cols, img.rows, CV_8UC1, img.step, (const uint8_t*)img.data);
-        mask_node_->set_mask(mask_img);
-      }
-      g->add_node(mask_node_);
-
-      preprocessed_image = mask_node_->get_output();
-    }
-
-    if (with_image) {
-      std::shared_ptr<fifo_node> n4(new fifo_node());
-      n4->set_input(preprocessed_image);
-      g->add_node(n4);
-
-      std::shared_ptr<encode_image_node> n2(new encode_image_node());
-      n2->set_input(n4->get_output());
-      g->add_node(n2);
-
-      std::shared_ptr<p2p_tcp_talker_node> n3(new p2p_tcp_talker_node());
-      n3->set_input(n2->get_output());
-      g->add_node(n3);
-
-      encoded_image_output = n3->get_output();
-    }
-
-    if (with_marker) {
-      std::shared_ptr<fifo_node> n9(new fifo_node());
-      n9->set_input(preprocessed_image);
-      g->add_node(n9);
-
-      std::shared_ptr<fast_blob_detector_node> n4(new fast_blob_detector_node());
-      n4->set_input(n9->get_output());
-
-      auto params = fast_blob_detector_node::blob_detector_params();
-      {
-        params.min_dist_between_blobs = 1;
-        params.step_threshold = 5;
-        params.min_threshold = 50;
-        params.max_threshold = params.min_threshold + 50;
-
-        params.min_area = 6;
-        params.max_area = 1000;
-
-        params.min_circularity = 0.8;
-      }
-
-      n4->set_parameters(params);
-      g->add_node(n4);
-
-      std::shared_ptr<p2p_tcp_talker_node> n5(new p2p_tcp_talker_node());
-      n5->set_input(n4->get_output());
-      g->add_node(n5);
-
-      marker_output = n5->get_output();
-    }
-  }
-};
-
-class remote_cluster_raspi_color_v2 : public remote_cluster {
- public:
-  explicit remote_cluster_raspi_color_v2(int fps, bool is_master = false) {
-    constexpr bool with_image = true;
-    constexpr bool with_marker = false;
-
-    g.reset(new subgraph());
-
-    const int width = 820;
-    const int height = 616;
-
-    std::shared_ptr<video_time_sync_control_node> n13(new video_time_sync_control_node());
-
-    std::shared_ptr<libcamera_capture_node> n1(new libcamera_capture_node());
-    n1->set_stream(stream_type::COLOR);
-    n1->set_emitter_enabled(false);
-    n1->set_option(libcamera_capture_node::option::exposure, 7000);
-    n1->set_option(libcamera_capture_node::option::gain, 10);
-
-    n1->set_fps(fps);
-    n1->set_width(width);
-    n1->set_height(height);
-    n1->set_format(image_format::R8G8B8_UINT);
-
-    if (!is_master) {
-      n1->set_input(n13->get_output(), "interval");
-    }
-
-    g->add_node(n1);
-
-    std::shared_ptr<fifo_node> n7(new fifo_node());
-    n7->set_input(n1->get_output());
-    g->add_node(n7);
-
-    if (is_master) {
-      std::shared_ptr<timestamp_node> n11(new timestamp_node());
-      n11->set_input(n7->get_output());
-      g->add_node(n11);
-
-      std::shared_ptr<broadcast_talker_node> n12(new broadcast_talker_node());
-      n12->set_input(n11->get_output());
-      n12->set_endpoint("192.168.0.255", 40000);
-      g->add_node(n12);
-    } else {
-      std::shared_ptr<timestamp_node> n11(new timestamp_node());
-      n11->set_input(n7->get_output());
-      g->add_node(n11);
-
-      std::shared_ptr<broadcast_listener_node> n12(new broadcast_listener_node());
-      n12->set_endpoint("192.168.0.1", 40000);
-      g->add_node(n12);
-
-      n13->set_input(n11->get_output());
-      n13->set_input(n12->get_output(), "ref");
-      n13->set_gain(0.1);
-      n13->set_interval(1000.0 / fps);
-      n13->set_max_interval(1000.0 / (fps - 10));
-      n13->set_min_interval(1000.0 / (fps + 10));
-      g->add_node(n13);
-    }
-
-    auto preprocessed_image = n7->get_output();
-
-    if (with_image) {
-      std::shared_ptr<fifo_node> n4(new fifo_node());
-      n4->set_input(preprocessed_image);
-      g->add_node(n4);
-
-      std::shared_ptr<encode_image_node> n2(new encode_image_node());
-      n2->set_input(n4->get_output());
-      g->add_node(n2);
-
-      std::shared_ptr<p2p_tcp_talker_node> n3(new p2p_tcp_talker_node());
-      n3->set_input(n2->get_output());
-      g->add_node(n3);
-
-      encoded_image_output = n3->get_output();
-    }
-
-    if (with_marker) {
-      std::shared_ptr<fifo_node> n9(new fifo_node());
-      n9->set_input(preprocessed_image);
-      g->add_node(n9);
-
-      std::shared_ptr<detect_circle_grid_node> n10(new detect_circle_grid_node());
-      n10->set_input(n9->get_output());
-      n10->get_parameters().min_threshold = 150;
-      n10->get_parameters().max_threshold = 250;
-      n10->get_parameters().threshold_step = 10;
-      n10->get_parameters().min_dist_between_blobs = 3;
-      n10->get_parameters().min_area = 5;
-      n10->get_parameters().max_area = 100;
-      n10->get_parameters().filter_by_area = true;
-      n10->get_parameters().min_circularity = 0.5;
-      n10->get_parameters().max_circularity = 1.0;
-      n10->get_parameters().filter_by_circularity = true;
-      n10->get_parameters().filter_by_inertia = false;
-      n10->get_parameters().filter_by_convexity = false;
-      n10->get_parameters().blob_color = 0;
-      n10->get_parameters().filter_by_color = true;
-      g->add_node(n10);
-
-      std::shared_ptr<p2p_tcp_talker_node> n5(new p2p_tcp_talker_node());
-      n5->set_input(n10->get_output());
-      g->add_node(n5);
-
-      marker_output = n5->get_output();
-    }
-  }
-};
-
-class remote_cluster_raspi_color_v3 : public remote_cluster {
- public:
-  explicit remote_cluster_raspi_color_v3(int fps, bool is_master = false) {
-    constexpr bool with_image = true;
-    constexpr bool with_marker = true;
-    constexpr bool use_feedback = true;
-
-    g.reset(new subgraph());
-
-    const int width = 2304;
-    const int height = 1296;
-
-    std::shared_ptr<video_time_sync_control_node> n13(new video_time_sync_control_node());
-
-    std::shared_ptr<libcamera_capture_node> n1(new libcamera_capture_node());
-    n1->set_stream(stream_type::COLOR);
-    n1->set_emitter_enabled(false);
-    n1->set_option(libcamera_capture_node::option::exposure, 7000);
-    n1->set_option(libcamera_capture_node::option::gain, 10);
-
-    n1->set_fps(fps);
-    n1->set_width(width);
-    n1->set_height(height);
-    n1->set_format(image_format::R8G8B8_UINT);
-
-    if (use_feedback && !is_master) {
-      n1->set_input(n13->get_output(), "interval");
-    }
-
-    g->add_node(n1);
-
-    std::shared_ptr<fifo_node> n7(new fifo_node());
-    n7->set_input(n1->get_output());
-    g->add_node(n7);
-
-    if (use_feedback) {
-      if (is_master) {
-        std::shared_ptr<timestamp_node> n11(new timestamp_node());
-        n11->set_input(n7->get_output());
-        g->add_node(n11);
-
-        std::shared_ptr<broadcast_talker_node> n12(new broadcast_talker_node());
-        n12->set_input(n11->get_output());
-        n12->set_endpoint("192.168.0.255", 40000);
-        g->add_node(n12);
-      } else {
-        std::shared_ptr<timestamp_node> n11(new timestamp_node());
-        n11->set_input(n7->get_output());
-        g->add_node(n11);
-
-        std::shared_ptr<broadcast_listener_node> n12(new broadcast_listener_node());
-        n12->set_endpoint("192.168.0.1", 40000);
-        g->add_node(n12);
-
-        n13->set_input(n11->get_output());
-        n13->set_input(n12->get_output(), "ref");
-        n13->set_gain(0.05);
-        n13->set_interval(1000.0 / fps);
-        n13->set_max_interval(1000.0 / (fps - 10));
-        n13->set_min_interval(1000.0 / (fps + 10));
-        g->add_node(n13);
-      }
-    }
-
-    std::shared_ptr<resize_node> n10(new resize_node());
-    n10->set_input(n7->get_output());
-    n10->set_width(960);
-    n10->set_height(540);
-    g->add_node(n10);
-
-    auto preprocessed_image = n10->get_output();
-
-    if (with_image) {
-      std::shared_ptr<fifo_node> n4(new fifo_node());
-      n4->set_input(n10->get_output());
-      g->add_node(n4);
-
-      std::shared_ptr<encode_image_node> n2(new encode_image_node());
-      n2->set_input(n4->get_output());
-      g->add_node(n2);
-
-      std::shared_ptr<p2p_tcp_talker_node> n3(new p2p_tcp_talker_node());
-      n3->set_input(n2->get_output());
-      g->add_node(n3);
-
-      encoded_image_output = n3->get_output();
-    }
-
-    if (with_marker) {
-      std::shared_ptr<fifo_node> n9(new fifo_node());
-      n9->set_input(preprocessed_image);
-      g->add_node(n9);
-
-      std::shared_ptr<detect_circle_grid_node> n10(new detect_circle_grid_node());
-      n10->set_input(n9->get_output());
-      n10->get_parameters().min_threshold = 150;
-      n10->get_parameters().max_threshold = 200;
-      n10->get_parameters().threshold_step = 20;
-      n10->get_parameters().min_dist_between_blobs = 3;
-      n10->get_parameters().min_area = 5;
-      n10->get_parameters().max_area = 100;
-      n10->get_parameters().filter_by_area = true;
-      n10->get_parameters().min_circularity = 0.5;
-      n10->get_parameters().max_circularity = 1.0;
-      n10->get_parameters().filter_by_circularity = true;
-      n10->get_parameters().filter_by_inertia = false;
-      n10->get_parameters().filter_by_convexity = false;
-      n10->get_parameters().blob_color = 0;
-      n10->get_parameters().filter_by_color = true;
-      g->add_node(n10);
-
-      std::shared_ptr<p2p_tcp_talker_node> n5(new p2p_tcp_talker_node());
-      n5->set_input(n10->get_output());
-      g->add_node(n5);
-
-      marker_output = n5->get_output();
-    }
-  }
-};
-
-class remote_cluster_depthai_color : public remote_cluster {
- public:
-  explicit remote_cluster_depthai_color(int fps) {
-    g.reset(new subgraph());
-
-    constexpr int width = 1920;
-    constexpr int height = 1080;
-
-    std::shared_ptr<depthai_color_camera_node> n1(new depthai_color_camera_node());
-
-    n1->set_fps(fps);
-    n1->set_width(width);
-    n1->set_height(height);
-
-    g->add_node(n1);
-
-    std::shared_ptr<fifo_node> n7(new fifo_node());
-    n7->set_input(n1->get_output());
-    g->add_node(n7);
-
-    std::shared_ptr<resize_node> n10(new resize_node());
-    n10->set_input(n7->get_output());
-    n10->set_width(960);
-    n10->set_height(540);
-    g->add_node(n10);
-
-    {
-      std::shared_ptr<fifo_node> n4(new fifo_node());
-      n4->set_input(n10->get_output());
-      g->add_node(n4);
-
-      std::shared_ptr<encode_image_node> n2(new encode_image_node());
-      n2->set_input(n4->get_output());
-      g->add_node(n2);
-
-      std::shared_ptr<p2p_tcp_talker_node> n3(new p2p_tcp_talker_node());
-      n3->set_input(n2->get_output());
-      g->add_node(n3);
-
-      encoded_image_output = n3->get_output();
-    }
-  }
-};
-
-class remote_cluster_rs_d435 : public remote_cluster {
- public:
-  explicit remote_cluster_rs_d435(int fps, int exposure, int gain, int laser_power, bool with_image,
-                                  bool emitter_enabled = true) {
-    constexpr bool with_marker = false;
-
-    g.reset(new subgraph());
-
-    const int width = 640;
-    const int height = 480;
-
-    std::shared_ptr<rs_d435_node> n1(new rs_d435_node());
-    g->add_node(n1);
-
-    std::map<rs2_option_type, float> options = {
-        std::make_pair(rs2_option_type::GLOBAL_TIME_ENABLED, (float)true),
-        std::make_pair(rs2_option_type::EXPOSURE, (float)exposure),
-        std::make_pair(rs2_option_type::GAIN, (float)gain),
-        std::make_pair(rs2_option_type::LASER_POWER, (float)laser_power),
-        std::make_pair(rs2_option_type::EMITTER_ENABLED, (float)emitter_enabled),
-    };
-
-    for (const auto [option, value] : options) {
-      n1->set_option(INFRA1, option, value);
-    }
-
-#if 1
-    std::shared_ptr<fifo_node> n8(new fifo_node());
-    n8->set_input(n1->add_output(INFRA1, width, height, rs2_format_type::Y8, fps));
-    g->add_node(n8);
-
-    auto preprocessed_image = n8->get_output();
-#else
-
-    auto preprocessed_image = n1->add_output(INFRA1, 640, 480, rs2_format_type::Y8, fps);
-#endif
-
-    if (with_image) {
-      std::shared_ptr<encode_image_node> n2(new encode_image_node());
-      n2->set_input(preprocessed_image);
-      g->add_node(n2);
-
-      std::shared_ptr<p2p_tcp_talker_node> n3(new p2p_tcp_talker_node());
-      n3->set_input(n2->get_output());
-      g->add_node(n3);
-
-      encoded_image_output = n3->get_output();
-    }
-
-    if (with_marker) {
-      auto params = fast_blob_detector_node::blob_detector_params();
-      {
-        params.min_dist_between_blobs = 2;
-        params.step_threshold = 20;
-        params.min_threshold = 80;
-        params.max_threshold = 250;
-
-        params.min_area = 1;
-        params.max_area = 100;
-
-        params.min_circularity = 0.5;
-      }
-
-      std::shared_ptr<fifo_node> n9(new fifo_node());
-      n9->set_input(preprocessed_image);
-      g->add_node(n9);
-
-      std::shared_ptr<fast_blob_detector_node> n4(new fast_blob_detector_node());
-      n4->set_input(n9->get_output());
-      n4->set_parameters(params);
-      g->add_node(n4);
-
-      std::shared_ptr<p2p_tcp_talker_node> n5(new p2p_tcp_talker_node());
-      n5->set_input(n4->get_output());
-      g->add_node(n5);
-
-      marker_output = n5->get_output();
-    }
-  }
-};
-
-class remote_cluster_rs_d435_color : public remote_cluster {
- public:
-  explicit remote_cluster_rs_d435_color(int fps) {
-    constexpr bool with_image = true;
-    constexpr bool with_marker = false;
-
-    g.reset(new subgraph());
-
-    const int width = 1920;
-    const int height = 1080;
-
-    std::shared_ptr<rs_d435_node> n1(new rs_d435_node());
-    g->add_node(n1);
-
-    std::shared_ptr<fifo_node> n7(new fifo_node());
-    n7->set_input(n1->add_output(COLOR, width, height, rs2_format_type::BGR8, fps));
-    g->add_node(n7);
-
-    std::shared_ptr<resize_node> n10(new resize_node());
-    n10->set_input(n7->get_output());
-    n10->set_width(960);
-    n10->set_height(540);
-    g->add_node(n10);
-
-    auto preprocessed_image = n10->get_output();
-
-    if (with_image) {
-      std::shared_ptr<fifo_node> n4(new fifo_node());
-      n4->set_input(n10->get_output());
-      g->add_node(n4);
-
-      std::shared_ptr<encode_image_node> n2(new encode_image_node());
-      n2->set_input(n4->get_output());
-      g->add_node(n2);
-
-      std::shared_ptr<p2p_tcp_talker_node> n3(new p2p_tcp_talker_node());
-      n3->set_input(n2->get_output());
-      g->add_node(n3);
-
-      encoded_image_output = n3->get_output();
-    }
-
-    if (with_marker) {
-      std::shared_ptr<fifo_node> n9(new fifo_node());
-      n9->set_input(preprocessed_image);
-      g->add_node(n9);
-
-      std::shared_ptr<charuco_detector_node> n4(new charuco_detector_node());
-      n4->set_input(n9->get_output());
-      g->add_node(n4);
-
-      std::shared_ptr<p2p_tcp_talker_node> n5(new p2p_tcp_talker_node());
-      n5->set_input(n4->get_output());
-      g->add_node(n5);
-
-      marker_output = n5->get_output();
-    }
-  }
-};
-
 class local_server {
   asio::io_context io_context;
   std::shared_ptr<resource_list> resources;
@@ -999,6 +420,81 @@ static void build_graph_from_json(
           throw std::runtime_error("Unknown callback_type: " + type_str);
         }
         n->set_callback_type(cb_type);
+        node = n;
+        break;
+      }
+      case node_type::charuco_detector: {
+        auto n = std::make_shared<charuco_detector_node>();
+        node = n;
+        break;
+      }
+      case node_type::depthai_color_camera: {
+        auto n = std::make_shared<depthai_color_camera_node>();
+        if (info.contains_param("fps")) {
+          n->set_fps(static_cast<int>(info.get_param<std::int64_t>("fps")));
+        }
+        if (info.contains_param("width")) {
+          n->set_width(static_cast<int>(info.get_param<std::int64_t>("width")));
+        }
+        if (info.contains_param("height")) {
+          n->set_height(static_cast<int>(info.get_param<std::int64_t>("height")));
+        }
+        node = n;
+        break;
+      }
+      case node_type::rs_d435: {
+        auto n = std::make_shared<rs_d435_node>();
+
+        // Set options if provided
+        if (info.contains_param("global_time_enabled")) {
+          n->set_option(INFRA1, rs2_option_type::GLOBAL_TIME_ENABLED,
+                        info.get_param<bool>("global_time_enabled") ? 1.0f : 0.0f);
+        }
+        if (info.contains_param("exposure")) {
+          n->set_option(INFRA1, rs2_option_type::EXPOSURE,
+                        static_cast<float>(info.get_param<std::int64_t>("exposure")));
+        }
+        if (info.contains_param("gain")) {
+          n->set_option(INFRA1, rs2_option_type::GAIN,
+                        static_cast<float>(info.get_param<std::int64_t>("gain")));
+        }
+        if (info.contains_param("laser_power")) {
+          n->set_option(INFRA1, rs2_option_type::LASER_POWER,
+                        static_cast<float>(info.get_param<std::int64_t>("laser_power")));
+        }
+        if (info.contains_param("emitter_enabled")) {
+          n->set_option(INFRA1, rs2_option_type::EMITTER_ENABLED,
+                        info.get_param<bool>("emitter_enabled") ? 1.0f : 0.0f);
+        }
+
+        // Add output stream if parameters are provided
+        if (info.contains_param("stream_type") && info.contains_param("width") &&
+            info.contains_param("height") && info.contains_param("fps")) {
+          const auto stream_type_str = info.get_param<std::string>("stream_type");
+          stream_index_pair stream_type = INFRA1;
+          if (stream_type_str == "INFRA1") {
+            stream_type = INFRA1;
+          } else if (stream_type_str == "COLOR") {
+            stream_type = COLOR;
+          }
+
+          const int width = static_cast<int>(info.get_param<std::int64_t>("width"));
+          const int height = static_cast<int>(info.get_param<std::int64_t>("height"));
+          const int fps = static_cast<int>(info.get_param<std::int64_t>("fps"));
+
+          rs2_format_type format = rs2_format_type::Y8;
+          if (info.contains_param("format")) {
+            const auto format_str = info.get_param<std::string>("format");
+            if (format_str == "Y8") {
+              format = rs2_format_type::Y8;
+            } else if (format_str == "BGR8") {
+              format = rs2_format_type::BGR8;
+            }
+          }
+
+          n->add_output(stream_type, width, height, format, fps);
+        }
+
         node = n;
         break;
       }
