@@ -77,7 +77,7 @@ class viewer_app : public window_base {
   std::shared_ptr<parameters_t> parameters;
   std::map<std::string, cv::Mat> masks;
 
-  std::map<std::string, std::shared_ptr<capture_pipeline>> captures;
+  std::map<std::string, std::shared_ptr<multiview_capture_pipeline>> captures;
   std::shared_ptr<multiview_capture_pipeline> multiview_capture;
 
   std::unique_ptr<calibration_pipeline> calib;
@@ -137,7 +137,7 @@ class viewer_app : public window_base {
             // Collect all nodes that the target depends on
             auto required_nodes = collect_node_dependencies(target_node, all_node_infos);
 
-            const auto capture = std::make_shared<capture_pipeline>();
+            const auto capture = std::make_shared<multiview_capture_pipeline>();
 
             try {
               capture->run(required_nodes);
@@ -428,10 +428,12 @@ class viewer_app : public window_base {
               }
               const auto& node_info = *found;
 
-              const auto capture = std::make_shared<capture_pipeline>();
+              const auto capture = std::make_shared<multiview_capture_pipeline>();
 
-              capture->add_image_received([this](const cv::Mat& frame) {
-                if (!frame.empty() && calibration_panel_view_->is_marker_collecting) {
+              capture->add_image_received([this](const std::map<std::string, cv::Mat>& frames) {
+                if (!frames.empty() && calibration_panel_view_->is_marker_collecting) {
+                  // For single camera, get the first (and only) frame
+                  const auto& frame = frames.begin()->second;
                   intrinsic_calib->push_frame(frame);
                 }
               });
@@ -1213,17 +1215,22 @@ class viewer_app : public window_base {
         const auto capture_it = captures.find(stream->name);
         if (capture_it != captures.end()) {
           const auto capture = capture_it->second;
-          auto frame = capture->get_frame();
+          auto frames = capture->get_frames();
 
-          if (!frame.empty()) {
-            cv::Mat color_image;
-            if (frame.channels() == 1) {
-              cv::cvtColor(frame, color_image, cv::COLOR_GRAY2RGB);
-            } else if (frame.channels() == 3) {
-              cv::cvtColor(frame, color_image, cv::COLOR_BGR2RGB);
-            }
-            if (!color_image.empty()) {
-              stream->texture.upload_image(color_image.cols, color_image.rows, color_image.data, 0);
+          // For single camera, frames map has one entry with camera name as key
+          if (!frames.empty()) {
+            const auto& frame = frames.begin()->second;
+            if (!frame.empty()) {
+              cv::Mat color_image;
+              if (frame.channels() == 1) {
+                cv::cvtColor(frame, color_image, cv::COLOR_GRAY2RGB);
+              } else if (frame.channels() == 3) {
+                cv::cvtColor(frame, color_image, cv::COLOR_BGR2RGB);
+              }
+              if (!color_image.empty()) {
+                stream->texture.upload_image(color_image.cols, color_image.rows, color_image.data,
+                                             0);
+              }
             }
           }
         }
@@ -1399,24 +1406,28 @@ class viewer_app : public window_base {
           const auto capture_it = captures.find(device.name);
           if (capture_it != captures.end()) {
             const auto capture = capture_it->second;
-            auto frame = capture->get_frame();
+            auto frames = capture->get_frames();
 
-            if (!frame.empty()) {
-              const auto stream_it =
-                  std::find_if(image_tile_view_->streams.begin(), image_tile_view_->streams.end(),
-                               [&](const auto& x) { return x->name == device.name; });
+            // For single camera, frames map has one entry
+            if (!frames.empty()) {
+              const auto& frame = frames.begin()->second;
+              if (!frame.empty()) {
+                const auto stream_it =
+                    std::find_if(image_tile_view_->streams.begin(), image_tile_view_->streams.end(),
+                                 [&](const auto& x) { return x->name == device.name; });
 
-              if (stream_it != image_tile_view_->streams.end()) {
-                cv::Mat color_image;
-                if (frame.channels() == 1) {
-                  cv::cvtColor(frame, color_image, cv::COLOR_GRAY2RGB);
-                } else if (frame.channels() == 3) {
-                  cv::cvtColor(frame, color_image, cv::COLOR_BGR2RGB);
-                }
-                if (!color_image.empty()) {
-                  (*stream_it)
-                      ->texture.upload_image(color_image.cols, color_image.rows, color_image.data,
-                                             0);
+                if (stream_it != image_tile_view_->streams.end()) {
+                  cv::Mat color_image;
+                  if (frame.channels() == 1) {
+                    cv::cvtColor(frame, color_image, cv::COLOR_GRAY2RGB);
+                  } else if (frame.channels() == 3) {
+                    cv::cvtColor(frame, color_image, cv::COLOR_BGR2RGB);
+                  }
+                  if (!color_image.empty()) {
+                    (*stream_it)
+                        ->texture.upload_image(color_image.cols, color_image.rows, color_image.data,
+                                               0);
+                  }
                 }
               }
             }
