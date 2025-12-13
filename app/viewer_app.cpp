@@ -1123,7 +1123,7 @@ class viewer_app : public window_base {
       }
     }
 
-    calib->run(calibration_config->get_node_infos("static_pipeline"));
+    calib->run(calibration_config->get_node_infos("extrinsic_calibration_pipeline"));
 
     for (auto& [camera_name, camera] : calib->get_cameras()) {
       camera.extrin.rotation = glm::mat3(1.0);
@@ -1145,11 +1145,11 @@ class viewer_app : public window_base {
       }
     }
 
-    axis_calib->run(calibration_config->get_node_infos("static_pipeline"));
+    axis_calib->run(calibration_config->get_node_infos("axis_calibration_pipeline"));
 
     intrinsic_calib = std::make_unique<intrinsic_calibration_pipeline>();
 
-    intrinsic_calib->run(calibration_config->get_node_infos("static_pipeline"));
+    intrinsic_calib->run(calibration_config->get_node_infos("intrinsic_calibration_pipeline"));
 
     window_base::initialize();
   }
@@ -1310,22 +1310,23 @@ class viewer_app : public window_base {
             continue;
           }
 
+          const auto camera_name = node.get_camera_name();
           std::shared_ptr<image_tile_view::stream_info> stream;
           const auto width = static_cast<int>(std::round(node.get_param<float>("width")));
           const auto height = static_cast<int>(std::round(node.get_param<float>("height")));
 
           const auto found =
               std::find_if(contrail_tile_view_->streams.begin(), contrail_tile_view_->streams.end(),
-                           [&](const auto& x) { return x->name == node.name; });
+                           [&](const auto& x) { return x->name == camera_name; });
           if (found == contrail_tile_view_->streams.end()) {
             stream = std::make_shared<image_tile_view::stream_info>(
-                node.name, float2{(float)width, (float)height}, gfx_ctx);
+                camera_name, float2{(float)width, (float)height}, gfx_ctx);
             contrail_tile_view_->streams.push_back(stream);
           } else {
             stream = *found;
           }
 
-          const auto observed_points = calib->get_observed_points(node.name);
+          const auto observed_points = calib->get_observed_points(camera_name);
           cv::Mat cloud_image(height, width, CV_8UC3, cv::Scalar::all(0));
 
           for (const auto& observed_point : observed_points) {
@@ -1353,11 +1354,16 @@ class viewer_app : public window_base {
         pose_view_->cameras.clear();
 
         for (const auto& device : reconstruction_config->get_node_infos()) {
+          if (!device.is_camera()) {
+            continue;
+          }
+
+          const auto camera_name = device.get_camera_name();
           const auto& cameras = multiview_point_reconstruction_pipeline_->get_cameras();
 
-          if (cameras.find(device.name) != cameras.end()) {
-            const auto& camera = cameras.at(device.name);
-            pose_view_->cameras[device.name] = pose_view::camera_t{
+          if (cameras.find(camera_name) != cameras.end()) {
+            const auto& camera = cameras.at(camera_name);
+            pose_view_->cameras[camera_name] = pose_view::camera_t{
                 (int)camera.width,    (int)camera.height,
                 camera.intrin.cx,     camera.intrin.cy,
                 camera.intrin.fx,     camera.intrin.fy,

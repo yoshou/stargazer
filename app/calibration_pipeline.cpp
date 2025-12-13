@@ -87,53 +87,93 @@ class calibration_pipeline::impl {
   void run(const std::vector<node_info>& infos) {
     std::shared_ptr<subgraph> g(new subgraph());
 
-    std::shared_ptr<frame_number_numbering_node> n4(new frame_number_numbering_node());
-    g->add_node(n4);
+    std::unordered_map<std::string, graph_node_ptr> node_map;
 
-    input_node = n4;
-
-    std::shared_ptr<object_map_node> n5(new object_map_node());
-    n5->set_input(n4->get_output());
-    g->add_node(n5);
-
-    std::unordered_map<std::string, graph_node_ptr> detector_nodes;
-
+    // Create nodes
     for (const auto& info : infos) {
-      if (info.get_type() == node_type::pattern_board_calibration_target_detector) {
-        for (const auto& [name, camera] : cameras) {
-          std::shared_ptr<pattern_board_calibration_target_detector_node> n1(
-              new pattern_board_calibration_target_detector_node());
-          n1->set_input(n5->add_output(name));
-          n1->set_camera(camera);
-          g->add_node(n1);
+      graph_node_ptr node;
 
-          detector_nodes[name] = n1;
+      switch (info.get_type()) {
+        case node_type::frame_number_numbering: {
+          auto n = std::make_shared<frame_number_numbering_node>();
+          node = n;
+          input_node = n;
+          break;
         }
+        case node_type::object_map: {
+          auto n = std::make_shared<object_map_node>();
+          // Add outputs if specified
+          for (const auto& output_name : info.outputs) {
+            n->add_output(output_name);
+          }
+          node = n;
+          break;
+        }
+        case node_type::pattern_board_calibration_target_detector: {
+          auto n = std::make_shared<pattern_board_calibration_target_detector_node>();
+          // Set camera from cameras map if camera_name parameter is provided
+          if (info.contains_param("camera_name")) {
+            const auto camera_name = info.get_param<std::string>("camera_name");
+            if (cameras.find(camera_name) != cameras.end()) {
+              n->set_camera(cameras.at(camera_name));
+            }
+          }
+          node = n;
+          break;
+        }
+        case node_type::three_point_bar_calibration_target_detector: {
+          auto n = std::make_shared<three_point_bar_calibration_target_detector_node>();
+          node = n;
+          break;
+        }
+        case node_type::calibration: {
+          auto n = std::make_shared<calibration_node>();
+          n->set_cameras(cameras);
+          if (info.contains_param("only_extrinsic")) {
+            n->set_only_extrinsic(info.get_param<bool>("only_extrinsic"));
+          }
+          if (info.contains_param("robust")) {
+            n->set_robust(info.get_param<bool>("robust"));
+          }
+          node = n;
+          calib_node = n;
+          break;
+        }
+        case node_type::callback: {
+          auto n = std::make_shared<callback_node>();
+          if (info.contains_param("callback_name")) {
+            n->set_callback_name(info.get_param<std::string>("callback_name"));
+          }
+          node = n;
+          break;
+        }
+        default:
+          throw std::runtime_error("Unknown node type for calibration pipeline: " + info.name);
       }
-      if (info.get_type() == node_type::three_point_bar_calibration_target_detector) {
-        for (const auto& [name, camera] : cameras) {
-          std::shared_ptr<three_point_bar_calibration_target_detector_node> n1(
-              new three_point_bar_calibration_target_detector_node());
-          n1->set_input(n5->add_output(name));
-          g->add_node(n1);
 
-          detector_nodes[name] = n1;
-        }
-      }
+      node_map[info.name] = node;
+      g->add_node(node);
     }
 
+    // Connect nodes
     for (const auto& info : infos) {
-      if (info.get_type() == node_type::calibration) {
-        std::shared_ptr<calibration_node> n1(new calibration_node());
-        for (const auto& [name, node] : detector_nodes) {
-          n1->set_input(node->get_output(), name);
-        }
-        n1->set_cameras(cameras);
-        n1->set_only_extrinsic(info.get_param<bool>("only_extrinsic"));
-        n1->set_robust(info.get_param<bool>("robust"));
-        g->add_node(n1);
+      if (info.inputs.empty()) {
+        continue;
+      }
 
-        calib_node = n1;
+      auto target_node = node_map.at(info.name);
+
+      for (const auto& [input_name, source_name] : info.inputs) {
+        size_t pos = source_name.find(':');
+        if (pos != std::string::npos) {
+          auto node_name = source_name.substr(0, pos);
+          auto output_name = source_name.substr(pos + 1);
+          auto source_node = node_map.at(node_name);
+          target_node->set_input(source_node->get_output(output_name), input_name);
+        } else {
+          auto source_node = node_map.at(source_name);
+          target_node->set_input(source_node->get_output(), input_name);
+        }
       }
     }
 
@@ -141,12 +181,6 @@ class calibration_pipeline::impl {
       spdlog::error("Calibration node not found");
       return;
     }
-
-    std::shared_ptr<callback_node> n2(new callback_node());
-    n2->set_input(calib_node->get_output());
-    g->add_node(n2);
-
-    n2->set_callback_name("cameras");
 
     const auto callbacks = std::make_shared<callback_list>();
 
@@ -257,22 +291,66 @@ class intrinsic_calibration_pipeline::impl {
   void run(const std::vector<node_info>& infos) {
     std::shared_ptr<subgraph> g(new subgraph());
 
-    std::shared_ptr<frame_number_numbering_node> n4(new frame_number_numbering_node());
-    g->add_node(n4);
+    std::unordered_map<std::string, graph_node_ptr> node_map;
 
-    input_node = n4;
-
-    std::shared_ptr<object_mux_node> n5(new object_mux_node());
-    n5->set_input(n4->get_output());
-    g->add_node(n5);
-
+    // Create nodes
     for (const auto& info : infos) {
-      if (info.get_type() == node_type::calibration) {
-        std::shared_ptr<intrinsic_calibration_node> n1(new intrinsic_calibration_node());
-        n1->set_input(n5->get_output());
-        g->add_node(n1);
+      graph_node_ptr node;
 
-        calib_node = n1;
+      switch (info.get_type()) {
+        case node_type::frame_number_numbering: {
+          auto n = std::make_shared<frame_number_numbering_node>();
+          node = n;
+          input_node = n;
+          break;
+        }
+        case node_type::object_mux: {
+          auto n = std::make_shared<object_mux_node>();
+          node = n;
+          break;
+        }
+        case node_type::intrinsic_calibration: {
+          auto n = std::make_shared<intrinsic_calibration_node>();
+          node = n;
+          calib_node = n;
+          break;
+        }
+        case node_type::callback: {
+          auto n = std::make_shared<callback_node>();
+          if (info.contains_param("callback_name")) {
+            n->set_callback_name(info.get_param<std::string>("callback_name"));
+          }
+          node = n;
+          break;
+        }
+        default:
+          throw std::runtime_error("Unknown node type for intrinsic calibration pipeline: " +
+                                   info.name);
+      }
+
+      node_map[info.name] = node;
+      g->add_node(node);
+    }
+
+    // Connect nodes
+    for (const auto& info : infos) {
+      if (info.inputs.empty()) {
+        continue;
+      }
+
+      auto target_node = node_map.at(info.name);
+
+      for (const auto& [input_name, source_name] : info.inputs) {
+        size_t pos = source_name.find(':');
+        if (pos != std::string::npos) {
+          auto node_name = source_name.substr(0, pos);
+          auto output_name = source_name.substr(pos + 1);
+          auto source_node = node_map.at(node_name);
+          target_node->set_input(source_node->get_output(output_name), input_name);
+        } else {
+          auto source_node = node_map.at(source_name);
+          target_node->set_input(source_node->get_output(), input_name);
+        }
       }
     }
 
@@ -280,12 +358,6 @@ class intrinsic_calibration_pipeline::impl {
       spdlog::error("Calibration node not found");
       return;
     }
-
-    std::shared_ptr<callback_node> n2(new callback_node());
-    n2->set_input(calib_node->get_output());
-    g->add_node(n2);
-
-    n2->set_callback_name("camera");
 
     const auto callbacks = std::make_shared<callback_list>();
 
@@ -417,22 +489,65 @@ class axis_calibration_pipeline::impl {
   void run(const std::vector<node_info>& infos) {
     std::shared_ptr<subgraph> g(new subgraph());
 
-    std::shared_ptr<frame_number_numbering_node> n4(new frame_number_numbering_node());
-    g->add_node(n4);
+    std::unordered_map<std::string, graph_node_ptr> node_map;
 
-    input_node = n4;
-
-    std::shared_ptr<object_mux_node> n5(new object_mux_node());
-    n5->set_input(n4->get_output());
-    g->add_node(n5);
-
+    // Create nodes
     for (const auto& info : infos) {
-      if (info.get_type() == node_type::calibration) {
-        std::shared_ptr<axis_calibration_node> n1(new axis_calibration_node());
-        n1->set_input(n5->get_output());
-        g->add_node(n1);
+      graph_node_ptr node;
 
-        calib_node = n1;
+      switch (info.get_type()) {
+        case node_type::frame_number_numbering: {
+          auto n = std::make_shared<frame_number_numbering_node>();
+          node = n;
+          input_node = n;
+          break;
+        }
+        case node_type::object_mux: {
+          auto n = std::make_shared<object_mux_node>();
+          node = n;
+          break;
+        }
+        case node_type::axis_calibration: {
+          auto n = std::make_shared<axis_calibration_node>();
+          node = n;
+          calib_node = n;
+          break;
+        }
+        case node_type::callback: {
+          auto n = std::make_shared<callback_node>();
+          if (info.contains_param("callback_name")) {
+            n->set_callback_name(info.get_param<std::string>("callback_name"));
+          }
+          node = n;
+          break;
+        }
+        default:
+          throw std::runtime_error("Unknown node type for axis calibration pipeline: " + info.name);
+      }
+
+      node_map[info.name] = node;
+      g->add_node(node);
+    }
+
+    // Connect nodes
+    for (const auto& info : infos) {
+      if (info.inputs.empty()) {
+        continue;
+      }
+
+      auto target_node = node_map.at(info.name);
+
+      for (const auto& [input_name, source_name] : info.inputs) {
+        size_t pos = source_name.find(':');
+        if (pos != std::string::npos) {
+          auto node_name = source_name.substr(0, pos);
+          auto output_name = source_name.substr(pos + 1);
+          auto source_node = node_map.at(node_name);
+          target_node->set_input(source_node->get_output(output_name), input_name);
+        } else {
+          auto source_node = node_map.at(source_name);
+          target_node->set_input(source_node->get_output(), input_name);
+        }
       }
     }
 
@@ -440,12 +555,6 @@ class axis_calibration_pipeline::impl {
       spdlog::error("Calibration node not found");
       return;
     }
-
-    std::shared_ptr<callback_node> n2(new callback_node());
-    n2->set_input(calib_node->get_output());
-    g->add_node(n2);
-
-    n2->set_callback_name("scene");
 
     const auto callbacks = std::make_shared<callback_list>();
 
