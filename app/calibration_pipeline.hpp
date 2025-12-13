@@ -12,7 +12,7 @@
 #include "parameters.hpp"
 #include "point_data.hpp"
 
-class calibration_pipeline {
+class extrinsic_calibration_pipeline {
   class impl;
   std::unique_ptr<impl> pimpl;
 
@@ -31,8 +31,8 @@ class calibration_pipeline {
 
   const std::unordered_map<std::string, stargazer::camera_t>& get_calibrated_cameras() const;
 
-  calibration_pipeline();
-  virtual ~calibration_pipeline();
+  extrinsic_calibration_pipeline();
+  virtual ~extrinsic_calibration_pipeline();
 
   size_t get_num_frames(std::string name) const;
   const std::vector<stargazer::calibration::observed_points_t> get_observed_points(
