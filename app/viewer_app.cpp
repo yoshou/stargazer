@@ -77,8 +77,8 @@ class viewer_app : public window_base {
   std::shared_ptr<parameters_t> parameters;
   std::map<std::string, cv::Mat> masks;
 
-  std::map<std::string, std::shared_ptr<multiview_capture_pipeline>> captures;
-  std::shared_ptr<multiview_capture_pipeline> multiview_capture;
+  std::map<std::string, std::shared_ptr<capture_pipeline>> captures;
+  std::shared_ptr<capture_pipeline> multiview_capture;
 
   std::unique_ptr<calibration_pipeline> calib;
   std::unique_ptr<intrinsic_calibration_pipeline> intrinsic_calib;
@@ -137,7 +137,7 @@ class viewer_app : public window_base {
             // Collect all nodes that the target depends on
             auto required_nodes = collect_node_dependencies(target_node, all_node_infos);
 
-            const auto capture = std::make_shared<multiview_capture_pipeline>();
+            const auto capture = std::make_shared<capture_pipeline>();
 
             try {
               capture->run(required_nodes);
@@ -182,9 +182,9 @@ class viewer_app : public window_base {
             const auto& node_infos = capture_config->get_node_infos();
 
             if (calibration_panel_view_->is_masking) {
-              multiview_capture.reset(new multiview_capture_pipeline(masks));
+              multiview_capture.reset(new capture_pipeline(masks));
             } else {
-              multiview_capture.reset(new multiview_capture_pipeline());
+              multiview_capture.reset(new capture_pipeline());
             }
 
             for (const auto& node_info : node_infos) {
@@ -358,9 +358,9 @@ class viewer_app : public window_base {
               const auto& node_infos = calibration_config->get_node_infos();
 
               if (calibration_panel_view_->is_masking) {
-                multiview_capture.reset(new multiview_capture_pipeline(masks));
+                multiview_capture.reset(new capture_pipeline(masks));
               } else {
-                multiview_capture.reset(new multiview_capture_pipeline());
+                multiview_capture.reset(new capture_pipeline());
               }
 
               multiview_capture->add_marker_received(
@@ -428,7 +428,7 @@ class viewer_app : public window_base {
               }
               const auto& node_info = *found;
 
-              const auto capture = std::make_shared<multiview_capture_pipeline>();
+              const auto capture = std::make_shared<capture_pipeline>();
 
               capture->add_image_received([this](const std::map<std::string, cv::Mat>& frames) {
                 if (!frames.empty() && calibration_panel_view_->is_marker_collecting) {
@@ -460,9 +460,9 @@ class viewer_app : public window_base {
               const auto& node_infos = calibration_config->get_node_infos();
 
               if (calibration_panel_view_->is_masking) {
-                multiview_capture.reset(new multiview_capture_pipeline(masks));
+                multiview_capture.reset(new capture_pipeline(masks));
               } else {
-                multiview_capture.reset(new multiview_capture_pipeline());
+                multiview_capture.reset(new capture_pipeline());
               }
 
               multiview_capture->add_marker_received(
@@ -780,9 +780,9 @@ class viewer_app : public window_base {
               const auto& node_infos = reconstruction_config->get_node_infos();
 
               if (calibration_panel_view_->is_masking) {
-                multiview_capture.reset(new multiview_capture_pipeline(masks));
+                multiview_capture.reset(new capture_pipeline(masks));
               } else {
-                multiview_capture.reset(new multiview_capture_pipeline());
+                multiview_capture.reset(new capture_pipeline());
               }
 
               multiview_capture->add_marker_received(
@@ -846,9 +846,9 @@ class viewer_app : public window_base {
               const auto& node_infos = reconstruction_config->get_node_infos();
 
               if (calibration_panel_view_->is_masking) {
-                multiview_capture.reset(new multiview_capture_pipeline(masks));
+                multiview_capture.reset(new capture_pipeline(masks));
               } else {
-                multiview_capture.reset(new multiview_capture_pipeline());
+                multiview_capture.reset(new capture_pipeline());
               }
 
               multiview_capture->add_image_received(

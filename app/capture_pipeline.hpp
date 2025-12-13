@@ -17,15 +17,15 @@ struct marker_frame_data {
   uint64_t frame_number;
 };
 
-class multiview_capture_pipeline {
+class capture_pipeline {
   class impl;
 
   std::unique_ptr<impl> pimpl;
 
  public:
-  multiview_capture_pipeline();
-  multiview_capture_pipeline(const std::map<std::string, cv::Mat>& masks);
-  virtual ~multiview_capture_pipeline();
+  capture_pipeline();
+  capture_pipeline(const std::map<std::string, cv::Mat>& masks);
+  virtual ~capture_pipeline();
 
   void run(const std::vector<stargazer::node_info>& infos);
   void stop();
