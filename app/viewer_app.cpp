@@ -929,6 +929,9 @@ class viewer_app : public window_base {
     // io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
     // io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
 
+    // Disable ImGui software cursor rendering to use OS native cursor
+    io.ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange;
+
     // Setup Dear ImGui style
     ImGui::StyleColorsDark();
     // ImGui::StyleColorsLight();
