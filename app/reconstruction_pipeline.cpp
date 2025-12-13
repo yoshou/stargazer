@@ -253,28 +253,6 @@ class grpc_server_node : public graph_node {
 
 COALSACK_REGISTER_NODE(grpc_server_node, graph_node)
 
-COALSACK_REGISTER_MESSAGE(frame_message<object_message>, coalsack::frame_message_base)
-
-class camera_message : public graph_message {
-  camera_t camera;
-
- public:
-  camera_message() : graph_message(), camera() {}
-
-  camera_message(const camera_t& camera) : graph_message(), camera(camera) {}
-
-  camera_t get_camera() const { return camera; }
-
-  void set_camera(const camera_t& value) { camera = value; }
-
-  template <typename Archive>
-  void serialize(Archive& archive) {
-    archive(camera);
-  }
-};
-
-COALSACK_REGISTER_MESSAGE(camera_message, graph_message)
-
 class epipolar_reconstruct_node : public graph_node {
   mutable std::mutex cameras_mtx;
   std::map<std::string, camera_t> cameras;

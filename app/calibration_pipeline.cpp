@@ -14,6 +14,7 @@
 #include "graph_proc.h"
 #include "graph_proc_cv.h"
 #include "graph_proc_img.h"
+#include "messages.hpp"
 #include "parameters.hpp"
 #include "reconstruction.hpp"
 #include "triangulation.hpp"
@@ -158,66 +159,6 @@ class pattern_board_calibration_target : public calibration_target {
 };
 
 using namespace coalsack;
-
-struct float2 {
-  float x;
-  float y;
-
-  template <typename Archive>
-  void serialize(Archive& archive) {
-    archive(x, y);
-  }
-};
-
-using float2_list_message = frame_message<std::vector<float2>>;
-
-COALSACK_REGISTER_MESSAGE(float2_list_message, coalsack::frame_message_base)
-
-COALSACK_REGISTER_MESSAGE(frame_message<object_message>, coalsack::frame_message_base)
-
-class camera_message : public graph_message {
-  camera_t camera;
-
- public:
-  camera_message() : graph_message(), camera() {}
-
-  camera_message(const camera_t& camera) : graph_message(), camera(camera) {}
-
-  static std::string get_type() { return "camera"; }
-
-  camera_t get_camera() const { return camera; }
-
-  void set_camera(const camera_t& value) { camera = value; }
-
-  template <typename Archive>
-  void serialize(Archive& archive) {
-    archive(camera);
-  }
-};
-
-COALSACK_REGISTER_MESSAGE(camera_message, graph_message)
-
-class scene_message : public graph_message {
-  scene_t scene;
-
- public:
-  scene_message() : graph_message(), scene() {}
-
-  scene_message(const scene_t& scene) : graph_message(), scene(scene) {}
-
-  static std::string get_type() { return "scene"; }
-
-  scene_t get_scene() const { return scene; }
-
-  void set_scene(const scene_t& value) { scene = value; }
-
-  template <typename Archive>
-  void serialize(Archive& archive) {
-    archive(scene);
-  }
-};
-
-COALSACK_REGISTER_MESSAGE(scene_message, graph_message)
 
 class pattern_board_calibration_target_detector_node : public graph_node {
   camera_t camera;
