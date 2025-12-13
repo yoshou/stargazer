@@ -20,6 +20,7 @@
 #include "epipolar_reconstruct_node.hpp"
 #include "glm_json.hpp"
 #include "glm_serialize.hpp"
+#include "graph_builder.hpp"
 #include "graph_proc.h"
 #include "graph_proc_cv.h"
 #include "graph_proc_img.h"
@@ -341,111 +342,25 @@ class multiview_image_reconstruction_pipeline::impl {
     std::cout << "==============================================" << std::endl;
 
     std::shared_ptr<subgraph> g(new subgraph());
-
     std::unordered_map<std::string, graph_node_ptr> node_map;
+    std::map<std::string, std::shared_ptr<subgraph>> subgraphs;
+    subgraphs[""] = g;
 
+    // Build graph using common function
+    stargazer::build_graph_from_json(infos, subgraphs, node_map);
+
+    // Extract specific nodes from the graph
     for (const auto& info : infos) {
-      graph_node_ptr node;
-
-      switch (info.get_type()) {
-        case node_type::frame_number_numbering: {
-          auto n = std::make_shared<frame_number_numbering_node>();
-          node = n;
-          input_node = n;
-          break;
-        }
-        case node_type::parallel_queue: {
-          auto n = std::make_shared<parallel_queue_node>();
-          if (info.contains_param("num_threads")) {
-            n->set_num_threads(static_cast<size_t>(info.get_param<std::int64_t>("num_threads")));
-          }
-          node = n;
-          break;
-        }
-        case node_type::voxelpose_reconstruction: {
-          auto n = std::make_shared<voxelpose_reconstruct_node>();
-          node = n;
-          reconstruct_node = n;
-          break;
-        }
-        case node_type::mvpose_reconstruction: {
-          auto n = std::make_shared<mvpose_reconstruct_node>();
-          node = n;
-          reconstruct_node = n;
-          break;
-        }
-        case node_type::mvp_reconstruction: {
-          auto n = std::make_shared<mvp_reconstruct_node>();
-          node = n;
-          reconstruct_node = n;
-          break;
-        }
-        case node_type::frame_number_ordering: {
-          auto n = std::make_shared<frame_number_ordering_node>();
-          node = n;
-          break;
-        }
-        case node_type::callback: {
-          auto n = std::make_shared<callback_node>();
-          if (info.contains_param("callback_name")) {
-            n->set_callback_name(info.get_param<std::string>("callback_name"));
-          }
-          node = n;
-          break;
-        }
-        case node_type::grpc_server: {
-          auto n = std::make_shared<grpc_server_node>();
-          if (info.contains_param("address")) {
-            n->set_address(info.get_param<std::string>("address"));
-          }
-          node = n;
-          break;
-        }
-        case node_type::frame_demux: {
-          auto n = std::make_shared<frame_demux_node>();
-          for (const auto& output_name : info.outputs) {
-            n->add_output(output_name);
-          }
-          node = n;
-          break;
-        }
-        case node_type::dump_se3: {
-          auto n = std::make_shared<dump_se3_node>();
-          if (info.contains_param("db_path")) {
-            n->set_db_path(info.get_param<std::string>("db_path"));
-          }
-          if (info.contains_param("topic_name")) {
-            n->set_name(info.get_param<std::string>("topic_name"));
-          }
-          node = n;
-          break;
-        }
-        default:
-          throw std::runtime_error("Unknown node type: " + info.name);
-      }
-
-      node_map[info.name] = node;
-      g->add_node(node);
-    }
-
-    for (const auto& info : infos) {
-      if (info.inputs.empty()) {
-        continue;
-      }
-
-      auto target_node = node_map.at(info.name);
-
-      for (const auto& [input_name, source_name] : info.inputs) {
-        size_t pos = source_name.find(':');
-        if (pos != std::string::npos) {
-          auto node_name = source_name.substr(0, pos);
-          auto output_name = source_name.substr(pos + 1);
-          auto source_node = node_map.at(node_name);
-          target_node->set_input(source_node->get_output(output_name), input_name);
-        } else {
-          auto source_node = node_map.at(source_name);
-          target_node->set_input(source_node->get_output(), input_name);
-        }
+      if (info.get_type() == node_type::frame_number_numbering) {
+        input_node = std::dynamic_pointer_cast<frame_number_numbering_node>(node_map.at(info.name));
+      } else if (info.get_type() == node_type::voxelpose_reconstruction) {
+        reconstruct_node =
+            std::dynamic_pointer_cast<voxelpose_reconstruct_node>(node_map.at(info.name));
+      } else if (info.get_type() == node_type::mvpose_reconstruction) {
+        reconstruct_node =
+            std::dynamic_pointer_cast<mvpose_reconstruct_node>(node_map.at(info.name));
+      } else if (info.get_type() == node_type::mvp_reconstruction) {
+        reconstruct_node = std::dynamic_pointer_cast<mvp_reconstruct_node>(node_map.at(info.name));
       }
     }
 

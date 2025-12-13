@@ -14,6 +14,7 @@
 #include "calibration_target.hpp"
 #include "callback_node.hpp"
 #include "glm_serialize.hpp"
+#include "graph_builder.hpp"
 #include "graph_proc.h"
 #include "graph_proc_cv.h"
 #include "graph_proc_img.h"
@@ -86,93 +87,35 @@ class calibration_pipeline::impl {
 
   void run(const std::vector<node_info>& infos) {
     std::shared_ptr<subgraph> g(new subgraph());
-
     std::unordered_map<std::string, graph_node_ptr> node_map;
+    std::map<std::string, std::shared_ptr<subgraph>> subgraphs;
+    subgraphs[""] = g;
 
-    // Create nodes
+    // Build graph using common function
+    stargazer::build_graph_from_json(infos, subgraphs, node_map);
+
+    // Extract specific nodes from the graph
     for (const auto& info : infos) {
-      graph_node_ptr node;
-
-      switch (info.get_type()) {
-        case node_type::frame_number_numbering: {
-          auto n = std::make_shared<frame_number_numbering_node>();
-          node = n;
-          input_node = n;
-          break;
+      if (info.get_type() == node_type::frame_number_numbering) {
+        input_node = std::dynamic_pointer_cast<frame_number_numbering_node>(node_map.at(info.name));
+      } else if (info.get_type() == node_type::calibration) {
+        calib_node = std::dynamic_pointer_cast<calibration_node>(node_map.at(info.name));
+        // Set cameras for calibration node
+        if (calib_node) {
+          calib_node->set_cameras(cameras);
         }
-        case node_type::object_map: {
-          auto n = std::make_shared<object_map_node>();
-          // Add outputs if specified
-          for (const auto& output_name : info.outputs) {
-            n->add_output(output_name);
-          }
-          node = n;
-          break;
-        }
-        case node_type::pattern_board_calibration_target_detector: {
-          auto n = std::make_shared<pattern_board_calibration_target_detector_node>();
-          // Set camera from cameras map if camera_name parameter is provided
-          if (info.contains_param("camera_name")) {
-            const auto camera_name = info.get_param<std::string>("camera_name");
-            if (cameras.find(camera_name) != cameras.end()) {
-              n->set_camera(cameras.at(camera_name));
+      } else if (info.get_type() == node_type::pattern_board_calibration_target_detector) {
+        // Set camera from cameras map if camera_name parameter is provided
+        if (info.contains_param("camera_name")) {
+          const auto camera_name = info.get_param<std::string>("camera_name");
+          if (cameras.find(camera_name) != cameras.end()) {
+            auto detector_node =
+                std::dynamic_pointer_cast<pattern_board_calibration_target_detector_node>(
+                    node_map.at(info.name));
+            if (detector_node) {
+              detector_node->set_camera(cameras.at(camera_name));
             }
           }
-          node = n;
-          break;
-        }
-        case node_type::three_point_bar_calibration_target_detector: {
-          auto n = std::make_shared<three_point_bar_calibration_target_detector_node>();
-          node = n;
-          break;
-        }
-        case node_type::calibration: {
-          auto n = std::make_shared<calibration_node>();
-          n->set_cameras(cameras);
-          if (info.contains_param("only_extrinsic")) {
-            n->set_only_extrinsic(info.get_param<bool>("only_extrinsic"));
-          }
-          if (info.contains_param("robust")) {
-            n->set_robust(info.get_param<bool>("robust"));
-          }
-          node = n;
-          calib_node = n;
-          break;
-        }
-        case node_type::callback: {
-          auto n = std::make_shared<callback_node>();
-          if (info.contains_param("callback_name")) {
-            n->set_callback_name(info.get_param<std::string>("callback_name"));
-          }
-          node = n;
-          break;
-        }
-        default:
-          throw std::runtime_error("Unknown node type for calibration pipeline: " + info.name);
-      }
-
-      node_map[info.name] = node;
-      g->add_node(node);
-    }
-
-    // Connect nodes
-    for (const auto& info : infos) {
-      if (info.inputs.empty()) {
-        continue;
-      }
-
-      auto target_node = node_map.at(info.name);
-
-      for (const auto& [input_name, source_name] : info.inputs) {
-        size_t pos = source_name.find(':');
-        if (pos != std::string::npos) {
-          auto node_name = source_name.substr(0, pos);
-          auto output_name = source_name.substr(pos + 1);
-          auto source_node = node_map.at(node_name);
-          target_node->set_input(source_node->get_output(output_name), input_name);
-        } else {
-          auto source_node = node_map.at(source_name);
-          target_node->set_input(source_node->get_output(), input_name);
         }
       }
     }
@@ -290,67 +233,19 @@ class intrinsic_calibration_pipeline::impl {
 
   void run(const std::vector<node_info>& infos) {
     std::shared_ptr<subgraph> g(new subgraph());
-
     std::unordered_map<std::string, graph_node_ptr> node_map;
+    std::map<std::string, std::shared_ptr<subgraph>> subgraphs;
+    subgraphs[""] = g;
 
-    // Create nodes
+    // Build graph using common function
+    stargazer::build_graph_from_json(infos, subgraphs, node_map);
+
+    // Extract specific nodes from the graph
     for (const auto& info : infos) {
-      graph_node_ptr node;
-
-      switch (info.get_type()) {
-        case node_type::frame_number_numbering: {
-          auto n = std::make_shared<frame_number_numbering_node>();
-          node = n;
-          input_node = n;
-          break;
-        }
-        case node_type::object_mux: {
-          auto n = std::make_shared<object_mux_node>();
-          node = n;
-          break;
-        }
-        case node_type::intrinsic_calibration: {
-          auto n = std::make_shared<intrinsic_calibration_node>();
-          node = n;
-          calib_node = n;
-          break;
-        }
-        case node_type::callback: {
-          auto n = std::make_shared<callback_node>();
-          if (info.contains_param("callback_name")) {
-            n->set_callback_name(info.get_param<std::string>("callback_name"));
-          }
-          node = n;
-          break;
-        }
-        default:
-          throw std::runtime_error("Unknown node type for intrinsic calibration pipeline: " +
-                                   info.name);
-      }
-
-      node_map[info.name] = node;
-      g->add_node(node);
-    }
-
-    // Connect nodes
-    for (const auto& info : infos) {
-      if (info.inputs.empty()) {
-        continue;
-      }
-
-      auto target_node = node_map.at(info.name);
-
-      for (const auto& [input_name, source_name] : info.inputs) {
-        size_t pos = source_name.find(':');
-        if (pos != std::string::npos) {
-          auto node_name = source_name.substr(0, pos);
-          auto output_name = source_name.substr(pos + 1);
-          auto source_node = node_map.at(node_name);
-          target_node->set_input(source_node->get_output(output_name), input_name);
-        } else {
-          auto source_node = node_map.at(source_name);
-          target_node->set_input(source_node->get_output(), input_name);
-        }
+      if (info.get_type() == node_type::frame_number_numbering) {
+        input_node = std::dynamic_pointer_cast<frame_number_numbering_node>(node_map.at(info.name));
+      } else if (info.get_type() == node_type::intrinsic_calibration) {
+        calib_node = std::dynamic_pointer_cast<intrinsic_calibration_node>(node_map.at(info.name));
       }
     }
 
@@ -488,66 +383,19 @@ class axis_calibration_pipeline::impl {
 
   void run(const std::vector<node_info>& infos) {
     std::shared_ptr<subgraph> g(new subgraph());
-
     std::unordered_map<std::string, graph_node_ptr> node_map;
+    std::map<std::string, std::shared_ptr<subgraph>> subgraphs;
+    subgraphs[""] = g;
 
-    // Create nodes
+    // Build graph using common function
+    stargazer::build_graph_from_json(infos, subgraphs, node_map);
+
+    // Extract specific nodes from the graph
     for (const auto& info : infos) {
-      graph_node_ptr node;
-
-      switch (info.get_type()) {
-        case node_type::frame_number_numbering: {
-          auto n = std::make_shared<frame_number_numbering_node>();
-          node = n;
-          input_node = n;
-          break;
-        }
-        case node_type::object_mux: {
-          auto n = std::make_shared<object_mux_node>();
-          node = n;
-          break;
-        }
-        case node_type::axis_calibration: {
-          auto n = std::make_shared<axis_calibration_node>();
-          node = n;
-          calib_node = n;
-          break;
-        }
-        case node_type::callback: {
-          auto n = std::make_shared<callback_node>();
-          if (info.contains_param("callback_name")) {
-            n->set_callback_name(info.get_param<std::string>("callback_name"));
-          }
-          node = n;
-          break;
-        }
-        default:
-          throw std::runtime_error("Unknown node type for axis calibration pipeline: " + info.name);
-      }
-
-      node_map[info.name] = node;
-      g->add_node(node);
-    }
-
-    // Connect nodes
-    for (const auto& info : infos) {
-      if (info.inputs.empty()) {
-        continue;
-      }
-
-      auto target_node = node_map.at(info.name);
-
-      for (const auto& [input_name, source_name] : info.inputs) {
-        size_t pos = source_name.find(':');
-        if (pos != std::string::npos) {
-          auto node_name = source_name.substr(0, pos);
-          auto output_name = source_name.substr(pos + 1);
-          auto source_node = node_map.at(node_name);
-          target_node->set_input(source_node->get_output(output_name), input_name);
-        } else {
-          auto source_node = node_map.at(source_name);
-          target_node->set_input(source_node->get_output(), input_name);
-        }
+      if (info.get_type() == node_type::frame_number_numbering) {
+        input_node = std::dynamic_pointer_cast<frame_number_numbering_node>(node_map.at(info.name));
+      } else if (info.get_type() == node_type::axis_calibration) {
+        calib_node = std::dynamic_pointer_cast<axis_calibration_node>(node_map.at(info.name));
       }
     }
 
