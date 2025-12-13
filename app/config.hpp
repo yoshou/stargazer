@@ -48,6 +48,9 @@ enum class node_type {
   load_blob,
   load_marker,
   load_panoptic,
+  charuco_detector,
+  depthai_color_camera,
+  rs_d435,
 };
 
 using node_param_t = std::variant<std::string, std::int64_t, double, float, bool>;
