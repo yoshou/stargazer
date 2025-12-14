@@ -39,7 +39,7 @@ class extrinsic_calibration_pipeline {
       std::string name) const;
 
   void push_frame(const std::map<std::string, std::vector<stargazer::point_data>>& frame);
-  void run(const std::vector<stargazer::node_info>& infos);
+  void run(const std::vector<stargazer::node_def>& nodes);
   void stop();
 
   void calibrate();
@@ -64,7 +64,7 @@ class intrinsic_calibration_pipeline {
   void push_frame(const std::vector<stargazer::point_data>& frame);
   void push_frame(const cv::Mat& frame);
 
-  void run(const std::vector<stargazer::node_info>& infos);
+  void run(const std::vector<stargazer::node_def>& nodes);
   void stop();
 
   void calibrate();
@@ -95,7 +95,7 @@ class axis_calibration_pipeline {
 
   void push_frame(const std::map<std::string, std::vector<stargazer::point_data>>& frame);
 
-  void run(const std::vector<stargazer::node_info>& infos);
+  void run(const std::vector<stargazer::node_def>& nodes);
   void stop();
 
   void calibrate();

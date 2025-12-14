@@ -59,9 +59,9 @@ enum class node_type {
 
 using node_param_t = std::variant<std::string, std::int64_t, double, float, bool>;
 
-class node_info {
+class node_def {
   node_type type{node_type::unknown};
-  std::vector<std::shared_ptr<node_info>> extends;
+  std::vector<std::shared_ptr<node_def>> extends;
 
   friend class configuration;
 
@@ -182,7 +182,7 @@ class node_info {
 
 struct subgraph_def {
   std::string name;
-  std::vector<node_info> nodes;
+  std::vector<node_def> nodes;
   std::vector<std::string> outputs;
   std::unordered_map<std::string, node_param_t> params;
   std::vector<std::string> extends;  // Template subgraph names to inherit from
@@ -197,7 +197,7 @@ class configuration {
   std::string path;
   std::unordered_map<std::string, pipeline_def> pipelines;
   std::unordered_map<std::string, std::string> pipeline_names;
-  std::unordered_map<std::string, std::shared_ptr<node_info>> nodes;
+  std::unordered_map<std::string, std::shared_ptr<node_def>> nodes;
   std::unordered_map<std::string, subgraph_def> subgraph_templates;  // Template definitions
 
  public:
@@ -205,13 +205,13 @@ class configuration {
 
   void update();
 
-  std::vector<node_info> get_node_infos(const std::string& pipeline_key = "pipeline") const {
+  std::vector<node_def> get_nodes(const std::string& pipeline_key = "pipeline") const {
     const auto& pipeline_name = pipeline_names.at(pipeline_key);
     const auto& pipeline = pipelines.at(pipeline_name);
-    std::vector<node_info> result;
+    std::vector<node_def> result;
 
     for (const auto& sg_instance : pipeline.subgraphs) {
-      std::vector<node_info> sg_nodes = sg_instance.nodes;
+      std::vector<node_def> sg_nodes = sg_instance.nodes;
 
       for (const auto& template_name : sg_instance.extends) {
         if (subgraph_templates.find(template_name) != subgraph_templates.end()) {

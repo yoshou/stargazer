@@ -230,7 +230,7 @@ configuration::configuration(const std::string& path) : path(path) {
 
     if (j.contains("nodes")) {
       for (const auto& j_node : j["nodes"]) {
-        auto node = std::make_shared<node_info>();
+        auto node = std::make_shared<node_def>();
         for (const auto& [key, value] : j_node.items()) {
           if (key == "type") {
             node->type = get_node_type(value.get<std::string>());
@@ -270,7 +270,7 @@ configuration::configuration(const std::string& path) : path(path) {
 
         if (j_subgraph.contains("nodes")) {
           for (const auto& j_node : j_subgraph["nodes"]) {
-            node_info node;
+            node_def node;
             for (const auto& [key, value] : j_node.items()) {
               if (key == "type") {
                 node.type = get_node_type(value.get<std::string>());
@@ -368,7 +368,7 @@ configuration::configuration(const std::string& path) : path(path) {
           // Instance can also have nodes directly defined
           if (j_sg.contains("nodes")) {
             for (const auto& j_node : j_sg["nodes"]) {
-              node_info node;
+              node_def node;
               for (const auto& [key, value] : j_node.items()) {
                 if (key == "type") {
                   node.type = get_node_type(value.get<std::string>());

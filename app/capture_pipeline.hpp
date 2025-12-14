@@ -27,7 +27,7 @@ class capture_pipeline {
   capture_pipeline(const std::map<std::string, cv::Mat>& masks);
   virtual ~capture_pipeline();
 
-  void run(const std::vector<stargazer::node_info>& infos);
+  void run(const std::vector<stargazer::node_def>& nodes);
   void stop();
 
   std::map<std::string, cv::Mat> get_frames() const;
