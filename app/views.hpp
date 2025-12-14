@@ -177,21 +177,21 @@ class top_bar_view {
 
 class capture_panel_view {
  public:
-  struct node_info {
+  struct node_def {
     std::string name;
     std::string address;
     std::unordered_map<std::string, stargazer::node_param_t> params;
     bool is_streaming = false;
 
-    node_info(const std::string& name, const std::string& address,
-              const std::unordered_map<std::string, stargazer::node_param_t>& params)
+    node_def(const std::string& name, const std::string& address,
+             const std::unordered_map<std::string, stargazer::node_param_t>& params)
         : name(name), address(address), params(params) {}
   };
-  std::vector<node_info> devices;
+  std::vector<node_def> nodes;
 
   bool is_streaming = false;
-  std::vector<std::function<bool(const std::vector<node_info>&, bool)>> is_all_streaming_changed;
-  std::vector<std::function<bool(const node_info&)>> is_streaming_changed;
+  std::vector<std::function<bool(const std::vector<node_def>&, bool)>> is_all_streaming_changed;
+  std::vector<std::function<bool(const node_def&)>> is_streaming_changed;
 
  private:
   float draw_control_panel(view_context* context);
@@ -200,44 +200,43 @@ class capture_panel_view {
 
   std::string ip_address;
   std::string gateway_address;
-  std::string device_name;
+  std::string node_name;
   int node_type_index;
 
  public:
   std::vector<std::function<void(const std::string&, stargazer::node_type, const std::string&,
                                  const std::string&)>>
-      on_add_device;
-  std::vector<std::function<void(const std::string&)>> on_remove_device;
+      on_add_node;
+  std::vector<std::function<void(const std::string&)>> on_remove_node;
 
   void render(view_context* context);
 };
 
 class calibration_panel_view {
  public:
-  struct node_info {
+  struct node_def {
     std::string name;
     std::string address;
     std::unordered_map<std::string, stargazer::node_param_t> params;
     bool is_streaming = true;
     size_t num_points = 0;
 
-    node_info(const std::string& name, const std::string& address,
-              const std::unordered_map<std::string, stargazer::node_param_t>& params)
+    node_def(const std::string& name, const std::string& address,
+             const std::unordered_map<std::string, stargazer::node_param_t>& params)
         : name(name), address(address), params(params) {}
   };
-  std::vector<node_info> devices;
+  std::vector<node_def> nodes;
   bool is_marker_collecting = false;
   bool is_streaming = false;
   bool is_masking = false;
 
-  std::vector<std::function<bool(const std::vector<node_info>&, bool)>>
-      is_marker_collecting_changed;
-  std::vector<std::function<bool(const std::vector<node_info>&, bool)>> is_streaming_changed;
-  std::vector<std::function<bool(const std::vector<node_info>&, bool)>> is_masking_changed;
-  std::vector<std::function<bool(const std::vector<node_info>&, bool)>> on_calibrate;
-  std::vector<std::function<void(const node_info&)>> on_intrinsic_calibration_device_changed;
+  std::vector<std::function<bool(const std::vector<node_def>&, bool)>> is_marker_collecting_changed;
+  std::vector<std::function<bool(const std::vector<node_def>&, bool)>> is_streaming_changed;
+  std::vector<std::function<bool(const std::vector<node_def>&, bool)>> is_masking_changed;
+  std::vector<std::function<bool(const std::vector<node_def>&, bool)>> on_calibrate;
+  std::vector<std::function<void(const node_def&)>> on_intrinsic_calibration_target_changed;
 
-  int intrinsic_calibration_device_index = 0;
+  int intrinsic_calibration_target_index = 0;
   int calibration_target_index = 0;
 
   float fx = 0;
@@ -266,20 +265,20 @@ class calibration_panel_view {
 
 class reconstruction_panel_view {
  public:
-  struct node_info {
+  struct node_def {
     std::string name;
     std::string address;
     bool is_streaming = true;
 
-    node_info(const std::string& name, const std::string& address) : name(name), address(address) {}
+    node_def(const std::string& name, const std::string& address) : name(name), address(address) {}
   };
-  std::vector<node_info> devices;
+  std::vector<node_def> nodes;
   bool is_streaming = false;
   bool is_recording = false;
   int source = 0;
 
-  std::vector<std::function<bool(const std::vector<node_info>&, bool)>> is_streaming_changed;
-  std::vector<std::function<bool(const std::vector<node_info>&, bool)>> is_recording_changed;
+  std::vector<std::function<bool(const std::vector<node_def>&, bool)>> is_streaming_changed;
+  std::vector<std::function<bool(const std::vector<node_def>&, bool)>> is_recording_changed;
 
  private:
   float draw_control_panel(view_context* context);

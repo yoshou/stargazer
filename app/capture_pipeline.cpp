@@ -106,13 +106,11 @@ class capture_pipeline::impl {
 
   impl(const std::map<std::string, cv::Mat>& masks) : server(0), masks(masks) {}
 
-  void run(const std::vector<node_info>& infos) {
-    std::vector<node_info> node_infos = infos;
-
+  void run(const std::vector<node_def>& nodes) {
     // Group nodes by subgraph instance
-    std::map<std::string, std::vector<node_info>> nodes_by_subgraph;
-    for (const auto& info : node_infos) {
-      nodes_by_subgraph[info.subgraph_instance].push_back(info);
+    std::map<std::string, std::vector<node_def>> nodes_by_subgraph;
+    for (const auto& node : nodes) {
+      nodes_by_subgraph[node.subgraph_instance].push_back(node);
     }
 
     // Create a global node map shared across all subgraphs
@@ -125,7 +123,7 @@ class capture_pipeline::impl {
     }
 
     // Build all subgraphs in one pass
-    stargazer::build_graph_from_json(node_infos, subgraphs, global_node_map);
+    stargazer::build_graph_from_json(nodes, subgraphs, global_node_map);
 
     const auto callbacks = std::make_shared<callback_list>();
 
@@ -293,19 +291,19 @@ class capture_pipeline::impl {
     // subgraph_dependencies[target] = {source1, source2, ...}
     std::map<std::string, std::set<std::string>> subgraph_dependencies;
 
-    for (const auto& info : node_infos) {
-      const auto& target_subgraph = info.subgraph_instance;
+    for (const auto& node : nodes) {
+      const auto& target_subgraph = node.subgraph_instance;
 
-      for (const auto& [input_name, source_name] : info.inputs) {
+      for (const auto& [input_name, source_name] : node.inputs) {
         // Extract node name from source (might be "node" or "node:output")
         size_t pos = source_name.find(':');
         std::string source_node_name =
             (pos != std::string::npos) ? source_name.substr(0, pos) : source_name;
 
         // Find which subgraph the source node belongs to
-        for (const auto& source_info : node_infos) {
-          if (source_info.name == source_node_name) {
-            const auto& source_subgraph = source_info.subgraph_instance;
+        for (const auto& source_node : nodes) {
+          if (source_node.name == source_node_name) {
+            const auto& source_subgraph = source_node.subgraph_instance;
             if (source_subgraph != target_subgraph) {
               // Cross-subgraph dependency found
               subgraph_dependencies[target_subgraph].insert(source_subgraph);
@@ -323,12 +321,12 @@ class capture_pipeline::impl {
       std::string deploy_address = "127.0.0.1";
       uint16_t deploy_port = server.get_port();
 
-      for (const auto& info : nodes_by_subgraph[subgraph_name]) {
-        if (info.contains_param("address")) {
-          deploy_address = info.get_param<std::string>("address");
+      for (const auto& node : nodes_by_subgraph[subgraph_name]) {
+        if (node.contains_param("address")) {
+          deploy_address = node.get_param<std::string>("address");
         }
-        if (info.contains_param("deploy_port")) {
-          deploy_port = static_cast<uint16_t>(info.get_param<std::int64_t>("deploy_port"));
+        if (node.contains_param("deploy_port")) {
+          deploy_port = static_cast<uint16_t>(node.get_param<std::int64_t>("deploy_port"));
         }
       }
 
@@ -375,18 +373,18 @@ class capture_pipeline::impl {
     // Step 3: Build dependency graph based on merged subgraphs
     std::map<std::string, std::set<std::string>> merged_dependencies;
 
-    for (const auto& info : node_infos) {
-      const auto& target_subgraph = info.subgraph_instance;
+    for (const auto& node : nodes) {
+      const auto& target_subgraph = node.subgraph_instance;
       const auto& target_merged = original_to_merged[target_subgraph];
 
-      for (const auto& [input_name, source_name] : info.inputs) {
+      for (const auto& [input_name, source_name] : node.inputs) {
         size_t pos = source_name.find(':');
         std::string source_node_name =
             (pos != std::string::npos) ? source_name.substr(0, pos) : source_name;
 
-        for (const auto& source_info : node_infos) {
-          if (source_info.name == source_node_name) {
-            const auto& source_subgraph = source_info.subgraph_instance;
+        for (const auto& source_node : nodes) {
+          if (source_node.name == source_node_name) {
+            const auto& source_subgraph = source_node.subgraph_instance;
             const auto& source_merged = original_to_merged[source_subgraph];
 
             if (source_merged != target_merged) {
@@ -556,7 +554,7 @@ capture_pipeline::capture_pipeline(const std::map<std::string, cv::Mat>& masks)
     : pimpl(new impl(masks)) {}
 capture_pipeline::~capture_pipeline() = default;
 
-void capture_pipeline::run(const std::vector<node_info>& infos) { pimpl->run(infos); }
+void capture_pipeline::run(const std::vector<node_def>& nodes) { pimpl->run(nodes); }
 
 void capture_pipeline::stop() { pimpl->stop(); }
 std::map<std::string, cv::Mat> capture_pipeline::get_frames() const { return pimpl->get_frames(); }

@@ -535,7 +535,7 @@ void capture_panel_view::draw_controls(view_context* context, float panel_height
 
   auto panel_width = 350;
   auto header_h = panel_height;
-  ImColor device_header_background_color = title_color;
+  ImColor node_header_background_color = title_color;
   const float left_space = 3.f;
   const float upper_space = 3.f;
 
@@ -545,13 +545,13 @@ void capture_panel_view::draw_controls(view_context* context, float panel_height
   // draw controls
   {
     const auto pos = ImGui::GetCursorPos();
-    const float vertical_space_before_device_control = 10.0f;
-    const float horizontal_space_before_device_control = 3.0f;
-    auto device_panel_pos = ImVec2{pos.x + horizontal_space_before_device_control,
-                                   pos.y + vertical_space_before_device_control};
-    ImGui::SetCursorPos(device_panel_pos);
-    const float device_panel_height = draw_control_panel(context);
-    ImGui::SetCursorPos({device_panel_pos.x, device_panel_pos.y + device_panel_height});
+    const float vertical_space_before_node_control = 10.0f;
+    const float horizontal_space_before_node_control = 3.0f;
+    auto node_panel_pos = ImVec2{pos.x + horizontal_space_before_node_control,
+                                 pos.y + vertical_space_before_node_control};
+    ImGui::SetCursorPos(node_panel_pos);
+    const float node_panel_height = draw_control_panel(context);
+    ImGui::SetCursorPos({node_panel_pos.x, node_panel_pos.y + node_panel_height});
   }
 
   {
@@ -570,8 +570,8 @@ void capture_panel_view::draw_controls(view_context* context, float panel_height
       node_type_index = 0;
       ip_address = "192.168.0.1";
       gateway_address = "192.168.0.254";
-      device_name = "camera";
-      ImGui::OpenPopup("Network Device");
+      node_name = "camera";
+      ImGui::OpenPopup("Node");
     }
 
     ImGui::PopFont();
@@ -581,14 +581,14 @@ void capture_panel_view::draw_controls(view_context* context, float panel_height
     ImGui::PopStyleColor();
   }
 
-  for (auto& device : devices) {
+  for (auto& node : nodes) {
     ImVec2 initial_screen_pos = ImGui::GetCursorScreenPos();
 
     // Upper Space
     ImGui::GetWindowDrawList()->AddRectFilled(
         {initial_screen_pos.x, initial_screen_pos.y},
         {initial_screen_pos.x + panel_width, initial_screen_pos.y + upper_space}, ImColor(black));
-    // if (draw_device_outline)
+    // if (draw_node_outline)
     {
       // Upper Line
       ImGui::GetWindowDrawList()->AddLine(
@@ -596,16 +596,16 @@ void capture_panel_view::draw_controls(view_context* context, float panel_height
           {initial_screen_pos.x + panel_width, initial_screen_pos.y + upper_space},
           ImColor(header_color));
     }
-    // Device Header area
+    // Node Header area
     ImGui::GetWindowDrawList()->AddRectFilled(
         {initial_screen_pos.x + 1, initial_screen_pos.y + upper_space + 1},
         {initial_screen_pos.x + panel_width, initial_screen_pos.y + header_h + upper_space},
-        device_header_background_color);
+        node_header_background_color);
 
     auto pos = ImGui::GetCursorPos();
     ImGui::PushFont(context->large_font);
-    ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)device_header_background_color);
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)device_header_background_color);
+    ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)node_header_background_color);
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)node_header_background_color);
 
     // draw name
     {
@@ -616,10 +616,10 @@ void capture_panel_view::draw_controls(view_context* context, float panel_height
       //     ss << dev.get_info(RS2_CAMERA_INFO_NAME);
       // if (is_ip_device)
       {
-        ImGui::Text(" %s", device.name.c_str());
+        ImGui::Text(" %s", node.name.c_str());
 
         ImGui::PushFont(context->large_font);
-        ImGui::Text("\tNetwork Device at %s", device.address.c_str());
+        ImGui::Text("\tNode at %s", node.address.c_str());
         ImGui::PopFont();
       }
     }
@@ -629,7 +629,7 @@ void capture_panel_view::draw_controls(view_context* context, float panel_height
     // draw x button
     {
       bool _allow_remove = true;
-      const auto id = device.name;
+      const auto id = node.name;
 
       ImGui::PushFont(context->large_font);
       ImGui::PushStyleColor(ImGuiCol_Text, light_grey);
@@ -644,14 +644,14 @@ void capture_panel_view::draw_controls(view_context* context, float panel_height
                              pos.y + 9 + (header_h - panel_height) / 2});
         std::string remove_source_button_label = to_string() << textual_icons::times << "##" << id;
         if (ImGui::Button(remove_source_button_label.c_str(), {33, 35})) {
-          for (auto& f : on_remove_device) {
-            f(device.name);
+          for (auto& f : on_remove_node) {
+            f(node.name);
           }
         }
 
         if (ImGui::IsItemHovered()) {
           ImGui::SetTooltip(
-              "Remove selected device from current view\n(can be restored by clicking Add Source)");
+              "Remove selected node from current view\n(can be restored by clicking Add Source)");
           // window.link_hovered();
         }
       }
@@ -676,8 +676,8 @@ void capture_panel_view::draw_controls(view_context* context, float panel_height
 
     // draw streaming
     {
-      draw_later.push_back([pos, windows_width, this, context, &device]() {
-        const auto id = device.name;
+      draw_later.push_back([pos, windows_width, this, context, &node]() {
+        const auto id = node.name;
 
         ImGui::SetCursorPos({windows_width - 35, pos.y + 3});
         ImGui_ScopePushFont(context->default_font);
@@ -686,35 +686,33 @@ void capture_panel_view::draw_controls(view_context* context, float panel_height
         ImGui_ScopePushStyleColor(ImGuiCol_ButtonHovered, sensor_bg);
         ImGui_ScopePushStyleColor(ImGuiCol_ButtonActive, sensor_bg);
 
-        if (!device.is_streaming) {
-          std::string label = to_string()
-                              << "  " << textual_icons::toggle_off << "\noff   ##" << id << ","
-                              << "";
+        if (!node.is_streaming) {
+          std::string label = to_string() << "  " << textual_icons::toggle_off << "\noff   ##" << id
+                                          << "," << "";
 
           ImGui_ScopePushStyleColor(ImGuiCol_Text, redish);
           ImGui_ScopePushStyleColor(ImGuiCol_TextSelectedBg, redish + 0.1f);
 
           if (ImGui::Button(label.c_str(), {30, 30})) {
-            device.is_streaming = true;
+            node.is_streaming = true;
             for (const auto& f : is_streaming_changed) {
-              if (!f(device)) {
-                device.is_streaming = false;
+              if (!f(node)) {
+                node.is_streaming = false;
                 break;
               }
             }
           }
         } else {
-          std::string label = to_string()
-                              << "  " << textual_icons::toggle_on << "\n    on##" << id << ","
-                              << "";
+          std::string label = to_string() << "  " << textual_icons::toggle_on << "\n    on##" << id
+                                          << "," << "";
           ImGui_ScopePushStyleColor(ImGuiCol_Text, light_blue);
           ImGui_ScopePushStyleColor(ImGuiCol_TextSelectedBg, light_blue + 0.1f);
 
           if (ImGui::Button(label.c_str(), {30, 30})) {
-            device.is_streaming = false;
+            node.is_streaming = false;
             for (const auto& f : is_streaming_changed) {
-              if (!f(device)) {
-                device.is_streaming = true;
+              if (!f(node)) {
+                node.is_streaming = true;
                 break;
               }
             }
@@ -722,10 +720,9 @@ void capture_panel_view::draw_controls(view_context* context, float panel_height
         }
       });
 
-      const auto id = device.name;
+      const auto id = node.name;
 
-      std::string label = to_string() << "Infrared Camera Module"
-                                      << "##" << id;
+      std::string label = to_string() << "Infrared Camera Module" << "##" << id;
       ImGui::PushStyleColor(ImGuiCol_Header, sensor_bg);
       ImGui::PushStyleColor(ImGuiCol_HeaderActive, sensor_bg);
       ImGui::PushStyleColor(ImGuiCol_HeaderHovered, sensor_bg);
@@ -751,8 +748,8 @@ void capture_panel_view::draw_controls(view_context* context, float panel_height
 
     auto end_screen_pos = ImGui::GetCursorScreenPos();
 
-    const auto draw_device_outline = true;
-    if (draw_device_outline) {
+    const auto draw_node_outline = true;
+    if (draw_node_outline) {
       // Left space
       ImGui::GetWindowDrawList()->AddRectFilled({initial_screen_pos.x, initial_screen_pos.y},
                                                 {end_screen_pos.x + left_space, end_screen_pos.y},
@@ -813,7 +810,7 @@ void capture_panel_view::render(view_context* context) {
     ImGui::PushStyleColor(ImGuiCol_Text, light_grey);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0);
 
-    if (ImGui::BeginPopupModal("Network Device", nullptr,
+    if (ImGui::BeginPopupModal("Node", nullptr,
                                ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove)) {
       ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 3);
       ImGui::SetCursorPosX(10);
@@ -878,7 +875,7 @@ void capture_panel_view::render(view_context* context) {
 
         ImGui::SetCursorPosY(ImGui::GetCursorPosY() - 3);
         if (ImGui::InputText("##gateway", gateway_input, 255)) {
-          device_name = gateway_input;
+          node_name = gateway_input;
         }
         ImGui::PopStyleColor();
 
@@ -887,8 +884,8 @@ void capture_panel_view::render(view_context* context) {
         ImGui::PopItemWidth();
       }
       static char dev_name_input[255];
-      std::copy(device_name.begin(), device_name.end(), dev_name_input);
-      dev_name_input[device_name.size()] = '\0';
+      std::copy(node_name.begin(), node_name.end(), dev_name_input);
+      dev_name_input[node_name.size()] = '\0';
       {
         ImGui::SetCursorPosX(10);
         ImGui::Text("Name");
@@ -899,7 +896,7 @@ void capture_panel_view::render(view_context* context) {
 
         ImGui::SetCursorPosY(ImGui::GetCursorPosY() - 3);
         if (ImGui::InputText("##name", dev_name_input, 255)) {
-          device_name = dev_name_input;
+          node_name = dev_name_input;
         }
         ImGui::PopStyleColor();
 
@@ -913,14 +910,14 @@ void capture_panel_view::render(view_context* context) {
       if (ImGui::Button("OK", {100.f, 25.f}) || ImGui::IsKeyDown(ImGuiKey_Enter) ||
           ImGui::IsKeyDown(ImGuiKey_KeypadEnter)) {
         try {
-          for (auto& f : on_add_device) {
-            f(device_name, static_cast<node_type>(node_type_index), ip_address, gateway_address);
+          for (auto& f : on_add_node) {
+            f(node_name, static_cast<node_type>(node_type_index), ip_address, gateway_address);
           }
         } catch (std::runtime_error e) {
           spdlog::error(e.what());
         }
         node_type_index = 0;
-        device_name = "";
+        node_name = "";
         ip_address = "";
         gateway_address = "";
         ImGui::CloseCurrentPopup();
@@ -929,7 +926,7 @@ void capture_panel_view::render(view_context* context) {
       ImGui::SetCursorPosX(width / 2 + 5);
       if (ImGui::Button("Cancel", {100.f, 25.f}) || ImGui::IsKeyDown(ImGuiKey_Escape)) {
         node_type_index = 0;
-        device_name = "";
+        node_name = "";
         ip_address = "";
         gateway_address = "";
         ImGui::CloseCurrentPopup();
@@ -946,7 +943,7 @@ void capture_panel_view::render(view_context* context) {
 }
 
 float capture_panel_view::draw_control_panel(view_context* context) {
-  const float device_panel_height = 60.0f;
+  const float node_panel_height = 60.0f;
   auto panel_pos = ImGui::GetCursorPos();
 
   ImGui::PushFont(context->large_font);
@@ -961,18 +958,18 @@ float capture_panel_view::draw_control_panel(view_context* context) {
 
   const auto id = "";
   const float icons_width = 78.0f;
-  const ImVec2 device_panel_icons_size{icons_width, 25};
+  const ImVec2 node_panel_icons_size{icons_width, 25};
   textual_icon button_icon = is_streaming ? textual_icons::stop : textual_icons::play;
   std::string play_button_name = to_string() << button_icon << "##" << id;
   auto play_button_color = is_streaming ? light_blue : light_grey;
   {
     ImGui::PushStyleColor(ImGuiCol_Text, play_button_color);
     ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, play_button_color);
-    if (ImGui::Button(play_button_name.c_str(), device_panel_icons_size)) {
+    if (ImGui::Button(play_button_name.c_str(), node_panel_icons_size)) {
       if (is_streaming) {
         is_streaming = false;
         for (const auto& f : is_all_streaming_changed) {
-          if (!f(devices, is_streaming)) {
+          if (!f(nodes, is_streaming)) {
             is_streaming = true;
             break;
           }
@@ -980,7 +977,7 @@ float capture_panel_view::draw_control_panel(view_context* context) {
       } else {
         is_streaming = true;
         for (const auto& f : is_all_streaming_changed) {
-          if (!f(devices, is_streaming)) {
+          if (!f(nodes, is_streaming)) {
             is_streaming = false;
             break;
           }
@@ -999,7 +996,7 @@ float capture_panel_view::draw_control_panel(view_context* context) {
 
     ImGui::PushStyleColor(ImGuiCol_Text, play_button_color);
     ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, play_button_color);
-    ImGui::Button(is_streaming ? "Stop" : "Start", device_panel_icons_size);
+    ImGui::Button(is_streaming ? "Stop" : "Start", node_panel_icons_size);
     ImGui::PopStyleColor(2);
     ImGui::PopStyleColor(3);
   }
@@ -1008,11 +1005,11 @@ float capture_panel_view::draw_control_panel(view_context* context) {
   ImGui::PopStyleColor(7);
   ImGui::PopFont();
 
-  return device_panel_height;
+  return node_panel_height;
 }
 
 float calibration_panel_view::draw_control_panel(view_context* context) {
-  const float device_panel_height = 60.0f;
+  const float node_panel_height = 60.0f;
   auto panel_pos = ImGui::GetCursorPos();
 
   ImGui::PushFont(context->large_font);
@@ -1027,18 +1024,18 @@ float calibration_panel_view::draw_control_panel(view_context* context) {
 
   const auto id = "";
   const float icons_width = 78.0f;
-  const ImVec2 device_panel_icons_size{icons_width, 25};
+  const ImVec2 node_panel_icons_size{icons_width, 25};
   textual_icon button_icon = is_streaming ? textual_icons::stop : textual_icons::play;
   std::string play_button_name = to_string() << button_icon << "##" << id;
   auto play_button_color = is_streaming ? light_blue : light_grey;
   {
     ImGui::PushStyleColor(ImGuiCol_Text, play_button_color);
     ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, play_button_color);
-    if (ImGui::Button(play_button_name.c_str(), device_panel_icons_size)) {
+    if (ImGui::Button(play_button_name.c_str(), node_panel_icons_size)) {
       if (is_streaming) {
         is_streaming = false;
         for (const auto& f : is_streaming_changed) {
-          if (!f(devices, is_streaming)) {
+          if (!f(nodes, is_streaming)) {
             is_streaming = true;
             break;
           }
@@ -1046,7 +1043,7 @@ float calibration_panel_view::draw_control_panel(view_context* context) {
       } else {
         is_streaming = true;
         for (const auto& f : is_streaming_changed) {
-          if (!f(devices, is_streaming)) {
+          if (!f(nodes, is_streaming)) {
             is_streaming = false;
             break;
           }
@@ -1061,11 +1058,11 @@ float calibration_panel_view::draw_control_panel(view_context* context) {
   {
     ImGui::PushStyleColor(ImGuiCol_Text, mask_button_color);
     ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, mask_button_color);
-    if (ImGui::Button(mask_button_name.c_str(), device_panel_icons_size)) {
+    if (ImGui::Button(mask_button_name.c_str(), node_panel_icons_size)) {
       if (is_masking) {
         is_masking = false;
         for (const auto& f : is_masking_changed) {
-          if (!f(devices, is_masking)) {
+          if (!f(nodes, is_masking)) {
             is_masking = true;
             break;
           }
@@ -1073,7 +1070,7 @@ float calibration_panel_view::draw_control_panel(view_context* context) {
       } else {
         is_masking = true;
         for (const auto& f : is_masking_changed) {
-          if (!f(devices, is_masking)) {
+          if (!f(nodes, is_masking)) {
             is_masking = false;
             break;
           }
@@ -1089,9 +1086,9 @@ float calibration_panel_view::draw_control_panel(view_context* context) {
   {
     ImGui::PushStyleColor(ImGuiCol_Text, calibrate_button_color);
     ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, calibrate_button_color);
-    if (ImGui::Button(calibrate_button_name.c_str(), device_panel_icons_size)) {
+    if (ImGui::Button(calibrate_button_name.c_str(), node_panel_icons_size)) {
       for (const auto& f : on_calibrate) {
-        f(devices, true);
+        f(nodes, true);
       }
       if (is_calibrateing) {
         is_calibrateing = false;
@@ -1111,7 +1108,7 @@ float calibration_panel_view::draw_control_panel(view_context* context) {
 
     ImGui::PushStyleColor(ImGuiCol_Text, play_button_color);
     ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, play_button_color);
-    ImGui::Button(is_streaming ? "Stop" : "Start", device_panel_icons_size);
+    ImGui::Button(is_streaming ? "Stop" : "Start", node_panel_icons_size);
     ImGui::PopStyleColor(2);
     ImGui::PopStyleColor(3);
   }
@@ -1119,14 +1116,14 @@ float calibration_panel_view::draw_control_panel(view_context* context) {
   {
     ImGui::PushStyleColor(ImGuiCol_Text, mask_button_color);
     ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, mask_button_color);
-    ImGui::Button("Mask", device_panel_icons_size);
+    ImGui::Button("Mask", node_panel_icons_size);
     ImGui::PopStyleColor(2);
   }
   ImGui::SameLine();
   {
     ImGui::PushStyleColor(ImGuiCol_Text, calibrate_button_color);
     ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, calibrate_button_color);
-    ImGui::Button("Calibrate", device_panel_icons_size);
+    ImGui::Button("Calibrate", node_panel_icons_size);
     ImGui::PopStyleColor(2);
   }
 
@@ -1134,7 +1131,7 @@ float calibration_panel_view::draw_control_panel(view_context* context) {
   ImGui::PopStyleColor(7);
   ImGui::PopFont();
 
-  return device_panel_height;
+  return node_panel_height;
 }
 
 void calibration_panel_view::draw_extrinsic_calibration_control_panel(view_context* context) {
@@ -1160,9 +1157,8 @@ void calibration_panel_view::draw_extrinsic_calibration_control_panel(view_conte
         ImGui_ScopePushStyleColor(ImGuiCol_ButtonActive, sensor_bg);
 
         if (!is_marker_collecting) {
-          std::string label = to_string()
-                              << "  " << textual_icons::toggle_off << "\noff   ##" << id << ","
-                              << "";
+          std::string label = to_string() << "  " << textual_icons::toggle_off << "\noff   ##" << id
+                                          << "," << "";
 
           ImGui_ScopePushStyleColor(ImGuiCol_Text, redish);
           ImGui_ScopePushStyleColor(ImGuiCol_TextSelectedBg, redish + 0.1f);
@@ -1170,23 +1166,22 @@ void calibration_panel_view::draw_extrinsic_calibration_control_panel(view_conte
           if (ImGui::Button(label.c_str(), {30, 30})) {
             is_marker_collecting = true;
             for (const auto& f : is_marker_collecting_changed) {
-              if (!f(devices, is_marker_collecting)) {
+              if (!f(nodes, is_marker_collecting)) {
                 is_marker_collecting = false;
                 break;
               }
             }
           }
         } else {
-          std::string label = to_string()
-                              << "  " << textual_icons::toggle_on << "\n    on##" << id << ","
-                              << "";
+          std::string label = to_string() << "  " << textual_icons::toggle_on << "\n    on##" << id
+                                          << "," << "";
           ImGui_ScopePushStyleColor(ImGuiCol_Text, light_blue);
           ImGui_ScopePushStyleColor(ImGuiCol_TextSelectedBg, light_blue + 0.1f);
 
           if (ImGui::Button(label.c_str(), {30, 30})) {
             is_marker_collecting = false;
             for (const auto& f : is_marker_collecting_changed) {
-              if (!f(devices, is_marker_collecting)) {
+              if (!f(nodes, is_marker_collecting)) {
                 is_marker_collecting = true;
                 break;
               }
@@ -1197,8 +1192,7 @@ void calibration_panel_view::draw_extrinsic_calibration_control_panel(view_conte
 
       const auto id = "";
 
-      std::string label = to_string() << "Collect Markers"
-                                      << "##" << id;
+      std::string label = to_string() << "Collect Markers" << "##" << id;
       ImGui::PushStyleColor(ImGuiCol_Header, sensor_bg);
       ImGui::PushStyleColor(ImGuiCol_HeaderActive, sensor_bg);
       ImGui::PushStyleColor(ImGuiCol_HeaderHovered, sensor_bg);
@@ -1207,7 +1201,7 @@ void calibration_panel_view::draw_extrinsic_calibration_control_panel(view_conte
       ImGuiTreeNodeFlags flags{};
       // if (show_depth_only) flags = ImGuiTreeNodeFlags_DefaultOpen;
       if (ImGui::TreeNodeEx(label.c_str(), flags | ImGuiTreeNodeFlags_FramePadding)) {
-        for (auto& device : devices) {
+        for (auto& node : nodes) {
           auto pos = ImGui::GetCursorPos();
           auto windows_width = ImGui::GetContentRegionMax().x;
 
@@ -1216,8 +1210,8 @@ void calibration_panel_view::draw_extrinsic_calibration_control_panel(view_conte
 
           // draw streaming
           {
-            draw_later.push_back([pos, windows_width, context, &device]() {
-              const auto id = device.name;
+            draw_later.push_back([pos, windows_width, context, &node]() {
+              const auto id = node.name;
 
               ImGui::SetCursorPos({windows_width - 35, pos.y + 3});
               ImGui_ScopePushFont(context->default_font);
@@ -1226,31 +1220,29 @@ void calibration_panel_view::draw_extrinsic_calibration_control_panel(view_conte
               ImGui_ScopePushStyleColor(ImGuiCol_ButtonHovered, sensor_bg);
               ImGui_ScopePushStyleColor(ImGuiCol_ButtonActive, sensor_bg);
 
-              if (!device.is_streaming) {
+              if (!node.is_streaming) {
                 std::string label = to_string() << "  " << textual_icons::toggle_off << "\noff   ##"
-                                                << id << ","
-                                                << "";
+                                                << id << "," << "";
 
                 ImGui_ScopePushStyleColor(ImGuiCol_Text, redish);
                 ImGui_ScopePushStyleColor(ImGuiCol_TextSelectedBg, redish + 0.1f);
 
                 if (ImGui::Button(label.c_str(), {30, 30})) {
-                  device.is_streaming = true;
+                  node.is_streaming = true;
                 }
               } else {
-                std::string label = to_string()
-                                    << "  " << textual_icons::toggle_on << "\n    on##" << id << ","
-                                    << "";
+                std::string label = to_string() << "  " << textual_icons::toggle_on << "\n    on##"
+                                                << id << "," << "";
                 ImGui_ScopePushStyleColor(ImGuiCol_Text, light_blue);
                 ImGui_ScopePushStyleColor(ImGuiCol_TextSelectedBg, light_blue + 0.1f);
 
                 if (ImGui::Button(label.c_str(), {30, 30})) {
-                  device.is_streaming = false;
+                  node.is_streaming = false;
                 }
               }
             });
 
-            ImGui::Text("%s", device.name.c_str());
+            ImGui::Text("%s", node.name.c_str());
 
             ImGui::SameLine();
             ImGui::SetCursorPosX(220);
@@ -1261,7 +1253,7 @@ void calibration_panel_view::draw_extrinsic_calibration_control_panel(view_conte
             ImGui::GetWindowDrawList()->AddRectFilled({200, screen_pos.y}, {300, screen_pos.y + 20},
                                                       c);
 
-            ImGui::Text("%s", std::to_string(device.num_points).c_str());
+            ImGui::Text("%s", std::to_string(node.num_points).c_str());
 
             ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 2);
           }
@@ -1287,11 +1279,11 @@ void calibration_panel_view::draw_extrinsic_calibration_control_panel(view_conte
 void calibration_panel_view::draw_intrinsic_calibration_control_panel(view_context* context) {
   const auto panel_width = 350;
 
-  // draw selecting device
+  // draw selecting node
   {
     std::vector<std::string> intrinsic_calibration_devices;
-    for (const auto& device : devices) {
-      intrinsic_calibration_devices.push_back(device.name);
+    for (const auto& node : nodes) {
+      intrinsic_calibration_devices.push_back(node.name);
     }
     std::string id = "##intrinsic_calibration_device";
     std::vector<const char*> intrinsic_calibration_devices_chars =
@@ -1301,11 +1293,11 @@ void calibration_panel_view::draw_intrinsic_calibration_control_panel(view_conte
     ImGui::PushItemWidth(panel_width - 40);
     ImGui::PushFont(context->large_font);
     ImGui::SetCursorPos({pos.x + 10, pos.y});
-    if (ImGui::Combo(id.c_str(), &intrinsic_calibration_device_index,
+    if (ImGui::Combo(id.c_str(), &intrinsic_calibration_target_index,
                      intrinsic_calibration_devices_chars.data(),
                      static_cast<int>(intrinsic_calibration_devices.size()))) {
-      for (auto& func : on_intrinsic_calibration_device_changed) {
-        func(devices.at(intrinsic_calibration_device_index));
+      for (auto& func : on_intrinsic_calibration_target_changed) {
+        func(nodes.at(intrinsic_calibration_target_index));
       }
     }
     ImGui::SetCursorPos({pos.x, ImGui::GetCursorPos().y});
@@ -1315,7 +1307,7 @@ void calibration_panel_view::draw_intrinsic_calibration_control_panel(view_conte
 
   std::vector<std::function<void()>> draw_later;
   {
-    auto& device = devices[intrinsic_calibration_device_index];
+    auto& node = nodes[intrinsic_calibration_target_index];
 
     ImGui::PushStyleColor(ImGuiCol_HeaderHovered, sensor_bg);
     ImGui::PushStyleColor(ImGuiCol_Text, light_grey);
@@ -1325,8 +1317,7 @@ void calibration_panel_view::draw_intrinsic_calibration_control_panel(view_conte
     {
       const auto id = "";
 
-      std::string label = to_string() << "Collect Markers"
-                                      << "##" << id;
+      std::string label = to_string() << "Collect Markers" << "##" << id;
       ImGui::PushStyleColor(ImGuiCol_Header, sensor_bg);
       ImGui::PushStyleColor(ImGuiCol_HeaderActive, sensor_bg);
       ImGui::PushStyleColor(ImGuiCol_HeaderHovered, sensor_bg);
@@ -1342,8 +1333,8 @@ void calibration_panel_view::draw_intrinsic_calibration_control_panel(view_conte
 
         // draw streaming
         {
-          draw_later.push_back([pos, windows_width, this, context, &device]() {
-            const auto id = device.name;
+          draw_later.push_back([pos, windows_width, this, context, &node]() {
+            const auto id = node.name;
 
             ImGui::SetCursorPos({windows_width - 35, pos.y + 3});
             ImGui_ScopePushFont(context->default_font);
@@ -1353,9 +1344,8 @@ void calibration_panel_view::draw_intrinsic_calibration_control_panel(view_conte
             ImGui_ScopePushStyleColor(ImGuiCol_ButtonActive, sensor_bg);
 
             if (!is_marker_collecting) {
-              std::string label = to_string()
-                                  << "  " << textual_icons::toggle_off << "\noff   ##" << id << ","
-                                  << "";
+              std::string label = to_string() << "  " << textual_icons::toggle_off << "\noff   ##"
+                                              << id << "," << "";
 
               ImGui_ScopePushStyleColor(ImGuiCol_Text, redish);
               ImGui_ScopePushStyleColor(ImGuiCol_TextSelectedBg, redish + 0.1f);
@@ -1364,9 +1354,8 @@ void calibration_panel_view::draw_intrinsic_calibration_control_panel(view_conte
                 is_marker_collecting = true;
               }
             } else {
-              std::string label = to_string()
-                                  << "  " << textual_icons::toggle_on << "\n    on##" << id << ","
-                                  << "";
+              std::string label = to_string() << "  " << textual_icons::toggle_on << "\n    on##"
+                                              << id << "," << "";
               ImGui_ScopePushStyleColor(ImGuiCol_Text, light_blue);
               ImGui_ScopePushStyleColor(ImGuiCol_TextSelectedBg, light_blue + 0.1f);
 
@@ -1390,7 +1379,7 @@ void calibration_panel_view::draw_intrinsic_calibration_control_panel(view_conte
             ImGui::GetWindowDrawList()->AddRectFilled({200, screen_pos.y}, {300, screen_pos.y + 20},
                                                       c);
 
-            ImGui::Text("%s", std::to_string(device.num_points).c_str());
+            ImGui::Text("%s", std::to_string(node.num_points).c_str());
 
             ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 2);
           }
@@ -1447,13 +1436,13 @@ void calibration_panel_view::draw_controls(view_context* context, float panel_he
   // draw controls
   {
     const auto pos = ImGui::GetCursorPos();
-    const float vertical_space_before_device_control = 10.0f;
-    const float horizontal_space_before_device_control = 3.0f;
-    auto device_panel_pos = ImVec2{pos.x + horizontal_space_before_device_control,
-                                   pos.y + vertical_space_before_device_control};
-    ImGui::SetCursorPos(device_panel_pos);
-    const float device_panel_height = draw_control_panel(context);
-    ImGui::SetCursorPos({device_panel_pos.x, device_panel_pos.y + device_panel_height});
+    const float vertical_space_before_node_control = 10.0f;
+    const float horizontal_space_before_node_control = 3.0f;
+    auto node_panel_pos = ImVec2{pos.x + horizontal_space_before_node_control,
+                                 pos.y + vertical_space_before_node_control};
+    ImGui::SetCursorPos(node_panel_pos);
+    const float node_panel_height = draw_control_panel(context);
+    ImGui::SetCursorPos({node_panel_pos.x, node_panel_pos.y + node_panel_height});
   }
 
   // draw selecting calibration target
@@ -1517,7 +1506,7 @@ void calibration_panel_view::render(view_context* context) {
 }
 
 float reconstruction_panel_view::draw_control_panel(view_context* context) {
-  const float device_panel_height = 60.0f;
+  const float node_panel_height = 60.0f;
   auto panel_pos = ImGui::GetCursorPos();
 
   ImGui::PushFont(context->large_font);
@@ -1532,18 +1521,18 @@ float reconstruction_panel_view::draw_control_panel(view_context* context) {
 
   const auto id = "";
   const float icons_width = 78.0f;
-  const ImVec2 device_panel_icons_size{icons_width, 25};
+  const ImVec2 node_panel_icons_size{icons_width, 25};
   textual_icon button_icon = is_streaming ? textual_icons::stop : textual_icons::play;
   std::string play_button_name = to_string() << button_icon << "##" << id;
   auto play_button_color = is_streaming ? light_blue : light_grey;
   {
     ImGui::PushStyleColor(ImGuiCol_Text, play_button_color);
     ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, play_button_color);
-    if (ImGui::Button(play_button_name.c_str(), device_panel_icons_size)) {
+    if (ImGui::Button(play_button_name.c_str(), node_panel_icons_size)) {
       if (is_streaming) {
         is_streaming = false;
         for (const auto& f : is_streaming_changed) {
-          if (!f(devices, is_streaming)) {
+          if (!f(nodes, is_streaming)) {
             is_streaming = true;
             break;
           }
@@ -1551,7 +1540,7 @@ float reconstruction_panel_view::draw_control_panel(view_context* context) {
       } else {
         is_streaming = true;
         for (const auto& f : is_streaming_changed) {
-          if (!f(devices, is_streaming)) {
+          if (!f(nodes, is_streaming)) {
             is_streaming = false;
             break;
           }
@@ -1566,11 +1555,11 @@ float reconstruction_panel_view::draw_control_panel(view_context* context) {
   {
     ImGui::PushStyleColor(ImGuiCol_Text, record_button_color);
     ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, record_button_color);
-    if (ImGui::Button(record_button_name.c_str(), device_panel_icons_size)) {
+    if (ImGui::Button(record_button_name.c_str(), node_panel_icons_size)) {
       if (is_recording) {
         is_recording = false;
         for (const auto& f : is_recording_changed) {
-          if (!f(devices, is_recording)) {
+          if (!f(nodes, is_recording)) {
             is_recording = true;
             break;
           }
@@ -1578,7 +1567,7 @@ float reconstruction_panel_view::draw_control_panel(view_context* context) {
       } else {
         is_recording = true;
         for (const auto& f : is_recording_changed) {
-          if (!f(devices, is_recording)) {
+          if (!f(nodes, is_recording)) {
             is_recording = false;
             break;
           }
@@ -1597,7 +1586,7 @@ float reconstruction_panel_view::draw_control_panel(view_context* context) {
 
     ImGui::PushStyleColor(ImGuiCol_Text, play_button_color);
     ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, play_button_color);
-    ImGui::Button(is_streaming ? "Stop" : "Start", device_panel_icons_size);
+    ImGui::Button(is_streaming ? "Stop" : "Start", node_panel_icons_size);
     ImGui::PopStyleColor(2);
     ImGui::PopStyleColor(3);
   }
@@ -1605,7 +1594,7 @@ float reconstruction_panel_view::draw_control_panel(view_context* context) {
   {
     ImGui::PushStyleColor(ImGuiCol_Text, record_button_color);
     ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, record_button_color);
-    ImGui::Button("Record", device_panel_icons_size);
+    ImGui::Button("Record", node_panel_icons_size);
     ImGui::PopStyleColor(2);
   }
 
@@ -1613,7 +1602,7 @@ float reconstruction_panel_view::draw_control_panel(view_context* context) {
   ImGui::PopStyleColor(7);
   ImGui::PopFont();
 
-  return device_panel_height;
+  return node_panel_height;
 }
 
 void reconstruction_panel_view::draw_controls(view_context* context, float panel_height) {
@@ -1624,13 +1613,13 @@ void reconstruction_panel_view::draw_controls(view_context* context, float panel
   // draw controls
   {
     auto pos = ImGui::GetCursorPos();
-    const float vertical_space_before_device_control = 10.0f;
-    const float horizontal_space_before_device_control = 3.0f;
-    auto device_panel_pos = ImVec2{pos.x + horizontal_space_before_device_control,
-                                   pos.y + vertical_space_before_device_control};
-    ImGui::SetCursorPos(device_panel_pos);
-    const float device_panel_height = draw_control_panel(context);
-    ImGui::SetCursorPos({device_panel_pos.x, device_panel_pos.y + device_panel_height});
+    const float vertical_space_before_node_control = 10.0f;
+    const float horizontal_space_before_node_control = 3.0f;
+    auto node_panel_pos = ImVec2{pos.x + horizontal_space_before_node_control,
+                                 pos.y + vertical_space_before_node_control};
+    ImGui::SetCursorPos(node_panel_pos);
+    const float node_panel_height = draw_control_panel(context);
+    ImGui::SetCursorPos({node_panel_pos.x, node_panel_pos.y + node_panel_height});
   }
 
   {
@@ -1701,10 +1690,10 @@ static void deproject_pixel_to_point(float point[3], const pose_view::camera_t* 
   point[2] = depth;
 }
 
-void pose_view::initialize(vk::Device device, vk::PhysicalDevice physical_device,
+void pose_view::initialize(vk::Device node, vk::PhysicalDevice physical_device,
                            vk::RenderPass render_pass) {
   pipeline_ = std::make_unique<render3d_pipeline>();
-  pipeline_->initialize(device, physical_device, render_pass);
+  pipeline_->initialize(node, physical_device, render_pass);
 }
 
 void pose_view::cleanup() {

@@ -85,11 +85,11 @@ class extrinsic_calibration_pipeline::impl {
     graph.process(calib_node.get(), "calibrate", msg);
   }
 
-  void run(const std::vector<node_info>& infos) {
+  void run(const std::vector<node_def>& nodes) {
     // Group nodes by subgraph instance
-    std::map<std::string, std::vector<node_info>> nodes_by_subgraph;
-    for (const auto& info : infos) {
-      nodes_by_subgraph[info.subgraph_instance].push_back(info);
+    std::map<std::string, std::vector<node_def>> nodes_by_subgraph;
+    for (const auto& node : nodes) {
+      nodes_by_subgraph[node.subgraph_instance].push_back(node);
     }
 
     // Create empty subgraphs first
@@ -101,26 +101,26 @@ class extrinsic_calibration_pipeline::impl {
     std::unordered_map<std::string, graph_node_ptr> node_map;
 
     // Build graph using common function
-    stargazer::build_graph_from_json(infos, subgraphs, node_map);
+    stargazer::build_graph_from_json(nodes, subgraphs, node_map);
 
     // Extract specific nodes from the graph
-    for (const auto& info : infos) {
-      if (info.get_type() == node_type::frame_number_numbering) {
-        input_node = std::dynamic_pointer_cast<frame_number_numbering_node>(node_map.at(info.name));
-      } else if (info.get_type() == node_type::calibration) {
-        calib_node = std::dynamic_pointer_cast<calibration_node>(node_map.at(info.name));
+    for (const auto& node : nodes) {
+      if (node.get_type() == node_type::frame_number_numbering) {
+        input_node = std::dynamic_pointer_cast<frame_number_numbering_node>(node_map.at(node.name));
+      } else if (node.get_type() == node_type::calibration) {
+        calib_node = std::dynamic_pointer_cast<calibration_node>(node_map.at(node.name));
         // Set cameras for calibration node
         if (calib_node) {
           calib_node->set_cameras(cameras);
         }
-      } else if (info.get_type() == node_type::pattern_board_calibration_target_detector) {
+      } else if (node.get_type() == node_type::pattern_board_calibration_target_detector) {
         // Set camera from cameras map if camera_name parameter is provided
-        if (info.contains_param("camera_name")) {
-          const auto camera_name = info.get_param<std::string>("camera_name");
+        if (node.contains_param("camera_name")) {
+          const auto camera_name = node.get_param<std::string>("camera_name");
           if (cameras.find(camera_name) != cameras.end()) {
             auto detector_node =
                 std::dynamic_pointer_cast<pattern_board_calibration_target_detector_node>(
-                    node_map.at(info.name));
+                    node_map.at(node.name));
             if (detector_node) {
               detector_node->set_camera(cameras.at(camera_name));
             }
@@ -203,7 +203,7 @@ std::unordered_map<std::string, camera_t>& extrinsic_calibration_pipeline::get_c
   return pimpl->cameras;
 }
 
-void extrinsic_calibration_pipeline::run(const std::vector<node_info>& infos) { pimpl->run(infos); }
+void extrinsic_calibration_pipeline::run(const std::vector<node_def>& nodes) { pimpl->run(nodes); }
 
 void extrinsic_calibration_pipeline::stop() { pimpl->stop(); }
 
@@ -246,11 +246,11 @@ class intrinsic_calibration_pipeline::impl {
 
   impl() = default;
 
-  void run(const std::vector<node_info>& infos) {
+  void run(const std::vector<node_def>& nodes) {
     // Group nodes by subgraph instance
-    std::map<std::string, std::vector<node_info>> nodes_by_subgraph;
-    for (const auto& info : infos) {
-      nodes_by_subgraph[info.subgraph_instance].push_back(info);
+    std::map<std::string, std::vector<node_def>> nodes_by_subgraph;
+    for (const auto& node : nodes) {
+      nodes_by_subgraph[node.subgraph_instance].push_back(node);
     }
 
     // Create empty subgraphs first
@@ -262,14 +262,14 @@ class intrinsic_calibration_pipeline::impl {
     std::unordered_map<std::string, graph_node_ptr> node_map;
 
     // Build graph using common function
-    stargazer::build_graph_from_json(infos, subgraphs, node_map);
+    stargazer::build_graph_from_json(nodes, subgraphs, node_map);
 
     // Extract specific nodes from the graph
-    for (const auto& info : infos) {
-      if (info.get_type() == node_type::frame_number_numbering) {
-        input_node = std::dynamic_pointer_cast<frame_number_numbering_node>(node_map.at(info.name));
-      } else if (info.get_type() == node_type::intrinsic_calibration) {
-        calib_node = std::dynamic_pointer_cast<intrinsic_calibration_node>(node_map.at(info.name));
+    for (const auto& node : nodes) {
+      if (node.get_type() == node_type::frame_number_numbering) {
+        input_node = std::dynamic_pointer_cast<frame_number_numbering_node>(node_map.at(node.name));
+      } else if (node.get_type() == node_type::intrinsic_calibration) {
+        calib_node = std::dynamic_pointer_cast<intrinsic_calibration_node>(node_map.at(node.name));
       }
     }
 
@@ -304,7 +304,7 @@ intrinsic_calibration_pipeline::intrinsic_calibration_pipeline()
 
 intrinsic_calibration_pipeline::~intrinsic_calibration_pipeline() = default;
 
-void intrinsic_calibration_pipeline::run(const std::vector<node_info>& infos) { pimpl->run(infos); }
+void intrinsic_calibration_pipeline::run(const std::vector<node_def>& nodes) { pimpl->run(nodes); }
 void intrinsic_calibration_pipeline::stop() { pimpl->stop(); }
 
 double intrinsic_calibration_pipeline::get_rms() const {
@@ -408,11 +408,11 @@ class axis_calibration_pipeline::impl {
     graph.process(calib_node.get(), "calibrate", msg);
   }
 
-  void run(const std::vector<node_info>& infos) {
+  void run(const std::vector<node_def>& nodes) {
     // Group nodes by subgraph instance
-    std::map<std::string, std::vector<node_info>> nodes_by_subgraph;
-    for (const auto& info : infos) {
-      nodes_by_subgraph[info.subgraph_instance].push_back(info);
+    std::map<std::string, std::vector<node_def>> nodes_by_subgraph;
+    for (const auto& node : nodes) {
+      nodes_by_subgraph[node.subgraph_instance].push_back(node);
     }
 
     // Create empty subgraphs first
@@ -424,14 +424,14 @@ class axis_calibration_pipeline::impl {
     std::unordered_map<std::string, graph_node_ptr> node_map;
 
     // Build graph using common function
-    stargazer::build_graph_from_json(infos, subgraphs, node_map);
+    stargazer::build_graph_from_json(nodes, subgraphs, node_map);
 
     // Extract specific nodes from the graph
-    for (const auto& info : infos) {
-      if (info.get_type() == node_type::frame_number_numbering) {
-        input_node = std::dynamic_pointer_cast<frame_number_numbering_node>(node_map.at(info.name));
-      } else if (info.get_type() == node_type::axis_calibration) {
-        calib_node = std::dynamic_pointer_cast<axis_calibration_node>(node_map.at(info.name));
+    for (const auto& node : nodes) {
+      if (node.get_type() == node_type::frame_number_numbering) {
+        input_node = std::dynamic_pointer_cast<frame_number_numbering_node>(node_map.at(node.name));
+      } else if (node.get_type() == node_type::axis_calibration) {
+        calib_node = std::dynamic_pointer_cast<axis_calibration_node>(node_map.at(node.name));
       }
     }
 
@@ -529,7 +529,7 @@ void axis_calibration_pipeline::push_frame(
   pimpl->push_frame(frame);
 }
 
-void axis_calibration_pipeline::run(const std::vector<node_info>& infos) { pimpl->run(infos); }
+void axis_calibration_pipeline::run(const std::vector<node_def>& nodes) { pimpl->run(nodes); }
 void axis_calibration_pipeline::stop() { pimpl->stop(); }
 
 void axis_calibration_pipeline::calibrate() { pimpl->calibrate(); }

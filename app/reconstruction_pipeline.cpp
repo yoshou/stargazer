@@ -121,11 +121,11 @@ class multiview_point_reconstruction_pipeline::impl {
     }
   }
 
-  void run(const std::vector<node_info>& infos) {
+  void run(const std::vector<node_def>& nodes) {
     // Group nodes by subgraph instance
-    std::map<std::string, std::vector<node_info>> nodes_by_subgraph;
-    for (const auto& info : infos) {
-      nodes_by_subgraph[info.subgraph_instance].push_back(info);
+    std::map<std::string, std::vector<node_def>> nodes_by_subgraph;
+    for (const auto& node : nodes) {
+      nodes_by_subgraph[node.subgraph_instance].push_back(node);
     }
 
     // Create empty subgraphs first
@@ -137,23 +137,23 @@ class multiview_point_reconstruction_pipeline::impl {
     std::unordered_map<std::string, graph_node_ptr> node_map;
 
     // Build graph using common function
-    stargazer::build_graph_from_json(infos, subgraphs, node_map);
+    stargazer::build_graph_from_json(nodes, subgraphs, node_map);
 
     // Extract specific nodes from the graph
-    for (const auto& info : infos) {
-      if (info.get_type() == node_type::frame_number_numbering) {
+    for (const auto& node : nodes) {
+      if (node.get_type() == node_type::frame_number_numbering) {
         if (input_node) {
           spdlog::warn("Multiple frame_number_numbering nodes found, using the first one");
         } else {
           input_node =
-              std::dynamic_pointer_cast<frame_number_numbering_node>(node_map.at(info.name));
+              std::dynamic_pointer_cast<frame_number_numbering_node>(node_map.at(node.name));
         }
-      } else if (info.get_type() == node_type::epipolar_reconstruction) {
+      } else if (node.get_type() == node_type::epipolar_reconstruction) {
         if (reconstruct_node) {
           spdlog::warn("Multiple epipolar_reconstruction nodes found, using the first one");
         } else {
           reconstruct_node =
-              std::dynamic_pointer_cast<epipolar_reconstruct_node>(node_map.at(info.name));
+              std::dynamic_pointer_cast<epipolar_reconstruct_node>(node_map.at(node.name));
           // Set cameras and axis for reconstruction node
           if (reconstruct_node) {
             reconstruct_node->set_cameras(cameras);
@@ -221,8 +221,8 @@ void multiview_point_reconstruction_pipeline::push_frame(const frame_type& frame
   pimpl->push_frame(frame);
 }
 
-void multiview_point_reconstruction_pipeline::run(const std::vector<node_info>& infos) {
-  pimpl->run(infos);
+void multiview_point_reconstruction_pipeline::run(const std::vector<node_def>& nodes) {
+  pimpl->run(nodes);
 }
 
 void multiview_point_reconstruction_pipeline::stop() { pimpl->stop(); }
@@ -334,11 +334,11 @@ class multiview_image_reconstruction_pipeline::impl {
     }
   }
 
-  void run(const std::vector<node_info>& infos) {
+  void run(const std::vector<node_def>& nodes) {
     // Group nodes by subgraph instance
-    std::map<std::string, std::vector<node_info>> nodes_by_subgraph;
-    for (const auto& info : infos) {
-      nodes_by_subgraph[info.subgraph_instance].push_back(info);
+    std::map<std::string, std::vector<node_def>> nodes_by_subgraph;
+    for (const auto& node : nodes) {
+      nodes_by_subgraph[node.subgraph_instance].push_back(node);
     }
 
     // Create empty subgraphs first
@@ -350,47 +350,47 @@ class multiview_image_reconstruction_pipeline::impl {
     std::unordered_map<std::string, graph_node_ptr> node_map;
 
     // Build graph using common function
-    stargazer::build_graph_from_json(infos, subgraphs, node_map);
+    stargazer::build_graph_from_json(nodes, subgraphs, node_map);
 
     // Extract specific nodes from the graph
-    for (const auto& info : infos) {
-      if (info.get_type() == node_type::frame_number_numbering) {
+    for (const auto& node : nodes) {
+      if (node.get_type() == node_type::frame_number_numbering) {
         if (input_node) {
           spdlog::warn("Multiple frame_number_numbering nodes found, using the first one");
         } else {
           input_node =
-              std::dynamic_pointer_cast<frame_number_numbering_node>(node_map.at(info.name));
+              std::dynamic_pointer_cast<frame_number_numbering_node>(node_map.at(node.name));
         }
-      } else if (info.get_type() == node_type::voxelpose_reconstruction) {
+      } else if (node.get_type() == node_type::voxelpose_reconstruction) {
         if (reconstruct_node) {
           spdlog::warn("Multiple reconstruction nodes found, using the first one");
         } else {
           reconstruct_node =
-              std::dynamic_pointer_cast<voxelpose_reconstruct_node>(node_map.at(info.name));
+              std::dynamic_pointer_cast<voxelpose_reconstruct_node>(node_map.at(node.name));
           // Set cameras and axis for reconstruction node
           if (reconstruct_node) {
             reconstruct_node->set_cameras(cameras);
             reconstruct_node->set_axis(axis);
           }
         }
-      } else if (info.get_type() == node_type::mvpose_reconstruction) {
+      } else if (node.get_type() == node_type::mvpose_reconstruction) {
         if (reconstruct_node) {
           spdlog::warn("Multiple reconstruction nodes found, using the first one");
         } else {
           reconstruct_node =
-              std::dynamic_pointer_cast<mvpose_reconstruct_node>(node_map.at(info.name));
+              std::dynamic_pointer_cast<mvpose_reconstruct_node>(node_map.at(node.name));
           // Set cameras and axis for reconstruction node
           if (reconstruct_node) {
             reconstruct_node->set_cameras(cameras);
             reconstruct_node->set_axis(axis);
           }
         }
-      } else if (info.get_type() == node_type::mvp_reconstruction) {
+      } else if (node.get_type() == node_type::mvp_reconstruction) {
         if (reconstruct_node) {
           spdlog::warn("Multiple reconstruction nodes found, using the first one");
         } else {
           reconstruct_node =
-              std::dynamic_pointer_cast<mvp_reconstruct_node>(node_map.at(info.name));
+              std::dynamic_pointer_cast<mvp_reconstruct_node>(node_map.at(node.name));
           // Set cameras and axis for reconstruction node
           if (reconstruct_node) {
             reconstruct_node->set_cameras(cameras);
@@ -467,8 +467,8 @@ void multiview_image_reconstruction_pipeline::push_frame(const frame_type& frame
   pimpl->push_frame(frame);
 }
 
-void multiview_image_reconstruction_pipeline::run(const std::vector<node_info>& infos) {
-  pimpl->run(infos);
+void multiview_image_reconstruction_pipeline::run(const std::vector<node_def>& nodes) {
+  pimpl->run(nodes);
 }
 
 void multiview_image_reconstruction_pipeline::stop() { pimpl->stop(); }
