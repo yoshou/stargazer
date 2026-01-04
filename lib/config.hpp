@@ -29,6 +29,7 @@ enum class node_type {
   grpc_server,
   frame_demux,
   dump_se3,
+  dump_reconstruction,
   libcamera_capture,
   timestamp,
   broadcast_talker,

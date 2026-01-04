@@ -1,5 +1,9 @@
 #pragma once
 
+#include <cereal/types/map.hpp>
+#include <cereal/types/string.hpp>
+#include <cereal/types/utility.hpp>
+#include <cereal/types/vector.hpp>
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
@@ -39,6 +43,60 @@ struct float3 {
   template <typename Archive>
   void serialize(Archive& archive) {
     archive(x, y, z);
+  }
+};
+
+// Generic 2D bounding box
+struct bbox2d_t {
+  float left;
+  float top;
+  float right;
+  float bottom;
+
+  template <typename Archive>
+  void serialize(Archive& archive) {
+    archive(left, top, right, bottom);
+  }
+};
+
+// Generic 2D detection result
+struct detection2d_t {
+  bbox2d_t bbox;
+  float bbox_score;
+  std::vector<float2> keypoints;  // (x, y) coordinates
+  std::vector<float> scores;      // per-keypoint confidence
+
+  template <typename Archive>
+  void serialize(Archive& archive) {
+    archive(bbox, bbox_score, keypoints, scores);
+  }
+};
+
+// Per-view 2D detection results
+struct view_result_t {
+  std::string name;
+  std::vector<detection2d_t> detections;
+
+  template <typename Archive>
+  void serialize(Archive& archive) {
+    archive(name, detections);
+  }
+};
+
+// Multi-view correspondence (view_index, detection_index)
+using detection_id_t = std::pair<size_t, size_t>;
+using match_t = std::vector<detection_id_t>;
+
+// Complete reconstruction result
+struct reconstruction_result_t {
+  std::vector<float3> points3d;      // Final 3D keypoints
+  std::vector<view_result_t> views;  // Per-view 2D detections
+  std::vector<match_t> matches;      // Multi-view correspondences
+  size_t num_keypoints;
+
+  template <typename Archive>
+  void serialize(Archive& archive) {
+    archive(points3d, views, matches, num_keypoints);
   }
 };
 
@@ -87,6 +145,27 @@ class scene_message : public graph_message {
   }
 };
 
+// Generic multi-view reconstruction result message
+class reconstruction_result_message : public frame_message_base {
+  reconstruction_result_t result;
+  std::map<std::string, camera_t> cameras;
+  glm::mat4 axis;
+
+ public:
+  void set_result(const reconstruction_result_t& result) { this->result = result; }
+  void set_cameras(const std::map<std::string, camera_t>& cameras) { this->cameras = cameras; }
+  void set_axis(const glm::mat4& axis) { this->axis = axis; }
+
+  const reconstruction_result_t& get_result() const { return result; }
+  const std::map<std::string, camera_t>& get_cameras() const { return cameras; }
+  const glm::mat4& get_axis() const { return axis; }
+
+  template <typename Archive>
+  void serialize(Archive& archive) {
+    archive(result, cameras, axis);
+  }
+};
+
 }  // namespace stargazer
 
 COALSACK_REGISTER_MESSAGE(stargazer::float2_list_message, coalsack::frame_message_base)
@@ -97,3 +176,4 @@ COALSACK_REGISTER_MESSAGE(stargazer::camera_message, coalsack::graph_message)
 COALSACK_REGISTER_MESSAGE(stargazer::scene_message, coalsack::graph_message)
 COALSACK_REGISTER_MESSAGE(coalsack::frame_message<coalsack::object_message>,
                           coalsack::frame_message_base)
+COALSACK_REGISTER_MESSAGE(stargazer::reconstruction_result_message, coalsack::frame_message_base)
