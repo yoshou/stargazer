@@ -60,6 +60,8 @@ static node_type get_node_type(const std::string& type) {
     return node_type::frame_demux;
   } else if (type == "dump_se3") {
     return node_type::dump_se3;
+  } else if (type == "dump_reconstruction") {
+    return node_type::dump_reconstruction;
   } else if (type == "libcamera_capture") {
     return node_type::libcamera_capture;
   } else if (type == "timestamp") {
@@ -152,6 +154,8 @@ static std::string get_node_type_name(node_type type) {
       return "frame_demux";
     case node_type::dump_se3:
       return "dump_se3";
+    case node_type::dump_reconstruction:
+      return "dump_reconstruction";
     case node_type::libcamera_capture:
       return "libcamera_capture";
     case node_type::timestamp:

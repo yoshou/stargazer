@@ -7,6 +7,7 @@
 #include "callback_node.hpp"
 #include "dump_blob_node.hpp"
 #include "dump_keypoint_node.hpp"
+#include "dump_reconstruction_node.hpp"
 #include "dump_se3_node.hpp"
 #include "epipolar_reconstruct_node.hpp"
 #include "ext/graph_proc_cv_ext.h"
@@ -545,6 +546,17 @@ void build_graph_from_json(const std::vector<node_def>& nodes,
       }
       case node_type::dump_se3: {
         auto n = std::make_shared<dump_se3_node>();
+        if (node.contains_param("db_path")) {
+          n->set_db_path(node.get_param<std::string>("db_path"));
+        }
+        if (node.contains_param("topic_name")) {
+          n->set_name(node.get_param<std::string>("topic_name"));
+        }
+        graph_node = n;
+        break;
+      }
+      case node_type::dump_reconstruction: {
+        auto n = std::make_shared<dump_reconstruction_node>();
         if (node.contains_param("db_path")) {
           n->set_db_path(node.get_param<std::string>("db_path"));
         }

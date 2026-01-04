@@ -63,6 +63,13 @@
           "inputs": { "default": "frame_number_numbering" }
         },
         {
+          "name": "dump_reconstruction",
+          "type": "dump_reconstruction",
+          "db_path": "../data/mvpose_dump.db",
+          "topic_name": "mvpose_reconstruction",
+          "inputs": { "default": "mvpose_reconstruction" }
+        },
+        {
           "name": "callback_poses",
           "type": "callback",
           "callback_name": "poses",
@@ -694,6 +701,15 @@
           "type": "mvpose_reconstruction",
           "inputs": {
             "default": "queue"
+          }
+        },
+        {
+          "name": "dump_reconstruction",
+          "type": "dump_reconstruction",
+          "db_path": "../data/mvpose_dump.db",
+          "topic_name": "mvpose_reconstruction",
+          "inputs": {
+            "default": "reconstruct"
           }
         },
         {

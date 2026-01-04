@@ -1533,7 +1533,18 @@ static glm::vec3 triangulate(const std::vector<glm::vec2>& points,
 
 std::vector<glm::vec3> mvpose::inference(const std::vector<cv::Mat>& images_list,
                                          const std::vector<stargazer::camera_t>& cameras_list) {
+  const auto result = inference_with_matches(images_list, cameras_list);
+  return result.points3d;
+}
+
+mvpose_inference_result mvpose::inference_with_matches(
+    const std::vector<cv::Mat>& images_list,
+    const std::vector<stargazer::camera_t>& cameras_list) {
+  mvpose_inference_result result;
+  result.num_joints = dnn_inference_pose::num_joints;
+
   std::vector<std::vector<cv::Rect2f>> rects(images_list.size());
+  std::vector<std::vector<float>> rect_scores(images_list.size());
 
   {
     std::vector<roi_data> rois;
@@ -1569,6 +1580,7 @@ std::vector<glm::vec3> mvpose::inference(const std::vector<cv::Mat>& images_list
             const auto bbox_right_bottom = inv_trans * cv::Point2f(bbox_right, bbox_bottom);
 
             rects[i].push_back(cv::Rect2f(bbox_left_top, bbox_right_bottom));
+            rect_scores[i].push_back(score);
           }
         }
       }
@@ -1578,11 +1590,11 @@ std::vector<glm::vec3> mvpose::inference(const std::vector<cv::Mat>& images_list
   std::vector<std::vector<roi_data>> rois;
   inference_pose->process(images_list, rects, rois);
 
-  size_t k = 0;
+  size_t flat_pose_index = 0;
 
   std::vector<std::vector<pose_joints_t>> pose_joints_list(images_list.size());
   for (size_t i = 0; i < images_list.size(); i++) {
-    for (size_t j = 0; j < rects[i].size(); j++, k++) {
+    for (size_t j = 0; j < rects[i].size(); j++, flat_pose_index++) {
       const auto roi = rois.at(i).at(j);
 
       const auto&& resized_size = cv::Size(288, 384);
@@ -1593,8 +1605,8 @@ std::vector<glm::vec3> mvpose::inference(const std::vector<cv::Mat>& images_list
       std::vector<float> simcc_x(extend_width * num_joints);
       std::vector<float> simcc_y(extend_height * num_joints);
 
-      inference_pose->copy_simcc_x_to_cpu(simcc_x.data(), k);
-      inference_pose->copy_simcc_y_to_cpu(simcc_y.data(), k);
+      inference_pose->copy_simcc_x_to_cpu(simcc_x.data(), flat_pose_index);
+      inference_pose->copy_simcc_y_to_cpu(simcc_y.data(), flat_pose_index);
 
       const auto trans = get_transform(cv::Point2f(roi.center[0], roi.center[1]),
                                        cv::Size2f(roi.scale[0], roi.scale[1]), resized_size);
@@ -1603,54 +1615,88 @@ std::vector<glm::vec3> mvpose::inference(const std::vector<cv::Mat>& images_list
       cv::invertAffineTransform(trans, inv_trans);
 
       pose_joints_t pose_joints;
-      for (int k = 0; k < num_joints; ++k) {
-        const auto x_biggest_iter = std::max_element(
-            simcc_x.begin() + k * extend_width, simcc_x.begin() + k * extend_width + extend_width);
-        const auto max_x_pos = std::distance(simcc_x.begin() + k * extend_width, x_biggest_iter);
+      pose_joints.reserve(num_joints);
+      for (int joint_index = 0; joint_index < num_joints; ++joint_index) {
+        const auto x_biggest_iter =
+            std::max_element(simcc_x.begin() + joint_index * extend_width,
+                             simcc_x.begin() + joint_index * extend_width + extend_width);
+        const auto max_x_pos =
+            std::distance(simcc_x.begin() + joint_index * extend_width, x_biggest_iter);
         const auto pose_x = max_x_pos / 2.0f;
         const auto score_x = *x_biggest_iter;
 
         const auto y_biggest_iter =
-            std::max_element(simcc_y.begin() + k * extend_height,
-                             simcc_y.begin() + k * extend_height + extend_height);
-        const auto max_y_pos = std::distance(simcc_y.begin() + k * extend_height, y_biggest_iter);
+            std::max_element(simcc_y.begin() + joint_index * extend_height,
+                             simcc_y.begin() + joint_index * extend_height + extend_height);
+        const auto max_y_pos =
+            std::distance(simcc_y.begin() + joint_index * extend_height, y_biggest_iter);
         const auto pose_y = max_y_pos / 2.0f;
         const auto score_y = *y_biggest_iter;
 
         const auto score = (score_x + score_y) / 2;
-        // const auto score = std::max(score_x, score_y);
 
         const auto pose = inv_trans * cv::Point2f(pose_x, pose_y);
-        const auto joint = std::make_tuple(pose, score);
-        pose_joints.emplace_back(joint);
+        pose_joints.emplace_back(std::make_tuple(pose, score));
       }
 
-      pose_joints_list[i].push_back(pose_joints);
+      pose_joints_list[i].push_back(std::move(pose_joints));
     }
   }
 
-  const auto matched_list = matcher->compute_matches(pose_joints_list, cameras_list);
+  result.views.resize(images_list.size());
+  for (size_t view_index = 0; view_index < images_list.size(); ++view_index) {
+    auto& out_view = result.views[view_index];
+    out_view.poses.reserve(rects[view_index].size());
+    for (size_t pose_index = 0; pose_index < rects[view_index].size(); ++pose_index) {
+      mvpose_pose2d pose;
+      pose.bbox = rects[view_index][pose_index];
+      pose.bbox_score = pose_index < rect_scores[view_index].size() ? rect_scores[view_index][pose_index]
+                                                                     : -1.0f;
+      const auto& joints = pose_joints_list[view_index][pose_index];
+      pose.joints.resize(joints.size());
+      pose.scores.resize(joints.size());
+      for (size_t joint_index = 0; joint_index < joints.size(); ++joint_index) {
+        pose.joints[joint_index] = std::get<0>(joints[joint_index]);
+        pose.scores[joint_index] = std::get<1>(joints[joint_index]);
+      }
+      out_view.poses.emplace_back(std::move(pose));
+    }
+  }
+
+  const auto matched_list_internal = matcher->compute_matches(pose_joints_list, cameras_list);
+  result.matched_list.reserve(matched_list_internal.size());
+  for (const auto& matched : matched_list_internal) {
+    mvpose_match_t match;
+    match.reserve(matched.size());
+    for (const auto& p : matched) {
+      match.emplace_back(mvpose_pose_id_t{p.first, p.second});
+    }
+    result.matched_list.emplace_back(std::move(match));
+  }
 
   std::vector<glm::vec3> markers;
-  for (const auto& matched : matched_list) {
-    for (size_t j = 5; j < 17; j++) {
+  for (const auto& matched : matched_list_internal) {
+    constexpr size_t kCoco17NumPoints = 17;
+    for (size_t joint_index = 0; joint_index < kCoco17NumPoints; joint_index++) {
       std::vector<glm::vec2> pts;
       std::vector<stargazer::camera_t> cams;
       for (std::size_t i = 0; i < matched.size(); i++) {
-        const auto pt = std::get<0>(pose_joints_list[matched[i].first][matched[i].second][j]);
-        const auto score = std::get<1>(pose_joints_list[matched[i].first][matched[i].second][j]);
+        const auto pt =
+            std::get<0>(pose_joints_list[matched[i].first][matched[i].second][joint_index]);
+        const auto score =
+            std::get<1>(pose_joints_list[matched[i].first][matched[i].second][joint_index]);
         if (score > 0.7f) {
           pts.push_back(glm::vec2(pt.x, pt.y));
           cams.push_back(cameras_list[matched[i].first]);
         }
       }
       if (pts.size() >= 2) {
-        const auto marker = triangulate(pts, cams);
-        markers.push_back(marker);
+        markers.push_back(triangulate(pts, cams));
       }
     }
   }
-  return markers;
+  result.points3d = std::move(markers);
+  return result;
 }
 
 static void load_model(std::string model_path, std::vector<uint8_t>& data) {

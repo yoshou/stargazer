@@ -241,6 +241,7 @@ target_link_libraries(stargazer
     glm::glm
     Eigen3::Eigen
     opencv_imgproc
+    unofficial::sqlite3::sqlite3
     $<$<NOT:$<BOOL:${MSVC}>>:pthread>
     $<$<NOT:$<BOOL:${MSVC}>>:stdc++fs>
 )

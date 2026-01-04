@@ -52,26 +52,25 @@ class mvpose_reconstruct_node : public image_reconstruct_node {
     archive(cameras, axis);
   }
 
-  std::vector<glm::vec3> reconstruct(const std::map<std::string, camera_t>& cameras,
-                                     const std::map<std::string, cv::Mat>& frame,
-                                     const glm::mat4& axis) {
+  stargazer::mvpose::mvpose_inference_result reconstruct(
+      const std::map<std::string, camera_t>& cameras, const std::map<std::string, cv::Mat>& frame,
+      const glm::mat4& axis, std::vector<std::string>& out_view_names) {
     using namespace stargazer::mvpose;
 
-    std::vector<std::string> names;
     coalsack::tensor<float, 4> heatmaps;
     std::vector<cv::Mat> images_list;
     std::vector<camera_t> cameras_list;
 
     if (frame.size() <= 1) {
-      return std::vector<glm::vec3>();
+      return {};
     }
 
     for (const auto& [camera_name, image] : frame) {
-      names.push_back(camera_name);
+      out_view_names.push_back(camera_name);
     }
 
     for (size_t i = 0; i < frame.size(); i++) {
-      const auto name = names[i];
+      const auto name = out_view_names[i];
 
       camera_t camera;
 
@@ -100,15 +99,15 @@ class mvpose_reconstruct_node : public image_reconstruct_node {
       images_list.push_back(frame.at(name));
     }
 
-    const auto points = pose_estimator.inference(images_list, cameras_list);
+    const auto infer_result = pose_estimator.inference_with_matches(images_list, cameras_list);
 
     {
       std::lock_guard lock(features_mtx);
-      this->names = names;
+      this->names = out_view_names;
       this->features = std::move(heatmaps);
     }
 
-    return points;
+    return infer_result;
   }
 
   virtual void process(std::string input_name, graph_message_ptr message) override {
@@ -161,17 +160,56 @@ class mvpose_reconstruct_node : public image_reconstruct_node {
         }
       }
 
-      const auto markers = reconstruct(cameras, images, axis);
+      std::vector<std::string> view_names;
+      const auto infer_result = reconstruct(cameras, images, axis, view_names);
 
-      auto marker_msg = std::make_shared<float3_list_message>();
-      std::vector<float3> marker_data;
-      for (const auto& marker : markers) {
-        marker_data.push_back({marker.x, marker.y, marker.z});
+      // Convert mvpose-specific result to generic format
+      reconstruction_result_t generic_result;
+      generic_result.num_keypoints = infer_result.num_joints;
+
+      // Convert 3D points
+      generic_result.points3d.reserve(infer_result.points3d.size());
+      for (const auto& p : infer_result.points3d) {
+        generic_result.points3d.push_back({p.x, p.y, p.z});
       }
-      marker_msg->set_data(marker_data);
-      marker_msg->set_frame_number(frame_msg->get_frame_number());
 
-      output->send(marker_msg);
+      // Convert per-view 2D detections
+      generic_result.views.reserve(infer_result.views.size());
+      for (size_t i = 0; i < infer_result.views.size(); ++i) {
+        view_result_t view;
+        view.name = view_names[i];
+        view.detections.reserve(infer_result.views[i].poses.size());
+
+        for (const auto& mvpose_pose : infer_result.views[i].poses) {
+          detection2d_t detection;
+          detection.bbox.left = mvpose_pose.bbox.x;
+          detection.bbox.top = mvpose_pose.bbox.y;
+          detection.bbox.right = mvpose_pose.bbox.x + mvpose_pose.bbox.width;
+          detection.bbox.bottom = mvpose_pose.bbox.y + mvpose_pose.bbox.height;
+          detection.bbox_score = mvpose_pose.bbox_score;
+
+          detection.keypoints.reserve(mvpose_pose.joints.size());
+          for (const auto& joint : mvpose_pose.joints) {
+            detection.keypoints.push_back({joint.x, joint.y});
+          }
+          detection.scores = mvpose_pose.scores;
+
+          view.detections.push_back(std::move(detection));
+        }
+        generic_result.views.push_back(std::move(view));
+      }
+
+      // Convert matches
+      generic_result.matches = infer_result.matched_list;
+
+      auto result_msg = std::make_shared<reconstruction_result_message>();
+      result_msg->set_result(generic_result);
+      result_msg->set_cameras(cameras);
+      result_msg->set_axis(axis);
+      result_msg->set_frame_number(frame_msg->get_frame_number());
+      result_msg->set_timestamp(frame_msg->get_timestamp());
+
+      output->send(result_msg);
     }
   }
 
