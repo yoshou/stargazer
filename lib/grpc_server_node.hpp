@@ -33,6 +33,10 @@ class SensorServiceImpl final : public Sensor::Service {
   std::unordered_map<std::string, grpc::ServerWriter<SphereMessage>*> writers;
   std::vector<std::function<void(const std::string&, int64_t, const std::vector<se3>&)>>
       se3_received;
+  std::vector<std::function<void(const std::string&, int64_t, const std::vector<camera_image>&)>>
+      camera_image_received;
+  std::vector<std::function<void(const std::string&, int64_t, const std::vector<inertial>&)>>
+      inertial_received;
 
  public:
   void notify_sphere(const std::string& name, int64_t timestamp,
@@ -58,6 +62,16 @@ class SensorServiceImpl final : public Sensor::Service {
 
   void receive_se3(std::function<void(const std::string&, int64_t, const std::vector<se3>&)> f) {
     se3_received.push_back(f);
+  }
+
+  void receive_camera_image(
+      std::function<void(const std::string&, int64_t, const std::vector<camera_image>&)> f) {
+    camera_image_received.push_back(f);
+  }
+
+  void receive_inertial(
+      std::function<void(const std::string&, int64_t, const std::vector<inertial>&)> f) {
+    inertial_received.push_back(f);
   }
 
   grpc::Status SubscribeSphere(grpc::ServerContext* context, const SubscribeRequest* request,
@@ -94,6 +108,72 @@ class SensorServiceImpl final : public Sensor::Service {
       }
       for (const auto& f : se3_received) {
         f(name, timestamp, se3);
+      }
+    }
+    return grpc::Status::OK;
+  }
+
+  grpc::Status PublishCameraImage(grpc::ServerContext* context,
+                                  grpc::ServerReader<CameraImageMessage>* reader,
+                                  google::protobuf::Empty* response) override {
+    CameraImageMessage data;
+    while (reader->Read(&data)) {
+      const auto name = data.name();
+      const auto timestamp = data.timestamp();
+      const auto& values = data.values();
+      std::vector<camera_image> images;
+      for (const auto& value : values) {
+        camera_image img;
+        img.image_data.assign(value.image_data().begin(), value.image_data().end());
+        img.image_size = glm::ivec2(value.image_size().x(), value.image_size().y());
+        img.format = static_cast<image_data_format>(value.format());
+        img.intrinsics.focal_length =
+            glm::vec2(value.intrinsics().focal_length().x(), value.intrinsics().focal_length().y());
+        img.intrinsics.principal_point = glm::vec2(value.intrinsics().principal_point().x(),
+                                                   value.intrinsics().principal_point().y());
+        img.intrinsics.image_size =
+            glm::ivec2(value.intrinsics().image_size().x(), value.intrinsics().image_size().y());
+        img.intrinsics.distortion.k1 = value.intrinsics().distortion().k1();
+        img.intrinsics.distortion.k2 = value.intrinsics().distortion().k2();
+        img.intrinsics.distortion.p1 = value.intrinsics().distortion().p1();
+        img.intrinsics.distortion.p2 = value.intrinsics().distortion().p2();
+        img.intrinsics.distortion.k3 = value.intrinsics().distortion().k3();
+        images.push_back(img);
+      }
+      for (const auto& f : camera_image_received) {
+        f(name, timestamp, images);
+      }
+    }
+    return grpc::Status::OK;
+  }
+
+  grpc::Status PublishInertial(grpc::ServerContext* context,
+                               grpc::ServerReader<InertialMessage>* reader,
+                               google::protobuf::Empty* response) override {
+    InertialMessage data;
+    while (reader->Read(&data)) {
+      const auto name = data.name();
+      const auto timestamp = data.timestamp();
+      const auto& values = data.values();
+      std::vector<inertial> samples;
+      for (const auto& value : values) {
+        inertial sample;
+        sample.acceleration = glm::vec3(static_cast<float>(value.acceleration().x()),
+                                       static_cast<float>(value.acceleration().y()),
+                                       static_cast<float>(value.acceleration().z()));
+        sample.gyroscope = glm::vec3(static_cast<float>(value.gyroscope().x()),
+                                    static_cast<float>(value.gyroscope().y()),
+                                    static_cast<float>(value.gyroscope().z()));
+        sample.magnetometer = glm::vec3(static_cast<float>(value.magnetometer().x()),
+                                       static_cast<float>(value.magnetometer().y()),
+                                       static_cast<float>(value.magnetometer().z()));
+        sample.gravity = glm::vec3(static_cast<float>(value.gravity().x()),
+                                  static_cast<float>(value.gravity().y()),
+                                  static_cast<float>(value.gravity().z()));
+        samples.push_back(sample);
+      }
+      for (const auto& f : inertial_received) {
+        f(name, timestamp, samples);
       }
     }
     return grpc::Status::OK;
@@ -164,6 +244,16 @@ class grpc_server {
   void receive_se3(std::function<void(const std::string&, int64_t, const std::vector<se3>&)> f) {
     service->receive_se3(f);
   }
+
+  void receive_camera_image(
+      std::function<void(const std::string&, int64_t, const std::vector<camera_image>&)> f) {
+    service->receive_camera_image(f);
+  }
+
+  void receive_inertial(
+      std::function<void(const std::string&, int64_t, const std::vector<inertial>&)> f) {
+    service->receive_inertial(f);
+  }
 };
 
 class grpc_server_node : public graph_node {
@@ -204,6 +294,27 @@ class grpc_server_node : public graph_node {
           msg->set_data(obj_msg);
           msg->set_timestamp(static_cast<double>(timestamp));
           output->send(msg);
+        });
+
+    server->receive_camera_image(
+        [this](const std::string& name, int64_t timestamp,
+               const std::vector<camera_image>& images) {
+          auto msg = std::make_shared<camera_image_list_message>();
+          msg->set_data(images);
+          msg->set_timestamp(static_cast<double>(timestamp));
+          output->send(msg);
+          spdlog::info("Received camera images: name={}, timestamp={}, count={}", name, timestamp,
+                       images.size());
+        });
+
+    server->receive_inertial(
+        [this](const std::string& name, int64_t timestamp, const std::vector<inertial>& samples) {
+          auto msg = std::make_shared<inertial_list_message>();
+          msg->set_data(samples);
+          msg->set_timestamp(static_cast<double>(timestamp));
+          output->send(msg);
+          spdlog::info("Received inertial data: name={}, timestamp={}, samples={}", name,
+                       timestamp, samples.size());
         });
 
     server->run();
