@@ -118,3 +118,50 @@ target_sources(stargazer_viewer
 
 set_target_properties(stargazer_viewer PROPERTIES
     CXX_STANDARD 20)
+
+# gRPC server standalone application
+add_executable(stargazer_grpc_server
+    ${CMAKE_CURRENT_LIST_DIR}/grpc_server_app.cpp
+)
+
+add_dependencies(stargazer_grpc_server
+    stargazer
+    stargazer_sensor_grpc_proto
+)
+
+target_include_directories(stargazer_grpc_server
+    PRIVATE
+    ${CMAKE_CURRENT_BINARY_DIR}
+)
+
+target_compile_definitions(stargazer_grpc_server
+    PUBLIC
+    $<$<BOOL:${MSVC}>:_USE_MATH_DEFINES>
+    $<$<BOOL:${MSVC}>:GLOG_NO_ABBREVIATED_SEVERITIES>
+)
+
+target_link_directories(stargazer_grpc_server
+    PRIVATE
+    ${VCPKG_ROOT}/installed/x64-linux/lib/
+)
+
+target_link_libraries(stargazer_grpc_server
+    PRIVATE
+    stargazer
+    stargazer_sensor_grpc_proto
+    spdlog::spdlog_header_only
+    cereal::cereal
+    Boost::asio
+    gRPC::grpc++
+    glm::glm
+)
+
+target_compile_options(stargazer_grpc_server
+    PRIVATE
+    $<$<CXX_COMPILER_ID:Clang>:-Wall -Wextra -Wno-unused-parameter>
+    $<$<CXX_COMPILER_ID:Clang>:$<$<CONFIG:RELEASE>:-O2>>
+    $<$<CXX_COMPILER_ID:Clang>:$<$<CONFIG:DEBUG>:-g -O0>>
+    $<$<BOOL:${MSVC}>:/bigobj>)
+
+set_target_properties(stargazer_grpc_server PROPERTIES
+    CXX_STANDARD 20)
