@@ -9,6 +9,8 @@ service Sensor {
   rpc SubscribeCircle(SubscribeRequest) returns (stream CircleMessage) {}
   rpc SubscribeSphere(SubscribeRequest) returns (stream SphereMessage) {}
   rpc PublishSE3(stream SE3Message) returns (google.protobuf.Empty) {}
+  rpc PublishCameraImage(stream CameraImageMessage) returns (google.protobuf.Empty) {}
+  rpc PublishInertial(stream InertialMessage) returns (google.protobuf.Empty) {}
 }
 
 message SubscribeRequest {
@@ -42,6 +44,16 @@ message SE3Message {
 message Point2D {
   double x = 1;
   double y = 2;
+}
+
+message Vector2D {
+  double x = 1;
+  double y = 2;
+}
+
+message IntVector2D {
+  int32 x = 1;
+  int32 y = 2;
 }
 
 message Circle {
@@ -86,4 +98,51 @@ message SO3 {
 message SE3 {
   Vector3D t = 1;
   Quat q = 2;
+}
+
+message DistortionCoefficients {
+  double k1 = 1;
+  double k2 = 2;
+  double p1 = 3;
+  double p2 = 4;
+  double k3 = 5;
+}
+
+message CameraIntrinsics {
+  Vector2D focal_length = 1;
+  Vector2D principal_point = 2;
+  IntVector2D image_size = 3;
+  DistortionCoefficients distortion = 4;
+}
+
+message CameraImage {
+  enum ImageFormat {
+    UNKNOWN = 0;
+    JPEG = 1;
+    PNG = 2;
+    RAW = 3;
+  }
+  bytes image_data = 1;
+  IntVector2D image_size = 2;
+  ImageFormat format = 3;
+  CameraIntrinsics intrinsics = 4;
+}
+
+message CameraImageMessage {
+  string name = 1;
+  int64 timestamp = 2;
+  repeated CameraImage values = 3;
+}
+
+message Inertial {
+  Vector3D acceleration = 1;
+  Vector3D gyroscope = 2;
+  Vector3D magnetometer = 3;
+  Vector3D gravity = 4;
+}
+
+message InertialMessage {
+  string name = 1;
+  int64 timestamp = 2;
+  repeated Inertial values = 3;
 }

@@ -25,6 +25,52 @@ struct se3 {
   }
 };
 
+struct camera_intrinsics {
+  glm::vec2 focal_length;
+  glm::vec2 principal_point;
+  glm::ivec2 image_size;
+  struct {
+    double k1, k2, p1, p2, k3;
+  } distortion;
+
+  template <typename Archive>
+  void serialize(Archive& archive) {
+    archive(focal_length, principal_point, image_size, distortion.k1, distortion.k2,
+            distortion.p1, distortion.p2, distortion.k3);
+  }
+};
+
+enum class image_data_format {
+  UNKNOWN = 0,
+  JPEG = 1,
+  PNG = 2,
+  RAW = 3
+};
+
+struct camera_image {
+  std::vector<uint8_t> image_data;
+  glm::ivec2 image_size;
+  image_data_format format;
+  camera_intrinsics intrinsics;
+
+  template <typename Archive>
+  void serialize(Archive& archive) {
+    archive(image_data, image_size, format, intrinsics);
+  }
+};
+
+struct inertial {
+  glm::vec3 acceleration;
+  glm::vec3 gyroscope;
+  glm::vec3 magnetometer;
+  glm::vec3 gravity;
+
+  template <typename Archive>
+  void serialize(Archive& archive) {
+    archive(acceleration, gyroscope, magnetometer, gravity);
+  }
+};
+
 struct float2 {
   float x;
   float y;
@@ -104,6 +150,8 @@ using float2_list_message = frame_message<std::vector<float2>>;
 using float3_list_message = frame_message<std::vector<float3>>;
 using mat4_message = frame_message<glm::mat4>;
 using se3_list_message = frame_message<std::vector<se3>>;
+using camera_image_list_message = frame_message<std::vector<camera_image>>;
+using inertial_list_message = frame_message<std::vector<inertial>>;
 
 class camera_message : public graph_message {
   camera_t camera;
@@ -172,6 +220,8 @@ COALSACK_REGISTER_MESSAGE(stargazer::float2_list_message, coalsack::frame_messag
 COALSACK_REGISTER_MESSAGE(stargazer::float3_list_message, coalsack::frame_message_base)
 COALSACK_REGISTER_MESSAGE(stargazer::mat4_message, coalsack::frame_message_base)
 COALSACK_REGISTER_MESSAGE(stargazer::se3_list_message, coalsack::frame_message_base)
+COALSACK_REGISTER_MESSAGE(stargazer::camera_image_list_message, coalsack::frame_message_base)
+COALSACK_REGISTER_MESSAGE(stargazer::inertial_list_message, coalsack::frame_message_base)
 COALSACK_REGISTER_MESSAGE(stargazer::camera_message, coalsack::graph_message)
 COALSACK_REGISTER_MESSAGE(stargazer::scene_message, coalsack::graph_message)
 COALSACK_REGISTER_MESSAGE(coalsack::frame_message<coalsack::object_message>,
