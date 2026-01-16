@@ -122,6 +122,10 @@ set_target_properties(stargazer_viewer PROPERTIES
 # gRPC server standalone application
 add_executable(stargazer_grpc_server
     ${CMAKE_CURRENT_LIST_DIR}/grpc_server_app.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/gui.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/viewer.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/views.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/render3d.cpp
 )
 
 add_dependencies(stargazer_grpc_server
@@ -149,11 +153,19 @@ target_link_libraries(stargazer_grpc_server
     PRIVATE
     stargazer
     stargazer_sensor_grpc_proto
+    opencv_imgproc
+    opencv_highgui
+    opencv_imgcodecs
+    $<$<NOT:$<BOOL:${WIN32}>>:vulkan>
+    glfw
+    $<$<NOT:$<BOOL:${WIN32}>>:pthread>
+    $<$<NOT:$<BOOL:${WIN32}>>:dl>
     spdlog::spdlog_header_only
     cereal::cereal
     Boost::asio
     gRPC::grpc++
     glm::glm
+    imgui::imgui
 )
 
 target_compile_options(stargazer_grpc_server
