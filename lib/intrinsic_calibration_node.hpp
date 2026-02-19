@@ -7,9 +7,9 @@
 #include <vector>
 
 #include "calibration_target.hpp"
-#include "graph_proc.h"
-#include "graph_proc_cv.h"
-#include "graph_proc_img.h"
+#include "coalsack/core/graph_proc.h"
+#include "coalsack/image/graph_proc_cv.h"
+#include "coalsack/image/image_nodes.h"
 #include "messages.hpp"
 #include "parameters.hpp"
 #include "point_data.hpp"

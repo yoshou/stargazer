@@ -7,8 +7,8 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
-#include "graph_proc.h"
-#include "graph_proc_img.h"
+#include "coalsack/core/graph_proc.h"
+#include "coalsack/image/image_nodes.h"
 #include "parameters.hpp"
 
 namespace stargazer {

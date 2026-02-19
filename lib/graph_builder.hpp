@@ -7,7 +7,7 @@
 #include <vector>
 
 #include "config.hpp"
-#include "graph_proc.h"
+#include "coalsack/core/graph_proc.h"
 
 namespace stargazer {
 

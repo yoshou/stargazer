@@ -4,7 +4,7 @@
 #include <vector>
 
 #include "calibration_target.hpp"
-#include "graph_proc.h"
+#include "coalsack/core/graph_proc.h"
 #include "messages.hpp"
 #include "point_data.hpp"
 

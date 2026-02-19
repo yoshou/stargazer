@@ -12,10 +12,10 @@
 #include <opencv2/dnn/dnn.hpp>
 #include <vector>
 
-#include "graph_proc.h"
-#include "graph_proc_cv.h"
-#include "graph_proc_img.h"
-#include "graph_proc_tensor.h"
+#include "coalsack/core/graph_proc.h"
+#include "coalsack/image/graph_proc_cv.h"
+#include "coalsack/image/image_nodes.h"
+#include "coalsack/tensor/graph_proc_tensor.h"
 #include "preprocess.hpp"
 #include "voxelpose_internal.hpp"
 

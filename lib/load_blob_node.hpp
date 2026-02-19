@@ -7,8 +7,8 @@
 #include <chrono>
 #include <thread>
 
-#include "graph_proc.h"
-#include "graph_proc_img.h"
+#include "coalsack/core/graph_proc.h"
+#include "coalsack/image/image_nodes.h"
 
 namespace stargazer {
 using namespace coalsack;

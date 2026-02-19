@@ -5,7 +5,7 @@
 #include <opencv2/core.hpp>
 #include <string>
 
-#include "graph_proc.h"
+#include "coalsack/core/graph_proc.h"
 #include "parameters.hpp"
 
 namespace stargazer {

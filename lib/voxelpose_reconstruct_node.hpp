@@ -4,9 +4,9 @@
 #include <mutex>
 #include <opencv2/opencv.hpp>
 
-#include "graph_proc.h"
-#include "graph_proc_cv.h"
-#include "graph_proc_tensor.h"
+#include "coalsack/core/graph_proc.h"
+#include "coalsack/image/graph_proc_cv.h"
+#include "coalsack/tensor/graph_proc_tensor.h"
 #include "image_reconstruct_node.hpp"
 #include "messages.hpp"
 #include "parameters.hpp"

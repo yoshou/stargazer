@@ -5,9 +5,9 @@
 #include <deque>
 #include <nlohmann/json.hpp>
 
-#include "graph_proc.h"
-#include "graph_proc_cv.h"
-#include "graph_proc_img.h"
+#include "coalsack/core/graph_proc.h"
+#include "coalsack/image/graph_proc_cv.h"
+#include "coalsack/image/image_nodes.h"
 
 namespace stargazer {
 

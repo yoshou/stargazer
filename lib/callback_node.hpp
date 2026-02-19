@@ -5,8 +5,8 @@
 #include <string>
 #include <vector>
 
-#include "graph_proc.h"
-#include "graph_proc_registry.h"
+#include "coalsack/core/graph_proc.h"
+#include "coalsack/core/graph_proc_registry.h"
 
 using namespace coalsack;
 

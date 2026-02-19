@@ -11,7 +11,7 @@
 #include <vector>
 
 #include "calibration.hpp"
-#include "graph_proc.h"
+#include "coalsack/core/graph_proc.h"
 #include "messages.hpp"
 #include "parameters.hpp"
 #include "point_data.hpp"

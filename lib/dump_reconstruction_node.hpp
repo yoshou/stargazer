@@ -8,7 +8,7 @@
 #include <deque>
 #include <nlohmann/json.hpp>
 
-#include "graph_proc.h"
+#include "coalsack/core/graph_proc.h"
 #include "parameters.hpp"
 
 // Forward declaration (will be included via graph_builder.cpp)

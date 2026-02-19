@@ -2,7 +2,7 @@
 
 #include <string>
 
-#include "graph_proc.h"
+#include "coalsack/core/graph_proc.h"
 #include "messages.hpp"
 
 namespace stargazer {

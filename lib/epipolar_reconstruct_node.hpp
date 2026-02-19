@@ -2,7 +2,7 @@
 
 #include <mutex>
 
-#include "graph_proc.h"
+#include "coalsack/core/graph_proc.h"
 #include "messages.hpp"
 #include "reconstruction.hpp"
 

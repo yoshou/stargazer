@@ -15,7 +15,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "graph_proc.h"
+#include "coalsack/core/graph_proc.h"
 #include "messages.hpp"
 #include "sensor.grpc.pb.h"
 
