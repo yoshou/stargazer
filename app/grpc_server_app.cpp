@@ -28,6 +28,24 @@ std::mutex display_mutex;
 std::map<std::string, cv::Mat> latest_frames;
 std::map<std::string, std::unique_ptr<texture_buffer>> texture_buffers;
 
+class image_sink_node : public coalsack::graph_node {
+  std::function<void(coalsack::graph_message_ptr)> callback_;
+
+ public:
+  void set_callback(std::function<void(coalsack::graph_message_ptr)> callback) {
+    callback_ = std::move(callback);
+  }
+
+  std::string get_proc_name() const override { return "image_sink"; }
+
+  void process([[maybe_unused]] std::string input_name,
+               coalsack::graph_message_ptr message) override {
+    if (callback_) {
+      callback_(std::move(message));
+    }
+  }
+};
+
 // Decode image data.
 cv::Mat decode_image(const stargazer::camera_image& img) {
   if (img.format == stargazer::image_data_format::JPEG) {
@@ -96,11 +114,11 @@ int main(int argc, char* argv[]) {
   try {
     // Create gRPC server node.
     auto grpc_node = std::make_shared<stargazer::grpc_server_node>();
+    auto image_sink = std::make_shared<image_sink_node>();
     grpc_node->set_address(server_address);
 
     // Register callback for received images.
-    auto image_callback =
-        std::make_shared<coalsack::graph_message_callback>([](coalsack::graph_message_ptr message) {
+    image_sink->set_callback([](coalsack::graph_message_ptr message) {
           if (const auto msg =
                   std::dynamic_pointer_cast<stargazer::camera_image_list_message>(message)) {
             std::lock_guard<std::mutex> lock(display_mutex);
@@ -116,8 +134,7 @@ int main(int argc, char* argv[]) {
             }
           }
         });
-
-    grpc_node->get_output()->set_callback(image_callback);
+    image_sink->set_input(grpc_node->get_output());
 
     // Start the server.
     spdlog::info("Starting gRPC server node");
