@@ -360,8 +360,6 @@ static const textual_icon edit{u8"\uf044"};
 static const textual_icon play{u8"\uf04b"};
 static const textual_icon stop{u8"\uf04d"};
 static const textual_icon circle{u8"\uf111"};
-static const textual_icon toggle_off{u8"\uf204"};
-static const textual_icon toggle_on{u8"\uf205"};
 }  // namespace textual_icons
 
 namespace {
@@ -412,6 +410,94 @@ ImVec4 get_tree_text_color(stargazer::config_tree_item_kind kind) {
       return light_grey;
   }
   return light_grey;
+}
+
+std::optional<size_t> find_calibration_node_index(const calibration_panel_view* panel,
+                                                  const std::string& node_name) {
+  for (size_t index = 0; index < panel->nodes.size(); ++index) {
+    if (panel->nodes[index].name == node_name) {
+      return index;
+    }
+  }
+  return std::nullopt;
+}
+
+void draw_metric_row(const std::string& label, const std::string& value) {
+  const auto start = ImGui::GetCursorScreenPos();
+  const float panel_width = ImGui::GetWindowPos().x + ImGui::GetWindowContentRegionMax().x;
+  const float value_width = 96.0f;
+  const float row_height = 22.0f;
+  const float left = panel_width - value_width - 8.0f;
+  auto* font = ImGui::GetFont();
+  const auto font_size = ImGui::GetFontSize();
+
+  ImGui::Indent(24.0f);
+  ImGui::PushStyleColor(ImGuiCol_Text, grey);
+  ImGui::TextUnformatted(label.c_str());
+  ImGui::PopStyleColor();
+  ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(left, start.y + 1.0f),
+                                            ImVec2(left + value_width, start.y + row_height),
+                                            ImGui::ColorConvertFloat4ToU32(node_info_color), 2.0f);
+  ImGui::GetWindowDrawList()->AddText(font, font_size, ImVec2(left + 6.0f, start.y + 4.0f),
+                                      ImGui::ColorConvertFloat4ToU32(yellowish), value.c_str());
+  ImGui::Unindent(24.0f);
+  ImGui::Dummy({0.0f, row_height - ImGui::GetTextLineHeight()});
+}
+
+void draw_calibration_tree_item(calibration_panel_view* panel,
+                                const stargazer::config_tree_item& item,
+                                view_context* context,
+                                bool select_camera_nodes,
+                                bool show_metric_values) {
+  if (item.kind == stargazer::config_tree_item_kind::detail) {
+    draw_detail_row(item);
+    return;
+  }
+
+  ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_FramePadding;
+  if (item.children.empty()) {
+    flags |= ImGuiTreeNodeFlags_Leaf;
+  }
+  if (panel->selected_item_id.has_value() && panel->selected_item_id.value() == item.stable_id) {
+    flags |= ImGuiTreeNodeFlags_Selected;
+  }
+
+  ImGui::PushStyleColor(ImGuiCol_Text, get_tree_text_color(item.kind));
+  const bool open = ImGui::TreeNodeEx((item.label + "##" + item.stable_id).c_str(), flags);
+  ImGui::PopStyleColor();
+
+  bool clicked = ImGui::IsItemClicked();
+  if (!item.runtime_node_id.empty()) {
+    auto runtime_it = panel->tree.runtime_nodes.find(item.runtime_node_id);
+    if (runtime_it != panel->tree.runtime_nodes.end()) {
+      auto& runtime_node = runtime_it->second;
+      draw_badges(runtime_node.badges);
+      if (clicked && select_camera_nodes && runtime_node.is_camera) {
+        panel->selected_item_id = item.stable_id;
+        const auto node_index = find_calibration_node_index(panel, runtime_node.ref.node_name);
+        if (node_index.has_value()) {
+          panel->intrinsic_calibration_target_index = static_cast<int>(node_index.value());
+          for (auto& callback : panel->on_intrinsic_calibration_target_changed) {
+            callback(panel->nodes.at(node_index.value()));
+          }
+        }
+      } else if (clicked) {
+        panel->selected_item_id = item.stable_id;
+      }
+      if (show_metric_values && runtime_node.is_camera) {
+        draw_metric_row("Collected", std::to_string(runtime_node.status.metric_value));
+      }
+    }
+  } else if (clicked) {
+    panel->selected_item_id = item.stable_id;
+  }
+
+  if (open) {
+    for (const auto& child : item.children) {
+      draw_calibration_tree_item(panel, child, context, select_camera_nodes, show_metric_values);
+    }
+    ImGui::TreePop();
+  }
 }
 
 void draw_capture_tree_item(capture_panel_view* panel, const stargazer::config_tree_item& item,
@@ -905,298 +991,148 @@ float calibration_panel_view::draw_control_panel(view_context* context) {
 }
 
 void calibration_panel_view::draw_extrinsic_calibration_control_panel(view_context* context) {
-  std::vector<std::function<void()>> draw_later;
-  {
-    auto pos = ImGui::GetCursorPos();
-    auto windows_width = ImGui::GetContentRegionMax().x;
+  const auto panel_width = 350.0f;
+  const float content_left_inset = 10.0f;
 
-    ImGui::PushStyleColor(ImGuiCol_HeaderHovered, sensor_bg);
-    ImGui::PushStyleColor(ImGuiCol_Text, light_grey);
-    ImGui::PushFont(context->large_font);
+  ImGui::SetCursorPosX(content_left_inset);
 
-    // draw streaming
-    {
-      draw_later.push_back([pos, windows_width, this, context]() {
-        const auto id = "";
-
-        ImGui::SetCursorPos({windows_width - 35, pos.y + 3});
-        ImGui_ScopePushFont(context->default_font);
-
-        ImGui_ScopePushStyleColor(ImGuiCol_Button, sensor_bg);
-        ImGui_ScopePushStyleColor(ImGuiCol_ButtonHovered, sensor_bg);
-        ImGui_ScopePushStyleColor(ImGuiCol_ButtonActive, sensor_bg);
-
-        if (!is_marker_collecting) {
-          std::string label = to_string() << "  " << textual_icons::toggle_off << "\noff   ##" << id
-                                          << "," << "";
-
-          ImGui_ScopePushStyleColor(ImGuiCol_Text, redish);
-          ImGui_ScopePushStyleColor(ImGuiCol_TextSelectedBg, redish + 0.1f);
-
-          if (ImGui::Button(label.c_str(), {30, 30})) {
-            is_marker_collecting = true;
-            for (const auto& f : is_marker_collecting_changed) {
-              if (!f(nodes, is_marker_collecting)) {
-                is_marker_collecting = false;
-                break;
-              }
-            }
-          }
-        } else {
-          std::string label = to_string() << "  " << textual_icons::toggle_on << "\n    on##" << id
-                                          << "," << "";
-          ImGui_ScopePushStyleColor(ImGuiCol_Text, light_blue);
-          ImGui_ScopePushStyleColor(ImGuiCol_TextSelectedBg, light_blue + 0.1f);
-
-          if (ImGui::Button(label.c_str(), {30, 30})) {
-            is_marker_collecting = false;
-            for (const auto& f : is_marker_collecting_changed) {
-              if (!f(nodes, is_marker_collecting)) {
-                is_marker_collecting = true;
-                break;
-              }
-            }
-          }
-        }
-      });
-
-      const auto id = "";
-
-      std::string label = to_string() << "Collect Markers" << "##" << id;
-      ImGui::PushStyleColor(ImGuiCol_Header, sensor_bg);
-      ImGui::PushStyleColor(ImGuiCol_HeaderActive, sensor_bg);
-      ImGui::PushStyleColor(ImGuiCol_HeaderHovered, sensor_bg);
-      ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{10, 10});
-      ImGui::PushStyleVar(ImGuiStyleVar_ItemInnerSpacing, {0, 0});
-      ImGuiTreeNodeFlags flags{};
-      // if (show_depth_only) flags = ImGuiTreeNodeFlags_DefaultOpen;
-      if (ImGui::TreeNodeEx(label.c_str(), flags | ImGuiTreeNodeFlags_FramePadding)) {
-        for (auto& node : nodes) {
-          auto pos = ImGui::GetCursorPos();
-          auto windows_width = ImGui::GetContentRegionMax().x;
-
-          ImGui::PopStyleVar();
-          ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{2, 2});
-
-          // draw streaming
-          {
-            draw_later.push_back([pos, windows_width, context, &node]() {
-              const auto id = node.name;
-
-              ImGui::SetCursorPos({windows_width - 35, pos.y + 3});
-              ImGui_ScopePushFont(context->default_font);
-
-              ImGui_ScopePushStyleColor(ImGuiCol_Button, sensor_bg);
-              ImGui_ScopePushStyleColor(ImGuiCol_ButtonHovered, sensor_bg);
-              ImGui_ScopePushStyleColor(ImGuiCol_ButtonActive, sensor_bg);
-
-              if (!node.is_streaming) {
-                std::string label = to_string() << "  " << textual_icons::toggle_off << "\noff   ##"
-                                                << id << "," << "";
-
-                ImGui_ScopePushStyleColor(ImGuiCol_Text, redish);
-                ImGui_ScopePushStyleColor(ImGuiCol_TextSelectedBg, redish + 0.1f);
-
-                if (ImGui::Button(label.c_str(), {30, 30})) {
-                  node.is_streaming = true;
-                }
-              } else {
-                std::string label = to_string() << "  " << textual_icons::toggle_on << "\n    on##"
-                                                << id << "," << "";
-                ImGui_ScopePushStyleColor(ImGuiCol_Text, light_blue);
-                ImGui_ScopePushStyleColor(ImGuiCol_TextSelectedBg, light_blue + 0.1f);
-
-                if (ImGui::Button(label.c_str(), {30, 30})) {
-                  node.is_streaming = false;
-                }
-              }
-            });
-
-            ImGui::Text("%s", node.name.c_str());
-
-            ImGui::SameLine();
-            ImGui::SetCursorPosX(220);
-
-            const auto screen_pos = ImGui::GetCursorScreenPos();
-            auto c = ImGui::GetColorU32(ImGuiCol_FrameBg);
-
-            ImGui::GetWindowDrawList()->AddRectFilled({200, screen_pos.y}, {300, screen_pos.y + 20},
-                                                      c);
-
-            ImGui::Text("%s", std::to_string(node.num_points).c_str());
-
-            ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 2);
-          }
-        }
-
-        ImGui::TreePop();
+  ImGui::PushFont(context->large_font);
+  ImGui::PushStyleColor(ImGuiCol_Text, light_grey);
+  ImGui::TextUnformatted("Collect Markers");
+  ImGui::PopStyleColor();
+  ImGui::SameLine();
+  ImGui::SetCursorPosX(panel_width - 60.0f);
+  ImGui::PushStyleColor(ImGuiCol_Text, is_marker_collecting ? light_blue : light_grey);
+  ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, is_marker_collecting ? light_blue : light_grey);
+  if (ImGui::Button((std::string(is_marker_collecting ? "Stop" : "Start") + "##collect_markers").c_str(),
+                    {52.0f, 22.0f})) {
+    const bool next_state = !is_marker_collecting;
+    bool accepted = true;
+    for (const auto& callback : is_marker_collecting_changed) {
+      if (!callback(nodes, next_state)) {
+        accepted = false;
+        break;
       }
-
-      ImGui::PopStyleVar();
-      ImGui::PopStyleVar();
-      ImGui::PopStyleColor(3);
     }
-
-    ImGui::PopStyleColor(2);
-    ImGui::PopFont();
+    if (accepted) {
+      is_marker_collecting = next_state;
+    }
   }
+  ImGui::PopStyleColor(2);
+  ImGui::PopFont();
+  ImGui::Separator();
 
-  for (const auto& func : draw_later) {
-    func();
+  ImGui::Indent(content_left_inset - 2.0f);
+  ImGui::PushFont(context->large_font);
+  for (const auto& root : tree.roots) {
+    draw_calibration_tree_item(this, root, context, false, true);
   }
+  ImGui::PopFont();
+  ImGui::Unindent(content_left_inset - 2.0f);
 }
 
 void calibration_panel_view::draw_intrinsic_calibration_control_panel(view_context* context) {
-  const auto panel_width = 350;
+  const float content_left_inset = 10.0f;
+  const float combo_width = 310.0f;
 
-  // draw selecting node
-  {
+  if (!nodes.empty()) {
     std::vector<std::string> intrinsic_calibration_devices;
+    intrinsic_calibration_devices.reserve(nodes.size());
     for (const auto& node : nodes) {
       intrinsic_calibration_devices.push_back(node.name);
     }
-    std::string id = "##intrinsic_calibration_device";
-    std::vector<const char*> intrinsic_calibration_devices_chars =
-        get_string_pointers(intrinsic_calibration_devices);
+
+    std::vector<const char*> intrinsic_calibration_device_labels;
+    intrinsic_calibration_device_labels.reserve(intrinsic_calibration_devices.size());
+    for (const auto& device : intrinsic_calibration_devices) {
+      intrinsic_calibration_device_labels.push_back(device.c_str());
+    }
 
     const auto pos = ImGui::GetCursorPos();
-    ImGui::PushItemWidth(panel_width - 40);
+    ImGui::SetCursorPos({pos.x + 10.0f, pos.y});
+    ImGui::PushItemWidth(combo_width);
     ImGui::PushFont(context->large_font);
-    ImGui::SetCursorPos({pos.x + 10, pos.y});
-    if (ImGui::Combo(id.c_str(), &intrinsic_calibration_target_index,
-                     intrinsic_calibration_devices_chars.data(),
-                     static_cast<int>(intrinsic_calibration_devices.size()))) {
-      for (auto& func : on_intrinsic_calibration_target_changed) {
-        func(nodes.at(intrinsic_calibration_target_index));
+    if (ImGui::Combo("##intrinsic_calibration_device", &intrinsic_calibration_target_index,
+                     intrinsic_calibration_device_labels.data(),
+                     static_cast<int>(intrinsic_calibration_device_labels.size()))) {
+      const auto& selected_node = nodes.at(intrinsic_calibration_target_index);
+      selected_item_id = std::string("node:pipeline:") + selected_node.name;
+      for (auto& callback : on_intrinsic_calibration_target_changed) {
+        callback(selected_node);
       }
     }
     ImGui::SetCursorPos({pos.x, ImGui::GetCursorPos().y});
     ImGui::PopFont();
     ImGui::PopItemWidth();
+    ImGui::Spacing();
   }
 
-  std::vector<std::function<void()>> draw_later;
-  {
-    auto& node = nodes[intrinsic_calibration_target_index];
+  ImGui::SetCursorPosX(content_left_inset);
+  ImGui::PushFont(context->large_font);
+  ImGui::PushStyleColor(ImGuiCol_Text, light_grey);
+  ImGui::TextUnformatted("Select Camera");
+  ImGui::PopStyleColor();
+  ImGui::PopFont();
+  ImGui::Separator();
 
-    ImGui::PushStyleColor(ImGuiCol_HeaderHovered, sensor_bg);
+  ImGui::Indent(content_left_inset - 2.0f);
+  ImGui::PushFont(context->large_font);
+  for (const auto& root : tree.roots) {
+    draw_calibration_tree_item(this, root, context, true, true);
+  }
+  ImGui::PopFont();
+  ImGui::Unindent(content_left_inset - 2.0f);
+
+  if (nodes.empty() || intrinsic_calibration_target_index < 0 ||
+      intrinsic_calibration_target_index >= static_cast<int>(nodes.size())) {
+    return;
+  }
+
+  const auto& node = nodes[intrinsic_calibration_target_index];
+  ImGui::Separator();
+
+  const auto draw_value_field = [](const std::string& id, const std::string& label,
+                                   const std::string& value) {
+    char buffer[64];
+    std::snprintf(buffer, sizeof(buffer), "%s", value.c_str());
+
+    ImGui::TableNextRow();
+    ImGui::TableSetColumnIndex(0);
     ImGui::PushStyleColor(ImGuiCol_Text, light_grey);
-    ImGui::PushFont(context->large_font);
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextUnformatted(label.c_str());
+    ImGui::PopStyleColor();
 
-    // draw streaming
-    {
-      const auto id = "";
+    ImGui::TableSetColumnIndex(1);
+    ImGui::PushStyleColor(ImGuiCol_FrameBg, node_info_color);
+    ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, node_info_color);
+    ImGui::PushStyleColor(ImGuiCol_FrameBgActive, node_info_color);
+    ImGui::PushStyleColor(ImGuiCol_Text, yellowish);
+    ImGui::SetNextItemWidth(-FLT_MIN);
+    ImGui::InputText(id.c_str(), buffer, sizeof(buffer), ImGuiInputTextFlags_ReadOnly);
+    ImGui::PopStyleColor(4);
+  };
 
-      std::string label = to_string() << "Collect Markers" << "##" << id;
-      ImGui::PushStyleColor(ImGuiCol_Header, sensor_bg);
-      ImGui::PushStyleColor(ImGuiCol_HeaderActive, sensor_bg);
-      ImGui::PushStyleColor(ImGuiCol_HeaderHovered, sensor_bg);
-      ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{10, 10});
-      ImGui::PushStyleVar(ImGuiStyleVar_ItemInnerSpacing, {0, 0});
+  ImGui::SetCursorPosX(content_left_inset);
+  if (ImGui::BeginTable("intrinsic_metrics", 2,
+                        ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_BordersInnerV,
+                        ImVec2(combo_width, 0.0f))) {
+    ImGui::TableSetupColumn("label", ImGuiTableColumnFlags_WidthStretch, 1.8f);
+    ImGui::TableSetupColumn("value", ImGuiTableColumnFlags_WidthStretch, 1.2f);
 
-      {
-        auto pos = ImGui::GetCursorPos();
-        auto windows_width = ImGui::GetContentRegionMax().x;
+    draw_value_field("##collected", "Collected", std::to_string(node.num_points));
+    draw_value_field("##rms", "rms", fmt::format("{:6.3f}", rms));
+    draw_value_field("##fx", "fx", fmt::format("{:6.3f}", fx));
+    draw_value_field("##fy", "fy", fmt::format("{:6.3f}", fy));
+    draw_value_field("##cx", "cx", fmt::format("{:6.3f}", cx));
+    draw_value_field("##cy", "cy", fmt::format("{:6.3f}", cy));
+    draw_value_field("##k0", "k0", fmt::format("{:6.3f}", k0));
+    draw_value_field("##k1", "k1", fmt::format("{:6.3f}", k1));
+    draw_value_field("##k2", "k2", fmt::format("{:6.3f}", k2));
+    draw_value_field("##p0", "p0", fmt::format("{:6.3f}", p0));
+    draw_value_field("##p1", "p1", fmt::format("{:6.3f}", p1));
 
-        ImGui::PopStyleVar();
-        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{2, 2});
-
-        // draw streaming
-        {
-          draw_later.push_back([pos, windows_width, this, context, &node]() {
-            const auto id = node.name;
-
-            ImGui::SetCursorPos({windows_width - 35, pos.y + 3});
-            ImGui_ScopePushFont(context->default_font);
-
-            ImGui_ScopePushStyleColor(ImGuiCol_Button, sensor_bg);
-            ImGui_ScopePushStyleColor(ImGuiCol_ButtonHovered, sensor_bg);
-            ImGui_ScopePushStyleColor(ImGuiCol_ButtonActive, sensor_bg);
-
-            if (!is_marker_collecting) {
-              std::string label = to_string() << "  " << textual_icons::toggle_off << "\noff   ##"
-                                              << id << "," << "";
-
-              ImGui_ScopePushStyleColor(ImGuiCol_Text, redish);
-              ImGui_ScopePushStyleColor(ImGuiCol_TextSelectedBg, redish + 0.1f);
-
-              if (ImGui::Button(label.c_str(), {30, 30})) {
-                is_marker_collecting = true;
-              }
-            } else {
-              std::string label = to_string() << "  " << textual_icons::toggle_on << "\n    on##"
-                                              << id << "," << "";
-              ImGui_ScopePushStyleColor(ImGuiCol_Text, light_blue);
-              ImGui_ScopePushStyleColor(ImGuiCol_TextSelectedBg, light_blue + 0.1f);
-
-              if (ImGui::Button(label.c_str(), {30, 30})) {
-                is_marker_collecting = false;
-              }
-            }
-          });
-
-          {
-            ImGui::SetCursorPosX(20);
-
-            ImGui::Text("Num collected makers");
-
-            ImGui::SameLine();
-            ImGui::SetCursorPosX(220);
-
-            const auto screen_pos = ImGui::GetCursorScreenPos();
-            auto c = ImGui::GetColorU32(ImGuiCol_FrameBg);
-
-            ImGui::GetWindowDrawList()->AddRectFilled({200, screen_pos.y}, {300, screen_pos.y + 20},
-                                                      c);
-
-            ImGui::Text("%s", std::to_string(node.num_points).c_str());
-
-            ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 2);
-          }
-
-          const auto draw_param = [&](const std::string& name, float value) {
-            ImGui::SetCursorPosX(20);
-
-            ImGui::Text("%s", name.c_str());
-
-            ImGui::SameLine();
-            ImGui::SetCursorPosX(220);
-
-            const auto screen_pos = ImGui::GetCursorScreenPos();
-            auto c = ImGui::GetColorU32(ImGuiCol_FrameBg);
-
-            ImGui::GetWindowDrawList()->AddRectFilled({200, screen_pos.y}, {300, screen_pos.y + 20},
-                                                      c);
-
-            ImGui::Text("%s", fmt::format("{:6.3f}", value).c_str());
-
-            ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 2);
-          };
-
-          draw_param("rms", rms);
-          draw_param("fx", fx);
-          draw_param("fy", fy);
-          draw_param("cx", cx);
-          draw_param("cy", cy);
-          draw_param("k0", k0);
-          draw_param("k1", k1);
-          draw_param("k2", k2);
-          draw_param("p0", p0);
-          draw_param("p1", p1);
-        }
-      }
-
-      ImGui::PopStyleVar();
-      ImGui::PopStyleVar();
-      ImGui::PopStyleColor(3);
-    }
-
-    ImGui::PopStyleColor(2);
-    ImGui::PopFont();
-  }
-
-  for (const auto& func : draw_later) {
-    func();
+    ImGui::EndTable();
   }
 }
 

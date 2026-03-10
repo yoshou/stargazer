@@ -321,6 +321,11 @@ class configuration {
     return subgraph_templates.at(name);
   }
 
+  bool has_pipeline(const std::string& pipeline_key) const {
+    return pipeline_names.find(pipeline_key) != pipeline_names.end() &&
+           pipelines.find(pipeline_names.at(pipeline_key)) != pipelines.end();
+  }
+
   const pipeline_def& get_pipeline(const std::string& pipeline_key) const {
     return pipelines.at(pipeline_names.at(pipeline_key));
   }

@@ -210,9 +210,11 @@ class calibration_panel_view {
         : name(name), address(address), params(params) {}
   };
   std::vector<node_def> nodes;
+  stargazer::config_tree_model tree;
   bool is_marker_collecting = false;
   bool is_streaming = false;
   bool is_masking = false;
+  std::optional<std::string> selected_item_id;
 
   std::vector<std::function<bool(const std::vector<node_def>&, bool)>> is_marker_collecting_changed;
   std::vector<std::function<bool(const std::vector<node_def>&, bool)>> is_streaming_changed;

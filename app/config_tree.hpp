@@ -75,4 +75,7 @@ struct config_tree_model {
 config_tree_model build_config_tree(const configuration& config,
                                     const std::string& pipeline_key = "pipeline");
 
+config_tree_model build_config_tree(const configuration& config,
+                                    const std::vector<std::string>& pipeline_keys);
+
 }  // namespace stargazer

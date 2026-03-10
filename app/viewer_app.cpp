@@ -328,6 +328,10 @@ class viewer_app : public window_base {
 
   void init_calibration_panel() {
     calibration_panel_view_ = std::make_unique<calibration_panel_view>();
+    calibration_panel_view_->tree = build_config_tree(
+        *calibration_config,
+        std::vector<std::string>{"pipeline", "extrinsic_calibration_pipeline",
+                                 "intrinsic_calibration_pipeline", "axis_calibration_pipeline"});
     for (const auto& node : calibration_config->get_nodes()) {
       if (!node.is_camera()) {
         continue;
@@ -341,6 +345,10 @@ class viewer_app : public window_base {
       }
       calibration_panel_view_->nodes.push_back(
           calibration_panel_view::node_def{node.name, path, node.params});
+    }
+    if (!calibration_panel_view_->nodes.empty()) {
+      calibration_panel_view_->selected_item_id =
+          std::string("node:pipeline:") + calibration_panel_view_->nodes.front().name;
     }
 
     calibration_panel_view_->is_streaming_changed.push_back(
@@ -641,6 +649,11 @@ class viewer_app : public window_base {
           calibration_panel_view_->p1 = params.intrin.coeffs[3];
           calibration_panel_view_->rms = 0;
         });
+    if (!calibration_panel_view_->nodes.empty()) {
+      for (auto& callback : calibration_panel_view_->on_intrinsic_calibration_target_changed) {
+        callback(calibration_panel_view_->nodes.front());
+      }
+    }
 
     calibration_panel_view_->on_calibrate.push_back(
         [this](const std::vector<calibration_panel_view::node_def>& panel_nodes, bool on_calibrate) {
@@ -1259,12 +1272,32 @@ class viewer_app : public window_base {
               found_node != nodes.end() && found_node->is_camera()) {
             const auto camera_name = found_node->get_camera_name();
             node.num_points = extrinsic_calib->get_num_frames(camera_name);
+            auto runtime_it = std::find_if(
+                calibration_panel_view_->tree.runtime_nodes.begin(),
+                calibration_panel_view_->tree.runtime_nodes.end(),
+                [&](const auto& runtime_entry) { return runtime_entry.second.ref.node_name == node.name; });
+            if (runtime_it != calibration_panel_view_->tree.runtime_nodes.end()) {
+              runtime_it->second.status.metric_value = node.num_points;
+            }
           }
         }
       } else if (calibration_panel_view_->calibration_target_index == 1) {
         calibration_panel_view_
             ->nodes[calibration_panel_view_->intrinsic_calibration_target_index]
             .num_points = intrinsic_calib->get_num_frames();
+        const auto& node_name = calibration_panel_view_
+                                    ->nodes[calibration_panel_view_->intrinsic_calibration_target_index]
+                                    .name;
+        auto runtime_it = std::find_if(
+            calibration_panel_view_->tree.runtime_nodes.begin(),
+            calibration_panel_view_->tree.runtime_nodes.end(),
+            [&](const auto& runtime_entry) { return runtime_entry.second.ref.node_name == node_name; });
+        if (runtime_it != calibration_panel_view_->tree.runtime_nodes.end()) {
+          runtime_it->second.status.metric_value =
+              calibration_panel_view_
+                  ->nodes[calibration_panel_view_->intrinsic_calibration_target_index]
+                  .num_points;
+        }
       } else if (calibration_panel_view_->calibration_target_index == 2) {
         for (auto& node : calibration_panel_view_->nodes) {
           const auto& nodes = calibration_config->get_nodes();
@@ -1274,6 +1307,13 @@ class viewer_app : public window_base {
               found_node != nodes.end() && found_node->is_camera()) {
             const auto camera_name = found_node->get_camera_name();
             node.num_points = axis_calib->get_num_frames(camera_name);
+            auto runtime_it = std::find_if(
+                calibration_panel_view_->tree.runtime_nodes.begin(),
+                calibration_panel_view_->tree.runtime_nodes.end(),
+                [&](const auto& runtime_entry) { return runtime_entry.second.ref.node_name == node.name; });
+            if (runtime_it != calibration_panel_view_->tree.runtime_nodes.end()) {
+              runtime_it->second.status.metric_value = node.num_points;
+            }
           }
         }
       }
