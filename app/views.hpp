@@ -10,9 +10,12 @@
 #include <glm/gtx/transform.hpp>
 #include <map>
 #include <memory>
+#include <optional>
 #include <opencv2/core.hpp>
+#include <unordered_set>
 #include <vector>
 
+#include "config_tree.hpp"
 #include "config.hpp"
 #include "imgui-fonts-fontawesome.hpp"
 #include "imgui.h"
@@ -177,38 +180,19 @@ class top_bar_view {
 
 class capture_panel_view {
  public:
-  struct node_def {
-    std::string name;
-    std::string address;
-    std::unordered_map<std::string, stargazer::node_param_t> params;
-    bool is_streaming = false;
-
-    node_def(const std::string& name, const std::string& address,
-             const std::unordered_map<std::string, stargazer::node_param_t>& params)
-        : name(name), address(address), params(params) {}
-  };
-  std::vector<node_def> nodes;
-
+  stargazer::config_tree_model tree;
   bool is_streaming = false;
-  std::vector<std::function<bool(const std::vector<node_def>&, bool)>> is_all_streaming_changed;
-  std::vector<std::function<bool(const node_def&)>> is_streaming_changed;
+  std::optional<std::string> selected_item_id;
+  std::unordered_set<std::string> expanded_item_ids;
+  std::vector<std::function<bool(bool)>> is_all_streaming_changed;
+  std::vector<std::function<bool(const std::string&, bool)>> is_streaming_changed;
 
  private:
   float draw_control_panel(view_context* context);
 
   void draw_controls(view_context* context, float panel_height);
 
-  std::string ip_address;
-  std::string gateway_address;
-  std::string node_name;
-  int node_type_index;
-
  public:
-  std::vector<std::function<void(const std::string&, stargazer::node_type, const std::string&,
-                                 const std::string&)>>
-      on_add_node;
-  std::vector<std::function<void(const std::string&)>> on_remove_node;
-
   void render(view_context* context);
 };
 

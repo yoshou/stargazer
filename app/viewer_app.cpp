@@ -107,29 +107,23 @@ class viewer_app : public window_base {
 
   void init_capture_panel() {
     capture_panel_view_ = std::make_unique<capture_panel_view>();
-    for (const auto& node : capture_config->get_nodes()) {
-      if (!node.is_camera()) {
-        continue;
-      }
-      std::string path;
-      if (node.contains_param("address")) {
-        path = node.get_param<std::string>("address");
-      }
-      if (node.contains_param("db_path")) {
-        path = node.get_param<std::string>("db_path");
-      }
-      capture_panel_view_->nodes.push_back(
-          capture_panel_view::node_def{node.name, path, node.params});
-    }
+    capture_panel_view_->tree = build_config_tree(*capture_config);
 
     capture_panel_view_->is_streaming_changed.push_back(
-        [this](const capture_panel_view::node_def& panel_node) {
-          if (panel_node.is_streaming == true) {
+        [this](const std::string& runtime_node_id, bool is_streaming) {
+          auto runtime_it = capture_panel_view_->tree.runtime_nodes.find(runtime_node_id);
+          if (runtime_it == capture_panel_view_->tree.runtime_nodes.end()) {
+            spdlog::error("Runtime node {} not found in capture tree", runtime_node_id);
+            return false;
+          }
+
+          const auto& node_name = runtime_it->second.ref.node_name;
+          if (is_streaming) {
             const auto& all_nodes = capture_config->get_nodes();
             auto found = std::find_if(all_nodes.begin(), all_nodes.end(),
-                                      [panel_node](const auto& x) { return x.name == panel_node.name; });
+                                      [&](const auto& x) { return x.name == node_name; });
             if (found == all_nodes.end()) {
-              spdlog::error("Node {} not found in capture config", panel_node.name);
+              spdlog::error("Node {} not found in capture config", node_name);
               return false;
             }
             const auto& target_node = *found;
@@ -142,27 +136,30 @@ class viewer_app : public window_base {
             try {
               capture->run(required_nodes);
             } catch (std::exception& e) {
-              spdlog::error("Failed to start capture for {}: {}", panel_node.name, e.what());
+              spdlog::error("Failed to start capture for {}: {}", node_name, e.what());
               return false;
             }
-            captures.insert(std::make_pair(panel_node.name, capture));
+            captures.insert(std::make_pair(node_name, capture));
             const auto width = static_cast<int>(std::round(target_node.get_param<float>("width")));
             const auto height =
                 static_cast<int>(std::round(target_node.get_param<float>("height")));
 
             const auto stream = std::make_shared<image_tile_view::stream_info>(
-                panel_node.name, float2{(float)width, (float)height}, gfx_ctx);
+                node_name, float2{(float)width, (float)height}, gfx_ctx);
             image_tile_view_->streams.push_back(stream);
           } else {
-            auto it = captures.find(panel_node.name);
+            auto it = captures.find(node_name);
+            if (it == captures.end()) {
+              return true;
+            }
             it->second->stop();
             if (it != captures.end()) {
-              captures.erase(captures.find(panel_node.name));
+              captures.erase(captures.find(node_name));
             }
 
             const auto stream_it =
                 std::find_if(image_tile_view_->streams.begin(), image_tile_view_->streams.end(),
-                             [&](const auto& x) { return x->name == panel_node.name; });
+                             [&](const auto& x) { return x->name == node_name; });
 
             if (stream_it != image_tile_view_->streams.end()) {
               image_tile_view_->streams.erase(stream_it);
@@ -173,7 +170,7 @@ class viewer_app : public window_base {
         });
 
     capture_panel_view_->is_all_streaming_changed.push_back(
-        [this](const std::vector<capture_panel_view::node_def>& panel_nodes, bool is_streaming) {
+        [this](bool is_streaming) {
           if (is_streaming) {
             if (multiview_capture) {
               return false;
@@ -1423,8 +1420,14 @@ class viewer_app : public window_base {
           }
         }
 
-        for (const auto& node : capture_panel_view_->nodes) {
-          const auto capture_it = captures.find(node.name);
+        for (const auto& runtime_node_id : capture_panel_view_->tree.camera_node_ids) {
+          const auto runtime_it = capture_panel_view_->tree.runtime_nodes.find(runtime_node_id);
+          if (runtime_it == capture_panel_view_->tree.runtime_nodes.end()) {
+            continue;
+          }
+
+          const auto& node_name = runtime_it->second.ref.node_name;
+          const auto capture_it = captures.find(node_name);
           if (capture_it != captures.end()) {
             const auto capture = capture_it->second;
             auto frames = capture->get_frames();
@@ -1435,7 +1438,7 @@ class viewer_app : public window_base {
               if (!frame.empty()) {
                 const auto stream_it =
                     std::find_if(image_tile_view_->streams.begin(), image_tile_view_->streams.end(),
-                                 [&](const auto& x) { return x->name == node.name; });
+                                 [&](const auto& x) { return x->name == node_name; });
 
                 if (stream_it != image_tile_view_->streams.end()) {
                   cv::Mat color_image;

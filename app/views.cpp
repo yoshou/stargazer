@@ -355,16 +355,140 @@ struct textual_icon {
 
 namespace textual_icons {
 // A note to a maintainer - preserve order when adding values to avoid duplicates
-static const textual_icon times{u8"\uf00d"};
 static const textual_icon refresh{u8"\uf021"};
 static const textual_icon edit{u8"\uf044"};
 static const textual_icon play{u8"\uf04b"};
 static const textual_icon stop{u8"\uf04d"};
-static const textual_icon plus_circle{u8"\uf055"};
 static const textual_icon circle{u8"\uf111"};
 static const textual_icon toggle_off{u8"\uf204"};
 static const textual_icon toggle_on{u8"\uf205"};
 }  // namespace textual_icons
+
+namespace {
+
+void draw_badges(const std::vector<std::string>& badges) {
+  for (const auto& badge : badges) {
+    ImGui::SameLine();
+    ImGui::PushStyleColor(ImGuiCol_Text, light_red);
+    ImGui::Text("[%s]", badge.c_str());
+    ImGui::PopStyleColor();
+  }
+}
+
+void draw_detail_row(const stargazer::config_tree_item& item) {
+  const float panel_width = ImGui::GetContentRegionAvail().x;
+  const float row_height = 24.0f;
+  const float value_width = std::min(125.0f, panel_width * 0.42f);
+  const float label_width = std::max(60.0f, panel_width - value_width - 24.0f);
+  const auto start = ImGui::GetCursorScreenPos();
+  auto* font = ImGui::GetFont();
+  const auto font_size = ImGui::GetFontSize();
+
+  ImGui::Dummy({0.0f, 1.0f});
+  ImGui::Indent(12.0f);
+  ImGui::PushStyleColor(ImGuiCol_Text, light_grey);
+  ImGui::TextUnformatted(item.label.c_str());
+  ImGui::PopStyleColor();
+
+  const auto value_min = ImVec2(start.x + 24.0f + label_width, start.y + 1.0f);
+  const auto value_max = ImVec2(start.x + 24.0f + label_width + value_width, start.y + row_height);
+  ImGui::GetWindowDrawList()->AddRectFilled(value_min, value_max, ImGui::ColorConvertFloat4ToU32(node_info_color), 2.0f);
+  ImGui::GetWindowDrawList()->AddText(font, font_size, ImVec2(value_min.x + 6.0f, start.y + 4.0f),
+                                      ImGui::ColorConvertFloat4ToU32(yellowish),
+                                      item.summary.c_str());
+  ImGui::Unindent(12.0f);
+  ImGui::Dummy({0.0f, row_height - ImGui::GetTextLineHeight()});
+}
+
+ImVec4 get_tree_text_color(stargazer::config_tree_item_kind kind) {
+  switch (kind) {
+    case stargazer::config_tree_item_kind::pipeline:
+      return light_blue;
+    case stargazer::config_tree_item_kind::subgraph:
+      return light_grey;
+    case stargazer::config_tree_item_kind::node:
+      return white;
+    case stargazer::config_tree_item_kind::detail:
+      return light_grey;
+  }
+  return light_grey;
+}
+
+void draw_capture_tree_item(capture_panel_view* panel, const stargazer::config_tree_item& item,
+                            view_context* context) {
+  if (item.kind == stargazer::config_tree_item_kind::detail) {
+    draw_detail_row(item);
+    return;
+  }
+
+  ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_FramePadding;
+  if (item.children.empty()) {
+    flags |= ImGuiTreeNodeFlags_Leaf;
+  }
+  if (panel->selected_item_id.has_value() && panel->selected_item_id.value() == item.stable_id) {
+    flags |= ImGuiTreeNodeFlags_Selected;
+  }
+
+  ImGui::PushStyleColor(ImGuiCol_Text, get_tree_text_color(item.kind));
+  const bool open = ImGui::TreeNodeEx((item.label + "##" + item.stable_id).c_str(), flags);
+  ImGui::PopStyleColor();
+
+  if (ImGui::IsItemClicked()) {
+    panel->selected_item_id = item.stable_id;
+  }
+
+  if (!item.runtime_node_id.empty()) {
+    auto runtime_it = panel->tree.runtime_nodes.find(item.runtime_node_id);
+    if (runtime_it != panel->tree.runtime_nodes.end()) {
+      auto& runtime_node = runtime_it->second;
+      draw_badges(runtime_node.badges);
+      if (!runtime_node.summary.empty()) {
+        ImGui::Indent(22.0f);
+        ImGui::PushStyleColor(ImGuiCol_Text, grey);
+        ImGui::TextUnformatted(runtime_node.summary.c_str());
+        ImGui::PopStyleColor();
+        ImGui::Unindent(22.0f);
+      }
+      if (runtime_node.is_camera) {
+        const auto cursor = ImGui::GetCursorPos();
+        const float button_width = 52.0f;
+        ImGui::SetCursorPosX(std::max(cursor.x, ImGui::GetContentRegionMax().x - button_width - 10.0f));
+        const bool next_state = !runtime_node.status.is_streaming;
+        std::string button_label = next_state ? "Start" : "Stop";
+        ImGui::PushStyleColor(ImGuiCol_Text,
+                              runtime_node.status.is_streaming ? light_blue : light_grey);
+        ImGui::PushStyleColor(ImGuiCol_TextSelectedBg,
+                              runtime_node.status.is_streaming ? light_blue : light_grey);
+        if (ImGui::Button((button_label + "##" + runtime_node.stable_id).c_str(), {button_width, 22.0f})) {
+          const bool previous_state = runtime_node.status.is_streaming;
+          runtime_node.status.is_streaming = next_state;
+          if (!runtime_node.actions.empty()) {
+            runtime_node.actions[0].label = next_state ? "Stop" : "Start";
+          }
+          for (const auto& callback : panel->is_streaming_changed) {
+            if (!callback(runtime_node.stable_id, next_state)) {
+              runtime_node.status.is_streaming = previous_state;
+              if (!runtime_node.actions.empty()) {
+                runtime_node.actions[0].label = previous_state ? "Stop" : "Start";
+              }
+              break;
+            }
+          }
+        }
+        ImGui::PopStyleColor(2);
+      }
+    }
+  }
+
+  if (open) {
+    for (const auto& child : item.children) {
+      draw_capture_tree_item(panel, child, context);
+    }
+    ImGui::TreePop();
+  }
+}
+
+}  // namespace
 
 void azimuth_elevation::update(mouse_state mouse) {
   auto mouse_x = static_cast<int>(mouse.x);
@@ -531,18 +655,6 @@ void top_bar_view::render(view_context* context) {
 void capture_panel_view::draw_controls(view_context* context, float panel_height)
 
 {
-  std::vector<std::function<void()>> draw_later;
-
-  auto panel_width = 350;
-  auto header_h = panel_height;
-  ImColor node_header_background_color = title_color;
-  const float left_space = 3.f;
-  const float upper_space = 3.f;
-
-  // if (is_ip_device)
-  header_h += 32;
-
-  // draw controls
   {
     const auto pos = ImGui::GetCursorPos();
     const float vertical_space_before_node_control = 10.0f;
@@ -554,230 +666,13 @@ void capture_panel_view::draw_controls(view_context* context, float panel_height
     ImGui::SetCursorPos({node_panel_pos.x, node_panel_pos.y + node_panel_height});
   }
 
-  {
-    const auto panel_y = 50;
-    const auto panel_width = 350;
+  ImGui::Separator();
 
-    ImGui::PushFont(context->large_font);
-    ImGui::PushStyleColor(ImGuiCol_PopupBg, from_rgba(230, 230, 230, 255));
-    ImGui::PushStyleColor(ImGuiCol_HeaderHovered, from_rgba(0, 0xae, 0xff, 255));
-    ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, from_rgba(255, 255, 255, 255));
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(5, 5));
-
-    std::string add_source_button_text = to_string() << " " << textual_icons::plus_circle
-                                                     << "  Add Source\t\t\t\t\t\t\t\t\t\t\t";
-    if (ImGui::Button(add_source_button_text.c_str(), {panel_width - 1, panel_y})) {
-      node_type_index = 0;
-      ip_address = "192.168.0.1";
-      gateway_address = "192.168.0.254";
-      node_name = "camera";
-      ImGui::OpenPopup("Node");
-    }
-
-    ImGui::PopFont();
-    ImGui::PopStyleVar();
-    ImGui::PopStyleColor();
-    ImGui::PopStyleColor();
-    ImGui::PopStyleColor();
+  ImGui::PushFont(context->large_font);
+  for (const auto& root : tree.roots) {
+    draw_capture_tree_item(this, root, context);
   }
-
-  for (auto& node : nodes) {
-    ImVec2 initial_screen_pos = ImGui::GetCursorScreenPos();
-
-    // Upper Space
-    ImGui::GetWindowDrawList()->AddRectFilled(
-        {initial_screen_pos.x, initial_screen_pos.y},
-        {initial_screen_pos.x + panel_width, initial_screen_pos.y + upper_space}, ImColor(black));
-    // if (draw_node_outline)
-    {
-      // Upper Line
-      ImGui::GetWindowDrawList()->AddLine(
-          {initial_screen_pos.x, initial_screen_pos.y + upper_space},
-          {initial_screen_pos.x + panel_width, initial_screen_pos.y + upper_space},
-          ImColor(header_color));
-    }
-    // Node Header area
-    ImGui::GetWindowDrawList()->AddRectFilled(
-        {initial_screen_pos.x + 1, initial_screen_pos.y + upper_space + 1},
-        {initial_screen_pos.x + panel_width, initial_screen_pos.y + header_h + upper_space},
-        node_header_background_color);
-
-    auto pos = ImGui::GetCursorPos();
-    ImGui::PushFont(context->large_font);
-    ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)node_header_background_color);
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)node_header_background_color);
-
-    // draw name
-    {
-      const ImVec2 name_pos = {pos.x + 9, pos.y + 17};
-      ImGui::SetCursorPos(name_pos);
-      std::stringstream ss;
-      // if (dev.supports(RS2_CAMERA_INFO_NAME))
-      //     ss << dev.get_info(RS2_CAMERA_INFO_NAME);
-      // if (is_ip_device)
-      {
-        ImGui::Text(" %s", node.name.c_str());
-
-        ImGui::PushFont(context->large_font);
-        ImGui::Text("\tNode at %s", node.address.c_str());
-        ImGui::PopFont();
-      }
-    }
-
-    ImGui::PopFont();
-
-    // draw x button
-    {
-      bool _allow_remove = true;
-      const auto id = node.name;
-
-      ImGui::PushFont(context->large_font);
-      ImGui::PushStyleColor(ImGuiCol_Text, light_grey);
-      ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, light_grey);
-      ImGui::PushStyleColor(ImGuiCol_PopupBg, almost_white_bg);
-      ImGui::PushStyleColor(ImGuiCol_HeaderHovered, light_blue);
-      ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(5, 5));
-      if (_allow_remove) {
-        ImGui::Columns(1);
-        float horizontal_distance_from_right_side_of_panel = 47;
-        ImGui::SetCursorPos({panel_width - horizontal_distance_from_right_side_of_panel,
-                             pos.y + 9 + (header_h - panel_height) / 2});
-        std::string remove_source_button_label = to_string() << textual_icons::times << "##" << id;
-        if (ImGui::Button(remove_source_button_label.c_str(), {33, 35})) {
-          for (auto& f : on_remove_node) {
-            f(node.name);
-          }
-        }
-
-        if (ImGui::IsItemHovered()) {
-          ImGui::SetTooltip(
-              "Remove selected node from current view\n(can be restored by clicking Add Source)");
-          // window.link_hovered();
-        }
-      }
-      ImGui::PopStyleColor(4);
-      ImGui::PopStyleVar();
-      ImGui::PopFont();
-    }
-
-    ImGui::SetCursorPos({0, pos.y + header_h});
-
-    auto windows_width = ImGui::GetContentRegionMax().x;
-
-    int info_control_panel_height = 0;
-    pos = ImGui::GetCursorPos();
-
-    ImGui::SetCursorPos({0, pos.y + info_control_panel_height});
-    ImGui::PopStyleColor(2);
-
-    ImGui::PushStyleColor(ImGuiCol_HeaderHovered, sensor_bg);
-    ImGui::PushStyleColor(ImGuiCol_Text, light_grey);
-    ImGui::PushFont(context->large_font);
-
-    // draw streaming
-    {
-      draw_later.push_back([pos, windows_width, this, context, &node]() {
-        const auto id = node.name;
-
-        ImGui::SetCursorPos({windows_width - 35, pos.y + 3});
-        ImGui_ScopePushFont(context->default_font);
-
-        ImGui_ScopePushStyleColor(ImGuiCol_Button, sensor_bg);
-        ImGui_ScopePushStyleColor(ImGuiCol_ButtonHovered, sensor_bg);
-        ImGui_ScopePushStyleColor(ImGuiCol_ButtonActive, sensor_bg);
-
-        if (!node.is_streaming) {
-          std::string label = to_string() << "  " << textual_icons::toggle_off << "\noff   ##" << id
-                                          << "," << "";
-
-          ImGui_ScopePushStyleColor(ImGuiCol_Text, redish);
-          ImGui_ScopePushStyleColor(ImGuiCol_TextSelectedBg, redish + 0.1f);
-
-          if (ImGui::Button(label.c_str(), {30, 30})) {
-            node.is_streaming = true;
-            for (const auto& f : is_streaming_changed) {
-              if (!f(node)) {
-                node.is_streaming = false;
-                break;
-              }
-            }
-          }
-        } else {
-          std::string label = to_string() << "  " << textual_icons::toggle_on << "\n    on##" << id
-                                          << "," << "";
-          ImGui_ScopePushStyleColor(ImGuiCol_Text, light_blue);
-          ImGui_ScopePushStyleColor(ImGuiCol_TextSelectedBg, light_blue + 0.1f);
-
-          if (ImGui::Button(label.c_str(), {30, 30})) {
-            node.is_streaming = false;
-            for (const auto& f : is_streaming_changed) {
-              if (!f(node)) {
-                node.is_streaming = true;
-                break;
-              }
-            }
-          }
-        }
-      });
-
-      const auto id = node.name;
-
-      std::string label = to_string() << "Infrared Camera Module" << "##" << id;
-      ImGui::PushStyleColor(ImGuiCol_Header, sensor_bg);
-      ImGui::PushStyleColor(ImGuiCol_HeaderActive, sensor_bg);
-      ImGui::PushStyleColor(ImGuiCol_HeaderHovered, sensor_bg);
-      ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{10, 10});
-      ImGui::PushStyleVar(ImGuiStyleVar_ItemInnerSpacing, {0, 0});
-      ImGuiTreeNodeFlags flags{};
-      // if (show_depth_only) flags = ImGuiTreeNodeFlags_DefaultOpen;
-      if (ImGui::TreeNodeEx(label.c_str(), flags | ImGuiTreeNodeFlags_FramePadding)) {
-        ImGui::PopStyleVar();
-        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, {2, 2});
-        ImGui::TreePop();
-      }
-
-      ImGui::PopStyleVar();
-      ImGui::PopStyleVar();
-      ImGui::PopStyleColor(3);
-
-      ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 2);
-    }
-
-    ImGui::PopStyleColor(2);
-    ImGui::PopFont();
-
-    auto end_screen_pos = ImGui::GetCursorScreenPos();
-
-    const auto draw_node_outline = true;
-    if (draw_node_outline) {
-      // Left space
-      ImGui::GetWindowDrawList()->AddRectFilled({initial_screen_pos.x, initial_screen_pos.y},
-                                                {end_screen_pos.x + left_space, end_screen_pos.y},
-                                                ImColor(black));
-      // Left line
-      ImGui::GetWindowDrawList()->AddLine(
-          {initial_screen_pos.x + left_space, initial_screen_pos.y + upper_space},
-          {end_screen_pos.x + left_space, end_screen_pos.y}, ImColor(header_color));
-      // Right line
-      const float compenstaion_right = 17.f;
-      ;
-      ImGui::GetWindowDrawList()->AddLine(
-          {initial_screen_pos.x + panel_width - compenstaion_right,
-           initial_screen_pos.y + upper_space},
-          {end_screen_pos.x + panel_width - compenstaion_right, end_screen_pos.y},
-          ImColor(header_color));
-      // Button line
-      const float compenstaion_button = 1.0f;
-      ImGui::GetWindowDrawList()->AddLine(
-          {end_screen_pos.x + left_space, end_screen_pos.y - compenstaion_button},
-          {end_screen_pos.x + left_space + panel_width, end_screen_pos.y - compenstaion_button},
-          ImColor(header_color));
-    }
-  }
-
-  for (const auto& func : draw_later) {
-    func();
-  }
+  ImGui::PopFont();
 }
 
 void capture_panel_view::render(view_context* context) {
@@ -798,145 +693,6 @@ void capture_panel_view::render(view_context* context) {
 
   draw_controls(context, 50);
 
-  {
-    float width = 320;
-    float height = 200;
-    float posx = window_size.x * 0.5f - width * 0.5f;
-    float posy = window_size.y * 0.5f - height * 0.5f;
-    ImGui::SetNextWindowPos({posx, posy});
-    ImGui::SetNextWindowSize({width, height});
-    ImGui::PushStyleColor(ImGuiCol_PopupBg, sensor_bg);
-    ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, white);
-    ImGui::PushStyleColor(ImGuiCol_Text, light_grey);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0);
-
-    if (ImGui::BeginPopupModal("Node", nullptr,
-                               ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove)) {
-      ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 3);
-      ImGui::SetCursorPosX(10);
-      ImGui::Text("Connect to a Linux system running graph_proc_server");
-
-      ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 5);
-
-      {
-        std::vector<std::string> node_type_names = {
-            "raspi", "raspi_color", "depthai_color", "rs_d435", "rs_d435_color",
-        };
-        std::vector<const char*> node_type_names_chars = get_string_pointers(node_type_names);
-
-        ImGui::SetCursorPosX(10);
-        ImGui::Text("Device Type");
-        ImGui::SameLine();
-        ImGui::SetCursorPosX(80);
-        ImGui::PushItemWidth(width - ImGui::GetCursorPosX() - 10);
-        ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, light_blue);
-
-        ImGui::SetCursorPosY(ImGui::GetCursorPosY() - 3);
-        if (ImGui::Combo("##dev_type", &node_type_index, node_type_names_chars.data(),
-                         static_cast<int>(node_type_names_chars.size()))) {
-        }
-        ImGui::PopStyleColor();
-
-        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 6);
-
-        ImGui::PopItemWidth();
-      }
-      static char ip_input[255];
-      std::copy(ip_address.begin(), ip_address.end(), ip_input);
-      ip_input[ip_address.size()] = '\0';
-      {
-        ImGui::SetCursorPosX(10);
-        ImGui::Text("Device IP");
-        ImGui::SameLine();
-        ImGui::SetCursorPosX(80);
-        ImGui::PushItemWidth(width - ImGui::GetCursorPosX() - 10);
-        ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, light_blue);
-
-        ImGui::SetCursorPosY(ImGui::GetCursorPosY() - 3);
-        if (ImGui::InputText("##ip", ip_input, 255)) {
-          ip_address = ip_input;
-        }
-        ImGui::PopStyleColor();
-
-        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 6);
-
-        ImGui::PopItemWidth();
-      }
-      static char gateway_input[255];
-      std::copy(gateway_address.begin(), gateway_address.end(), gateway_input);
-      gateway_input[gateway_address.size()] = '\0';
-      {
-        ImGui::SetCursorPosX(10);
-        ImGui::Text("Gateway");
-        ImGui::SameLine();
-        ImGui::SetCursorPosX(80);
-        ImGui::PushItemWidth(width - ImGui::GetCursorPosX() - 10);
-        ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, light_blue);
-
-        ImGui::SetCursorPosY(ImGui::GetCursorPosY() - 3);
-        if (ImGui::InputText("##gateway", gateway_input, 255)) {
-          node_name = gateway_input;
-        }
-        ImGui::PopStyleColor();
-
-        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 6);
-
-        ImGui::PopItemWidth();
-      }
-      static char dev_name_input[255];
-      std::copy(node_name.begin(), node_name.end(), dev_name_input);
-      dev_name_input[node_name.size()] = '\0';
-      {
-        ImGui::SetCursorPosX(10);
-        ImGui::Text("Name");
-        ImGui::SameLine();
-        ImGui::SetCursorPosX(80);
-        ImGui::PushItemWidth(width - ImGui::GetCursorPosX() - 10);
-        ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, light_blue);
-
-        ImGui::SetCursorPosY(ImGui::GetCursorPosY() - 3);
-        if (ImGui::InputText("##name", dev_name_input, 255)) {
-          node_name = dev_name_input;
-        }
-        ImGui::PopStyleColor();
-
-        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 6);
-
-        ImGui::PopItemWidth();
-      }
-
-      ImGui::SetCursorPosX(width / 2 - 105);
-
-      if (ImGui::Button("OK", {100.f, 25.f}) || ImGui::IsKeyDown(ImGuiKey_Enter) ||
-          ImGui::IsKeyDown(ImGuiKey_KeypadEnter)) {
-        try {
-          for (auto& f : on_add_node) {
-            f(node_name, static_cast<node_type>(node_type_index), ip_address, gateway_address);
-          }
-        } catch (std::runtime_error e) {
-          spdlog::error(e.what());
-        }
-        node_type_index = 0;
-        node_name = "";
-        ip_address = "";
-        gateway_address = "";
-        ImGui::CloseCurrentPopup();
-      }
-      ImGui::SameLine();
-      ImGui::SetCursorPosX(width / 2 + 5);
-      if (ImGui::Button("Cancel", {100.f, 25.f}) || ImGui::IsKeyDown(ImGuiKey_Escape)) {
-        node_type_index = 0;
-        node_name = "";
-        ip_address = "";
-        gateway_address = "";
-        ImGui::CloseCurrentPopup();
-      }
-      ImGui::EndPopup();
-    }
-    ImGui::PopStyleColor(3);
-    ImGui::PopStyleVar(1);
-  }
-
   ImGui::End();
   ImGui::PopStyleVar();
   ImGui::PopStyleColor();
@@ -945,6 +701,17 @@ void capture_panel_view::render(view_context* context) {
 float capture_panel_view::draw_control_panel(view_context* context) {
   const float node_panel_height = 60.0f;
   auto panel_pos = ImGui::GetCursorPos();
+
+  bool has_camera_nodes = !tree.camera_node_ids.empty();
+  bool all_streaming = has_camera_nodes;
+  for (const auto& node_id : tree.camera_node_ids) {
+    auto runtime_it = tree.runtime_nodes.find(node_id);
+    if (runtime_it == tree.runtime_nodes.end() || !runtime_it->second.status.is_streaming) {
+      all_streaming = false;
+      break;
+    }
+  }
+  is_streaming = has_camera_nodes && all_streaming;
 
   ImGui::PushFont(context->large_font);
   ImGui::PushStyleColor(ImGuiCol_Button, sensor_bg);
@@ -966,20 +733,23 @@ float capture_panel_view::draw_control_panel(view_context* context) {
     ImGui::PushStyleColor(ImGuiCol_Text, play_button_color);
     ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, play_button_color);
     if (ImGui::Button(play_button_name.c_str(), node_panel_icons_size)) {
-      if (is_streaming) {
-        is_streaming = false;
-        for (const auto& f : is_all_streaming_changed) {
-          if (!f(nodes, is_streaming)) {
-            is_streaming = true;
-            break;
-          }
+      const bool next_state = !is_streaming;
+      bool accepted = true;
+      for (const auto& f : is_all_streaming_changed) {
+        if (!f(next_state)) {
+          accepted = false;
+          break;
         }
-      } else {
-        is_streaming = true;
-        for (const auto& f : is_all_streaming_changed) {
-          if (!f(nodes, is_streaming)) {
-            is_streaming = false;
-            break;
+      }
+      if (accepted) {
+        is_streaming = next_state;
+        for (const auto& node_id : tree.camera_node_ids) {
+          auto runtime_it = tree.runtime_nodes.find(node_id);
+          if (runtime_it != tree.runtime_nodes.end()) {
+            runtime_it->second.status.is_streaming = next_state;
+            if (!runtime_it->second.actions.empty()) {
+              runtime_it->second.actions[0].label = next_state ? "Stop" : "Start";
+            }
           }
         }
       }
