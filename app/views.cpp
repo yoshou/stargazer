@@ -500,6 +500,45 @@ void draw_calibration_tree_item(calibration_panel_view* panel,
   }
 }
 
+void draw_reconstruction_tree_item(reconstruction_panel_view* panel,
+                                   const stargazer::config_tree_item& item,
+                                   view_context* context) {
+  if (item.kind == stargazer::config_tree_item_kind::detail) {
+    draw_detail_row(item);
+    return;
+  }
+
+  ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_FramePadding;
+  if (item.children.empty()) {
+    flags |= ImGuiTreeNodeFlags_Leaf;
+  }
+  if (panel->selected_item_id.has_value() && panel->selected_item_id.value() == item.stable_id) {
+    flags |= ImGuiTreeNodeFlags_Selected;
+  }
+
+  ImGui::PushStyleColor(ImGuiCol_Text, get_tree_text_color(item.kind));
+  const bool open = ImGui::TreeNodeEx((item.label + "##" + item.stable_id).c_str(), flags);
+  ImGui::PopStyleColor();
+
+  const bool clicked = ImGui::IsItemClicked();
+  if (!item.runtime_node_id.empty()) {
+    auto runtime_it = panel->tree.runtime_nodes.find(item.runtime_node_id);
+    if (runtime_it != panel->tree.runtime_nodes.end()) {
+      draw_badges(runtime_it->second.badges);
+    }
+  }
+  if (clicked) {
+    panel->selected_item_id = item.stable_id;
+  }
+
+  if (open) {
+    for (const auto& child : item.children) {
+      draw_reconstruction_tree_item(panel, child, context);
+    }
+    ImGui::TreePop();
+  }
+}
+
 void draw_capture_tree_item(capture_panel_view* panel, const stargazer::config_tree_item& item,
                             view_context* context) {
   if (item.kind == stargazer::config_tree_item_kind::detail) {
@@ -1312,9 +1351,8 @@ float reconstruction_panel_view::draw_control_panel(view_context* context) {
 }
 
 void reconstruction_panel_view::draw_controls(view_context* context, float panel_height) {
-  std::vector<std::function<void()>> draw_later;
-
-  auto panel_width = 350;
+  const float panel_width = 350.0f;
+  const float content_left_inset = 10.0f;
 
   // draw controls
   {
@@ -1328,16 +1366,8 @@ void reconstruction_panel_view::draw_controls(view_context* context, float panel
     ImGui::SetCursorPos({node_panel_pos.x, node_panel_pos.y + node_panel_height});
   }
 
-  {
-    ImGui::PushStyleColor(ImGuiCol_HeaderHovered, sensor_bg);
-    ImGui::PushStyleColor(ImGuiCol_Text, light_grey);
-    ImGui::PushFont(context->large_font);
+  ImGui::Separator();
 
-    ImGui::PopStyleColor(2);
-    ImGui::PopFont();
-  }
-
-  // draw selecting calibration target
   {
     std::vector<std::string> sources = {
         "Marker",
@@ -1358,9 +1388,16 @@ void reconstruction_panel_view::draw_controls(view_context* context, float panel
     ImGui::PopItemWidth();
   }
 
-  for (const auto& func : draw_later) {
-    func();
+  ImGui::Spacing();
+  ImGui::Separator();
+
+  ImGui::Indent(content_left_inset - 2.0f);
+  ImGui::PushFont(context->large_font);
+  for (const auto& root : tree.roots) {
+    draw_reconstruction_tree_item(this, root, context);
   }
+  ImGui::PopFont();
+  ImGui::Unindent(content_left_inset - 2.0f);
 }
 
 void reconstruction_panel_view::render(view_context* context) {

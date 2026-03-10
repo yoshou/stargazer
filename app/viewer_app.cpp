@@ -767,6 +767,10 @@ class viewer_app : public window_base {
 
   void init_reconstruction_panel() {
     reconstruction_panel_view_ = std::make_unique<reconstruction_panel_view>();
+    reconstruction_panel_view_->tree = build_config_tree(
+        *reconstruction_config,
+        std::vector<std::string>{"pipeline", "image_reconstruction_pipeline",
+                                 "point_reconstruction_pipeline"});
     for (const auto& node : reconstruction_config->get_nodes()) {
       std::string path;
       if (node.contains_param("address")) {
@@ -777,6 +781,10 @@ class viewer_app : public window_base {
       }
       reconstruction_panel_view_->nodes.push_back(
           reconstruction_panel_view::node_def{node.name, path});
+    }
+    if (!reconstruction_panel_view_->tree.roots.empty()) {
+      reconstruction_panel_view_->selected_item_id =
+          reconstruction_panel_view_->tree.roots.front().stable_id;
     }
 
     reconstruction_panel_view_->is_streaming_changed.push_back(

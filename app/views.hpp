@@ -259,9 +259,11 @@ class reconstruction_panel_view {
     node_def(const std::string& name, const std::string& address) : name(name), address(address) {}
   };
   std::vector<node_def> nodes;
+  stargazer::config_tree_model tree;
   bool is_streaming = false;
   bool is_recording = false;
   int source = 0;
+  std::optional<std::string> selected_item_id;
 
   std::vector<std::function<bool(const std::vector<node_def>&, bool)>> is_streaming_changed;
   std::vector<std::function<bool(const std::vector<node_def>&, bool)>> is_recording_changed;
