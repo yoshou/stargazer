@@ -119,6 +119,33 @@ class viewer_app : public window_base {
     throw std::runtime_error("No intrinsic target camera found in intrinsic calibration config");
   }
 
+  void sync_intrinsic_calibration_metrics(const std::string& camera_name) {
+    if (!calibration_panel_view_) {
+      return;
+    }
+
+    const auto& nodes = calibration_intrinsic_single_camera_config->get_nodes();
+    auto found = std::find_if(nodes.begin(), nodes.end(), [&](const auto& node) {
+      return node.is_camera() && node.get_camera_name() == camera_name;
+    });
+    if (found == nodes.end()) {
+      return;
+    }
+
+    const auto& params =
+        std::get<camera_t>(parameters->at(found->get_param<std::string>("id")));
+    calibration_panel_view_->fx = params.intrin.fx;
+    calibration_panel_view_->fy = params.intrin.fy;
+    calibration_panel_view_->cx = params.intrin.cx;
+    calibration_panel_view_->cy = params.intrin.cy;
+    calibration_panel_view_->k0 = params.intrin.coeffs[0];
+    calibration_panel_view_->k1 = params.intrin.coeffs[1];
+    calibration_panel_view_->k2 = params.intrin.coeffs[4];
+    calibration_panel_view_->p0 = params.intrin.coeffs[2];
+    calibration_panel_view_->p1 = params.intrin.coeffs[3];
+    calibration_panel_view_->rms = 0;
+  }
+
   void set_calibration_runtime_metric(const std::string& camera_name, size_t metric_value) {
     if (!calibration_panel_view_) {
       return;
@@ -152,9 +179,6 @@ class viewer_app : public window_base {
       calibration_panel_view_->tree = build_config_tree(
           *extrinsic_calibration_config,
           std::vector<std::string>{"pipeline", "extrinsic_calibration_pipeline"});
-      if (!calibration_panel_view_->tree.roots.empty()) {
-        calibration_panel_view_->selected_item_id = calibration_panel_view_->tree.roots.front().stable_id;
-      }
       return;
     }
 
@@ -164,27 +188,15 @@ class viewer_app : public window_base {
           std::vector<std::string>{"pipeline", "intrinsic_calibration_pipeline"});
 
       const auto target_camera_name = get_intrinsic_target_camera_name();
+      calibration_panel_view_->intrinsic_target_camera_name = target_camera_name;
       const auto& intrinsic_nodes = calibration_intrinsic_single_camera_config->get_nodes();
       auto intrinsic_node_it = std::find_if(
           intrinsic_nodes.begin(), intrinsic_nodes.end(),
           [&](const auto& node) {
             return node.is_camera() && node.get_camera_name() == target_camera_name;
           });
-      auto node_it = std::find_if(
-          calibration_panel_view_->nodes.begin(), calibration_panel_view_->nodes.end(),
-          [&](const auto& panel_node) { return panel_node.name == target_camera_name; });
-      if (node_it != calibration_panel_view_->nodes.end()) {
-        calibration_panel_view_->intrinsic_calibration_target_index =
-            static_cast<int>(std::distance(calibration_panel_view_->nodes.begin(), node_it));
-        if (intrinsic_node_it != intrinsic_nodes.end()) {
-          calibration_panel_view_->selected_item_id =
-              std::string("node:pipeline:") + intrinsic_node_it->name;
-        }
-        for (auto& callback : calibration_panel_view_->on_intrinsic_calibration_target_changed) {
-          callback(*node_it);
-        }
-      } else if (!calibration_panel_view_->tree.roots.empty()) {
-        calibration_panel_view_->selected_item_id = calibration_panel_view_->tree.roots.front().stable_id;
+      if (intrinsic_node_it != intrinsic_nodes.end()) {
+        sync_intrinsic_calibration_metrics(target_camera_name);
       }
       return;
     }
@@ -192,9 +204,6 @@ class viewer_app : public window_base {
     calibration_panel_view_->tree = build_config_tree(
         *scene_calibration_config,
         std::vector<std::string>{"pipeline", "scene_calibration_pipeline"});
-    if (!calibration_panel_view_->tree.roots.empty()) {
-      calibration_panel_view_->selected_item_id = calibration_panel_view_->tree.roots.front().stable_id;
-    }
   }
 
   void sync_reconstruction_panel_state() {
@@ -215,10 +224,6 @@ class viewer_app : public window_base {
 
     reconstruction_panel_view_->tree =
         build_config_tree(selected_recon_config, std::vector<std::string>{"pipeline", pipeline_name});
-    if (!reconstruction_panel_view_->tree.roots.empty()) {
-      reconstruction_panel_view_->selected_item_id =
-          reconstruction_panel_view_->tree.roots.front().stable_id;
-    }
   }
 
   std::string generate_new_id() const {
@@ -473,8 +478,6 @@ class viewer_app : public window_base {
           calibration_panel_view::node_def{node.get_camera_name(), path, node.params});
     }
     if (!calibration_panel_view_->nodes.empty()) {
-      calibration_panel_view_->selected_item_id =
-          std::string("node:pipeline:") + calibration_panel_view_->nodes.front().name;
     }
     sync_calibration_panel_state();
 
@@ -775,30 +778,6 @@ class viewer_app : public window_base {
           return true;
         });
 
-    calibration_panel_view_->on_intrinsic_calibration_target_changed.push_back(
-        [this](const calibration_panel_view::node_def& panel_node) {
-          const auto& nodes = calibration_intrinsic_single_camera_config->get_nodes();
-          auto found = std::find_if(nodes.begin(), nodes.end(),
-                                    [&](const auto& x) {
-                                      return x.is_camera() && x.get_camera_name() == panel_node.name;
-                                    });
-          if (found == nodes.end()) {
-            return;
-          }
-          const auto& node = *found;
-          const auto& params =
-              std::get<camera_t>(parameters->at(node.get_param<std::string>("id")));
-          calibration_panel_view_->fx = params.intrin.fx;
-          calibration_panel_view_->fy = params.intrin.fy;
-          calibration_panel_view_->cx = params.intrin.cx;
-          calibration_panel_view_->cy = params.intrin.cy;
-          calibration_panel_view_->k0 = params.intrin.coeffs[0];
-          calibration_panel_view_->k1 = params.intrin.coeffs[1];
-          calibration_panel_view_->k2 = params.intrin.coeffs[4];
-          calibration_panel_view_->p0 = params.intrin.coeffs[2];
-          calibration_panel_view_->p1 = params.intrin.coeffs[3];
-          calibration_panel_view_->rms = 0;
-        });
     if (!calibration_panel_view_->nodes.empty()) {
       sync_calibration_panel_state();
     }
@@ -1464,35 +1443,32 @@ class viewer_app : public window_base {
           }
         }
       } else if (calibration_panel_view_->calibration_target_index == 1) {
-        calibration_panel_view_
-            ->nodes[calibration_panel_view_->intrinsic_calibration_target_index]
-            .num_points = intrinsic_calib->get_num_frames();
-        const auto& node_name = calibration_panel_view_
-                                    ->nodes[calibration_panel_view_->intrinsic_calibration_target_index]
-                                    .name;
-        auto runtime_it = std::find_if(
-            calibration_panel_view_->tree.runtime_nodes.begin(),
-            calibration_panel_view_->tree.runtime_nodes.end(),
-            [&](const auto& runtime_entry) {
-              if (runtime_entry.second.ref.node_name == node_name) {
-                return true;
-              }
-              return std::any_of(
-                  runtime_entry.second.properties.begin(), runtime_entry.second.properties.end(),
-                  [&](const auto& property) {
-                    return property.key == "camera_name" && property.value == node_name;
-                  });
-            });
-        if (runtime_it != calibration_panel_view_->tree.runtime_nodes.end()) {
-          runtime_it->second.status.metric_value =
-              calibration_panel_view_
-                  ->nodes[calibration_panel_view_->intrinsic_calibration_target_index]
-                  .num_points;
+        const auto& node_name = calibration_panel_view_->intrinsic_target_camera_name;
+        auto panel_node_it = std::find_if(
+            calibration_panel_view_->nodes.begin(), calibration_panel_view_->nodes.end(),
+            [&](auto& node) { return node.name == node_name; });
+        if (panel_node_it == calibration_panel_view_->nodes.end()) {
+          // Keep rendering the rest of the frame even if the configured camera is absent.
+        } else {
+          panel_node_it->num_points = intrinsic_calib->get_num_frames();
+          auto runtime_it = std::find_if(
+              calibration_panel_view_->tree.runtime_nodes.begin(),
+              calibration_panel_view_->tree.runtime_nodes.end(),
+              [&](const auto& runtime_entry) {
+                if (runtime_entry.second.ref.node_name == node_name) {
+                  return true;
+                }
+                return std::any_of(
+                    runtime_entry.second.properties.begin(), runtime_entry.second.properties.end(),
+                    [&](const auto& property) {
+                      return property.key == "camera_name" && property.value == node_name;
+                    });
+              });
+          if (runtime_it != calibration_panel_view_->tree.runtime_nodes.end()) {
+            runtime_it->second.status.metric_value = panel_node_it->num_points;
+          }
+          set_calibration_runtime_metric(node_name, panel_node_it->num_points);
         }
-        set_calibration_runtime_metric(node_name,
-                                       calibration_panel_view_
-                                           ->nodes[calibration_panel_view_->intrinsic_calibration_target_index]
-                                           .num_points);
       } else if (calibration_panel_view_->calibration_target_index == 2) {
         for (auto& node : calibration_panel_view_->nodes) {
           const auto& nodes = scene_calibration_config->get_nodes();

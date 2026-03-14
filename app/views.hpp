@@ -10,7 +10,6 @@
 #include <glm/gtx/transform.hpp>
 #include <map>
 #include <memory>
-#include <optional>
 #include <opencv2/core.hpp>
 #include <unordered_set>
 #include <vector>
@@ -195,7 +194,6 @@ class capture_panel_view {
  public:
   stargazer::config_tree_model tree;
   bool is_streaming = false;
-  std::optional<std::string> selected_item_id;
   std::unordered_set<std::string> expanded_item_ids;
   std::vector<std::function<bool(bool)>> is_all_streaming_changed;
   std::vector<std::function<bool(const std::string&, bool)>> is_streaming_changed;
@@ -227,15 +225,13 @@ class calibration_panel_view {
   bool is_marker_collecting = false;
   bool is_streaming = false;
   bool is_masking = false;
-  std::optional<std::string> selected_item_id;
+  std::string intrinsic_target_camera_name;
 
   std::vector<std::function<bool(const std::vector<node_def>&, bool)>> is_marker_collecting_changed;
   std::vector<std::function<bool(const std::vector<node_def>&, bool)>> is_streaming_changed;
   std::vector<std::function<bool(const std::vector<node_def>&, bool)>> is_masking_changed;
   std::vector<std::function<bool(const std::vector<node_def>&, bool)>> on_calibrate;
-  std::vector<std::function<void(const node_def&)>> on_intrinsic_calibration_target_changed;
 
-  int intrinsic_calibration_target_index = 0;
   int calibration_target_index = 0;
 
   float fx = 0;
@@ -275,7 +271,6 @@ class reconstruction_panel_view {
   stargazer::config_tree_model tree;
   bool is_streaming = false;
   bool is_recording = false;
-  std::optional<std::string> selected_item_id;
 
   std::vector<std::function<bool(const std::vector<node_def>&, bool)>> is_streaming_changed;
   std::vector<std::function<bool(const std::vector<node_def>&, bool)>> is_recording_changed;

@@ -406,28 +406,6 @@ ImVec4 get_tree_text_color(stargazer::config_tree_item_kind kind) {
   return light_grey;
 }
 
-std::optional<size_t> find_calibration_node_index(const calibration_panel_view* panel,
-                                                  const std::string& node_name) {
-  for (size_t index = 0; index < panel->nodes.size(); ++index) {
-    if (panel->nodes[index].name == node_name) {
-      return index;
-    }
-  }
-  return std::nullopt;
-}
-
-std::string get_calibration_runtime_camera_name(const stargazer::runtime_node_handle& runtime_node) {
-  if (!runtime_node.ref.camera_name.empty()) {
-    return runtime_node.ref.camera_name;
-  }
-  for (const auto& property : runtime_node.properties) {
-    if (property.key == "camera_name") {
-      return property.value;
-    }
-  }
-  return runtime_node.ref.node_name;
-}
-
 void draw_metric_row(const std::string& label, const std::string& value) {
   const auto start = ImGui::GetCursorScreenPos();
   const float panel_width = ImGui::GetWindowPos().x + ImGui::GetWindowContentRegionMax().x;
@@ -453,7 +431,6 @@ void draw_metric_row(const std::string& label, const std::string& value) {
 void draw_calibration_tree_item(calibration_panel_view* panel,
                                 const stargazer::config_tree_item& item,
                                 view_context* context,
-                                bool select_camera_nodes,
                                 bool show_metric_values) {
   if (item.kind == stargazer::config_tree_item_kind::detail) {
     draw_detail_row(item);
@@ -464,44 +441,25 @@ void draw_calibration_tree_item(calibration_panel_view* panel,
   if (item.children.empty()) {
     flags |= ImGuiTreeNodeFlags_Leaf;
   }
-  if (panel->selected_item_id.has_value() && panel->selected_item_id.value() == item.stable_id) {
-    flags |= ImGuiTreeNodeFlags_Selected;
-  }
 
   ImGui::PushStyleColor(ImGuiCol_Text, get_tree_text_color(item.kind));
   const bool open = ImGui::TreeNodeEx((item.label + "##" + item.stable_id).c_str(), flags);
   ImGui::PopStyleColor();
 
-  bool clicked = ImGui::IsItemClicked();
   if (!item.runtime_node_id.empty()) {
     auto runtime_it = panel->tree.runtime_nodes.find(item.runtime_node_id);
     if (runtime_it != panel->tree.runtime_nodes.end()) {
       auto& runtime_node = runtime_it->second;
       draw_badges(runtime_node.badges);
-      if (clicked && select_camera_nodes && runtime_node.is_camera) {
-        panel->selected_item_id = item.stable_id;
-        const auto node_index =
-            find_calibration_node_index(panel, get_calibration_runtime_camera_name(runtime_node));
-        if (node_index.has_value()) {
-          panel->intrinsic_calibration_target_index = static_cast<int>(node_index.value());
-          for (auto& callback : panel->on_intrinsic_calibration_target_changed) {
-            callback(panel->nodes.at(node_index.value()));
-          }
-        }
-      } else if (clicked) {
-        panel->selected_item_id = item.stable_id;
-      }
       if (show_metric_values && runtime_node.is_camera) {
         draw_metric_row("Collected", std::to_string(runtime_node.status.metric_value));
       }
     }
-  } else if (clicked) {
-    panel->selected_item_id = item.stable_id;
   }
 
   if (open) {
     for (const auto& child : item.children) {
-      draw_calibration_tree_item(panel, child, context, select_camera_nodes, show_metric_values);
+      draw_calibration_tree_item(panel, child, context, show_metric_values);
     }
     ImGui::TreePop();
   }
@@ -519,23 +477,16 @@ void draw_reconstruction_tree_item(reconstruction_panel_view* panel,
   if (item.children.empty()) {
     flags |= ImGuiTreeNodeFlags_Leaf;
   }
-  if (panel->selected_item_id.has_value() && panel->selected_item_id.value() == item.stable_id) {
-    flags |= ImGuiTreeNodeFlags_Selected;
-  }
 
   ImGui::PushStyleColor(ImGuiCol_Text, get_tree_text_color(item.kind));
   const bool open = ImGui::TreeNodeEx((item.label + "##" + item.stable_id).c_str(), flags);
   ImGui::PopStyleColor();
 
-  const bool clicked = ImGui::IsItemClicked();
   if (!item.runtime_node_id.empty()) {
     auto runtime_it = panel->tree.runtime_nodes.find(item.runtime_node_id);
     if (runtime_it != panel->tree.runtime_nodes.end()) {
       draw_badges(runtime_it->second.badges);
     }
-  }
-  if (clicked) {
-    panel->selected_item_id = item.stable_id;
   }
 
   if (open) {
@@ -557,17 +508,10 @@ void draw_capture_tree_item(capture_panel_view* panel, const stargazer::config_t
   if (item.children.empty()) {
     flags |= ImGuiTreeNodeFlags_Leaf;
   }
-  if (panel->selected_item_id.has_value() && panel->selected_item_id.value() == item.stable_id) {
-    flags |= ImGuiTreeNodeFlags_Selected;
-  }
 
   ImGui::PushStyleColor(ImGuiCol_Text, get_tree_text_color(item.kind));
   const bool open = ImGui::TreeNodeEx((item.label + "##" + item.stable_id).c_str(), flags);
   ImGui::PopStyleColor();
-
-  if (ImGui::IsItemClicked()) {
-    panel->selected_item_id = item.stable_id;
-  }
 
   if (!item.runtime_node_id.empty()) {
     auto runtime_it = panel->tree.runtime_nodes.find(item.runtime_node_id);
@@ -1040,7 +984,7 @@ void calibration_panel_view::draw_extrinsic_calibration_control_panel(view_conte
   ImGui::Indent(content_left_inset - 2.0f);
   ImGui::PushFont(context->large_font);
   for (const auto& root : tree.roots) {
-    draw_calibration_tree_item(this, root, context, false, true);
+    draw_calibration_tree_item(this, root, context, true);
   }
   ImGui::PopFont();
   ImGui::Unindent(content_left_inset - 2.0f);
@@ -1050,37 +994,24 @@ void calibration_panel_view::draw_intrinsic_calibration_control_panel(view_conte
   const float content_left_inset = 10.0f;
   const float combo_width = 310.0f;
 
-  ImGui::SetCursorPosX(content_left_inset);
-  ImGui::PushFont(context->large_font);
-  ImGui::PushStyleColor(ImGuiCol_Text, light_grey);
-  ImGui::TextUnformatted("Target Camera");
-  ImGui::PopStyleColor();
-  ImGui::PopFont();
-
-  if (!nodes.empty() && intrinsic_calibration_target_index >= 0 &&
-      intrinsic_calibration_target_index < static_cast<int>(nodes.size())) {
-    ImGui::SetCursorPosX(content_left_inset);
-    ImGui::PushStyleColor(ImGuiCol_Text, yellowish);
-    ImGui::TextUnformatted(nodes[intrinsic_calibration_target_index].name.c_str());
-    ImGui::PopStyleColor();
-  }
-
   ImGui::Separator();
 
   ImGui::Indent(content_left_inset - 2.0f);
   ImGui::PushFont(context->large_font);
   for (const auto& root : tree.roots) {
-    draw_calibration_tree_item(this, root, context, false, true);
+    draw_calibration_tree_item(this, root, context, true);
   }
   ImGui::PopFont();
   ImGui::Unindent(content_left_inset - 2.0f);
 
-  if (nodes.empty() || intrinsic_calibration_target_index < 0 ||
-      intrinsic_calibration_target_index >= static_cast<int>(nodes.size())) {
+  const auto node_it = std::find_if(nodes.begin(), nodes.end(), [&](const auto& node) {
+    return node.name == intrinsic_target_camera_name;
+  });
+  if (node_it == nodes.end()) {
     return;
   }
 
-  const auto& node = nodes[intrinsic_calibration_target_index];
+  const auto& node = *node_it;
   ImGui::Separator();
 
   const auto draw_value_field = [](const std::string& id, const std::string& label,
