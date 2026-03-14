@@ -30,8 +30,8 @@ namespace stargazer {
 static node_type get_node_type(const std::string& type) {
   if (type == "record") {
     return node_type::record;
-  } else if (type == "calibration") {
-    return node_type::calibration;
+  } else if (type == "extrinsic_calibration") {
+    return node_type::extrinsic_calibration;
   } else if (type == "voxelpose_reconstruction") {
     return node_type::voxelpose_reconstruction;
   } else if (type == "mvpose_reconstruction") {
@@ -112,8 +112,8 @@ static node_type get_node_type(const std::string& type) {
     return node_type::object_mux;
   } else if (type == "intrinsic_calibration") {
     return node_type::intrinsic_calibration;
-  } else if (type == "axis_calibration") {
-    return node_type::axis_calibration;
+  } else if (type == "scene_calibration") {
+    return node_type::scene_calibration;
   }
   throw std::runtime_error("Invalid node type");
 }
@@ -124,8 +124,8 @@ static std::string get_node_type_name(node_type type) {
       throw std::runtime_error("Invalid node type");
     case node_type::record:
       return "record";
-    case node_type::calibration:
-      return "calibration";
+    case node_type::extrinsic_calibration:
+      return "extrinsic_calibration";
     case node_type::voxelpose_reconstruction:
       return "voxelpose_reconstruction";
     case node_type::mvpose_reconstruction:
@@ -206,8 +206,8 @@ static std::string get_node_type_name(node_type type) {
       return "object_mux";
     case node_type::intrinsic_calibration:
       return "intrinsic_calibration";
-    case node_type::axis_calibration:
-      return "axis_calibration";
+    case node_type::scene_calibration:
+      return "scene_calibration";
   }
   throw std::runtime_error("Invalid node type");
 }
@@ -330,9 +330,9 @@ configuration::configuration(const std::string& path) : path(path) {
       pipeline_names.insert(std::make_pair("intrinsic_calibration_pipeline",
                                            j["intrinsic_calibration_pipeline"].get<std::string>()));
     }
-    if (j.contains("axis_calibration_pipeline")) {
-      pipeline_names.insert(std::make_pair("axis_calibration_pipeline",
-                                           j["axis_calibration_pipeline"].get<std::string>()));
+    if (j.contains("scene_calibration_pipeline")) {
+      pipeline_names.insert(std::make_pair("scene_calibration_pipeline",
+                                           j["scene_calibration_pipeline"].get<std::string>()));
     }
     if (j.contains("image_reconstruction_pipeline")) {
       pipeline_names.insert(std::make_pair("image_reconstruction_pipeline",

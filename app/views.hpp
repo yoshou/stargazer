@@ -178,7 +178,7 @@ class top_bar_view {
   enum class CalibrationPipeline {
     Extrinsic,
     Intrinsic,
-    Axis,
+    Scene,
   };
   CalibrationPipeline calibration_pipeline = CalibrationPipeline::Extrinsic;
 

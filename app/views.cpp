@@ -720,12 +720,12 @@ void top_bar_view::render(view_context* context) {
                      calibration_pipeline = CalibrationPipeline::Intrinsic;
                    });
 
-  draw_mode_button((mode_button_width + item_spacing) * 3.0f, "Axis##mode_axis",
+  draw_mode_button((mode_button_width + item_spacing) * 3.0f, "Scene##mode_scene",
                    view_mode == Mode::Calibration &&
-                       calibration_pipeline == CalibrationPipeline::Axis,
+                       calibration_pipeline == CalibrationPipeline::Scene,
                    [&]() {
                      view_mode = Mode::Calibration;
-                     calibration_pipeline = CalibrationPipeline::Axis;
+                     calibration_pipeline = CalibrationPipeline::Scene;
                    });
 
   draw_mode_button((mode_button_width + item_spacing) * 4.0f, "Marker##mode_reconstruction_marker",

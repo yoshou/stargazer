@@ -2,8 +2,8 @@
 
 #include <iostream>
 
-#include "axis_calibration_node.hpp"
-#include "calibration_node.hpp"
+#include "extrinsic_calibration_node.hpp"
+#include "scene_calibration_node.hpp"
 #include "callback_node.hpp"
 #include "dump_blob_node.hpp"
 #include "dump_keypoint_node.hpp"
@@ -512,8 +512,8 @@ void build_graph_from_json(const std::vector<node_def>& nodes,
         graph_node = n;
         break;
       }
-      case node_type::calibration: {
-        auto n = std::make_shared<calibration_node>();
+      case node_type::extrinsic_calibration: {
+        auto n = std::make_shared<extrinsic_calibration_node>();
         if (node.contains_param("only_extrinsic")) {
           n->set_only_extrinsic(node.get_param<bool>("only_extrinsic"));
         }
@@ -528,8 +528,8 @@ void build_graph_from_json(const std::vector<node_def>& nodes,
         graph_node = n;
         break;
       }
-      case node_type::axis_calibration: {
-        auto n = std::make_shared<axis_calibration_node>();
+      case node_type::scene_calibration: {
+        auto n = std::make_shared<scene_calibration_node>();
         graph_node = n;
         break;
       }

@@ -14,7 +14,7 @@ namespace stargazer {
 enum class node_type {
   unknown,
   record,
-  calibration,
+  extrinsic_calibration,
   pattern_board_calibration_target_detector,
   three_point_bar_calibration_target_detector,
   voxelpose_reconstruction,
@@ -55,7 +55,7 @@ enum class node_type {
   object_map,
   object_mux,
   intrinsic_calibration,
-  axis_calibration,
+  scene_calibration,
 };
 
 using node_param_t = std::variant<std::string, std::int64_t, double, float, bool>;

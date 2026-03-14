@@ -12,7 +12,9 @@
 #include <opencv2/imgproc.hpp>
 #include <vulkan/vulkan.hpp>
 
-#include "calibration_pipeline.hpp"
+#include "extrinsic_calibration_pipeline.hpp"
+#include "intrinsic_calibration_pipeline.hpp"
+#include "scene_calibration_pipeline.hpp"
 #include "capture_pipeline.hpp"
 #include "config.hpp"
 #include "gui.hpp"
@@ -96,7 +98,7 @@ class viewer_app : public window_base {
 
   std::unique_ptr<extrinsic_calibration_pipeline> extrinsic_calib;
   std::unique_ptr<intrinsic_calibration_pipeline> intrinsic_calib;
-  std::unique_ptr<axis_calibration_pipeline> axis_calib;
+  std::unique_ptr<scene_calibration_pipeline> scene_calib;
 
   std::unique_ptr<multiview_point_reconstruction_pipeline> multiview_point_reconstruction_pipeline_;
   std::unique_ptr<multiview_image_reconstruction_pipeline> multiview_image_reconstruction_pipeline_;
@@ -104,7 +106,8 @@ class viewer_app : public window_base {
   std::unique_ptr<configuration> capture_config;
   std::unique_ptr<configuration> point_reconstruction_config;
   std::unique_ptr<configuration> image_reconstruction_config;
-  std::unique_ptr<configuration> calibration_config;
+  std::unique_ptr<configuration> extrinsic_calibration_config;
+  std::unique_ptr<configuration> scene_calibration_config;
   std::unique_ptr<configuration> calibration_intrinsic_single_camera_config;
 
   std::string get_intrinsic_target_camera_name() const {
@@ -147,7 +150,7 @@ class viewer_app : public window_base {
 
     if (next_target_index == 0) {
       calibration_panel_view_->tree = build_config_tree(
-          *calibration_config,
+          *extrinsic_calibration_config,
           std::vector<std::string>{"pipeline", "extrinsic_calibration_pipeline"});
       if (!calibration_panel_view_->tree.roots.empty()) {
         calibration_panel_view_->selected_item_id = calibration_panel_view_->tree.roots.front().stable_id;
@@ -187,8 +190,8 @@ class viewer_app : public window_base {
     }
 
     calibration_panel_view_->tree = build_config_tree(
-        *calibration_config,
-        std::vector<std::string>{"pipeline", "axis_calibration_pipeline"});
+        *scene_calibration_config,
+        std::vector<std::string>{"pipeline", "scene_calibration_pipeline"});
     if (!calibration_panel_view_->tree.roots.empty()) {
       calibration_panel_view_->selected_item_id = calibration_panel_view_->tree.roots.front().stable_id;
     }
@@ -455,7 +458,7 @@ class viewer_app : public window_base {
 
   void init_calibration_panel() {
     calibration_panel_view_ = std::make_unique<calibration_panel_view>();
-    for (const auto& node : calibration_config->get_nodes()) {
+    for (const auto& node : extrinsic_calibration_config->get_nodes()) {
       if (!node.is_camera()) {
         continue;
       }
@@ -484,7 +487,7 @@ class viewer_app : public window_base {
 
             if (calibration_panel_view_->calibration_target_index == 0) {
               // Extrinsic calibration
-              const auto& nodes = calibration_config->get_nodes();
+              const auto& nodes = extrinsic_calibration_config->get_nodes();
 
               if (calibration_panel_view_->is_masking) {
                 multiview_capture.reset(new capture_pipeline(masks));
@@ -591,7 +594,7 @@ class viewer_app : public window_base {
               image_tile_view_->streams.push_back(stream);
             } else if (calibration_panel_view_->calibration_target_index == 2) {
               // Axis calibration
-              const auto& nodes = calibration_config->get_nodes();
+              const auto& nodes = scene_calibration_config->get_nodes();
 
               if (calibration_panel_view_->is_masking) {
                 multiview_capture.reset(new capture_pipeline(masks));
@@ -610,7 +613,7 @@ class viewer_app : public window_base {
                       }
                       frame.insert(std::make_pair(name, points));
                     }
-                    axis_calib->push_frame(frame);
+                    scene_calib->push_frame(frame);
                   });
 
               for (const auto& node : nodes) {
@@ -657,7 +660,7 @@ class viewer_app : public window_base {
               multiview_capture->stop();
               multiview_capture.reset();
 
-              const auto& nodes = calibration_config->get_nodes();
+              const auto& nodes = extrinsic_calibration_config->get_nodes();
 
               for (const auto& node : nodes) {
                 if (node.is_camera()) {
@@ -699,7 +702,7 @@ class viewer_app : public window_base {
               multiview_capture->stop();
               multiview_capture.reset();
 
-              const auto& nodes = calibration_config->get_nodes();
+              const auto& nodes = scene_calibration_config->get_nodes();
 
               for (const auto& node : nodes) {
                 if (node.is_camera()) {
@@ -746,7 +749,7 @@ class viewer_app : public window_base {
           }
           if (is_marker_collecting) {
             for (const auto& panel_node : panel_nodes) {
-              const auto& nodes = calibration_config->get_nodes();
+              const auto& nodes = extrinsic_calibration_config->get_nodes();
               auto found = std::find_if(nodes.begin(), nodes.end(),
                                         [&](const auto& x) {
                                           return x.is_camera() &&
@@ -758,7 +761,7 @@ class viewer_app : public window_base {
             }
           } else {
             for (const auto& panel_node : panel_nodes) {
-              const auto& nodes = calibration_config->get_nodes();
+              const auto& nodes = extrinsic_calibration_config->get_nodes();
               auto found = std::find_if(nodes.begin(), nodes.end(),
                                         [&](const auto& x) {
                                           return x.is_camera() &&
@@ -804,7 +807,7 @@ class viewer_app : public window_base {
         [this](const std::vector<calibration_panel_view::node_def>& panel_nodes, bool on_calibrate) {
           if (calibration_panel_view_->calibration_target_index == 0) {
             for (const auto& panel_node : panel_nodes) {
-              const auto& nodes = calibration_config->get_nodes();
+              const auto& nodes = extrinsic_calibration_config->get_nodes();
               auto found = std::find_if(nodes.begin(), nodes.end(),
                                         [&](const auto& x) {
                                           return x.is_camera() &&
@@ -819,7 +822,7 @@ class viewer_app : public window_base {
 
                 extrinsic_calib->calibrate();
 
-                const auto& nodes = calibration_config->get_nodes();
+                const auto& nodes = extrinsic_calibration_config->get_nodes();
 
                 std::unordered_map<std::string, std::string> camera_name_to_id;
                 for (const auto& panel_node : panel_nodes) {
@@ -915,7 +918,7 @@ class viewer_app : public window_base {
           } else if (calibration_panel_view_->calibration_target_index == 2) {
             spdlog::info("Start calibration");
 
-            axis_calib->calibrate();
+            scene_calib->calibrate();
 
             spdlog::info("End calibration");
             return true;
@@ -1222,7 +1225,8 @@ class viewer_app : public window_base {
     capture_config.reset(new configuration("../config/capture.json"));
     point_reconstruction_config.reset(new configuration("../config/point_reconstruction.json"));
     image_reconstruction_config.reset(new configuration("../config/image_reconstruction.json"));
-    calibration_config.reset(new configuration("../config/calibration.json"));
+    extrinsic_calibration_config.reset(new configuration("../config/calibration_extrinsic.json"));
+    scene_calibration_config.reset(new configuration("../config/calibration_scene.json"));
     calibration_intrinsic_single_camera_config.reset(
       new configuration("../config/calibration_intrinsic_single_camera.json"));
 
@@ -1303,8 +1307,11 @@ class viewer_app : public window_base {
       }
     });
 
-    for (const auto& node : calibration_config->get_nodes()) {
+    for (const auto& node : extrinsic_calibration_config->get_nodes()) {
       if (node.is_camera()) {
+        if (!node.contains_param("id")) {
+          continue;
+        }
         if (parameters->contains(node.get_param<std::string>("id"))) {
           const auto& params =
               std::get<camera_t>(parameters->at(node.get_param<std::string>("id")));
@@ -1316,34 +1323,37 @@ class viewer_app : public window_base {
       }
     }
 
-    extrinsic_calib->run(calibration_config->get_nodes("extrinsic_calibration_pipeline"));
+    extrinsic_calib->run(extrinsic_calibration_config->get_nodes("extrinsic_calibration_pipeline"));
 
     for (auto& [camera_name, camera] : extrinsic_calib->get_cameras()) {
       camera.extrin.rotation = glm::mat3(1.0);
       camera.extrin.translation = glm::vec3(1.0);
     }
 
-    axis_calib = std::make_unique<axis_calibration_pipeline>(parameters);
+    scene_calib = std::make_unique<scene_calibration_pipeline>(parameters);
 
-    axis_calib->add_calibrated([&](const scene_t& scene) {
+    scene_calib->add_calibrated([&](const scene_t& scene) {
       multiview_point_reconstruction_pipeline_->set_axis(scene.axis);
       multiview_image_reconstruction_pipeline_->set_axis(scene.axis);
     });
 
-    for (const auto& node : calibration_config->get_nodes()) {
+    for (const auto& node : scene_calibration_config->get_nodes()) {
       if (node.is_camera()) {
+        if (!node.contains_param("id")) {
+          continue;
+        }
         if (parameters->contains(node.get_param<std::string>("id"))) {
           const auto& params =
               std::get<camera_t>(parameters->at(node.get_param<std::string>("id")));
           const auto camera_name = node.get_camera_name();
-          axis_calib->set_camera(camera_name, params);
+          scene_calib->set_camera(camera_name, params);
         } else {
           spdlog::error("No camera params found for node: {}", node.name);
         }
       }
     }
 
-    axis_calib->run(calibration_config->get_nodes("axis_calibration_pipeline"));
+    scene_calib->run(scene_calibration_config->get_nodes("scene_calibration_pipeline"));
 
     intrinsic_calib = std::make_unique<intrinsic_calibration_pipeline>();
 
@@ -1360,7 +1370,7 @@ class viewer_app : public window_base {
     }
 
     extrinsic_calib->stop();
-    axis_calib->stop();
+    scene_calib->stop();
     multiview_point_reconstruction_pipeline_->stop();
     multiview_image_reconstruction_pipeline_->stop();
 
@@ -1441,7 +1451,7 @@ class viewer_app : public window_base {
     if (top_bar_view_->view_mode == top_bar_view::Mode::Calibration) {
       if (calibration_panel_view_->calibration_target_index == 0) {
         for (auto& node : calibration_panel_view_->nodes) {
-          const auto& nodes = calibration_config->get_nodes();
+          const auto& nodes = extrinsic_calibration_config->get_nodes();
           if (const auto found_node =
                   std::find_if(nodes.begin(), nodes.end(),
                                [&](const auto& x) {
@@ -1485,7 +1495,7 @@ class viewer_app : public window_base {
                                            .num_points);
       } else if (calibration_panel_view_->calibration_target_index == 2) {
         for (auto& node : calibration_panel_view_->nodes) {
-          const auto& nodes = calibration_config->get_nodes();
+          const auto& nodes = scene_calibration_config->get_nodes();
           if (const auto found_node =
                   std::find_if(nodes.begin(), nodes.end(),
                                [&](const auto& x) {
@@ -1493,7 +1503,7 @@ class viewer_app : public window_base {
                                });
               found_node != nodes.end() && found_node->is_camera()) {
             const auto camera_name = found_node->get_camera_name();
-            node.num_points = axis_calib->get_num_frames(camera_name);
+            node.num_points = scene_calib->get_num_frames(camera_name);
             set_calibration_runtime_metric(camera_name, node.num_points);
           }
         }
@@ -1522,7 +1532,7 @@ class viewer_app : public window_base {
 
         pose_view_->cameras.clear();
 
-        for (const auto& node : calibration_config->get_nodes()) {
+        for (const auto& node : extrinsic_calibration_config->get_nodes()) {
           const auto& cameras = extrinsic_calib->get_calibrated_cameras();
 
           if (cameras.find(node.name) != cameras.end()) {
@@ -1536,7 +1546,7 @@ class viewer_app : public window_base {
           }
         }
       } else if (top_bar_view_->view_type == top_bar_view::ViewType::Contrail) {
-        for (const auto& node : calibration_config->get_nodes()) {
+        for (const auto& node : extrinsic_calibration_config->get_nodes()) {
           if (!node.is_camera()) {
             continue;
           }
