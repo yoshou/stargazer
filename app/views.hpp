@@ -182,6 +182,12 @@ class top_bar_view {
   };
   CalibrationPipeline calibration_pipeline = CalibrationPipeline::Extrinsic;
 
+  enum class ReconstructionPipeline {
+    Marker,
+    Image,
+  };
+  ReconstructionPipeline reconstruction_pipeline = ReconstructionPipeline::Marker;
+
   void render(view_context* context);
 };
 
@@ -269,7 +275,6 @@ class reconstruction_panel_view {
   stargazer::config_tree_model tree;
   bool is_streaming = false;
   bool is_recording = false;
-  int source = 0;
   std::optional<std::string> selected_item_id;
 
   std::vector<std::function<bool(const std::vector<node_def>&, bool)>> is_streaming_changed;

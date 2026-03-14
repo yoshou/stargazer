@@ -163,6 +163,25 @@ class viewer_app : public window_base {
     }
   }
 
+  void sync_reconstruction_panel_state() {
+    if (!reconstruction_panel_view_ || !top_bar_view_) {
+      return;
+    }
+
+    const auto reconstruction_pipeline = top_bar_view_->reconstruction_pipeline;
+    const auto pipeline_name =
+        reconstruction_pipeline == top_bar_view::ReconstructionPipeline::Marker
+            ? std::string{"point_reconstruction_pipeline"}
+            : std::string{"image_reconstruction_pipeline"};
+
+    reconstruction_panel_view_->tree =
+        build_config_tree(*reconstruction_config, std::vector<std::string>{"pipeline", pipeline_name});
+    if (!reconstruction_panel_view_->tree.roots.empty()) {
+      reconstruction_panel_view_->selected_item_id =
+          reconstruction_panel_view_->tree.roots.front().stable_id;
+    }
+  }
+
   std::string generate_new_id() const {
     uint64_t max_id = 0;
     for (const auto& node : capture_config->get_nodes()) {
@@ -871,10 +890,6 @@ class viewer_app : public window_base {
 
   void init_reconstruction_panel() {
     reconstruction_panel_view_ = std::make_unique<reconstruction_panel_view>();
-    reconstruction_panel_view_->tree = build_config_tree(
-        *reconstruction_config,
-        std::vector<std::string>{"pipeline", "image_reconstruction_pipeline",
-                                 "point_reconstruction_pipeline"});
     for (const auto& node : reconstruction_config->get_nodes()) {
       std::string path;
       if (node.contains_param("address")) {
@@ -886,16 +901,14 @@ class viewer_app : public window_base {
       reconstruction_panel_view_->nodes.push_back(
           reconstruction_panel_view::node_def{node.name, path});
     }
-    if (!reconstruction_panel_view_->tree.roots.empty()) {
-      reconstruction_panel_view_->selected_item_id =
-          reconstruction_panel_view_->tree.roots.front().stable_id;
-    }
+    sync_reconstruction_panel_state();
 
     reconstruction_panel_view_->is_streaming_changed.push_back(
         [this](const std::vector<reconstruction_panel_view::node_def>& panel_nodes,
                bool is_streaming) {
           if (is_streaming) {
-            if (reconstruction_panel_view_->source == 0) {
+            if (top_bar_view_->reconstruction_pipeline ==
+                top_bar_view::ReconstructionPipeline::Marker) {
               if (multiview_capture) {
                 return false;
               }
@@ -961,7 +974,8 @@ class viewer_app : public window_base {
                   image_tile_view_->streams.push_back(stream);
                 }
               }
-            } else if (reconstruction_panel_view_->source == 1) {
+            } else if (top_bar_view_->reconstruction_pipeline ==
+                       top_bar_view::ReconstructionPipeline::Image) {
               if (multiview_capture) {
                 return false;
               }
@@ -1331,6 +1345,7 @@ class viewer_app : public window_base {
 
     top_bar_view_->render(context.get());
     sync_calibration_panel_state();
+  sync_reconstruction_panel_state();
 
     if (top_bar_view_->view_type == top_bar_view::ViewType::Image) {
       if (multiview_capture) {

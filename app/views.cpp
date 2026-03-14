@@ -328,12 +328,6 @@ class ScopePushStyleVar {
 #define ImGui_ScopePushStyleVar(idx, val) \
   ImGui::ScopePushStyleVar CONCAT(scope_push_style_var, __LINE__)(idx, val)
 
-static std::vector<const char*> get_string_pointers(const std::vector<std::string>& vec) {
-  std::vector<const char*> res;
-  for (auto&& s : vec) res.push_back(s.c_str());
-  return res;
-}
-
 struct to_string {
   std::ostringstream ss;
   template <class T>
@@ -665,9 +659,12 @@ void top_bar_view::render(view_context* context) {
   const float viewport_button_width = 80.0f;
   const float viewport_buttons_width = viewport_button_width * 4.0f + item_spacing * 3.0f;
   const float left_region_width = std::max(0.0f, window_size.x - viewport_buttons_width - item_spacing);
+    constexpr float mode_button_count = 6.0f;
   const float mode_button_width =
-      std::max(90.0f, std::min(150.0f, (left_region_width - item_spacing * 4.0f) / 5.0f));
-  const float right_button_start_x = std::max(mode_button_width * 5.0f + item_spacing * 4.0f,
+      std::max(90.0f, std::min(150.0f, (left_region_width - item_spacing * (mode_button_count - 1.0f)) /
+                         mode_button_count));
+    const float right_button_start_x = std::max(mode_button_width * mode_button_count +
+                            item_spacing * (mode_button_count - 1.0f),
                                               window_size.x - viewport_buttons_width);
 
   ImGui::SetNextWindowPos({0, 0});
@@ -690,11 +687,11 @@ void top_bar_view::render(view_context* context) {
     ImGui::PopStyleColor(2);
   };
 
-  draw_mode_button(0.0f, "Capture", view_mode == Mode::Capture, [&]() {
+  draw_mode_button(0.0f, "Capture##mode_capture", view_mode == Mode::Capture, [&]() {
     view_mode = Mode::Capture;
   });
 
-  draw_mode_button(mode_button_width + item_spacing, "Extrinsic",
+  draw_mode_button(mode_button_width + item_spacing, "Extrinsic##mode_extrinsic",
                    view_mode == Mode::Calibration &&
                        calibration_pipeline == CalibrationPipeline::Extrinsic,
                    [&]() {
@@ -702,7 +699,7 @@ void top_bar_view::render(view_context* context) {
                      calibration_pipeline = CalibrationPipeline::Extrinsic;
                    });
 
-  draw_mode_button((mode_button_width + item_spacing) * 2.0f, "Intrinsic",
+  draw_mode_button((mode_button_width + item_spacing) * 2.0f, "Intrinsic##mode_intrinsic",
                    view_mode == Mode::Calibration &&
                        calibration_pipeline == CalibrationPipeline::Intrinsic,
                    [&]() {
@@ -710,7 +707,7 @@ void top_bar_view::render(view_context* context) {
                      calibration_pipeline = CalibrationPipeline::Intrinsic;
                    });
 
-  draw_mode_button((mode_button_width + item_spacing) * 3.0f, "Axis",
+  draw_mode_button((mode_button_width + item_spacing) * 3.0f, "Axis##mode_axis",
                    view_mode == Mode::Calibration &&
                        calibration_pipeline == CalibrationPipeline::Axis,
                    [&]() {
@@ -718,9 +715,20 @@ void top_bar_view::render(view_context* context) {
                      calibration_pipeline = CalibrationPipeline::Axis;
                    });
 
-  draw_mode_button((mode_button_width + item_spacing) * 4.0f, "Reconstruction",
-                   view_mode == Mode::Reconstruction, [&]() {
+  draw_mode_button((mode_button_width + item_spacing) * 4.0f, "Marker##mode_reconstruction_marker",
+                   view_mode == Mode::Reconstruction &&
+                       reconstruction_pipeline == ReconstructionPipeline::Marker,
+                   [&]() {
                      view_mode = Mode::Reconstruction;
+                     reconstruction_pipeline = ReconstructionPipeline::Marker;
+                   });
+
+  draw_mode_button((mode_button_width + item_spacing) * 5.0f, "Image##mode_reconstruction_image",
+                   view_mode == Mode::Reconstruction &&
+                       reconstruction_pipeline == ReconstructionPipeline::Image,
+                   [&]() {
+                     view_mode = Mode::Reconstruction;
+                     reconstruction_pipeline = ReconstructionPipeline::Image;
                    });
 
   {
@@ -1278,7 +1286,6 @@ float reconstruction_panel_view::draw_control_panel(view_context* context) {
 }
 
 void reconstruction_panel_view::draw_controls(view_context* context, float panel_height) {
-  const float panel_width = 350.0f;
   const float content_left_inset = 10.0f;
 
   // draw controls
@@ -1293,29 +1300,6 @@ void reconstruction_panel_view::draw_controls(view_context* context, float panel
     ImGui::SetCursorPos({node_panel_pos.x, node_panel_pos.y + node_panel_height});
   }
 
-  ImGui::Separator();
-
-  {
-    std::vector<std::string> sources = {
-        "Marker",
-        "Image",
-    };
-    std::string id = "##sources";
-    std::vector<const char*> sources_chars = get_string_pointers(sources);
-
-    const auto pos = ImGui::GetCursorPos();
-    ImGui::PushItemWidth(panel_width - 40);
-    ImGui::PushFont(context->large_font);
-    ImGui::SetCursorPos({pos.x + 10, pos.y});
-    if (ImGui::Combo(id.c_str(), &source, sources_chars.data(),
-                     static_cast<int>(sources_chars.size()))) {
-    }
-    ImGui::SetCursorPos({pos.x, ImGui::GetCursorPos().y});
-    ImGui::PopFont();
-    ImGui::PopItemWidth();
-  }
-
-  ImGui::Spacing();
   ImGui::Separator();
 
   ImGui::Indent(content_left_inset - 2.0f);
