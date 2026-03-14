@@ -656,12 +656,19 @@ ImVec2 view_context::get_window_size() const {
 
 void top_bar_view::render(view_context* context) {
   auto flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse |
-               ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings;
+               ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings |
+               ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
 
   const auto top_bar_height = 50;
-  const auto button_width = 150;
-
   const auto window_size = context->get_window_size();
+  const auto item_spacing = ImGui::GetStyle().ItemSpacing.x;
+  const float viewport_button_width = 80.0f;
+  const float viewport_buttons_width = viewport_button_width * 4.0f + item_spacing * 3.0f;
+  const float left_region_width = std::max(0.0f, window_size.x - viewport_buttons_width - item_spacing);
+  const float mode_button_width =
+      std::max(90.0f, std::min(150.0f, (left_region_width - item_spacing * 4.0f) / 5.0f));
+  const float right_button_start_x = std::max(mode_button_width * 5.0f + item_spacing * 4.0f,
+                                              window_size.x - viewport_buttons_width);
 
   ImGui::SetNextWindowPos({0, 0});
   ImGui::SetNextWindowSize({window_size.x, top_bar_height});
@@ -673,100 +680,67 @@ void top_bar_view::render(view_context* context) {
   ImGui::PushFont(context->large_font);
   ImGui::PushStyleColor(ImGuiCol_Border, black);
 
-  {
-    ImGui::SetCursorPosX(0);
-    ImGui::PushStyleColor(ImGuiCol_Text, (view_mode != Mode::Capture) ? light_grey : light_blue);
-    ImGui::PushStyleColor(ImGuiCol_TextSelectedBg,
-                          (view_mode != Mode::Capture) ? light_grey : light_blue);
-    if (ImGui::Button("Capture", {button_width, top_bar_height})) {
-      view_mode = Mode::Capture;
+  const auto draw_mode_button = [&](float x, const char* label, bool selected, auto&& on_click) {
+    ImGui::SetCursorPos({x, 0.0f});
+    ImGui::PushStyleColor(ImGuiCol_Text, selected ? light_blue : light_grey);
+    ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, selected ? light_blue : light_grey);
+    if (ImGui::Button(label, {mode_button_width, top_bar_height})) {
+      on_click();
     }
     ImGui::PopStyleColor(2);
-  }
+  };
 
-  ImGui::SameLine();
+  draw_mode_button(0.0f, "Capture", view_mode == Mode::Capture, [&]() {
+    view_mode = Mode::Capture;
+  });
 
-  {
-    ImGui::SetCursorPosX(button_width);
+  draw_mode_button(mode_button_width + item_spacing, "Extrinsic",
+                   view_mode == Mode::Calibration &&
+                       calibration_pipeline == CalibrationPipeline::Extrinsic,
+                   [&]() {
+                     view_mode = Mode::Calibration;
+                     calibration_pipeline = CalibrationPipeline::Extrinsic;
+                   });
 
-    ImGui::PushStyleColor(ImGuiCol_Text,
-                          (view_mode != Mode::Calibration) ? light_grey : light_blue);
-    ImGui::PushStyleColor(ImGuiCol_TextSelectedBg,
-                          (view_mode != Mode::Calibration) ? light_grey : light_blue);
-    if (ImGui::Button("Calibration", {button_width, top_bar_height})) {
-      view_mode = Mode::Calibration;
-    }
+  draw_mode_button((mode_button_width + item_spacing) * 2.0f, "Intrinsic",
+                   view_mode == Mode::Calibration &&
+                       calibration_pipeline == CalibrationPipeline::Intrinsic,
+                   [&]() {
+                     view_mode = Mode::Calibration;
+                     calibration_pipeline = CalibrationPipeline::Intrinsic;
+                   });
 
-    ImGui::PopStyleColor(2);
-  }
+  draw_mode_button((mode_button_width + item_spacing) * 3.0f, "Axis",
+                   view_mode == Mode::Calibration &&
+                       calibration_pipeline == CalibrationPipeline::Axis,
+                   [&]() {
+                     view_mode = Mode::Calibration;
+                     calibration_pipeline = CalibrationPipeline::Axis;
+                   });
 
-  ImGui::SameLine();
-
-  {
-    ImGui::SetCursorPosX(button_width * 2);
-
-    ImGui::PushStyleColor(ImGuiCol_Text,
-                          (view_mode != Mode::Reconstruction) ? light_grey : light_blue);
-    ImGui::PushStyleColor(ImGuiCol_TextSelectedBg,
-                          (view_mode != Mode::Reconstruction) ? light_grey : light_blue);
-    if (ImGui::Button("Reconstruction", {button_width, top_bar_height})) {
-      view_mode = Mode::Reconstruction;
-    }
-
-    ImGui::PopStyleColor(2);
-  }
-
-  ImGui::SameLine();
+  draw_mode_button((mode_button_width + item_spacing) * 4.0f, "Reconstruction",
+                   view_mode == Mode::Reconstruction, [&]() {
+                     view_mode = Mode::Reconstruction;
+                   });
 
   {
-    const auto buttons = 4;
-    const auto button_width = 80;
+    const auto draw_view_button = [&](float x, const char* label, ViewType type) {
+      ImGui::SetCursorPos({x, 0.0f});
+      ImGui::PushStyleColor(ImGuiCol_Text, (view_type != type) ? light_grey : light_blue);
+      ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, (view_type != type) ? light_grey : light_blue);
+      if (ImGui::Button(label, {viewport_button_width, top_bar_height})) {
+        view_type = type;
+      }
+      ImGui::PopStyleColor(2);
+    };
 
-    ImGui::SetCursorPosX(window_size.x - button_width * (buttons));
-    ImGui::PushStyleColor(ImGuiCol_Text, (view_type != ViewType::Image) ? light_grey : light_blue);
-    ImGui::PushStyleColor(ImGuiCol_TextSelectedBg,
-                          (view_type != ViewType::Image) ? light_grey : light_blue);
-    if (ImGui::Button("Image", {button_width, top_bar_height})) {
-      view_type = ViewType::Image;
-    }
-    ImGui::PopStyleColor(2);
-    ImGui::SameLine();
-
-    ImGui::SetCursorPosX(window_size.x - button_width * (buttons - 1));
-
-    ImGui::PushStyleColor(ImGuiCol_Text, (view_type != ViewType::Point) ? light_grey : light_blue);
-    ImGui::PushStyleColor(ImGuiCol_TextSelectedBg,
-                          (view_type != ViewType::Point) ? light_grey : light_blue);
-    if (ImGui::Button("Point", {button_width, top_bar_height})) {
-      view_type = ViewType::Point;
-    }
-
-    ImGui::PopStyleColor(2);
-    ImGui::SameLine();
-
-    ImGui::SetCursorPosX(window_size.x - button_width * (buttons - 2));
-
-    ImGui::PushStyleColor(ImGuiCol_Text,
-                          (view_type != ViewType::Contrail) ? light_grey : light_blue);
-    ImGui::PushStyleColor(ImGuiCol_TextSelectedBg,
-                          (view_type != ViewType::Contrail) ? light_grey : light_blue);
-    if (ImGui::Button("Contrail", {button_width, top_bar_height})) {
-      view_type = ViewType::Contrail;
-    }
-
-    ImGui::PopStyleColor(2);
-    ImGui::SameLine();
-
-    ImGui::SetCursorPosX(window_size.x - button_width * (buttons - 3));
-
-    ImGui::PushStyleColor(ImGuiCol_Text, (view_type != ViewType::Pose) ? light_grey : light_blue);
-    ImGui::PushStyleColor(ImGuiCol_TextSelectedBg,
-                          (view_type != ViewType::Pose) ? light_grey : light_blue);
-    if (ImGui::Button("Pose", {button_width, top_bar_height})) {
-      view_type = ViewType::Pose;
-    }
-
-    ImGui::PopStyleColor(2);
+    draw_view_button(right_button_start_x, "Image", ViewType::Image);
+    draw_view_button(right_button_start_x + viewport_button_width + item_spacing, "Point",
+                     ViewType::Point);
+    draw_view_button(right_button_start_x + (viewport_button_width + item_spacing) * 2.0f,
+                     "Contrail", ViewType::Contrail);
+    draw_view_button(right_button_start_x + (viewport_button_width + item_spacing) * 3.0f,
+                     "Pose", ViewType::Pose);
   }
 
   ImGui::PopStyleColor();
@@ -1074,50 +1048,27 @@ void calibration_panel_view::draw_intrinsic_calibration_control_panel(view_conte
   const float content_left_inset = 10.0f;
   const float combo_width = 310.0f;
 
-  if (!nodes.empty()) {
-    std::vector<std::string> intrinsic_calibration_devices;
-    intrinsic_calibration_devices.reserve(nodes.size());
-    for (const auto& node : nodes) {
-      intrinsic_calibration_devices.push_back(node.name);
-    }
-
-    std::vector<const char*> intrinsic_calibration_device_labels;
-    intrinsic_calibration_device_labels.reserve(intrinsic_calibration_devices.size());
-    for (const auto& device : intrinsic_calibration_devices) {
-      intrinsic_calibration_device_labels.push_back(device.c_str());
-    }
-
-    const auto pos = ImGui::GetCursorPos();
-    ImGui::SetCursorPos({pos.x + 10.0f, pos.y});
-    ImGui::PushItemWidth(combo_width);
-    ImGui::PushFont(context->large_font);
-    if (ImGui::Combo("##intrinsic_calibration_device", &intrinsic_calibration_target_index,
-                     intrinsic_calibration_device_labels.data(),
-                     static_cast<int>(intrinsic_calibration_device_labels.size()))) {
-      const auto& selected_node = nodes.at(intrinsic_calibration_target_index);
-      selected_item_id = std::string("node:pipeline:") + selected_node.name;
-      for (auto& callback : on_intrinsic_calibration_target_changed) {
-        callback(selected_node);
-      }
-    }
-    ImGui::SetCursorPos({pos.x, ImGui::GetCursorPos().y});
-    ImGui::PopFont();
-    ImGui::PopItemWidth();
-    ImGui::Spacing();
-  }
-
   ImGui::SetCursorPosX(content_left_inset);
   ImGui::PushFont(context->large_font);
   ImGui::PushStyleColor(ImGuiCol_Text, light_grey);
-  ImGui::TextUnformatted("Select Camera");
+  ImGui::TextUnformatted("Target Camera");
   ImGui::PopStyleColor();
   ImGui::PopFont();
+
+  if (!nodes.empty() && intrinsic_calibration_target_index >= 0 &&
+      intrinsic_calibration_target_index < static_cast<int>(nodes.size())) {
+    ImGui::SetCursorPosX(content_left_inset);
+    ImGui::PushStyleColor(ImGuiCol_Text, yellowish);
+    ImGui::TextUnformatted(nodes[intrinsic_calibration_target_index].name.c_str());
+    ImGui::PopStyleColor();
+  }
+
   ImGui::Separator();
 
   ImGui::Indent(content_left_inset - 2.0f);
   ImGui::PushFont(context->large_font);
   for (const auto& root : tree.roots) {
-    draw_calibration_tree_item(this, root, context, true, true);
+    draw_calibration_tree_item(this, root, context, false, true);
   }
   ImGui::PopFont();
   ImGui::Unindent(content_left_inset - 2.0f);
@@ -1176,8 +1127,6 @@ void calibration_panel_view::draw_intrinsic_calibration_control_panel(view_conte
 }
 
 void calibration_panel_view::draw_controls(view_context* context, float panel_height) {
-  const auto panel_width = 350;
-
   // draw controls
   {
     const auto pos = ImGui::GetCursorPos();
@@ -1188,28 +1137,6 @@ void calibration_panel_view::draw_controls(view_context* context, float panel_he
     ImGui::SetCursorPos(node_panel_pos);
     const float node_panel_height = draw_control_panel(context);
     ImGui::SetCursorPos({node_panel_pos.x, node_panel_pos.y + node_panel_height});
-  }
-
-  // draw selecting calibration target
-  {
-    std::vector<std::string> calibration_targets = {
-        "Extrinsic parameters",
-        "Intrinsic parameters",
-        "Scene parameters",
-    };
-    std::string id = "##calibration_target";
-    std::vector<const char*> calibration_targets_chars = get_string_pointers(calibration_targets);
-
-    const auto pos = ImGui::GetCursorPos();
-    ImGui::PushItemWidth(panel_width - 40);
-    ImGui::PushFont(context->large_font);
-    ImGui::SetCursorPos({pos.x + 10, pos.y});
-    if (ImGui::Combo(id.c_str(), &calibration_target_index, calibration_targets_chars.data(),
-                     static_cast<int>(calibration_targets.size()))) {
-    }
-    ImGui::SetCursorPos({pos.x, ImGui::GetCursorPos().y});
-    ImGui::PopFont();
-    ImGui::PopItemWidth();
   }
 
   switch (calibration_target_index) {

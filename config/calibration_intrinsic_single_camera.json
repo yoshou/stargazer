@@ -1,0 +1,557 @@
+{
+  "subgraphs": [
+    {
+      "name": "playback_color_subgraph",
+      "db_path": "../data/data_20250713_1/calibrate.db",
+      "height": 540,
+      "width": 960,
+      "fps": 30,
+      "nodes": [
+        {
+          "name": "load_blob",
+          "type": "load_blob"
+        },
+        {
+          "name": "decode_jpeg",
+          "type": "decode_jpeg",
+          "inputs": { "default": "load_blob" }
+        },
+        {
+          "name": "callback_image",
+          "type": "callback",
+          "inputs": { "default": "decode_jpeg" },
+          "callback_name": "image",
+          "callback_type": "image"
+        },
+        {
+          "name": "load_marker",
+          "type": "load_marker"
+        }
+      ],
+      "outputs": ["callback_image", "load_marker"]
+    },
+    {
+      "name": "intrinsic_calibration_subgraph",
+      "nodes": [
+        {
+          "name": "frame_number_numbering",
+          "type": "frame_number_numbering"
+        },
+        {
+          "name": "object_mux",
+          "type": "object_mux",
+          "inputs": { "default": "frame_number_numbering" }
+        },
+        {
+          "name": "intrinsic_calibration",
+          "type": "intrinsic_calibration",
+          "inputs": { "default": "object_mux" }
+        },
+        {
+          "name": "callback_camera",
+          "type": "callback",
+          "callback_name": "camera",
+          "inputs": { "default": "intrinsic_calibration" }
+        }
+      ]
+    },
+    {
+      "name": "playback_color_camera101_subgraph",
+      "db_path": "../data/data_20250713_1/calibrate.db",
+      "height": 540,
+      "width": 960,
+      "fps": 30,
+      "id": "000000000026",
+      "nodes": [
+        {
+          "name": "load_blob",
+          "type": "load_blob",
+          "topic_name": "image_101"
+        },
+        {
+          "name": "decode_jpeg",
+          "type": "decode_jpeg",
+          "inputs": { "default": "load_blob" }
+        },
+        {
+          "name": "callback_image",
+          "type": "callback",
+          "inputs": { "default": "decode_jpeg" },
+          "callback_name": "image",
+          "callback_type": "image",
+          "camera_name": "camera101"
+        },
+        {
+          "name": "load_marker",
+          "type": "load_marker",
+          "topic_name": "marker_101"
+        }
+      ],
+      "outputs": ["callback_image", "load_marker"]
+    },
+    {
+      "name": "playback_color_camera102_subgraph",
+      "db_path": "../data/data_20250713_1/calibrate.db",
+      "height": 540,
+      "width": 960,
+      "fps": 30,
+      "id": "000000000027",
+      "nodes": [
+        {
+          "name": "load_blob",
+          "type": "load_blob",
+          "topic_name": "image_102"
+        },
+        {
+          "name": "decode_jpeg",
+          "type": "decode_jpeg",
+          "inputs": { "default": "load_blob" }
+        },
+        {
+          "name": "callback_image",
+          "type": "callback",
+          "inputs": { "default": "decode_jpeg" },
+          "callback_name": "image",
+          "callback_type": "image",
+          "camera_name": "camera102"
+        },
+        {
+          "name": "load_marker",
+          "type": "load_marker",
+          "topic_name": "marker_102"
+        }
+      ],
+      "outputs": ["callback_image", "load_marker"]
+    },
+    {
+      "name": "playback_color_camera103_subgraph",
+      "db_path": "../data/data_20250713_1/calibrate.db",
+      "height": 540,
+      "width": 960,
+      "fps": 30,
+      "id": "000000000028",
+      "nodes": [
+        {
+          "name": "load_blob",
+          "type": "load_blob",
+          "topic_name": "image_103"
+        },
+        {
+          "name": "decode_jpeg",
+          "type": "decode_jpeg",
+          "inputs": { "default": "load_blob" }
+        },
+        {
+          "name": "callback_image",
+          "type": "callback",
+          "inputs": { "default": "decode_jpeg" },
+          "callback_name": "image",
+          "callback_type": "image",
+          "camera_name": "camera103"
+        },
+        {
+          "name": "load_marker",
+          "type": "load_marker",
+          "topic_name": "marker_103"
+        }
+      ],
+      "outputs": ["callback_image", "load_marker"]
+    },
+    {
+      "name": "playback_color_camera104_subgraph",
+      "db_path": "../data/data_20250713_1/calibrate.db",
+      "height": 540,
+      "width": 960,
+      "fps": 30,
+      "id": "000000000029",
+      "nodes": [
+        {
+          "name": "load_blob",
+          "type": "load_blob",
+          "topic_name": "image_104"
+        },
+        {
+          "name": "decode_jpeg",
+          "type": "decode_jpeg",
+          "inputs": { "default": "load_blob" }
+        },
+        {
+          "name": "callback_image",
+          "type": "callback",
+          "inputs": { "default": "decode_jpeg" },
+          "callback_name": "image",
+          "callback_type": "image",
+          "camera_name": "camera104"
+        },
+        {
+          "name": "load_marker",
+          "type": "load_marker",
+          "topic_name": "marker_104"
+        }
+      ],
+      "outputs": ["callback_image", "load_marker"]
+    },
+    {
+      "name": "playback_color_camera105_subgraph",
+      "db_path": "../data/data_20250713_1/calibrate.db",
+      "height": 540,
+      "width": 960,
+      "fps": 30,
+      "id": "000000000030",
+      "nodes": [
+        {
+          "name": "load_blob",
+          "type": "load_blob",
+          "topic_name": "image_105"
+        },
+        {
+          "name": "decode_jpeg",
+          "type": "decode_jpeg",
+          "inputs": { "default": "load_blob" }
+        },
+        {
+          "name": "callback_image",
+          "type": "callback",
+          "inputs": { "default": "decode_jpeg" },
+          "callback_name": "image",
+          "callback_type": "image",
+          "camera_name": "camera105"
+        },
+        {
+          "name": "load_marker",
+          "type": "load_marker",
+          "topic_name": "marker_105"
+        }
+      ],
+      "outputs": ["callback_image", "load_marker"]
+    },
+    {
+      "name": "capture_color_camera101_subgraph",
+      "address": "192.168.0.26",
+      "id": "000000000026",
+      "height": 1296,
+      "width": 2304,
+      "fps": 30,
+      "stream": "color",
+      "format": "R8G8B8_UINT",
+      "exposure": 7000,
+      "gain": 10,
+      "emitter_enabled": false,
+      "resize_width": 960,
+      "resize_height": 540,
+      "deploy_port": 31400,
+      "endpoint_address": "192.168.0.254",
+      "image_port": 50101,
+      "marker_port": 50201,
+      "nodes": [
+        { "name": "libcamera_capture", "type": "libcamera_capture" },
+        { "name": "fifo", "type": "fifo", "inputs": { "default": "libcamera_capture" } },
+        { "name": "resize", "type": "resize", "inputs": { "default": "fifo" } },
+        { "name": "fifo_image", "type": "fifo", "inputs": { "default": "resize" } },
+        { "name": "encode_jpeg", "type": "encode_jpeg", "inputs": { "default": "fifo_image" } },
+        { "name": "p2p_tcp_talker_image", "type": "p2p_tcp_talker", "inputs": { "default": "encode_jpeg" } },
+        { "name": "fifo_marker", "type": "fifo", "inputs": { "default": "resize" } },
+        {
+          "name": "detect_circle_grid",
+          "type": "detect_circle_grid",
+          "inputs": { "default": "fifo_marker" },
+          "min_threshold": 150,
+          "max_threshold": 200,
+          "threshold_step": 20,
+          "min_dist_between_blobs": 3.0,
+          "min_area": 5.0,
+          "max_area": 100.0,
+          "filter_by_area": true,
+          "min_circularity": 0.5,
+          "max_circularity": 1.0,
+          "filter_by_circularity": true,
+          "filter_by_inertia": false,
+          "filter_by_convexity": false,
+          "blob_color": 0,
+          "filter_by_color": true
+        },
+        { "name": "p2p_tcp_talker_marker", "type": "p2p_tcp_talker", "inputs": { "default": "detect_circle_grid" } },
+        { "name": "p2p_tcp_listener_image", "type": "p2p_tcp_listener", "inputs": { "default": "p2p_tcp_talker_image" } },
+        { "name": "decode_jpeg", "type": "decode_jpeg", "inputs": { "default": "p2p_tcp_listener_image" } },
+        {
+          "name": "callback_image",
+          "type": "callback",
+          "inputs": { "default": "decode_jpeg" },
+          "callback_name": "image",
+          "callback_type": "image",
+          "camera_name": "camera101"
+        },
+        { "name": "p2p_tcp_listener_marker", "type": "p2p_tcp_listener", "inputs": { "default": "p2p_tcp_talker_marker" } }
+      ],
+      "outputs": ["callback_image", "p2p_tcp_listener_marker"]
+    },
+    {
+      "name": "capture_color_camera102_subgraph",
+      "address": "192.168.0.27",
+      "id": "000000000027",
+      "height": 1296,
+      "width": 2304,
+      "fps": 30,
+      "stream": "color",
+      "format": "R8G8B8_UINT",
+      "exposure": 7000,
+      "gain": 10,
+      "emitter_enabled": false,
+      "resize_width": 960,
+      "resize_height": 540,
+      "deploy_port": 31400,
+      "endpoint_address": "192.168.0.254",
+      "image_port": 50101,
+      "marker_port": 50201,
+      "nodes": [
+        { "name": "libcamera_capture", "type": "libcamera_capture" },
+        { "name": "fifo", "type": "fifo", "inputs": { "default": "libcamera_capture" } },
+        { "name": "resize", "type": "resize", "inputs": { "default": "fifo" } },
+        { "name": "fifo_image", "type": "fifo", "inputs": { "default": "resize" } },
+        { "name": "encode_jpeg", "type": "encode_jpeg", "inputs": { "default": "fifo_image" } },
+        { "name": "p2p_tcp_talker_image", "type": "p2p_tcp_talker", "inputs": { "default": "encode_jpeg" } },
+        { "name": "fifo_marker", "type": "fifo", "inputs": { "default": "resize" } },
+        {
+          "name": "detect_circle_grid",
+          "type": "detect_circle_grid",
+          "inputs": { "default": "fifo_marker" },
+          "min_threshold": 150,
+          "max_threshold": 200,
+          "threshold_step": 20,
+          "min_dist_between_blobs": 3.0,
+          "min_area": 5.0,
+          "max_area": 100.0,
+          "filter_by_area": true,
+          "min_circularity": 0.5,
+          "max_circularity": 1.0,
+          "filter_by_circularity": true,
+          "filter_by_inertia": false,
+          "filter_by_convexity": false,
+          "blob_color": 0,
+          "filter_by_color": true
+        },
+        { "name": "p2p_tcp_talker_marker", "type": "p2p_tcp_talker", "inputs": { "default": "detect_circle_grid" } },
+        { "name": "p2p_tcp_listener_image", "type": "p2p_tcp_listener", "inputs": { "default": "p2p_tcp_talker_image" } },
+        { "name": "decode_jpeg", "type": "decode_jpeg", "inputs": { "default": "p2p_tcp_listener_image" } },
+        {
+          "name": "callback_image",
+          "type": "callback",
+          "inputs": { "default": "decode_jpeg" },
+          "callback_name": "image",
+          "callback_type": "image",
+          "camera_name": "camera102"
+        },
+        { "name": "p2p_tcp_listener_marker", "type": "p2p_tcp_listener", "inputs": { "default": "p2p_tcp_talker_marker" } }
+      ],
+      "outputs": ["callback_image", "p2p_tcp_listener_marker"]
+    },
+    {
+      "name": "capture_color_camera103_subgraph",
+      "address": "192.168.0.28",
+      "id": "000000000028",
+      "height": 1296,
+      "width": 2304,
+      "fps": 30,
+      "stream": "color",
+      "format": "R8G8B8_UINT",
+      "exposure": 7000,
+      "gain": 10,
+      "emitter_enabled": false,
+      "resize_width": 960,
+      "resize_height": 540,
+      "deploy_port": 31400,
+      "endpoint_address": "192.168.0.254",
+      "image_port": 50101,
+      "marker_port": 50201,
+      "nodes": [
+        { "name": "libcamera_capture", "type": "libcamera_capture" },
+        { "name": "fifo", "type": "fifo", "inputs": { "default": "libcamera_capture" } },
+        { "name": "resize", "type": "resize", "inputs": { "default": "fifo" } },
+        { "name": "fifo_image", "type": "fifo", "inputs": { "default": "resize" } },
+        { "name": "encode_jpeg", "type": "encode_jpeg", "inputs": { "default": "fifo_image" } },
+        { "name": "p2p_tcp_talker_image", "type": "p2p_tcp_talker", "inputs": { "default": "encode_jpeg" } },
+        { "name": "fifo_marker", "type": "fifo", "inputs": { "default": "resize" } },
+        {
+          "name": "detect_circle_grid",
+          "type": "detect_circle_grid",
+          "inputs": { "default": "fifo_marker" },
+          "min_threshold": 150,
+          "max_threshold": 200,
+          "threshold_step": 20,
+          "min_dist_between_blobs": 3.0,
+          "min_area": 5.0,
+          "max_area": 100.0,
+          "filter_by_area": true,
+          "min_circularity": 0.5,
+          "max_circularity": 1.0,
+          "filter_by_circularity": true,
+          "filter_by_inertia": false,
+          "filter_by_convexity": false,
+          "blob_color": 0,
+          "filter_by_color": true
+        },
+        { "name": "p2p_tcp_talker_marker", "type": "p2p_tcp_talker", "inputs": { "default": "detect_circle_grid" } },
+        { "name": "p2p_tcp_listener_image", "type": "p2p_tcp_listener", "inputs": { "default": "p2p_tcp_talker_image" } },
+        { "name": "decode_jpeg", "type": "decode_jpeg", "inputs": { "default": "p2p_tcp_listener_image" } },
+        {
+          "name": "callback_image",
+          "type": "callback",
+          "inputs": { "default": "decode_jpeg" },
+          "callback_name": "image",
+          "callback_type": "image",
+          "camera_name": "camera103"
+        },
+        { "name": "p2p_tcp_listener_marker", "type": "p2p_tcp_listener", "inputs": { "default": "p2p_tcp_talker_marker" } }
+      ],
+      "outputs": ["callback_image", "p2p_tcp_listener_marker"]
+    },
+    {
+      "name": "capture_color_camera104_subgraph",
+      "address": "192.168.0.29",
+      "id": "000000000029",
+      "height": 1296,
+      "width": 2304,
+      "fps": 30,
+      "stream": "color",
+      "format": "R8G8B8_UINT",
+      "exposure": 7000,
+      "gain": 10,
+      "emitter_enabled": false,
+      "resize_width": 960,
+      "resize_height": 540,
+      "deploy_port": 31400,
+      "endpoint_address": "192.168.0.254",
+      "image_port": 50101,
+      "marker_port": 50201,
+      "nodes": [
+        { "name": "libcamera_capture", "type": "libcamera_capture" },
+        { "name": "fifo", "type": "fifo", "inputs": { "default": "libcamera_capture" } },
+        { "name": "resize", "type": "resize", "inputs": { "default": "fifo" } },
+        { "name": "fifo_image", "type": "fifo", "inputs": { "default": "resize" } },
+        { "name": "encode_jpeg", "type": "encode_jpeg", "inputs": { "default": "fifo_image" } },
+        { "name": "p2p_tcp_talker_image", "type": "p2p_tcp_talker", "inputs": { "default": "encode_jpeg" } },
+        { "name": "fifo_marker", "type": "fifo", "inputs": { "default": "resize" } },
+        {
+          "name": "detect_circle_grid",
+          "type": "detect_circle_grid",
+          "inputs": { "default": "fifo_marker" },
+          "min_threshold": 150,
+          "max_threshold": 200,
+          "threshold_step": 20,
+          "min_dist_between_blobs": 3.0,
+          "min_area": 5.0,
+          "max_area": 100.0,
+          "filter_by_area": true,
+          "min_circularity": 0.5,
+          "max_circularity": 1.0,
+          "filter_by_circularity": true,
+          "filter_by_inertia": false,
+          "filter_by_convexity": false,
+          "blob_color": 0,
+          "filter_by_color": true
+        },
+        { "name": "p2p_tcp_talker_marker", "type": "p2p_tcp_talker", "inputs": { "default": "detect_circle_grid" } },
+        { "name": "p2p_tcp_listener_image", "type": "p2p_tcp_listener", "inputs": { "default": "p2p_tcp_talker_image" } },
+        { "name": "decode_jpeg", "type": "decode_jpeg", "inputs": { "default": "p2p_tcp_listener_image" } },
+        {
+          "name": "callback_image",
+          "type": "callback",
+          "inputs": { "default": "decode_jpeg" },
+          "callback_name": "image",
+          "callback_type": "image",
+          "camera_name": "camera104"
+        },
+        { "name": "p2p_tcp_listener_marker", "type": "p2p_tcp_listener", "inputs": { "default": "p2p_tcp_talker_marker" } }
+      ],
+      "outputs": ["callback_image", "p2p_tcp_listener_marker"]
+    },
+    {
+      "name": "capture_color_camera105_subgraph",
+      "address": "192.168.0.30",
+      "id": "000000000030",
+      "height": 1296,
+      "width": 2304,
+      "fps": 30,
+      "stream": "color",
+      "format": "R8G8B8_UINT",
+      "exposure": 7000,
+      "gain": 10,
+      "emitter_enabled": false,
+      "resize_width": 960,
+      "resize_height": 540,
+      "deploy_port": 31400,
+      "endpoint_address": "192.168.0.254",
+      "image_port": 50101,
+      "marker_port": 50201,
+      "nodes": [
+        { "name": "libcamera_capture", "type": "libcamera_capture" },
+        { "name": "fifo", "type": "fifo", "inputs": { "default": "libcamera_capture" } },
+        { "name": "resize", "type": "resize", "inputs": { "default": "fifo" } },
+        { "name": "fifo_image", "type": "fifo", "inputs": { "default": "resize" } },
+        { "name": "encode_jpeg", "type": "encode_jpeg", "inputs": { "default": "fifo_image" } },
+        { "name": "p2p_tcp_talker_image", "type": "p2p_tcp_talker", "inputs": { "default": "encode_jpeg" } },
+        { "name": "fifo_marker", "type": "fifo", "inputs": { "default": "resize" } },
+        {
+          "name": "detect_circle_grid",
+          "type": "detect_circle_grid",
+          "inputs": { "default": "fifo_marker" },
+          "min_threshold": 150,
+          "max_threshold": 200,
+          "threshold_step": 20,
+          "min_dist_between_blobs": 3.0,
+          "min_area": 5.0,
+          "max_area": 100.0,
+          "filter_by_area": true,
+          "min_circularity": 0.5,
+          "max_circularity": 1.0,
+          "filter_by_circularity": true,
+          "filter_by_inertia": false,
+          "filter_by_convexity": false,
+          "blob_color": 0,
+          "filter_by_color": true
+        },
+        { "name": "p2p_tcp_talker_marker", "type": "p2p_tcp_talker", "inputs": { "default": "detect_circle_grid" } },
+        { "name": "p2p_tcp_listener_image", "type": "p2p_tcp_listener", "inputs": { "default": "p2p_tcp_talker_image" } },
+        { "name": "decode_jpeg", "type": "decode_jpeg", "inputs": { "default": "p2p_tcp_listener_image" } },
+        {
+          "name": "callback_image",
+          "type": "callback",
+          "inputs": { "default": "decode_jpeg" },
+          "callback_name": "image",
+          "callback_type": "image",
+          "camera_name": "camera105"
+        },
+        { "name": "p2p_tcp_listener_marker", "type": "p2p_tcp_listener", "inputs": { "default": "p2p_tcp_talker_marker" } }
+      ],
+      "outputs": ["callback_image", "p2p_tcp_listener_marker"]
+    }
+  ],
+  "pipelines": {
+    "single_camera_capture": {
+      "subgraphs": [
+        {
+          "name": "target_camera",
+          "extends": ["playback_color_camera101_subgraph"]
+        }
+      ]
+    },
+    "single_camera_live_capture": {
+      "subgraphs": [
+        {
+          "name": "target_camera",
+          "extends": ["capture_color_camera101_subgraph"]
+        }
+      ]
+    },
+    "intrinsic_calibration": {
+      "subgraphs": [
+        {
+          "name": "intrinsic_calibration",
+          "extends": ["intrinsic_calibration_subgraph"]
+        }
+      ]
+    }
+  },
+  "pipeline": "single_camera_capture",
+  "intrinsic_calibration_pipeline": "intrinsic_calibration"
+}

@@ -175,6 +175,13 @@ class top_bar_view {
   };
   ViewType view_type = ViewType::Image;
 
+  enum class CalibrationPipeline {
+    Extrinsic,
+    Intrinsic,
+    Axis,
+  };
+  CalibrationPipeline calibration_pipeline = CalibrationPipeline::Extrinsic;
+
   void render(view_context* context);
 };
 
