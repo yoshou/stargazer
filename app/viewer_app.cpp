@@ -19,7 +19,8 @@
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "parameters.hpp"
-#include "reconstruction_pipeline.hpp"
+#include "point_reconstruction_pipeline.hpp"
+#include "image_reconstruction_pipeline.hpp"
 #include "render3d.hpp"
 #include "viewer.hpp"
 #include "views.hpp"
@@ -88,7 +89,8 @@ class viewer_app : public window_base {
   std::unique_ptr<multiview_image_reconstruction_pipeline> multiview_image_reconstruction_pipeline_;
 
   std::unique_ptr<configuration> capture_config;
-  std::unique_ptr<configuration> reconstruction_config;
+  std::unique_ptr<configuration> point_reconstruction_config;
+  std::unique_ptr<configuration> image_reconstruction_config;
   std::unique_ptr<configuration> calibration_config;
   std::unique_ptr<configuration> calibration_intrinsic_single_camera_config;
 
@@ -174,8 +176,13 @@ class viewer_app : public window_base {
             ? std::string{"point_reconstruction_pipeline"}
             : std::string{"image_reconstruction_pipeline"};
 
+    const auto& selected_recon_config =
+        reconstruction_pipeline == top_bar_view::ReconstructionPipeline::Marker
+            ? *point_reconstruction_config
+            : *image_reconstruction_config;
+
     reconstruction_panel_view_->tree =
-        build_config_tree(*reconstruction_config, std::vector<std::string>{"pipeline", pipeline_name});
+        build_config_tree(selected_recon_config, std::vector<std::string>{"pipeline", pipeline_name});
     if (!reconstruction_panel_view_->tree.roots.empty()) {
       reconstruction_panel_view_->selected_item_id =
           reconstruction_panel_view_->tree.roots.front().stable_id;
@@ -890,17 +897,21 @@ class viewer_app : public window_base {
 
   void init_reconstruction_panel() {
     reconstruction_panel_view_ = std::make_unique<reconstruction_panel_view>();
-    for (const auto& node : reconstruction_config->get_nodes()) {
-      std::string path;
-      if (node.contains_param("address")) {
-        path = node.get_param<std::string>("address");
+    auto add_nodes_from_config = [&](const configuration& cfg) {
+      for (const auto& node : cfg.get_nodes()) {
+        std::string path;
+        if (node.contains_param("address")) {
+          path = node.get_param<std::string>("address");
+        }
+        if (node.contains_param("db_path")) {
+          path = node.get_param<std::string>("db_path");
+        }
+        reconstruction_panel_view_->nodes.push_back(
+            reconstruction_panel_view::node_def{node.name, path});
       }
-      if (node.contains_param("db_path")) {
-        path = node.get_param<std::string>("db_path");
-      }
-      reconstruction_panel_view_->nodes.push_back(
-          reconstruction_panel_view::node_def{node.name, path});
-    }
+    };
+    add_nodes_from_config(*point_reconstruction_config);
+    add_nodes_from_config(*image_reconstruction_config);
     sync_reconstruction_panel_state();
 
     reconstruction_panel_view_->is_streaming_changed.push_back(
@@ -913,7 +924,7 @@ class viewer_app : public window_base {
                 return false;
               }
 
-              const auto& nodes = reconstruction_config->get_nodes();
+              const auto& nodes = point_reconstruction_config->get_nodes();
 
               if (calibration_panel_view_->is_masking) {
                 multiview_capture.reset(new capture_pipeline(masks));
@@ -980,7 +991,7 @@ class viewer_app : public window_base {
                 return false;
               }
 
-              const auto& nodes = reconstruction_config->get_nodes();
+              const auto& nodes = image_reconstruction_config->get_nodes();
 
               if (calibration_panel_view_->is_masking) {
                 multiview_capture.reset(new capture_pipeline(masks));
@@ -1037,7 +1048,11 @@ class viewer_app : public window_base {
               multiview_capture->stop();
               multiview_capture.reset();
 
-              const auto& nodes = reconstruction_config->get_nodes();
+              const auto& nodes =
+                  (top_bar_view_->reconstruction_pipeline ==
+                   top_bar_view::ReconstructionPipeline::Marker)
+                      ? point_reconstruction_config->get_nodes()
+                      : image_reconstruction_config->get_nodes();
 
               for (const auto& node : nodes) {
                 if (node.is_camera()) {
@@ -1176,7 +1191,8 @@ class viewer_app : public window_base {
 
   virtual void initialize() override {
     capture_config.reset(new configuration("../config/capture.json"));
-    reconstruction_config.reset(new configuration("../config/reconstruction.json"));
+    point_reconstruction_config.reset(new configuration("../config/point_reconstruction.json"));
+    image_reconstruction_config.reset(new configuration("../config/image_reconstruction.json"));
     calibration_config.reset(new configuration("../config/calibration.json"));
     calibration_intrinsic_single_camera_config.reset(
       new configuration("../config/calibration_intrinsic_single_camera.json"));
@@ -1218,7 +1234,7 @@ class viewer_app : public window_base {
       multiview_point_reconstruction_pipeline_->set_axis(scene.axis);
     }
 
-    for (const auto& node : reconstruction_config->get_nodes()) {
+    for (const auto& node : point_reconstruction_config->get_nodes()) {
       if (node.is_camera()) {
         const auto& params =
             std::get<camera_t>(parameters->at(node.get_param<std::string>("id")));
@@ -1228,19 +1244,19 @@ class viewer_app : public window_base {
     }
 
     multiview_point_reconstruction_pipeline_->run(
-        reconstruction_config->get_nodes("point_reconstruction_pipeline"));
+        point_reconstruction_config->get_nodes("point_reconstruction_pipeline"));
 
     multiview_image_reconstruction_pipeline_ =
         std::make_unique<multiview_image_reconstruction_pipeline>();
     multiview_image_reconstruction_pipeline_->run(
-        reconstruction_config->get_nodes("image_reconstruction_pipeline"));
+        image_reconstruction_config->get_nodes("image_reconstruction_pipeline"));
 
     {
       const auto& scene = std::get<scene_t>(parameters->at("scene"));
       multiview_image_reconstruction_pipeline_->set_axis(scene.axis);
     }
 
-    for (const auto& node : reconstruction_config->get_nodes()) {
+    for (const auto& node : image_reconstruction_config->get_nodes()) {
       if (node.is_camera()) {
         const auto& params =
             std::get<camera_t>(parameters->at(node.get_param<std::string>("id")));
@@ -1567,7 +1583,7 @@ class viewer_app : public window_base {
 
         pose_view_->cameras.clear();
 
-        for (const auto& node : reconstruction_config->get_nodes()) {
+        for (const auto& node : point_reconstruction_config->get_nodes()) {
           if (!node.is_camera()) {
             continue;
           }

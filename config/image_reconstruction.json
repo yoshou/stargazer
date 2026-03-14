@@ -1,0 +1,1287 @@
+{
+  "subgraphs": [
+    {
+      "name": "record_subgraph",
+      "db_path": "../data/data_20250506_1/capture.db",
+      "nodes": [
+        {
+          "name": "record",
+          "type": "record"
+        }
+      ],
+      "outputs": [
+        "record"
+      ]
+    },
+    {
+      "name": "playback_color_subgraph",
+      "db_path": "../data/data_20250713_1/capture.db",
+      "height": 540,
+      "width": 960,
+      "fps": 30,
+      "nodes": [
+        {
+          "name": "load_blob",
+          "type": "load_blob"
+        },
+        {
+          "name": "decode_jpeg",
+          "type": "decode_jpeg",
+          "inputs": {
+            "default": "load_blob"
+          }
+        },
+        {
+          "name": "callback_image",
+          "type": "callback",
+          "inputs": {
+            "default": "decode_jpeg"
+          },
+          "callback_name": "image",
+          "callback_type": "image"
+        },
+        {
+          "name": "load_marker",
+          "type": "load_marker"
+        }
+      ],
+      "outputs": [
+        "callback_image",
+        "load_marker"
+      ]
+    },
+    {
+      "name": "playback_panoptic_subgraph",
+      "db_path": "../data/panoptic",
+      "height": 1080,
+      "width": 1920,
+      "fps": 30,
+      "nodes": [
+        {
+          "name": "load_panoptic",
+          "type": "load_panoptic"
+        },
+        {
+          "name": "decode_jpeg",
+          "type": "decode_jpeg",
+          "inputs": {
+            "default": "load_panoptic"
+          }
+        },
+        {
+          "name": "callback_image",
+          "type": "callback",
+          "inputs": {
+            "default": "decode_jpeg"
+          },
+          "callback_name": "image",
+          "callback_type": "image"
+        }
+      ],
+      "outputs": [
+        "callback_image"
+      ]
+    },
+    {
+      "name": "voxelpose_reconstruction_subgraph",
+      "nodes": [
+        {
+          "name": "numbering",
+          "type": "frame_number_numbering"
+        },
+        {
+          "name": "queue",
+          "type": "parallel_queue",
+          "num_threads": 1,
+          "inputs": {
+            "default": "numbering"
+          }
+        },
+        {
+          "name": "reconstruct",
+          "type": "voxelpose_reconstruction",
+          "inputs": {
+            "default": "queue"
+          }
+        },
+        {
+          "name": "ordering",
+          "type": "frame_number_ordering",
+          "inputs": {
+            "default": "reconstruct"
+          }
+        },
+        {
+          "name": "callback",
+          "type": "callback",
+          "callback_name": "markers",
+          "inputs": {
+            "default": "ordering"
+          }
+        },
+        {
+          "name": "grpc_server",
+          "type": "grpc_server",
+          "address": "0.0.0.0:50052",
+          "inputs": {
+            "sphere": "ordering"
+          }
+        }
+      ]
+    },
+    {
+      "name": "mvpose_reconstruction_subgraph",
+      "nodes": [
+        {
+          "name": "numbering",
+          "type": "frame_number_numbering"
+        },
+        {
+          "name": "queue",
+          "type": "parallel_queue",
+          "num_threads": 1,
+          "inputs": {
+            "default": "numbering"
+          }
+        },
+        {
+          "name": "reconstruct",
+          "type": "mvpose_reconstruction",
+          "inputs": {
+            "default": "queue"
+          }
+        },
+        {
+          "name": "dump_reconstruction",
+          "type": "dump_reconstruction",
+          "db_path": "../data/mvpose_dump.db",
+          "topic_name": "mvpose_reconstruction",
+          "inputs": {
+            "default": "reconstruct"
+          }
+        },
+        {
+          "name": "callback",
+          "type": "callback",
+          "callback_name": "markers",
+          "inputs": {
+            "default": "reconstruct"
+          }
+        }
+      ]
+    },
+    {
+      "name": "mvp_reconstruction_subgraph",
+      "nodes": [
+        {
+          "name": "numbering",
+          "type": "frame_number_numbering"
+        },
+        {
+          "name": "queue",
+          "type": "parallel_queue",
+          "num_threads": 1,
+          "inputs": {
+            "default": "numbering"
+          }
+        },
+        {
+          "name": "reconstruct",
+          "type": "mvp_reconstruction",
+          "inputs": {
+            "default": "queue"
+          }
+        },
+        {
+          "name": "callback",
+          "type": "callback",
+          "callback_name": "markers",
+          "inputs": {
+            "default": "reconstruct"
+          }
+        }
+      ]
+    },
+    {
+      "name": "raspi_color_cluster_master",
+      "height": 1296,
+      "width": 2304,
+      "fps": 30,
+      "stream": "color",
+      "format": "R8G8B8_UINT",
+      "exposure": 7000,
+      "gain": 10,
+      "emitter_enabled": false,
+      "resize_width": 960,
+      "resize_height": 540,
+      "deploy_port": 31400,
+      "nodes": [
+        {
+          "name": "libcamera_capture",
+          "type": "libcamera_capture"
+        },
+        {
+          "name": "fifo",
+          "type": "fifo",
+          "inputs": {
+            "default": "libcamera_capture"
+          }
+        },
+        {
+          "name": "timestamp",
+          "type": "timestamp",
+          "inputs": {
+            "default": "fifo"
+          }
+        },
+        {
+          "name": "broadcast_talker",
+          "type": "broadcast_talker",
+          "inputs": {
+            "default": "timestamp"
+          },
+          "address": "192.168.0.255",
+          "port": 40000
+        },
+        {
+          "name": "resize",
+          "type": "resize",
+          "inputs": {
+            "default": "fifo"
+          }
+        },
+        {
+          "name": "fifo_image",
+          "type": "fifo",
+          "inputs": {
+            "default": "resize"
+          }
+        },
+        {
+          "name": "encode_jpeg",
+          "type": "encode_jpeg",
+          "inputs": {
+            "default": "fifo_image"
+          }
+        },
+        {
+          "name": "p2p_tcp_talker_image",
+          "type": "p2p_tcp_talker",
+          "inputs": {
+            "default": "encode_jpeg"
+          }
+        },
+        {
+          "name": "fifo_marker",
+          "type": "fifo",
+          "inputs": {
+            "default": "resize"
+          }
+        },
+        {
+          "name": "detect_circle_grid",
+          "type": "detect_circle_grid",
+          "inputs": {
+            "default": "fifo_marker"
+          },
+          "min_threshold": 150,
+          "max_threshold": 200,
+          "threshold_step": 20,
+          "min_dist_between_blobs": 3.0,
+          "min_area": 5.0,
+          "max_area": 100.0,
+          "filter_by_area": true,
+          "min_circularity": 0.5,
+          "max_circularity": 1.0,
+          "filter_by_circularity": true,
+          "filter_by_inertia": false,
+          "filter_by_convexity": false,
+          "blob_color": 0,
+          "filter_by_color": true
+        },
+        {
+          "name": "p2p_tcp_talker_marker",
+          "type": "p2p_tcp_talker",
+          "inputs": {
+            "default": "detect_circle_grid"
+          }
+        }
+      ],
+      "outputs": [
+        "p2p_tcp_talker_image",
+        "p2p_tcp_talker_marker"
+      ]
+    },
+    {
+      "name": "raspi_color_cluster_slave",
+      "height": 1296,
+      "width": 2304,
+      "fps": 30,
+      "stream": "color",
+      "format": "R8G8B8_UINT",
+      "exposure": 7000,
+      "gain": 10,
+      "emitter_enabled": false,
+      "resize_width": 960,
+      "resize_height": 540,
+      "deploy_port": 31400,
+      "nodes": [
+        {
+          "name": "video_time_sync_control",
+          "type": "video_time_sync_control",
+          "gain": 0.05,
+          "interval": 33.333333,
+          "max_interval": 50.0,
+          "min_interval": 25.0
+        },
+        {
+          "name": "libcamera_capture",
+          "type": "libcamera_capture",
+          "inputs": {
+            "interval": "video_time_sync_control"
+          }
+        },
+        {
+          "name": "fifo",
+          "type": "fifo",
+          "inputs": {
+            "default": "libcamera_capture"
+          }
+        },
+        {
+          "name": "timestamp",
+          "type": "timestamp",
+          "inputs": {
+            "default": "fifo"
+          }
+        },
+        {
+          "name": "broadcast_listener",
+          "type": "broadcast_listener",
+          "address": "192.168.0.1",
+          "port": 40000
+        },
+        {
+          "name": "video_time_sync_control_update",
+          "type": "video_time_sync_control",
+          "inputs": {
+            "default": "timestamp",
+            "ref": "broadcast_listener"
+          },
+          "gain": 0.05,
+          "interval": 33.333333,
+          "max_interval": 50.0,
+          "min_interval": 25.0
+        },
+        {
+          "name": "resize",
+          "type": "resize",
+          "inputs": {
+            "default": "fifo"
+          }
+        },
+        {
+          "name": "fifo_image",
+          "type": "fifo",
+          "inputs": {
+            "default": "resize"
+          }
+        },
+        {
+          "name": "encode_jpeg",
+          "type": "encode_jpeg",
+          "inputs": {
+            "default": "fifo_image"
+          }
+        },
+        {
+          "name": "p2p_tcp_talker_image",
+          "type": "p2p_tcp_talker",
+          "inputs": {
+            "default": "encode_jpeg"
+          }
+        },
+        {
+          "name": "fifo_marker",
+          "type": "fifo",
+          "inputs": {
+            "default": "resize"
+          }
+        },
+        {
+          "name": "detect_circle_grid",
+          "type": "detect_circle_grid",
+          "inputs": {
+            "default": "fifo_marker"
+          },
+          "min_threshold": 150,
+          "max_threshold": 200,
+          "threshold_step": 20,
+          "min_dist_between_blobs": 3.0,
+          "min_area": 5.0,
+          "max_area": 100.0,
+          "filter_by_area": true,
+          "min_circularity": 0.5,
+          "max_circularity": 1.0,
+          "filter_by_circularity": true,
+          "filter_by_inertia": false,
+          "filter_by_convexity": false,
+          "blob_color": 0,
+          "filter_by_color": true
+        },
+        {
+          "name": "p2p_tcp_talker_marker",
+          "type": "p2p_tcp_talker",
+          "inputs": {
+            "default": "detect_circle_grid"
+          }
+        }
+      ],
+      "outputs": [
+        "p2p_tcp_talker_image",
+        "p2p_tcp_talker_marker"
+      ]
+    },
+    {
+      "name": "raspi_color_receiver",
+      "endpoint_address": "192.168.0.254",
+      "fps": 30,
+      "width": 960,
+      "height": 540,
+      "image_port": 50101,
+      "marker_port": 50201,
+      "nodes": [
+        {
+          "name": "p2p_tcp_listener_image",
+          "type": "p2p_tcp_listener"
+        },
+        {
+          "name": "decode_jpeg",
+          "type": "decode_jpeg",
+          "inputs": {
+            "default": "p2p_tcp_listener_image"
+          }
+        },
+        {
+          "name": "callback_image",
+          "type": "callback",
+          "inputs": {
+            "default": "decode_jpeg"
+          },
+          "callback_name": "image",
+          "callback_type": "image"
+        },
+        {
+          "name": "p2p_tcp_listener_marker",
+          "type": "p2p_tcp_listener"
+        }
+      ],
+      "outputs": [
+        "callback_image",
+        "p2p_tcp_listener_marker"
+      ]
+    }
+  ],
+  "pipelines": {
+    "record_color": {
+      "subgraphs": [
+        {
+          "name": "camera101",
+          "extends": [
+            "raspi_color_cluster_master"
+          ],
+          "address": "192.168.0.26",
+          "id": "000000000026"
+        },
+        {
+          "name": "camera101_receiver",
+          "extends": [
+            "raspi_color_receiver"
+          ],
+          "nodes": [
+            {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera101.p2p_tcp_talker_image"
+              }
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera101"
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera101.p2p_tcp_talker_marker"
+              }
+            }
+          ]
+        },
+        {
+          "name": "record101",
+          "extends": [
+            "record_subgraph"
+          ],
+          "nodes": [
+            {
+              "name": "record",
+              "inputs": {
+                "default": "camera101_receiver.callback_image"
+              }
+            }
+          ]
+        },
+        {
+          "name": "camera102",
+          "extends": [
+            "raspi_color_cluster_slave"
+          ],
+          "address": "192.168.0.27",
+          "id": "000000000027"
+        },
+        {
+          "name": "camera102_receiver",
+          "extends": [
+            "raspi_color_receiver"
+          ],
+          "nodes": [
+            {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera102.p2p_tcp_talker_image"
+              }
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera102"
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera102.p2p_tcp_talker_marker"
+              }
+            }
+          ]
+        },
+        {
+          "name": "record102",
+          "extends": [
+            "record_subgraph"
+          ],
+          "nodes": [
+            {
+              "name": "record",
+              "inputs": {
+                "default": "camera102_receiver.callback_image"
+              }
+            }
+          ]
+        },
+        {
+          "name": "camera103",
+          "extends": [
+            "raspi_color_cluster_slave"
+          ],
+          "address": "192.168.0.28",
+          "id": "000000000028"
+        },
+        {
+          "name": "camera103_receiver",
+          "extends": [
+            "raspi_color_receiver"
+          ],
+          "nodes": [
+            {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera103.p2p_tcp_talker_image"
+              }
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera103"
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera103.p2p_tcp_talker_marker"
+              }
+            }
+          ]
+        },
+        {
+          "name": "record103",
+          "extends": [
+            "record_subgraph"
+          ],
+          "nodes": [
+            {
+              "name": "record",
+              "inputs": {
+                "default": "camera103_receiver.callback_image"
+              }
+            }
+          ]
+        },
+        {
+          "name": "camera104",
+          "extends": [
+            "raspi_color_cluster_slave"
+          ],
+          "address": "192.168.0.29",
+          "id": "000000000029"
+        },
+        {
+          "name": "camera104_receiver",
+          "extends": [
+            "raspi_color_receiver"
+          ],
+          "nodes": [
+            {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera104.p2p_tcp_talker_image"
+              }
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera104"
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera104.p2p_tcp_talker_marker"
+              }
+            }
+          ]
+        },
+        {
+          "name": "record104",
+          "extends": [
+            "record_subgraph"
+          ],
+          "nodes": [
+            {
+              "name": "record",
+              "inputs": {
+                "default": "camera104_receiver.callback_image"
+              }
+            }
+          ]
+        },
+        {
+          "name": "camera105",
+          "extends": [
+            "raspi_color_cluster_slave"
+          ],
+          "address": "192.168.0.30",
+          "id": "000000000030"
+        },
+        {
+          "name": "camera105_receiver",
+          "extends": [
+            "raspi_color_receiver"
+          ],
+          "nodes": [
+            {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera105.p2p_tcp_talker_image"
+              }
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera105"
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera105.p2p_tcp_talker_marker"
+              }
+            }
+          ]
+        },
+        {
+          "name": "record105",
+          "extends": [
+            "record_subgraph"
+          ],
+          "nodes": [
+            {
+              "name": "record",
+              "inputs": {
+                "default": "camera105_receiver.callback_image"
+              }
+            }
+          ]
+        },
+        {
+          "name": "sync",
+          "nodes": [
+            {
+              "name": "approximate_time_sync_images",
+              "type": "approximate_time_sync",
+              "interval": 11.6,
+              "inputs": {
+                "camera101": "camera101_receiver.decode_jpeg",
+                "camera102": "camera102_receiver.decode_jpeg",
+                "camera103": "camera103_receiver.decode_jpeg",
+                "camera104": "camera104_receiver.decode_jpeg",
+                "camera105": "camera105_receiver.decode_jpeg"
+              }
+            },
+            {
+              "name": "callback_images",
+              "type": "callback",
+              "callback_name": "images",
+              "callback_type": "object",
+              "inputs": {
+                "default": "approximate_time_sync_images"
+              }
+            },
+            {
+              "name": "approximate_time_sync_markers",
+              "type": "approximate_time_sync",
+              "interval": 11.6,
+              "inputs": {
+                "camera101": "camera101_receiver.p2p_tcp_listener_marker",
+                "camera102": "camera102_receiver.p2p_tcp_listener_marker",
+                "camera103": "camera103_receiver.p2p_tcp_listener_marker",
+                "camera104": "camera104_receiver.p2p_tcp_listener_marker",
+                "camera105": "camera105_receiver.p2p_tcp_listener_marker"
+              }
+            },
+            {
+              "name": "callback_markers",
+              "type": "callback",
+              "callback_name": "markers",
+              "callback_type": "object",
+              "inputs": {
+                "default": "approximate_time_sync_markers"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "capture_color": {
+      "subgraphs": [
+        {
+          "name": "camera101",
+          "extends": [
+            "raspi_color_cluster_master"
+          ],
+          "address": "192.168.0.26",
+          "id": "000000000026"
+        },
+        {
+          "name": "camera101_receiver",
+          "extends": [
+            "raspi_color_receiver"
+          ],
+          "nodes": [
+            {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera101.p2p_tcp_talker_image"
+              }
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera101"
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera101.p2p_tcp_talker_marker"
+              }
+            }
+          ]
+        },
+        {
+          "name": "camera102",
+          "extends": [
+            "raspi_color_cluster_slave"
+          ],
+          "address": "192.168.0.27",
+          "id": "000000000027"
+        },
+        {
+          "name": "camera102_receiver",
+          "extends": [
+            "raspi_color_receiver"
+          ],
+          "nodes": [
+            {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera102.p2p_tcp_talker_image"
+              }
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera102"
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera102.p2p_tcp_talker_marker"
+              }
+            }
+          ]
+        },
+        {
+          "name": "camera103",
+          "extends": [
+            "raspi_color_cluster_slave"
+          ],
+          "address": "192.168.0.28",
+          "id": "000000000028"
+        },
+        {
+          "name": "camera103_receiver",
+          "extends": [
+            "raspi_color_receiver"
+          ],
+          "nodes": [
+            {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera103.p2p_tcp_talker_image"
+              }
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera103"
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera103.p2p_tcp_talker_marker"
+              }
+            }
+          ]
+        },
+        {
+          "name": "camera104",
+          "extends": [
+            "raspi_color_cluster_slave"
+          ],
+          "address": "192.168.0.29",
+          "id": "000000000029"
+        },
+        {
+          "name": "camera104_receiver",
+          "extends": [
+            "raspi_color_receiver"
+          ],
+          "nodes": [
+            {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera104.p2p_tcp_talker_image"
+              }
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera104"
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera104.p2p_tcp_talker_marker"
+              }
+            }
+          ]
+        },
+        {
+          "name": "camera105",
+          "extends": [
+            "raspi_color_cluster_slave"
+          ],
+          "address": "192.168.0.30",
+          "id": "000000000030"
+        },
+        {
+          "name": "camera105_receiver",
+          "extends": [
+            "raspi_color_receiver"
+          ],
+          "nodes": [
+            {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera105.p2p_tcp_talker_image"
+              }
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera105"
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera105.p2p_tcp_talker_marker"
+              }
+            }
+          ]
+        },
+        {
+          "name": "sync",
+          "nodes": [
+            {
+              "name": "approximate_time_sync_images",
+              "type": "approximate_time_sync",
+              "interval": 11.6,
+              "inputs": {
+                "camera101": "camera101_receiver.decode_jpeg",
+                "camera102": "camera102_receiver.decode_jpeg",
+                "camera103": "camera103_receiver.decode_jpeg",
+                "camera104": "camera104_receiver.decode_jpeg",
+                "camera105": "camera105_receiver.decode_jpeg"
+              }
+            },
+            {
+              "name": "callback_images",
+              "type": "callback",
+              "callback_name": "images",
+              "callback_type": "object",
+              "inputs": {
+                "default": "approximate_time_sync_images"
+              }
+            },
+            {
+              "name": "approximate_time_sync_markers",
+              "type": "approximate_time_sync",
+              "interval": 11.6,
+              "inputs": {
+                "camera101": "camera101_receiver.p2p_tcp_listener_marker",
+                "camera102": "camera102_receiver.p2p_tcp_listener_marker",
+                "camera103": "camera103_receiver.p2p_tcp_listener_marker",
+                "camera104": "camera104_receiver.p2p_tcp_listener_marker",
+                "camera105": "camera105_receiver.p2p_tcp_listener_marker"
+              }
+            },
+            {
+              "name": "callback_markers",
+              "type": "callback",
+              "callback_name": "markers",
+              "callback_type": "object",
+              "inputs": {
+                "default": "approximate_time_sync_markers"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "playback_color": {
+      "subgraphs": [
+        {
+          "name": "camera101",
+          "extends": [
+            "playback_color_subgraph"
+          ],
+          "id": "000000000026",
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_101"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_101"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera101"
+            }
+          ]
+        },
+        {
+          "name": "camera102",
+          "extends": [
+            "playback_color_subgraph"
+          ],
+          "id": "000000000027",
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_102"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_102"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera102"
+            }
+          ]
+        },
+        {
+          "name": "camera103",
+          "extends": [
+            "playback_color_subgraph"
+          ],
+          "id": "000000000028",
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_103"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_103"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera103"
+            }
+          ]
+        },
+        {
+          "name": "camera104",
+          "extends": [
+            "playback_color_subgraph"
+          ],
+          "id": "000000000029",
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_104"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_104"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera104"
+            }
+          ]
+        },
+        {
+          "name": "camera105",
+          "extends": [
+            "playback_color_subgraph"
+          ],
+          "id": "000000000030",
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_105"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_105"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera105"
+            }
+          ]
+        },
+        {
+          "name": "sync",
+          "nodes": [
+            {
+              "name": "approximate_time_sync_images",
+              "type": "approximate_time_sync",
+              "interval": 33.833,
+              "inputs": {
+                "camera101": "camera101.decode_jpeg",
+                "camera102": "camera102.decode_jpeg",
+                "camera103": "camera103.decode_jpeg",
+                "camera104": "camera104.decode_jpeg",
+                "camera105": "camera105.decode_jpeg"
+              }
+            },
+            {
+              "name": "callback_images",
+              "type": "callback",
+              "callback_name": "images",
+              "callback_type": "object",
+              "inputs": {
+                "default": "approximate_time_sync_images"
+              }
+            },
+            {
+              "name": "approximate_time_sync_markers",
+              "type": "approximate_time_sync",
+              "interval": 33.833,
+              "inputs": {
+                "camera101": "camera101.load_marker",
+                "camera102": "camera102.load_marker",
+                "camera103": "camera103.load_marker",
+                "camera104": "camera104.load_marker",
+                "camera105": "camera105.load_marker"
+              }
+            },
+            {
+              "name": "callback_markers",
+              "type": "callback",
+              "callback_name": "markers",
+              "callback_type": "object",
+              "inputs": {
+                "default": "approximate_time_sync_markers"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "playback_panoptic": {
+      "subgraphs": [
+        {
+          "name": "00_03",
+          "extends": [
+            "playback_panoptic_subgraph"
+          ],
+          "id": "00_03",
+          "fps": 30,
+          "nodes": [
+            {
+              "name": "load_panoptic",
+              "topic_name": "00_03"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "00_03"
+            }
+          ]
+        },
+        {
+          "name": "00_06",
+          "extends": [
+            "playback_panoptic_subgraph"
+          ],
+          "id": "00_06",
+          "fps": 30,
+          "nodes": [
+            {
+              "name": "load_panoptic",
+              "topic_name": "00_06"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "00_06"
+            }
+          ]
+        },
+        {
+          "name": "00_12",
+          "extends": [
+            "playback_panoptic_subgraph"
+          ],
+          "id": "00_12",
+          "fps": 30,
+          "nodes": [
+            {
+              "name": "load_panoptic",
+              "topic_name": "00_12"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "00_12"
+            }
+          ]
+        },
+        {
+          "name": "00_13",
+          "extends": [
+            "playback_panoptic_subgraph"
+          ],
+          "id": "00_13",
+          "fps": 30,
+          "nodes": [
+            {
+              "name": "load_panoptic",
+              "topic_name": "00_13"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "00_13"
+            }
+          ]
+        },
+        {
+          "name": "00_23",
+          "extends": [
+            "playback_panoptic_subgraph"
+          ],
+          "id": "00_23",
+          "fps": 30,
+          "nodes": [
+            {
+              "name": "load_panoptic",
+              "topic_name": "00_23"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "00_23"
+            }
+          ]
+        },
+        {
+          "name": "sync",
+          "nodes": [
+            {
+              "name": "approximate_time_sync_images",
+              "type": "approximate_time_sync",
+              "interval": 33.833,
+              "inputs": {
+                "00_03": "00_03.decode_jpeg",
+                "00_06": "00_06.decode_jpeg",
+                "00_12": "00_12.decode_jpeg",
+                "00_13": "00_13.decode_jpeg",
+                "00_23": "00_23.decode_jpeg"
+              }
+            },
+            {
+              "name": "callback_images",
+              "type": "callback",
+              "callback_name": "images",
+              "callback_type": "object",
+              "inputs": {
+                "default": "approximate_time_sync_images"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "voxelpose_reconstruction": {
+      "subgraphs": [
+        {
+          "name": "voxelpose_reconstruction",
+          "extends": [
+            "voxelpose_reconstruction_subgraph"
+          ]
+        }
+      ]
+    },
+    "mvpose_reconstruction": {
+      "subgraphs": [
+        {
+          "name": "mvpose_reconstruction",
+          "extends": [
+            "mvpose_reconstruction_subgraph"
+          ]
+        }
+      ]
+    },
+    "mvp_reconstruction": {
+      "subgraphs": [
+        {
+          "name": "mvp_reconstruction",
+          "extends": [
+            "mvp_reconstruction_subgraph"
+          ]
+        }
+      ]
+    }
+  },
+  "pipeline": "playback_color",
+  "image_reconstruction_pipeline": "mvpose_reconstruction"
+}
