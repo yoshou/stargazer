@@ -901,6 +901,8 @@ float capture_panel_view::draw_control_panel(view_context* context) {
 float calibration_panel_view::draw_control_panel(view_context* context) {
   const float node_panel_height = 60.0f;
   auto panel_pos = ImGui::GetCursorPos();
+  const bool uses_collect_primary_button =
+      calibration_target_index == 0 || calibration_target_index == 2;
 
   ImGui::PushFont(context->large_font);
   ImGui::PushStyleColor(ImGuiCol_Button, sensor_bg);
@@ -912,110 +914,117 @@ float calibration_panel_view::draw_control_panel(view_context* context) {
   ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, light_grey);
   ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(5, 5));
 
-  const auto id = "";
   const float icons_width = 78.0f;
   const ImVec2 node_panel_icons_size{icons_width, 25};
-  textual_icon button_icon = is_streaming ? textual_icons::stop : textual_icons::play;
-  std::string play_button_name = to_string() << button_icon << "##" << id;
-  auto play_button_color = is_streaming ? light_blue : light_grey;
-  {
-    ImGui::PushStyleColor(ImGuiCol_Text, play_button_color);
-    ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, play_button_color);
-    if (ImGui::Button(play_button_name.c_str(), node_panel_icons_size)) {
-      if (is_streaming) {
-        is_streaming = false;
-        for (const auto& f : is_streaming_changed) {
-          if (!f(nodes, is_streaming)) {
-            is_streaming = true;
-            break;
-          }
-        }
-      } else {
-        is_streaming = true;
-        for (const auto& f : is_streaming_changed) {
-          if (!f(nodes, is_streaming)) {
-            is_streaming = false;
-            break;
-          }
-        }
-      }
+  const auto draw_icon_button = [&](const std::string& button_name, textual_icon icon,
+                                    const ImVec4& text_color, const std::function<void()>& on_click) {
+    ImGui::PushStyleColor(ImGuiCol_Text, text_color);
+    ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, text_color);
+    const std::string icon_button_name = to_string() << icon << button_name;
+    if (ImGui::Button(icon_button_name.c_str(), node_panel_icons_size)) {
+      on_click();
     }
     ImGui::PopStyleColor(2);
-  }
-  ImGui::SameLine();
-  std::string mask_button_name = to_string() << textual_icons::edit << "##" << id;
-  auto mask_button_color = is_masking ? light_blue : light_grey;
-  {
-    ImGui::PushStyleColor(ImGuiCol_Text, mask_button_color);
-    ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, mask_button_color);
-    if (ImGui::Button(mask_button_name.c_str(), node_panel_icons_size)) {
-      if (is_masking) {
-        is_masking = false;
-        for (const auto& f : is_masking_changed) {
-          if (!f(nodes, is_masking)) {
-            is_masking = true;
-            break;
-          }
-        }
-      } else {
-        is_masking = true;
-        for (const auto& f : is_masking_changed) {
-          if (!f(nodes, is_masking)) {
-            is_masking = false;
-            break;
-          }
-        }
-      }
-    }
-    ImGui::PopStyleColor(2);
-  }
-  ImGui::SameLine();
-  std::string calibrate_button_name = to_string() << textual_icons::refresh << "##" << id;
-  bool is_calibrateing = false;
-  auto calibrate_button_color = is_calibrateing ? light_blue : light_grey;
-  {
-    ImGui::PushStyleColor(ImGuiCol_Text, calibrate_button_color);
-    ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, calibrate_button_color);
-    if (ImGui::Button(calibrate_button_name.c_str(), node_panel_icons_size)) {
-      for (const auto& f : on_calibrate) {
-        f(nodes, true);
-      }
-      if (is_calibrateing) {
-        is_calibrateing = false;
-      } else {
-        is_calibrateing = true;
-      }
-    }
-    ImGui::PopStyleColor(2);
-  }
+  };
 
-  {
-    ImGui::SetCursorPos({panel_pos.x, ImGui::GetCursorPosY()});
-    // Using transparent-non-actionable buttons to have the same locations
+  const auto draw_label_button = [&](const char* label, const ImVec4& text_color) {
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0, 0, 0, 0));
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0, 0, 0, 0));
+    ImGui::PushStyleColor(ImGuiCol_Text, text_color);
+    ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, text_color);
+    ImGui::Button(label, node_panel_icons_size);
+    ImGui::PopStyleColor(5);
+  };
 
-    ImGui::PushStyleColor(ImGuiCol_Text, play_button_color);
-    ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, play_button_color);
-    ImGui::Button(is_streaming ? "Stop" : "Start", node_panel_icons_size);
-    ImGui::PopStyleColor(2);
-    ImGui::PopStyleColor(3);
+  const auto toggle_collect = [&]() {
+    const bool next_state = !is_marker_collecting;
+    bool accepted = true;
+    for (const auto& f : is_marker_collecting_changed) {
+      if (!f(nodes, next_state)) {
+        accepted = false;
+        break;
+      }
+    }
+    if (accepted) {
+      is_marker_collecting = next_state;
+    }
+  };
+
+  const auto toggle_streaming = [&]() {
+    if (is_streaming) {
+      is_streaming = false;
+      for (const auto& f : is_streaming_changed) {
+        if (!f(nodes, is_streaming)) {
+          is_streaming = true;
+          break;
+        }
+      }
+    } else {
+      is_streaming = true;
+      for (const auto& f : is_streaming_changed) {
+        if (!f(nodes, is_streaming)) {
+          is_streaming = false;
+          break;
+        }
+      }
+    }
+  };
+
+  const auto toggle_mask = [&]() {
+    if (is_masking) {
+      is_masking = false;
+      for (const auto& f : is_masking_changed) {
+        if (!f(nodes, is_masking)) {
+          is_masking = true;
+          break;
+        }
+      }
+    } else {
+      is_masking = true;
+      for (const auto& f : is_masking_changed) {
+        if (!f(nodes, is_masking)) {
+          is_masking = false;
+          break;
+        }
+      }
+    }
+  };
+
+  const auto trigger_calibrate = [&]() {
+    for (const auto& f : on_calibrate) {
+      f(nodes, true);
+    }
+  };
+
+  const auto collect_button_color = is_marker_collecting ? light_blue : light_grey;
+  const auto streaming_button_color = is_streaming ? light_blue : light_grey;
+  const auto mask_button_color = is_masking ? light_blue : light_grey;
+  const auto calibrate_button_color = light_grey;
+
+  if (uses_collect_primary_button) {
+    draw_icon_button("##collect", is_marker_collecting ? textual_icons::stop : textual_icons::play,
+                     collect_button_color, toggle_collect);
+    ImGui::SameLine();
   }
+  draw_icon_button("##streaming", is_streaming ? textual_icons::stop : textual_icons::play,
+                   streaming_button_color, toggle_streaming);
   ImGui::SameLine();
-  {
-    ImGui::PushStyleColor(ImGuiCol_Text, mask_button_color);
-    ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, mask_button_color);
-    ImGui::Button("Mask", node_panel_icons_size);
-    ImGui::PopStyleColor(2);
-  }
+  draw_icon_button("##mask", textual_icons::edit, mask_button_color, toggle_mask);
   ImGui::SameLine();
-  {
-    ImGui::PushStyleColor(ImGuiCol_Text, calibrate_button_color);
-    ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, calibrate_button_color);
-    ImGui::Button("Calibrate", node_panel_icons_size);
-    ImGui::PopStyleColor(2);
+  draw_icon_button("##calibrate", textual_icons::refresh, calibrate_button_color,
+                   trigger_calibrate);
+
+  ImGui::SetCursorPos({panel_pos.x, ImGui::GetCursorPosY()});
+  if (uses_collect_primary_button) {
+    draw_label_button(is_marker_collecting ? "Stop Collect" : "Collect", collect_button_color);
+    ImGui::SameLine();
   }
+  draw_label_button(is_streaming ? "Stop" : "Start", streaming_button_color);
+  ImGui::SameLine();
+  draw_label_button("Mask", mask_button_color);
+  ImGui::SameLine();
+  draw_label_button("Calibrate", calibrate_button_color);
 
   ImGui::PopStyleVar();
   ImGui::PopStyleColor(7);
@@ -1025,35 +1034,7 @@ float calibration_panel_view::draw_control_panel(view_context* context) {
 }
 
 void calibration_panel_view::draw_extrinsic_calibration_control_panel(view_context* context) {
-  const auto panel_width = 350.0f;
   const float content_left_inset = 10.0f;
-
-  ImGui::SetCursorPosX(content_left_inset);
-
-  ImGui::PushFont(context->large_font);
-  ImGui::PushStyleColor(ImGuiCol_Text, light_grey);
-  ImGui::TextUnformatted("Collect Markers");
-  ImGui::PopStyleColor();
-  ImGui::SameLine();
-  ImGui::SetCursorPosX(panel_width - 60.0f);
-  ImGui::PushStyleColor(ImGuiCol_Text, is_marker_collecting ? light_blue : light_grey);
-  ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, is_marker_collecting ? light_blue : light_grey);
-  if (ImGui::Button((std::string(is_marker_collecting ? "Stop" : "Start") + "##collect_markers").c_str(),
-                    {52.0f, 22.0f})) {
-    const bool next_state = !is_marker_collecting;
-    bool accepted = true;
-    for (const auto& callback : is_marker_collecting_changed) {
-      if (!callback(nodes, next_state)) {
-        accepted = false;
-        break;
-      }
-    }
-    if (accepted) {
-      is_marker_collecting = next_state;
-    }
-  }
-  ImGui::PopStyleColor(2);
-  ImGui::PopFont();
   ImGui::Separator();
 
   ImGui::Indent(content_left_inset - 2.0f);
