@@ -60,6 +60,19 @@ static std::vector<stargazer::node_def> collect_node_dependencies(
   return required_nodes;
 }
 
+static std::string get_runtime_camera_name(
+    const stargazer::runtime_node_handle& runtime_node) {
+  if (!runtime_node.ref.camera_name.empty()) {
+    return runtime_node.ref.camera_name;
+  }
+  for (const auto& property : runtime_node.properties) {
+    if (property.key == "camera_name") {
+      return property.value;
+    }
+  }
+  return runtime_node.ref.node_name;
+}
+
 class viewer_app : public window_base {
   ImFont* large_font;
   ImFont* default_font;
@@ -101,6 +114,22 @@ class viewer_app : public window_base {
       }
     }
     throw std::runtime_error("No intrinsic target camera found in intrinsic calibration config");
+  }
+
+  void set_calibration_runtime_metric(const std::string& camera_name, size_t metric_value) {
+    if (!calibration_panel_view_) {
+      return;
+    }
+
+    for (auto& [runtime_id, runtime_node] : calibration_panel_view_->tree.runtime_nodes) {
+      (void)runtime_id;
+      if (!runtime_node.is_camera) {
+        continue;
+      }
+      if (get_runtime_camera_name(runtime_node) == camera_name) {
+        runtime_node.status.metric_value = metric_value;
+      }
+    }
   }
 
   void sync_calibration_panel_state() {
@@ -1421,23 +1450,7 @@ class viewer_app : public window_base {
               found_node != nodes.end() && found_node->is_camera()) {
             const auto camera_name = found_node->get_camera_name();
             node.num_points = extrinsic_calib->get_num_frames(camera_name);
-            auto runtime_it = std::find_if(
-                calibration_panel_view_->tree.runtime_nodes.begin(),
-                calibration_panel_view_->tree.runtime_nodes.end(),
-                [&](const auto& runtime_entry) {
-                  if (runtime_entry.second.ref.node_name == node.name) {
-                    return true;
-                  }
-                  return std::any_of(
-                      runtime_entry.second.properties.begin(),
-                      runtime_entry.second.properties.end(),
-                      [&](const auto& property) {
-                        return property.key == "camera_name" && property.value == node.name;
-                      });
-                });
-            if (runtime_it != calibration_panel_view_->tree.runtime_nodes.end()) {
-              runtime_it->second.status.metric_value = node.num_points;
-            }
+            set_calibration_runtime_metric(camera_name, node.num_points);
           }
         }
       } else if (calibration_panel_view_->calibration_target_index == 1) {
@@ -1466,6 +1479,10 @@ class viewer_app : public window_base {
                   ->nodes[calibration_panel_view_->intrinsic_calibration_target_index]
                   .num_points;
         }
+        set_calibration_runtime_metric(node_name,
+                                       calibration_panel_view_
+                                           ->nodes[calibration_panel_view_->intrinsic_calibration_target_index]
+                                           .num_points);
       } else if (calibration_panel_view_->calibration_target_index == 2) {
         for (auto& node : calibration_panel_view_->nodes) {
           const auto& nodes = calibration_config->get_nodes();
@@ -1477,23 +1494,7 @@ class viewer_app : public window_base {
               found_node != nodes.end() && found_node->is_camera()) {
             const auto camera_name = found_node->get_camera_name();
             node.num_points = axis_calib->get_num_frames(camera_name);
-            auto runtime_it = std::find_if(
-                calibration_panel_view_->tree.runtime_nodes.begin(),
-                calibration_panel_view_->tree.runtime_nodes.end(),
-                [&](const auto& runtime_entry) {
-                  if (runtime_entry.second.ref.node_name == node.name) {
-                    return true;
-                  }
-                  return std::any_of(
-                      runtime_entry.second.properties.begin(),
-                      runtime_entry.second.properties.end(),
-                      [&](const auto& property) {
-                        return property.key == "camera_name" && property.value == node.name;
-                      });
-                });
-            if (runtime_it != calibration_panel_view_->tree.runtime_nodes.end()) {
-              runtime_it->second.status.metric_value = node.num_points;
-            }
+            set_calibration_runtime_metric(camera_name, node.num_points);
           }
         }
       }

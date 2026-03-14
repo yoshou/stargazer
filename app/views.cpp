@@ -416,6 +416,18 @@ std::optional<size_t> find_calibration_node_index(const calibration_panel_view* 
   return std::nullopt;
 }
 
+std::string get_calibration_runtime_camera_name(const stargazer::runtime_node_handle& runtime_node) {
+  if (!runtime_node.ref.camera_name.empty()) {
+    return runtime_node.ref.camera_name;
+  }
+  for (const auto& property : runtime_node.properties) {
+    if (property.key == "camera_name") {
+      return property.value;
+    }
+  }
+  return runtime_node.ref.node_name;
+}
+
 void draw_metric_row(const std::string& label, const std::string& value) {
   const auto start = ImGui::GetCursorScreenPos();
   const float panel_width = ImGui::GetWindowPos().x + ImGui::GetWindowContentRegionMax().x;
@@ -468,7 +480,8 @@ void draw_calibration_tree_item(calibration_panel_view* panel,
       draw_badges(runtime_node.badges);
       if (clicked && select_camera_nodes && runtime_node.is_camera) {
         panel->selected_item_id = item.stable_id;
-        const auto node_index = find_calibration_node_index(panel, runtime_node.ref.node_name);
+        const auto node_index =
+            find_calibration_node_index(panel, get_calibration_runtime_camera_name(runtime_node));
         if (node_index.has_value()) {
           panel->intrinsic_calibration_target_index = static_cast<int>(node_index.value());
           for (auto& callback : panel->on_intrinsic_calibration_target_changed) {

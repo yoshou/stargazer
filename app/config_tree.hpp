@@ -19,6 +19,7 @@ struct config_tree_ref {
   std::string pipeline_key;
   std::string subgraph_instance;
   std::string node_name;
+  std::string camera_name;
 };
 
 struct config_tree_runtime_status {

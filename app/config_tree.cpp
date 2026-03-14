@@ -98,7 +98,12 @@ void append_pipeline_tree(config_tree_model& model, const configuration& config,
 
     runtime_node_handle runtime_node;
     runtime_node.stable_id = runtime_id;
-    runtime_node.ref = config_tree_ref{pipeline_key, subgraph_name, node.name};
+    runtime_node.ref = config_tree_ref{
+      pipeline_key,
+      subgraph_name,
+      node.name,
+      node.is_camera() ? node.get_camera_name() : std::string{},
+    };
     runtime_node.label = node.name;
     runtime_node.summary = get_node_summary(node);
     runtime_node.is_camera = node.is_camera();
