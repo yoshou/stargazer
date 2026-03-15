@@ -6,6 +6,7 @@
 #include <fstream>
 #include <nlohmann/json.hpp>
 #include <regex>
+#include <set>
 
 #include "callback_node.hpp"
 #include "dump_blob_node.hpp"
@@ -27,51 +28,10 @@
 using namespace coalsack;
 using namespace stargazer;
 
-class local_server {
-  asio::io_context io_context;
-  std::shared_ptr<resource_list> resources;
-  std::shared_ptr<graph_proc_server> server;
-  std::shared_ptr<std::thread> th;
-  std::atomic_bool running;
-
- public:
-  local_server(uint16_t port = 0)
-      : io_context(),
-        resources(std::make_shared<resource_list>()),
-        server(std::make_shared<graph_proc_server>(io_context, "0.0.0.0", port, resources)),
-        th(),
-        running(false) {}
-
-  uint16_t get_port() const { return server->get_port(); }
-
-  void run() {
-    running = true;
-    th.reset(new std::thread([this] { io_context.run(); }));
-  }
-
-  void stop() {
-    if (running.load()) {
-      running.store(false);
-      io_context.stop();
-      if (th && th->joinable()) {
-        th->join();
-      }
-    }
-  }
-
-  ~local_server() { stop(); }
-
-  void add_resource(std::shared_ptr<resource_base> resource) { resources->add(resource); }
-};
-
 class capture_pipeline::impl {
   std::unordered_map<std::string, std::shared_ptr<graph_node>> node_map;
-  std::unordered_map<std::string, std::string> callback_key_to_node_name;
-  mutable std::mutex property_mtx;
-  std::unordered_map<std::string, std::unordered_map<std::string, property_value>>
-      runtime_properties;
-
-  local_server server;
+  graph_proc local_graph;
+  std::shared_ptr<subgraph> local_subgraph;
   asio::io_context io_context;
   graph_proc_client client;
   std::unique_ptr<std::thread> io_thread;
@@ -90,6 +50,24 @@ class capture_pipeline::impl {
 
   mutable std::mutex frame_received_mtx;
   std::vector<std::function<void(const std::map<std::string, marker_frame_data>&)>> marker_received;
+
+  bool has_remote_subgraphs = false;
+
+  bool is_local_node(const graph_node* node) const {
+    return node && local_subgraph && node->get_parent() == local_subgraph.get();
+  }
+
+  void process_node(const graph_node* node, const std::string& input_name,
+                    const graph_message_ptr& message) {
+    if (!node) {
+      return;
+    }
+    if (is_local_node(node)) {
+      local_graph.process(node, input_name, message);
+      return;
+    }
+    client.process(node, input_name, message);
+  }
 
  public:
   void add_marker_received(std::function<void(const std::map<std::string, marker_frame_data>&)> f) {
@@ -112,31 +90,32 @@ class capture_pipeline::impl {
     image_received.clear();
   }
 
-  impl(const std::map<std::string, cv::Mat>& masks) : server(0), masks(masks) {}
+  impl(const std::map<std::string, cv::Mat>& masks)
+      : node_map(),
+        local_graph(),
+        local_subgraph(),
+        io_context(),
+        client(),
+        io_thread(),
+        frames_mtx(),
+        frames(),
+        image_received_mtx(),
+        image_received(),
+        mask_nodes(),
+        masks(masks),
+        marker_collecting_clusters_mtx(),
+        marker_collecting_clusters(),
+        frame_received_mtx(),
+        marker_received(),
+        has_remote_subgraphs(false) {}
 
   void run(const std::vector<node_def>& nodes) {
-    callback_key_to_node_name.clear();
-    {
-      std::lock_guard lock(property_mtx);
-      runtime_properties.clear();
-    }
-
-    for (const auto& node : nodes) {
-      if (node.get_type() != node_type::callback) {
-        continue;
-      }
-
-      std::string callback_name;
-      std::string camera_name;
-      if (node.contains_param("callback_name")) {
-        callback_name = node.get_param<std::string>("callback_name");
-      }
-      if (node.contains_param("camera_name")) {
-        camera_name = node.get_param<std::string>("camera_name");
-      }
-
-      callback_key_to_node_name[callback_name + "|" + camera_name] = node.name;
-    }
+    node_map.clear();
+    local_graph = graph_proc();
+    local_subgraph.reset();
+    client = graph_proc_client();
+    io_context.restart();
+    has_remote_subgraphs = false;
 
     // Group nodes by subgraph instance
     std::map<std::string, std::vector<node_def>> nodes_by_subgraph;
@@ -166,20 +145,6 @@ class capture_pipeline::impl {
       const auto& camera_name = node->get_camera_name();
       const auto callback_type = node->get_callback_type();
       (void)callback_type;
-
-      const auto callback_key = callback_name + "|" + camera_name;
-      if (const auto found = callback_key_to_node_name.find(callback_key);
-          found != callback_key_to_node_name.end()) {
-        std::lock_guard lock(property_mtx);
-        auto& properties = runtime_properties[found->second];
-        std::int64_t received = 0;
-        if (const auto existing = properties.find("received"); existing != properties.end()) {
-          if (const auto* value = std::get_if<std::int64_t>(&existing->second)) {
-            received = *value;
-          }
-        }
-        properties["received"] = received + 1;
-      }
 
       // Handle individual image callback
       if (callback_name == "image") {
@@ -332,59 +297,44 @@ class capture_pipeline::impl {
       }
     });
 
-    server.add_resource(callbacks);
-    server.run();
+    local_graph.get_resources()->add(callbacks);
 
-    // Build dependency graph for subgraphs based on p2p connections
-    // subgraph_dependencies[target] = {source1, source2, ...}
-    std::map<std::string, std::set<std::string>> subgraph_dependencies;
+    std::map<std::string, std::pair<std::string, uint16_t>> remote_subgraph_deploy_info;
+    std::vector<std::string> local_subgraph_names;
 
-    for (const auto& node : nodes) {
-      const auto& target_subgraph = node.subgraph_instance;
-
-      for (const auto& [input_name, source_name] : node.inputs) {
-        // Extract node name from source (might be "node" or "node:output")
-        size_t pos = source_name.find(':');
-        std::string source_node_name =
-            (pos != std::string::npos) ? source_name.substr(0, pos) : source_name;
-
-        // Find which subgraph the source node belongs to
-        for (const auto& source_node : nodes) {
-          if (source_node.name == source_node_name) {
-            const auto& source_subgraph = source_node.subgraph_instance;
-            if (source_subgraph != target_subgraph) {
-              // Cross-subgraph dependency found
-              subgraph_dependencies[target_subgraph].insert(source_subgraph);
-            }
-            break;
-          }
-        }
-      }
-    }
-
-    // Step 1: Get deploy address for each subgraph
-    std::map<std::string, std::pair<std::string, uint16_t>> subgraph_deploy_info;
-
-    for (const auto& [subgraph_name, graph] : subgraphs) {
+    for (const auto& [subgraph_name, subgraph_nodes] : nodes_by_subgraph) {
+      bool is_remote = false;
       std::string deploy_address = "127.0.0.1";
-      uint16_t deploy_port = server.get_port();
+      uint16_t deploy_port = 0;
 
-      for (const auto& node : nodes_by_subgraph[subgraph_name]) {
+      for (const auto& node : subgraph_nodes) {
+        if (node.contains_param("deploy_port")) {
+          is_remote = true;
+          deploy_port = static_cast<uint16_t>(node.get_param<std::int64_t>("deploy_port"));
+        }
         if (node.contains_param("address")) {
           deploy_address = node.get_param<std::string>("address");
         }
-        if (node.contains_param("deploy_port")) {
-          deploy_port = static_cast<uint16_t>(node.get_param<std::int64_t>("deploy_port"));
-        }
       }
 
-      subgraph_deploy_info[subgraph_name] = std::make_pair(deploy_address, deploy_port);
+      if (is_remote) {
+        remote_subgraph_deploy_info[subgraph_name] = std::make_pair(deploy_address, deploy_port);
+      } else {
+        local_subgraph_names.push_back(subgraph_name);
+      }
     }
 
-    // Step 2: Group subgraphs by deploy address and create merged subgraphs
+    if (!local_subgraph_names.empty()) {
+      local_subgraph = std::make_shared<subgraph>();
+      for (const auto& subgraph_name : local_subgraph_names) {
+        local_subgraph->merge(*subgraphs.at(subgraph_name));
+      }
+    }
+
+    // Group remote subgraphs by deploy address and create merged subgraphs
     std::map<std::pair<std::string, uint16_t>, std::vector<std::string>> address_groups;
 
-    for (const auto& [subgraph_name, deploy_key] : subgraph_deploy_info) {
+    for (const auto& [subgraph_name, deploy_key] : remote_subgraph_deploy_info) {
       address_groups[deploy_key].push_back(subgraph_name);
     }
 
@@ -418,11 +368,14 @@ class capture_pipeline::impl {
       }
     }
 
-    // Step 3: Build dependency graph based on merged subgraphs
+    // Build dependency graph based on merged remote subgraphs
     std::map<std::string, std::set<std::string>> merged_dependencies;
 
     for (const auto& node : nodes) {
       const auto& target_subgraph = node.subgraph_instance;
+      if (remote_subgraph_deploy_info.find(target_subgraph) == remote_subgraph_deploy_info.end()) {
+        continue;
+      }
       const auto& target_merged = original_to_merged[target_subgraph];
 
       for (const auto& [input_name, source_name] : node.inputs) {
@@ -433,6 +386,10 @@ class capture_pipeline::impl {
         for (const auto& source_node : nodes) {
           if (source_node.name == source_node_name) {
             const auto& source_subgraph = source_node.subgraph_instance;
+            if (remote_subgraph_deploy_info.find(source_subgraph) ==
+                remote_subgraph_deploy_info.end()) {
+              break;
+            }
             const auto& source_merged = original_to_merged[source_subgraph];
 
             if (source_merged != target_merged) {
@@ -444,7 +401,6 @@ class capture_pipeline::impl {
       }
     }
 
-    // Step 4: Topological sort on merged subgraphs
     std::vector<std::string> deploy_order;
     std::set<std::string> deployed;
     std::set<std::string> visiting;
@@ -472,60 +428,37 @@ class capture_pipeline::impl {
       visit(merged_name);
     }
 
-    // Step 5: Deploy in topological order
-    std::cout << "=== Deploying Subgraphs ===" << std::endl;
-
-    for (const auto& merged_name : deploy_order) {
-      const auto& [deploy_address, deploy_port] = merged_deploy_info[merged_name];
-      const auto& members = merged_subgraph_members[merged_name];
-
-      if (members.size() == 1) {
-        std::cout << "Subgraph: " << members[0] << std::endl;
-      } else {
-        std::cout << "Merged subgraph (";
-        for (size_t i = 0; i < members.size(); ++i) {
-          if (i > 0) std::cout << " + ";
-          std::cout << members[i];
-        }
-        std::cout << ")" << std::endl;
-      }
-
-      std::cout << "  Deploy address: " << deploy_address << ":" << deploy_port << std::endl;
-
-      if (merged_dependencies.count(merged_name) && !merged_dependencies[merged_name].empty()) {
-        std::cout << "  Dependencies: ";
-        bool first = true;
-        for (const auto& dep : merged_dependencies[merged_name]) {
-          if (!first) std::cout << ", ";
-          const auto& dep_members = merged_subgraph_members[dep];
-          if (dep_members.size() == 1) {
-            std::cout << dep_members[0];
-          } else {
-            std::cout << dep;
-          }
-          first = false;
-        }
-        std::cout << std::endl;
-      }
-
-      client.deploy(io_context, deploy_address, deploy_port, deploy_subgraphs[merged_name]);
+    if (local_subgraph && local_subgraph->get_node_count() > 0) {
+      local_graph.deploy(local_subgraph);
+      local_graph.run();
     }
 
-    std::cout << "===========================" << std::endl;
+    if (!deploy_order.empty()) {
+      has_remote_subgraphs = true;
+      for (const auto& merged_name : deploy_order) {
+        const auto& [deploy_address, deploy_port] = merged_deploy_info[merged_name];
+        client.deploy(io_context, deploy_address, deploy_port, deploy_subgraphs[merged_name]);
+      }
 
-    io_thread.reset(new std::thread([this] { io_context.run(); }));
-
-    client.run();
+      io_thread.reset(new std::thread([this] { io_context.run(); }));
+      client.run();
+    }
   }
 
   void stop() {
-    client.stop();
-    server.stop();
+    if (has_remote_subgraphs) {
+      client.stop();
+      has_remote_subgraphs = false;
+    }
+    if (local_subgraph && local_subgraph->get_node_count() > 0) {
+      local_graph.stop();
+    }
     io_context.stop();
     if (io_thread && io_thread->joinable()) {
       io_thread->join();
     }
     io_thread.reset();
+    local_subgraph.reset();
   }
 
   std::map<std::string, cv::Mat> get_frames() const {
@@ -563,7 +496,7 @@ class capture_pipeline::impl {
                  (const uint8_t*)mask_img.data);
       const auto mask_msg = std::make_shared<image_message>();
       mask_msg->set_image(mask);
-      client.process(mask_node.get(), "mask", mask_msg);
+      process_node(mask_node.get(), "mask", mask_msg);
 
       masks[name] = mask_img;
     }
@@ -577,7 +510,7 @@ class capture_pipeline::impl {
                  (const uint8_t*)mask_img.data);
       const auto image_msg = std::make_shared<image_message>();
       image_msg->set_image(mask);
-      client.process(mask_node.get(), "mask", image_msg);
+      process_node(mask_node.get(), "mask", image_msg);
 
       masks[name] = mask_img;
     }
@@ -598,19 +531,8 @@ class capture_pipeline::impl {
 
   std::optional<property_value> get_node_property(const std::string& node_name,
                                                   const std::string& key) const {
-    {
-      std::lock_guard lock(property_mtx);
-      const auto node_found = runtime_properties.find(node_name);
-      if (node_found != runtime_properties.end()) {
-        const auto property_found = node_found->second.find(key);
-        if (property_found != node_found->second.end()) {
-          return property_found->second;
-        }
-      }
-    }
-
     const auto found = node_map.find(node_name);
-    if (found == node_map.end() || !found->second) {
+    if (found == node_map.end() || !found->second || !is_local_node(found->second.get())) {
       return std::nullopt;
     }
     return found->second->get_property(key);

@@ -54,6 +54,7 @@ enum class node_type {
   rs_d435,
   object_map,
   object_mux,
+  image_property,
   intrinsic_calibration,
   scene_calibration,
 };
@@ -64,6 +65,8 @@ struct node_display_property {
   std::string id;
   std::string label;
   std::string source_key;
+  std::string target;
+  std::string selector;
   std::string format;
   std::int64_t order = 0;
   std::optional<node_param_t> default_value;
@@ -178,13 +181,17 @@ class node_def {
              get_param<std::string>("callback_type") == "image" && contains_param("camera_name") &&
              !get_param<std::string>("camera_name").empty();
     }
+    if (type == node_type::image_property) {
+      return contains_param("camera_name") && !get_param<std::string>("camera_name").empty();
+    }
     return false;
   }
 
   std::string get_camera_name() const {
     const auto type = get_type();
     // For callback nodes, use camera_name parameter
-    if (type == node_type::callback && contains_param("camera_name")) {
+    if ((type == node_type::callback || type == node_type::image_property) &&
+        contains_param("camera_name")) {
       return get_param<std::string>("camera_name");
     }
     return name;

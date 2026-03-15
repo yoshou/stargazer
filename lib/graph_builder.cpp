@@ -25,6 +25,7 @@
 #include "coalsack/network/p2p_tcp_listener_node.h"
 #include "coalsack/nodes/fifo_node.h"
 #include "grpc_server_node.hpp"
+#include "image_property_node.hpp"
 #include "image_reconstruct_node.hpp"
 #include "intrinsic_calibration_node.hpp"
 #include "load_blob_node.hpp"
@@ -413,6 +414,11 @@ void build_graph_from_json(const std::vector<node_def>& nodes,
           }
           n->set_callback_type(cb_type);
         }
+        graph_node = n;
+        break;
+      }
+      case node_type::image_property: {
+        auto n = std::make_shared<image_property_node>();
         graph_node = n;
         break;
       }

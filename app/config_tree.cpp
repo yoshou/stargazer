@@ -16,6 +16,9 @@ std::string node_param_to_string(const node_param_t& param) {
 }
 
 std::string get_node_summary(const node_def& node) {
+  if (node.get_type() == node_type::image_property) {
+    return "image";
+  }
   if (node.contains_param("callback_type")) {
     return node.get_param<std::string>("callback_type");
   }
@@ -32,6 +35,9 @@ std::vector<std::string> get_node_badges(const node_def& node) {
     if (callback_type == "image" || callback_type == "marker") {
       badges.push_back(callback_type);
     }
+  }
+  if (node.get_type() == node_type::image_property) {
+    badges.push_back("image");
   }
   return badges;
 }
@@ -83,6 +89,9 @@ std::vector<config_tree_item> build_detail_items(const node_def& node, const std
     return left.id < right.id;
   });
   for (const auto& property : properties) {
+    if (!property.target.empty() && property.target != "detail") {
+      continue;
+    }
     std::string summary = "-";
     if (property.default_value.has_value()) {
       summary = node_param_to_string(property.default_value.value());
@@ -137,6 +146,7 @@ void append_pipeline_tree(config_tree_model& model, const configuration& config,
     runtime_node.summary = get_node_summary(node);
     runtime_node.is_camera = node.is_camera();
     runtime_node.badges = get_node_badges(node);
+    runtime_node.display_properties = node.properties;
     for (const auto& [key, value] : node.params) {
       runtime_node.properties.push_back(runtime_node_property{key, node_param_to_string(value), true});
     }

@@ -89,10 +89,30 @@ static std::string format_property_value(const coalsack::property_value& value,
           return format_double_value(raw_value, format);
         } else if constexpr (std::is_same_v<value_t, bool>) {
           return raw_value ? "true" : "false";
+        } else if constexpr (std::is_same_v<value_t, std::shared_ptr<coalsack::image>>) {
+          return raw_value ? "<image>" : "-";
         }
         return std::string{"-"};
       },
       value);
+}
+
+static int image_format_to_cv_type(coalsack::image_format format) {
+  switch (format) {
+    case coalsack::image_format::Y8_UINT:
+      return CV_8UC1;
+    case coalsack::image_format::Y16_UINT:
+    case coalsack::image_format::Z16_UINT:
+      return CV_16UC1;
+    case coalsack::image_format::R8G8B8_UINT:
+    case coalsack::image_format::B8G8R8_UINT:
+      return CV_8UC3;
+    case coalsack::image_format::R8G8B8A8_UINT:
+    case coalsack::image_format::B8G8R8A8_UINT:
+      return CV_8UC4;
+    default:
+      return -1;
+  }
 }
 
 class viewer_app : public window_base {
@@ -181,6 +201,71 @@ class viewer_app : public window_base {
       return multiview_image_reconstruction_pipeline_->get_node_property(ref.node_name, key);
     }
     return std::nullopt;
+  }
+
+  void bind_capture_stream_property(const stargazer::runtime_node_handle& runtime_node,
+                                    image_tile_view::stream_info& stream) const {
+    stream.property_node_name.clear();
+    stream.property_key.clear();
+    stream.property_selector.clear();
+
+    for (const auto& property : runtime_node.display_properties) {
+      if (property.target != "image") {
+        continue;
+      }
+      stream.property_node_name = runtime_node.ref.node_name;
+      stream.property_key = property.source_key;
+      stream.property_selector = property.selector;
+      break;
+    }
+  }
+
+  bool upload_capture_property_stream(const std::shared_ptr<image_tile_view::stream_info>& stream) const {
+    if (!stream || stream->property_node_name.empty() || stream->property_key.empty()) {
+      return false;
+    }
+
+    const auto value = query_capture_node_property(stream->property_node_name, stream->property_key);
+    if (!value.has_value()) {
+      return false;
+    }
+
+    const auto image_ptr = std::get_if<std::shared_ptr<coalsack::image>>(&value.value());
+    if (!image_ptr || !(*image_ptr) || (*image_ptr)->empty()) {
+      return false;
+    }
+
+    const auto type = image_format_to_cv_type((*image_ptr)->get_format());
+    if (type < 0) {
+      return false;
+    }
+
+    cv::Mat frame(static_cast<int>((*image_ptr)->get_height()),
+                  static_cast<int>((*image_ptr)->get_width()), type,
+                  const_cast<uint8_t*>((*image_ptr)->get_data()),
+                  static_cast<size_t>((*image_ptr)->get_stride()));
+    cv::Mat upload_image = frame.clone();
+
+    if (upload_image.empty()) {
+      return false;
+    }
+
+    switch ((*image_ptr)->get_format()) {
+      case coalsack::image_format::Y8_UINT:
+        cv::cvtColor(upload_image, upload_image, cv::COLOR_GRAY2RGB);
+        break;
+      case coalsack::image_format::B8G8R8_UINT:
+        cv::cvtColor(upload_image, upload_image, cv::COLOR_BGR2RGB);
+        break;
+      case coalsack::image_format::B8G8R8A8_UINT:
+        cv::cvtColor(upload_image, upload_image, cv::COLOR_BGRA2RGBA);
+        break;
+      default:
+        break;
+    }
+
+    stream->texture.upload_image(upload_image.cols, upload_image.rows, upload_image.data, 0);
+    return true;
   }
 
   template <typename PanelT>
@@ -317,6 +402,7 @@ class viewer_app : public window_base {
 
             const auto stream = std::make_shared<image_tile_view::stream_info>(
                 node_name, float2{(float)width, (float)height}, gfx_ctx);
+            bind_capture_stream_property(runtime_it->second, *stream);
             image_tile_view_->streams.push_back(stream);
           } else {
             auto it = captures.find(node_name);
@@ -389,6 +475,11 @@ class viewer_app : public window_base {
                 }
                 const auto stream = std::make_shared<image_tile_view::stream_info>(
                     camera_name, float2{(float)width, (float)height}, gfx_ctx);
+                const auto runtime_id = std::string{"node:pipeline:"} + node.name;
+                if (const auto runtime_it = capture_panel_view_->tree.runtime_nodes.find(runtime_id);
+                    runtime_it != capture_panel_view_->tree.runtime_nodes.end()) {
+                  bind_capture_stream_property(runtime_it->second, *stream);
+                }
                 image_tile_view_->streams.push_back(stream);
               }
             }
@@ -1419,6 +1510,10 @@ class viewer_app : public window_base {
       if (multiview_capture) {
         const auto frames = multiview_capture->get_frames();
         for (const auto& stream : image_tile_view_->streams) {
+          if (top_bar_view_->view_mode == top_bar_view::Mode::Capture &&
+              upload_capture_property_stream(stream)) {
+            continue;
+          }
           const auto& frame_it = frames.find(stream->name);
           if (frame_it != frames.end()) {
             const auto& frame = frame_it->second;
@@ -1436,6 +1531,10 @@ class viewer_app : public window_base {
       }
 
       for (const auto& stream : image_tile_view_->streams) {
+        if (top_bar_view_->view_mode == top_bar_view::Mode::Capture &&
+            upload_capture_property_stream(stream)) {
+          continue;
+        }
         const auto capture_it = captures.find(stream->name);
         if (capture_it != captures.end()) {
           const auto capture = capture_it->second;

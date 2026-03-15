@@ -54,6 +54,7 @@ struct runtime_node_handle {
   bool is_camera = false;
   config_tree_runtime_status status;
   std::vector<std::string> badges;
+  std::vector<node_display_property> display_properties;
   std::vector<runtime_node_property> properties;
   std::vector<runtime_node_action> actions;
 };

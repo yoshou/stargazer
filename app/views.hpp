@@ -282,10 +282,13 @@ class image_tile_view {
   struct stream_info {
     std::string name;
     float2 size;
+    std::string property_node_name;
+    std::string property_key;
+    std::string property_selector;
     texture_buffer texture;
 
     stream_info(std::string name, float2 size, graphics_context* gfx_ctx = nullptr)
-        : name(name), size(size) {
+        : name(std::move(name)), size(size), property_node_name(), property_key(), property_selector() {
       texture.set_context(gfx_ctx);
     }
   };

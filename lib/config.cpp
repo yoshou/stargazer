@@ -110,6 +110,8 @@ static node_type get_node_type(const std::string& type) {
     return node_type::object_map;
   } else if (type == "object_mux") {
     return node_type::object_mux;
+  } else if (type == "image_property") {
+    return node_type::image_property;
   } else if (type == "intrinsic_calibration") {
     return node_type::intrinsic_calibration;
   } else if (type == "scene_calibration") {
@@ -204,6 +206,8 @@ static std::string get_node_type_name(node_type type) {
       return "object_map";
     case node_type::object_mux:
       return "object_mux";
+    case node_type::image_property:
+      return "image_property";
     case node_type::intrinsic_calibration:
       return "intrinsic_calibration";
     case node_type::scene_calibration:
@@ -243,6 +247,12 @@ static node_display_property json_to_display_property(const nlohmann::json& valu
   if (value.contains("source_key")) {
     property.source_key = value["source_key"].get<std::string>();
   }
+  if (value.contains("target")) {
+    property.target = value["target"].get<std::string>();
+  }
+  if (value.contains("selector")) {
+    property.selector = value["selector"].get<std::string>();
+  }
   if (value.contains("format")) {
     property.format = value["format"].get<std::string>();
   }
@@ -271,6 +281,12 @@ static nlohmann::json display_property_to_json(const node_display_property& prop
   j_property["id"] = property.id;
   j_property["label"] = property.label;
   j_property["source_key"] = property.source_key;
+  if (!property.target.empty()) {
+    j_property["target"] = property.target;
+  }
+  if (!property.selector.empty()) {
+    j_property["selector"] = property.selector;
+  }
   if (!property.format.empty()) {
     j_property["format"] = property.format;
   }
