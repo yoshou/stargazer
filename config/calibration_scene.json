@@ -714,6 +714,13 @@
         {
           "name": "scene_calibration",
           "type": "scene_calibration",
+          "properties": [
+            { "id": "camera101_collected", "label": "Collected camera101", "source_key": "collected.camera101", "format": "integer", "default_value": 0 },
+            { "id": "camera102_collected", "label": "Collected camera102", "source_key": "collected.camera102", "format": "integer", "default_value": 0 },
+            { "id": "camera103_collected", "label": "Collected camera103", "source_key": "collected.camera103", "format": "integer", "default_value": 0 },
+            { "id": "camera104_collected", "label": "Collected camera104", "source_key": "collected.camera104", "format": "integer", "default_value": 0 },
+            { "id": "camera105_collected", "label": "Collected camera105", "source_key": "collected.camera105", "format": "integer", "default_value": 0 }
+          ],
           "inputs": {
             "default": "object_mux"
           }

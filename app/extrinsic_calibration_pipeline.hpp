@@ -2,7 +2,9 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 
+#include "coalsack/core/graph_node.h"
 #include "bundle_adjust_data.hpp"
 #include "calibration.hpp"
 #include "config.hpp"
@@ -40,4 +42,7 @@ class extrinsic_calibration_pipeline {
   void stop();
 
   void calibrate();
+
+  std::optional<coalsack::property_value> get_node_property(const std::string& node_name,
+                                                            const std::string& key) const;
 };

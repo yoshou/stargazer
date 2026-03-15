@@ -22,6 +22,7 @@ using namespace coalsack;
 class intrinsic_calibration_pipeline::impl {
  public:
   graph_proc graph;
+  std::unordered_map<std::string, graph_node_ptr> node_map;
 
   std::atomic_bool running;
 
@@ -43,17 +44,18 @@ class intrinsic_calibration_pipeline::impl {
       subgraphs[subgraph_name] = std::make_shared<subgraph>();
     }
 
-    std::unordered_map<std::string, graph_node_ptr> node_map;
+    std::unordered_map<std::string, graph_node_ptr> built_node_map;
 
     // Build graph using common function
-    stargazer::build_graph_from_json(nodes, subgraphs, node_map);
+    stargazer::build_graph_from_json(nodes, subgraphs, built_node_map);
+    node_map = built_node_map;
 
     // Extract specific nodes from the graph
     for (const auto& node : nodes) {
       if (node.get_type() == node_type::frame_number_numbering) {
-        input_node = std::dynamic_pointer_cast<frame_number_numbering_node>(node_map.at(node.name));
+        input_node = std::dynamic_pointer_cast<frame_number_numbering_node>(built_node_map.at(node.name));
       } else if (node.get_type() == node_type::intrinsic_calibration) {
-        calib_node = std::dynamic_pointer_cast<intrinsic_calibration_node>(node_map.at(node.name));
+        calib_node = std::dynamic_pointer_cast<intrinsic_calibration_node>(built_node_map.at(node.name));
       }
     }
 
@@ -80,6 +82,15 @@ class intrinsic_calibration_pipeline::impl {
   void stop() {
     running.store(false);
     graph.stop();
+  }
+
+  std::optional<property_value> get_node_property(const std::string& node_name,
+                                                  const std::string& key) const {
+    const auto found = node_map.find(node_name);
+    if (found == node_map.end() || !found->second) {
+      return std::nullopt;
+    }
+    return found->second->get_property(key);
   }
 };
 
@@ -137,4 +148,9 @@ void intrinsic_calibration_pipeline::calibrate() {
   if (pimpl->calib_node) {
     pimpl->calib_node->calibrate();
   }
+}
+
+std::optional<property_value> intrinsic_calibration_pipeline::get_node_property(
+    const std::string& node_name, const std::string& key) const {
+  return pimpl->get_node_property(node_name, key);
 }

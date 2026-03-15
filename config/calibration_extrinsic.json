@@ -320,6 +320,28 @@
           "type": "extrinsic_calibration",
           "only_extrinsic": false,
           "robust": true,
+          "properties": [
+            { "id": "camera1_collected", "label": "Collected camera1", "source_key": "collected.camera1", "format": "integer", "default_value": 0 },
+            { "id": "camera2_collected", "label": "Collected camera2", "source_key": "collected.camera2", "format": "integer", "default_value": 0 },
+            { "id": "camera3_collected", "label": "Collected camera3", "source_key": "collected.camera3", "format": "integer", "default_value": 0 },
+            { "id": "camera4_collected", "label": "Collected camera4", "source_key": "collected.camera4", "format": "integer", "default_value": 0 },
+            { "id": "camera5_collected", "label": "Collected camera5", "source_key": "collected.camera5", "format": "integer", "default_value": 0 },
+            { "id": "camera6_collected", "label": "Collected camera6", "source_key": "collected.camera6", "format": "integer", "default_value": 0 },
+            { "id": "camera7_collected", "label": "Collected camera7", "source_key": "collected.camera7", "format": "integer", "default_value": 0 },
+            { "id": "camera8_collected", "label": "Collected camera8", "source_key": "collected.camera8", "format": "integer", "default_value": 0 },
+            { "id": "camera9_collected", "label": "Collected camera9", "source_key": "collected.camera9", "format": "integer", "default_value": 0 },
+            { "id": "camera10_collected", "label": "Collected camera10", "source_key": "collected.camera10", "format": "integer", "default_value": 0 },
+            { "id": "camera11_collected", "label": "Collected camera11", "source_key": "collected.camera11", "format": "integer", "default_value": 0 },
+            { "id": "camera12_collected", "label": "Collected camera12", "source_key": "collected.camera12", "format": "integer", "default_value": 0 },
+            { "id": "camera13_collected", "label": "Collected camera13", "source_key": "collected.camera13", "format": "integer", "default_value": 0 },
+            { "id": "camera14_collected", "label": "Collected camera14", "source_key": "collected.camera14", "format": "integer", "default_value": 0 },
+            { "id": "camera15_collected", "label": "Collected camera15", "source_key": "collected.camera15", "format": "integer", "default_value": 0 },
+            { "id": "camera16_collected", "label": "Collected camera16", "source_key": "collected.camera16", "format": "integer", "default_value": 0 },
+            { "id": "camera17_collected", "label": "Collected camera17", "source_key": "collected.camera17", "format": "integer", "default_value": 0 },
+            { "id": "camera18_collected", "label": "Collected camera18", "source_key": "collected.camera18", "format": "integer", "default_value": 0 },
+            { "id": "camera19_collected", "label": "Collected camera19", "source_key": "collected.camera19", "format": "integer", "default_value": 0 },
+            { "id": "camera20_collected", "label": "Collected camera20", "source_key": "collected.camera20", "format": "integer", "default_value": 0 }
+          ],
           "inputs": {
             "camera1": "detector_camera1",
             "camera2": "detector_camera2",
@@ -419,6 +441,13 @@
           "type": "extrinsic_calibration",
           "only_extrinsic": true,
           "robust": false,
+          "properties": [
+            { "id": "camera101_collected", "label": "Collected camera101", "source_key": "collected.camera101", "format": "integer", "default_value": 0 },
+            { "id": "camera102_collected", "label": "Collected camera102", "source_key": "collected.camera102", "format": "integer", "default_value": 0 },
+            { "id": "camera103_collected", "label": "Collected camera103", "source_key": "collected.camera103", "format": "integer", "default_value": 0 },
+            { "id": "camera104_collected", "label": "Collected camera104", "source_key": "collected.camera104", "format": "integer", "default_value": 0 },
+            { "id": "camera105_collected", "label": "Collected camera105", "source_key": "collected.camera105", "format": "integer", "default_value": 0 }
+          ],
           "inputs": {
             "camera101": "detector_camera101",
             "camera102": "detector_camera102",

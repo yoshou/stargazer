@@ -60,6 +60,15 @@ enum class node_type {
 
 using node_param_t = std::variant<std::string, std::int64_t, double, float, bool>;
 
+struct node_display_property {
+  std::string id;
+  std::string label;
+  std::string source_key;
+  std::string format;
+  std::int64_t order = 0;
+  std::optional<node_param_t> default_value;
+};
+
 class node_def {
   node_type type{node_type::unknown};
   std::vector<std::shared_ptr<node_def>> extends;
@@ -126,6 +135,7 @@ class node_def {
   std::unordered_map<std::string, std::string> inputs{};
   std::vector<std::string> outputs{};
   std::unordered_map<std::string, node_param_t> params{};
+  std::vector<node_display_property> properties{};
 
   void set_type(node_type type) { this->type = type; }
   node_type get_type() const {

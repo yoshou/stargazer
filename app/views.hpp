@@ -10,6 +10,7 @@
 #include <glm/gtx/transform.hpp>
 #include <map>
 #include <memory>
+#include <optional>
 #include <opencv2/core.hpp>
 #include <unordered_set>
 #include <vector>
@@ -231,19 +232,9 @@ class calibration_panel_view {
   std::vector<std::function<bool(const std::vector<node_def>&, bool)>> is_streaming_changed;
   std::vector<std::function<bool(const std::vector<node_def>&, bool)>> is_masking_changed;
   std::vector<std::function<bool(const std::vector<node_def>&, bool)>> on_calibrate;
+  std::function<std::optional<std::string>(const stargazer::config_tree_item&)> resolve_detail_value;
 
   int calibration_target_index = 0;
-
-  float fx = 0;
-  float fy = 0;
-  float cx = 0;
-  float cy = 0;
-  float k0 = 0;
-  float k1 = 0;
-  float k2 = 0;
-  float p0 = 0;
-  float p1 = 0;
-  float rms = 0;
 
  private:
   float draw_control_panel(view_context* context);

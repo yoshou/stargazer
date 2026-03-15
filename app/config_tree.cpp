@@ -37,12 +37,21 @@ std::vector<std::string> get_node_badges(const node_def& node) {
 }
 
 config_tree_item make_detail_item(const std::string& stable_id, const std::string& label,
-                                  const std::string& summary) {
+                                  const std::string& summary,
+                                  config_tree_detail_kind detail_kind =
+                                      config_tree_detail_kind::param,
+                                  const std::string& runtime_node_id = {},
+                                  const std::string& property_source_key = {},
+                                  const std::string& property_format = {}) {
   config_tree_item item;
   item.stable_id = stable_id;
   item.kind = config_tree_item_kind::detail;
+  item.detail_kind = detail_kind;
   item.label = label;
   item.summary = summary;
+  item.runtime_node_id = runtime_node_id;
+  item.property_source_key = property_source_key;
+  item.property_format = property_format;
   return item;
 }
 
@@ -51,16 +60,36 @@ std::vector<config_tree_item> build_detail_items(const node_def& node, const std
 
   for (const auto& [key, value] : node.params) {
     children.push_back(
-        make_detail_item(runtime_id + ".param." + key, key, node_param_to_string(value)));
+        make_detail_item(runtime_id + ".param." + key, key, node_param_to_string(value),
+                         config_tree_detail_kind::param, runtime_id));
   }
 
   for (const auto& [key, value] : node.inputs) {
-    children.push_back(make_detail_item(runtime_id + ".input." + key, "input." + key, value));
+    children.push_back(make_detail_item(runtime_id + ".input." + key, "input." + key, value,
+                                        config_tree_detail_kind::input, runtime_id));
   }
 
   for (size_t index = 0; index < node.outputs.size(); ++index) {
     children.push_back(make_detail_item(runtime_id + ".output." + std::to_string(index),
-                                        "output", node.outputs[index]));
+                                        "output", node.outputs[index],
+                                        config_tree_detail_kind::output, runtime_id));
+  }
+
+  auto properties = node.properties;
+  std::sort(properties.begin(), properties.end(), [](const auto& left, const auto& right) {
+    if (left.order != right.order) {
+      return left.order < right.order;
+    }
+    return left.id < right.id;
+  });
+  for (const auto& property : properties) {
+    std::string summary = "-";
+    if (property.default_value.has_value()) {
+      summary = node_param_to_string(property.default_value.value());
+    }
+    children.push_back(make_detail_item(runtime_id + ".property." + property.id, property.label,
+                                        summary, config_tree_detail_kind::property, runtime_id,
+                                        property.source_key, property.format));
   }
 
   return children;

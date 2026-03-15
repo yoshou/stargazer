@@ -45,6 +45,19 @@
         {
           "name": "intrinsic_calibration",
           "type": "intrinsic_calibration",
+          "properties": [
+            { "id": "collected", "label": "Collected", "source_key": "collected", "format": "integer", "default_value": 0 },
+            { "id": "rms", "label": "rms", "source_key": "rms", "format": "fixed3", "default_value": 0.0 },
+            { "id": "fx", "label": "fx", "source_key": "intrinsics.fx", "format": "fixed3", "default_value": 0.0 },
+            { "id": "fy", "label": "fy", "source_key": "intrinsics.fy", "format": "fixed3", "default_value": 0.0 },
+            { "id": "cx", "label": "cx", "source_key": "intrinsics.cx", "format": "fixed3", "default_value": 0.0 },
+            { "id": "cy", "label": "cy", "source_key": "intrinsics.cy", "format": "fixed3", "default_value": 0.0 },
+            { "id": "k0", "label": "k0", "source_key": "intrinsics.k0", "format": "fixed3", "default_value": 0.0 },
+            { "id": "k1", "label": "k1", "source_key": "intrinsics.k1", "format": "fixed3", "default_value": 0.0 },
+            { "id": "k2", "label": "k2", "source_key": "intrinsics.k2", "format": "fixed3", "default_value": 0.0 },
+            { "id": "p0", "label": "p0", "source_key": "intrinsics.p0", "format": "fixed3", "default_value": 0.0 },
+            { "id": "p1", "label": "p1", "source_key": "intrinsics.p1", "format": "fixed3", "default_value": 0.0 }
+          ],
           "inputs": { "default": "object_mux" }
         },
         {

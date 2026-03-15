@@ -65,6 +65,8 @@ class local_server {
 };
 
 class capture_pipeline::impl {
+  std::unordered_map<std::string, std::shared_ptr<graph_node>> node_map;
+
   local_server server;
   asio::io_context io_context;
   graph_proc_client client;
@@ -126,6 +128,7 @@ class capture_pipeline::impl {
 
     // Build all subgraphs in one pass
     stargazer::build_graph_from_json(nodes, subgraphs, global_node_map);
+    node_map = global_node_map;
 
     const auto callbacks = std::make_shared<callback_list>();
 
@@ -549,6 +552,15 @@ class capture_pipeline::impl {
       marker_collecting_clusters.erase(found);
     }
   }
+
+  std::optional<property_value> get_node_property(const std::string& node_name,
+                                                  const std::string& key) const {
+    const auto found = node_map.find(node_name);
+    if (found == node_map.end() || !found->second) {
+      return std::nullopt;
+    }
+    return found->second->get_property(key);
+  }
 };
 
 capture_pipeline::capture_pipeline() : pimpl(new impl(std::map<std::string, cv::Mat>())) {}
@@ -580,3 +592,8 @@ void capture_pipeline::add_image_received(
   pimpl->add_image_received(f);
 }
 void capture_pipeline::clear_image_received() { pimpl->clear_image_received(); }
+
+std::optional<property_value> capture_pipeline::get_node_property(const std::string& node_name,
+                                                                  const std::string& key) const {
+  return pimpl->get_node_property(node_name, key);
+}

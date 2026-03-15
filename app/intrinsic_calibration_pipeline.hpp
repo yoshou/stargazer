@@ -2,9 +2,11 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 
 #include <opencv2/opencv.hpp>
 
+#include "coalsack/core/graph_node.h"
 #include "calibration.hpp"
 #include "config.hpp"
 #include "parameters.hpp"
@@ -33,4 +35,7 @@ class intrinsic_calibration_pipeline {
   void stop();
 
   void calibrate();
+
+  std::optional<coalsack::property_value> get_node_property(const std::string& node_name,
+                                                            const std::string& key) const;
 };

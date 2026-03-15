@@ -367,7 +367,8 @@ void draw_badges(const std::vector<std::string>& badges) {
   }
 }
 
-void draw_detail_row(const stargazer::config_tree_item& item) {
+void draw_detail_row(const stargazer::config_tree_item& item,
+                     const std::optional<std::string>& value_override = std::nullopt) {
   const float panel_width = ImGui::GetContentRegionAvail().x;
   const float row_height = 24.0f;
   const float value_width = std::min(125.0f, panel_width * 0.42f);
@@ -385,9 +386,10 @@ void draw_detail_row(const stargazer::config_tree_item& item) {
   const auto value_min = ImVec2(start.x + 24.0f + label_width, start.y + 1.0f);
   const auto value_max = ImVec2(start.x + 24.0f + label_width + value_width, start.y + row_height);
   ImGui::GetWindowDrawList()->AddRectFilled(value_min, value_max, ImGui::ColorConvertFloat4ToU32(node_info_color), 2.0f);
+  const auto& value = value_override.has_value() ? value_override.value() : item.summary;
   ImGui::GetWindowDrawList()->AddText(font, font_size, ImVec2(value_min.x + 6.0f, start.y + 4.0f),
                                       ImGui::ColorConvertFloat4ToU32(yellowish),
-                                      item.summary.c_str());
+                                      value.c_str());
   ImGui::Unindent(12.0f);
   ImGui::Dummy({0.0f, row_height - ImGui::GetTextLineHeight()});
 }
@@ -406,34 +408,19 @@ ImVec4 get_tree_text_color(stargazer::config_tree_item_kind kind) {
   return light_grey;
 }
 
-void draw_metric_row(const std::string& label, const std::string& value) {
-  const auto start = ImGui::GetCursorScreenPos();
-  const float panel_width = ImGui::GetWindowPos().x + ImGui::GetWindowContentRegionMax().x;
-  const float value_width = 96.0f;
-  const float row_height = 22.0f;
-  const float left = panel_width - value_width - 8.0f;
-  auto* font = ImGui::GetFont();
-  const auto font_size = ImGui::GetFontSize();
-
-  ImGui::Indent(24.0f);
-  ImGui::PushStyleColor(ImGuiCol_Text, grey);
-  ImGui::TextUnformatted(label.c_str());
-  ImGui::PopStyleColor();
-  ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(left, start.y + 1.0f),
-                                            ImVec2(left + value_width, start.y + row_height),
-                                            ImGui::ColorConvertFloat4ToU32(node_info_color), 2.0f);
-  ImGui::GetWindowDrawList()->AddText(font, font_size, ImVec2(left + 6.0f, start.y + 4.0f),
-                                      ImGui::ColorConvertFloat4ToU32(yellowish), value.c_str());
-  ImGui::Unindent(24.0f);
-  ImGui::Dummy({0.0f, row_height - ImGui::GetTextLineHeight()});
-}
-
 void draw_calibration_tree_item(calibration_panel_view* panel,
                                 const stargazer::config_tree_item& item,
                                 view_context* context,
                                 bool show_metric_values) {
+  (void)context;
+  (void)show_metric_values;
   if (item.kind == stargazer::config_tree_item_kind::detail) {
-    draw_detail_row(item);
+    if (item.detail_kind == stargazer::config_tree_detail_kind::property &&
+        panel->resolve_detail_value) {
+      draw_detail_row(item, panel->resolve_detail_value(item));
+    } else {
+      draw_detail_row(item);
+    }
     return;
   }
 
@@ -449,11 +436,7 @@ void draw_calibration_tree_item(calibration_panel_view* panel,
   if (!item.runtime_node_id.empty()) {
     auto runtime_it = panel->tree.runtime_nodes.find(item.runtime_node_id);
     if (runtime_it != panel->tree.runtime_nodes.end()) {
-      auto& runtime_node = runtime_it->second;
-      draw_badges(runtime_node.badges);
-      if (show_metric_values && runtime_node.is_camera) {
-        draw_metric_row("Collected", std::to_string(runtime_node.status.metric_value));
-      }
+      draw_badges(runtime_it->second.badges);
     }
   }
 
@@ -992,7 +975,6 @@ void calibration_panel_view::draw_extrinsic_calibration_control_panel(view_conte
 
 void calibration_panel_view::draw_intrinsic_calibration_control_panel(view_context* context) {
   const float content_left_inset = 10.0f;
-  const float combo_width = 310.0f;
 
   ImGui::Separator();
 
@@ -1003,60 +985,6 @@ void calibration_panel_view::draw_intrinsic_calibration_control_panel(view_conte
   }
   ImGui::PopFont();
   ImGui::Unindent(content_left_inset - 2.0f);
-
-  const auto node_it = std::find_if(nodes.begin(), nodes.end(), [&](const auto& node) {
-    return node.name == intrinsic_target_camera_name;
-  });
-  if (node_it == nodes.end()) {
-    return;
-  }
-
-  const auto& node = *node_it;
-  ImGui::Separator();
-
-  const auto draw_value_field = [](const std::string& id, const std::string& label,
-                                   const std::string& value) {
-    char buffer[64];
-    std::snprintf(buffer, sizeof(buffer), "%s", value.c_str());
-
-    ImGui::TableNextRow();
-    ImGui::TableSetColumnIndex(0);
-    ImGui::PushStyleColor(ImGuiCol_Text, light_grey);
-    ImGui::AlignTextToFramePadding();
-    ImGui::TextUnformatted(label.c_str());
-    ImGui::PopStyleColor();
-
-    ImGui::TableSetColumnIndex(1);
-    ImGui::PushStyleColor(ImGuiCol_FrameBg, node_info_color);
-    ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, node_info_color);
-    ImGui::PushStyleColor(ImGuiCol_FrameBgActive, node_info_color);
-    ImGui::PushStyleColor(ImGuiCol_Text, yellowish);
-    ImGui::SetNextItemWidth(-FLT_MIN);
-    ImGui::InputText(id.c_str(), buffer, sizeof(buffer), ImGuiInputTextFlags_ReadOnly);
-    ImGui::PopStyleColor(4);
-  };
-
-  ImGui::SetCursorPosX(content_left_inset);
-  if (ImGui::BeginTable("intrinsic_metrics", 2,
-                        ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_BordersInnerV,
-                        ImVec2(combo_width, 0.0f))) {
-    ImGui::TableSetupColumn("label", ImGuiTableColumnFlags_WidthStretch, 1.8f);
-    ImGui::TableSetupColumn("value", ImGuiTableColumnFlags_WidthStretch, 1.2f);
-
-    draw_value_field("##collected", "Collected", std::to_string(node.num_points));
-    draw_value_field("##rms", "rms", fmt::format("{:6.3f}", rms));
-    draw_value_field("##fx", "fx", fmt::format("{:6.3f}", fx));
-    draw_value_field("##fy", "fy", fmt::format("{:6.3f}", fy));
-    draw_value_field("##cx", "cx", fmt::format("{:6.3f}", cx));
-    draw_value_field("##cy", "cy", fmt::format("{:6.3f}", cy));
-    draw_value_field("##k0", "k0", fmt::format("{:6.3f}", k0));
-    draw_value_field("##k1", "k1", fmt::format("{:6.3f}", k1));
-    draw_value_field("##k2", "k2", fmt::format("{:6.3f}", k2));
-    draw_value_field("##p0", "p0", fmt::format("{:6.3f}", p0));
-    draw_value_field("##p1", "p1", fmt::format("{:6.3f}", p1));
-
-    ImGui::EndTable();
-  }
 }
 
 void calibration_panel_view::draw_controls(view_context* context, float panel_height) {

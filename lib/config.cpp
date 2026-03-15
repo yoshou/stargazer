@@ -225,6 +225,62 @@ static node_param_t json_to_param(const nlohmann::json& value) {
   throw std::runtime_error("Unsupported JSON parameter type");
 }
 
+static node_display_property json_to_display_property(const nlohmann::json& value,
+                                                      std::int64_t order) {
+  if (!value.is_object()) {
+    throw std::runtime_error("Node property must be an object");
+  }
+
+  node_display_property property;
+  property.order = order;
+
+  if (value.contains("id")) {
+    property.id = value["id"].get<std::string>();
+  }
+  if (value.contains("label")) {
+    property.label = value["label"].get<std::string>();
+  }
+  if (value.contains("source_key")) {
+    property.source_key = value["source_key"].get<std::string>();
+  }
+  if (value.contains("format")) {
+    property.format = value["format"].get<std::string>();
+  }
+  if (value.contains("order")) {
+    property.order = value["order"].get<std::int64_t>();
+  }
+  if (value.contains("default_value")) {
+    property.default_value = json_to_param(value["default_value"]);
+  }
+
+  if (property.id.empty()) {
+    property.id = property.source_key;
+  }
+  if (property.label.empty()) {
+    property.label = property.id;
+  }
+  if (property.source_key.empty()) {
+    property.source_key = property.id;
+  }
+
+  return property;
+}
+
+static nlohmann::json display_property_to_json(const node_display_property& property) {
+  nlohmann::json j_property;
+  j_property["id"] = property.id;
+  j_property["label"] = property.label;
+  j_property["source_key"] = property.source_key;
+  if (!property.format.empty()) {
+    j_property["format"] = property.format;
+  }
+  j_property["order"] = property.order;
+  if (property.default_value.has_value()) {
+    j_property["default_value"] = property.default_value.value();
+  }
+  return j_property;
+}
+
 configuration::configuration(const std::string& path) : path(path) {
   std::ifstream ifs;
   ifs.open(path, std::ios::in);
@@ -251,6 +307,11 @@ configuration::configuration(const std::string& path) : path(path) {
                 throw std::runtime_error("Node not found: " + extend);
               }
               node->extends.push_back(nodes.at(extend));
+            }
+          } else if (key == "properties") {
+            std::int64_t property_index = 0;
+            for (const auto& j_property : value) {
+              node->properties.push_back(json_to_display_property(j_property, property_index++));
             }
           } else {
             node->params[key] = json_to_param(value);
@@ -291,6 +352,11 @@ configuration::configuration(const std::string& path) : path(path) {
                     throw std::runtime_error("Node not found: " + extend);
                   }
                   node.extends.push_back(nodes.at(extend));
+                }
+              } else if (key == "properties") {
+                std::int64_t property_index = 0;
+                for (const auto& j_property : value) {
+                  node.properties.push_back(json_to_display_property(j_property, property_index++));
                 }
               } else {
                 node.params[key] = json_to_param(value);
@@ -390,6 +456,11 @@ configuration::configuration(const std::string& path) : path(path) {
                     }
                     node.extends.push_back(nodes.at(extend));
                   }
+                } else if (key == "properties") {
+                  std::int64_t property_index = 0;
+                  for (const auto& j_property : value) {
+                    node.properties.push_back(json_to_display_property(j_property, property_index++));
+                  }
                 } else {
                   node.params[key] = json_to_param(value);
                 }
@@ -423,6 +494,13 @@ void configuration::update() {
       }
       for (const auto& [key, value] : node->params) {
         j_node[key] = value;
+      }
+      if (!node->properties.empty()) {
+        std::vector<nlohmann::json> j_properties;
+        for (const auto& property : node->properties) {
+          j_properties.push_back(display_property_to_json(property));
+        }
+        j_node["properties"] = j_properties;
       }
       if (node->extends.size() > 0) {
         std::vector<std::string> extends;
@@ -458,6 +536,13 @@ void configuration::update() {
         }
         for (const auto& [key, value] : node.params) {
           j_node[key] = value;
+        }
+        if (!node.properties.empty()) {
+          std::vector<nlohmann::json> j_properties;
+          for (const auto& property : node.properties) {
+            j_properties.push_back(display_property_to_json(property));
+          }
+          j_node["properties"] = j_properties;
         }
         j_nodes.push_back(j_node);
       }
@@ -507,6 +592,13 @@ void configuration::update() {
             }
             for (const auto& [key, value] : node.params) {
               j_node[key] = value;
+            }
+            if (!node.properties.empty()) {
+              std::vector<nlohmann::json> j_properties;
+              for (const auto& property : node.properties) {
+                j_properties.push_back(display_property_to_json(property));
+              }
+              j_node["properties"] = j_properties;
             }
             j_nodes.push_back(j_node);
           }

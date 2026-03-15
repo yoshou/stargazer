@@ -285,6 +285,15 @@ class scene_calibration_node : public graph_node {
 
   size_t get_num_frames(std::string name) const { return observed_frames.get_num_points(name); }
 
+  virtual std::optional<property_value> get_property(const std::string& key) const override {
+    static constexpr std::string_view prefix = "collected.";
+    if (key.rfind(prefix.data(), 0) == 0) {
+      const auto camera_name = key.substr(prefix.size());
+      return static_cast<std::int64_t>(get_num_frames(camera_name));
+    }
+    return std::nullopt;
+  }
+
   const std::vector<observed_points_t> get_observed_points(std::string name) const {
     return observed_frames.get_observed_points(name);
   }

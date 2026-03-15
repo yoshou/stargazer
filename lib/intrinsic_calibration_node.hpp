@@ -82,6 +82,43 @@ class intrinsic_calibration_node : public graph_node {
 
   double get_rms() const { return rms; }
 
+  virtual std::optional<property_value> get_property(const std::string& key) const override {
+    if (key == "collected") {
+      return static_cast<std::int64_t>(get_num_frames());
+    }
+    if (key == "rms") {
+      return rms;
+    }
+    if (key == "intrinsics.fx") {
+      return calibrated_camera.intrin.fx;
+    }
+    if (key == "intrinsics.fy") {
+      return calibrated_camera.intrin.fy;
+    }
+    if (key == "intrinsics.cx") {
+      return calibrated_camera.intrin.cx;
+    }
+    if (key == "intrinsics.cy") {
+      return calibrated_camera.intrin.cy;
+    }
+    if (key == "intrinsics.k0") {
+      return calibrated_camera.intrin.coeffs[0];
+    }
+    if (key == "intrinsics.k1") {
+      return calibrated_camera.intrin.coeffs[1];
+    }
+    if (key == "intrinsics.k2") {
+      return calibrated_camera.intrin.coeffs[4];
+    }
+    if (key == "intrinsics.p0") {
+      return calibrated_camera.intrin.coeffs[2];
+    }
+    if (key == "intrinsics.p1") {
+      return calibrated_camera.intrin.coeffs[3];
+    }
+    return std::nullopt;
+  }
+
   void set_initial_camera(const camera_t& camera) { initial_camera = camera; }
 
   const camera_t& get_calibrated_camera() const { return calibrated_camera; }

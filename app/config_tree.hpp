@@ -15,6 +15,13 @@ enum class config_tree_item_kind {
   detail,
 };
 
+enum class config_tree_detail_kind {
+  param,
+  input,
+  output,
+  property,
+};
+
 struct config_tree_ref {
   std::string pipeline_key;
   std::string subgraph_instance;
@@ -54,9 +61,12 @@ struct runtime_node_handle {
 struct config_tree_item {
   std::string stable_id;
   config_tree_item_kind kind = config_tree_item_kind::detail;
+  config_tree_detail_kind detail_kind = config_tree_detail_kind::param;
   std::string label;
   std::string summary;
   std::string runtime_node_id;
+  std::string property_source_key;
+  std::string property_format;
   std::vector<std::string> badges;
   std::vector<config_tree_item> children;
 };

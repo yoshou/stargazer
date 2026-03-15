@@ -2,9 +2,11 @@
 
 #include <glm/glm.hpp>
 #include <memory>
+#include <optional>
 #include <opencv2/opencv.hpp>
 #include <string>
 
+#include "coalsack/core/graph_node.h"
 #include "config.hpp"
 
 struct marker_data {
@@ -43,4 +45,7 @@ class capture_pipeline {
   void clear_marker_received();
   void add_image_received(std::function<void(const std::map<std::string, cv::Mat>&)> f);
   void clear_image_received();
+
+  std::optional<coalsack::property_value> get_node_property(const std::string& node_name,
+                                                            const std::string& key) const;
 };
