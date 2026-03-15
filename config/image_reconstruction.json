@@ -37,6 +37,9 @@
           "inputs": {
             "default": "decode_jpeg"
           },
+          "properties": [
+            { "id": "received", "label": "Received", "source_key": "received", "format": "integer", "default_value": 0 }
+          ],
           "callback_name": "image",
           "callback_type": "image"
         },
@@ -468,6 +471,9 @@
           "inputs": {
             "default": "decode_jpeg"
           },
+          "properties": [
+            { "id": "received", "label": "Received", "source_key": "received", "format": "integer", "default_value": 0 }
+          ],
           "callback_name": "image",
           "callback_type": "image"
         },
@@ -754,6 +760,9 @@
             {
               "name": "callback_markers",
               "type": "callback",
+              "properties": [
+                { "id": "received", "label": "Received", "source_key": "received", "format": "integer", "default_value": 0 }
+              ],
               "callback_name": "markers",
               "callback_type": "object",
               "inputs": {
@@ -965,6 +974,9 @@
             {
               "name": "callback_markers",
               "type": "callback",
+              "properties": [
+                { "id": "received", "label": "Received", "source_key": "received", "format": "integer", "default_value": 0 }
+              ],
               "callback_name": "markers",
               "callback_type": "object",
               "inputs": {
@@ -1121,6 +1133,9 @@
             {
               "name": "callback_markers",
               "type": "callback",
+              "properties": [
+                { "id": "received", "label": "Received", "source_key": "received", "format": "integer", "default_value": 0 }
+              ],
               "callback_name": "markers",
               "callback_type": "object",
               "inputs": {

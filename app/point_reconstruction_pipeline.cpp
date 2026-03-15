@@ -17,6 +17,7 @@ using namespace stargazer;
 
 class multiview_point_reconstruction_pipeline::impl {
   graph_proc graph;
+  std::unordered_map<std::string, graph_node_ptr> node_map;
 
   std::atomic_bool running;
 
@@ -105,10 +106,11 @@ class multiview_point_reconstruction_pipeline::impl {
       subgraphs[subgraph_name] = std::make_shared<subgraph>();
     }
 
-    std::unordered_map<std::string, graph_node_ptr> node_map;
+    std::unordered_map<std::string, graph_node_ptr> built_node_map;
 
     // Build graph using common function
-    stargazer::build_graph_from_json(nodes, subgraphs, node_map);
+    stargazer::build_graph_from_json(nodes, subgraphs, built_node_map);
+    node_map = built_node_map;
 
     // Extract specific nodes from the graph
     for (const auto& node : nodes) {
@@ -117,14 +119,14 @@ class multiview_point_reconstruction_pipeline::impl {
           spdlog::warn("Multiple frame_number_numbering nodes found, using the first one");
         } else {
           input_node =
-              std::dynamic_pointer_cast<frame_number_numbering_node>(node_map.at(node.name));
+              std::dynamic_pointer_cast<frame_number_numbering_node>(built_node_map.at(node.name));
         }
       } else if (node.get_type() == node_type::epipolar_reconstruction) {
         if (reconstruct_node) {
           spdlog::warn("Multiple epipolar_reconstruction nodes found, using the first one");
         } else {
           reconstruct_node =
-              std::dynamic_pointer_cast<epipolar_reconstruct_node>(node_map.at(node.name));
+              std::dynamic_pointer_cast<epipolar_reconstruct_node>(built_node_map.at(node.name));
           if (reconstruct_node) {
             reconstruct_node->set_cameras(cameras);
             reconstruct_node->set_axis(axis);
@@ -181,6 +183,15 @@ class multiview_point_reconstruction_pipeline::impl {
 
     return result;
   }
+
+  std::optional<property_value> get_node_property(const std::string& node_name,
+                                                  const std::string& key) const {
+    const auto found = node_map.find(node_name);
+    if (found == node_map.end() || !found->second) {
+      return std::nullopt;
+    }
+    return found->second->get_property(key);
+  }
 };
 
 multiview_point_reconstruction_pipeline::multiview_point_reconstruction_pipeline()
@@ -210,4 +221,9 @@ void multiview_point_reconstruction_pipeline::set_camera(const std::string& name
 void multiview_point_reconstruction_pipeline::set_axis(const glm::mat4& axis) {
   this->axis = axis;
   pimpl->set_axis(axis);
+}
+
+std::optional<property_value> multiview_point_reconstruction_pipeline::get_node_property(
+    const std::string& node_name, const std::string& key) const {
+  return pimpl->get_node_property(node_name, key);
 }

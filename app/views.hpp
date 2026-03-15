@@ -198,6 +198,7 @@ class capture_panel_view {
   std::unordered_set<std::string> expanded_item_ids;
   std::vector<std::function<bool(bool)>> is_all_streaming_changed;
   std::vector<std::function<bool(const std::string&, bool)>> is_streaming_changed;
+  std::function<std::optional<std::string>(const stargazer::config_tree_item&)> resolve_detail_value;
 
  private:
   float draw_control_panel(view_context* context);
@@ -265,6 +266,7 @@ class reconstruction_panel_view {
 
   std::vector<std::function<bool(const std::vector<node_def>&, bool)>> is_streaming_changed;
   std::vector<std::function<bool(const std::vector<node_def>&, bool)>> is_recording_changed;
+  std::function<std::optional<std::string>(const stargazer::config_tree_item&)> resolve_detail_value;
 
  private:
   float draw_control_panel(view_context* context);

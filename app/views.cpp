@@ -451,8 +451,14 @@ void draw_calibration_tree_item(calibration_panel_view* panel,
 void draw_reconstruction_tree_item(reconstruction_panel_view* panel,
                                    const stargazer::config_tree_item& item,
                                    view_context* context) {
+  (void)context;
   if (item.kind == stargazer::config_tree_item_kind::detail) {
-    draw_detail_row(item);
+    if (item.detail_kind == stargazer::config_tree_detail_kind::property &&
+        panel->resolve_detail_value) {
+      draw_detail_row(item, panel->resolve_detail_value(item));
+    } else {
+      draw_detail_row(item);
+    }
     return;
   }
 
@@ -482,8 +488,14 @@ void draw_reconstruction_tree_item(reconstruction_panel_view* panel,
 
 void draw_capture_tree_item(capture_panel_view* panel, const stargazer::config_tree_item& item,
                             view_context* context) {
+  (void)context;
   if (item.kind == stargazer::config_tree_item_kind::detail) {
-    draw_detail_row(item);
+    if (item.detail_kind == stargazer::config_tree_detail_kind::property &&
+        panel->resolve_detail_value) {
+      draw_detail_row(item, panel->resolve_detail_value(item));
+    } else {
+      draw_detail_row(item);
+    }
     return;
   }
 

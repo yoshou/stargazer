@@ -1,7 +1,9 @@
 #pragma once
 
 #include <functional>
+#include <atomic>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -36,9 +38,15 @@ class callback_node : public graph_node {
   std::string callback_name;
   std::string camera_name;
   callback_type type;
+  std::atomic<std::int64_t> received_count;
 
  public:
-  callback_node() : graph_node(), callback_name(), camera_name(), type(callback_type::unknown) {}
+  callback_node()
+      : graph_node(),
+        callback_name(),
+        camera_name(),
+        type(callback_type::unknown),
+        received_count(0) {}
 
   virtual ~callback_node() = default;
 
@@ -60,7 +68,17 @@ class callback_node : public graph_node {
     archive(type);
   }
 
+  virtual std::optional<property_value> get_property(const std::string& key) const override {
+    if (key == "received") {
+      return received_count.load();
+    }
+    return std::nullopt;
+  }
+
   virtual void process(std::string input_name, graph_message_ptr message) override {
+    (void)input_name;
+    (void)message;
+    received_count.fetch_add(1);
     if (const auto resource = resources->get("callback_list")) {
       if (const auto callbacks = std::dynamic_pointer_cast<callback_list>(resource)) {
         callbacks->invoke(this, input_name, message);

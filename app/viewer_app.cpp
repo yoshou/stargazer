@@ -64,19 +64,6 @@ static std::vector<stargazer::node_def> collect_node_dependencies(
   return required_nodes;
 }
 
-static std::string get_runtime_camera_name(
-    const stargazer::runtime_node_handle& runtime_node) {
-  if (!runtime_node.ref.camera_name.empty()) {
-    return runtime_node.ref.camera_name;
-  }
-  for (const auto& property : runtime_node.properties) {
-    if (property.key == "camera_name") {
-      return property.value;
-    }
-  }
-  return runtime_node.ref.node_name;
-}
-
 static std::string format_double_value(double value, const std::string& format) {
   std::ostringstream stream;
   if (format == "fixed3") {
@@ -152,6 +139,70 @@ class viewer_app : public window_base {
     throw std::runtime_error("No intrinsic target camera found in intrinsic calibration config");
   }
 
+  std::optional<coalsack::property_value> query_capture_node_property(const std::string& node_name,
+                                                                      const std::string& key) const {
+    if (multiview_capture) {
+      if (const auto value = multiview_capture->get_node_property(node_name, key); value.has_value()) {
+        return value;
+      }
+    }
+    for (const auto& [capture_name, capture] : captures) {
+      (void)capture_name;
+      if (!capture) {
+        continue;
+      }
+      if (const auto value = capture->get_node_property(node_name, key); value.has_value()) {
+        return value;
+      }
+    }
+    return std::nullopt;
+  }
+
+  std::optional<coalsack::property_value> query_runtime_node_property(
+      const stargazer::config_tree_ref& ref, const std::string& key) const {
+    if (ref.pipeline_key == "pipeline") {
+      return query_capture_node_property(ref.node_name, key);
+    }
+    if (ref.pipeline_key == "extrinsic_calibration_pipeline" && extrinsic_calib) {
+      return extrinsic_calib->get_node_property(ref.node_name, key);
+    }
+    if (ref.pipeline_key == "intrinsic_calibration_pipeline" && intrinsic_calib) {
+      return intrinsic_calib->get_node_property(ref.node_name, key);
+    }
+    if (ref.pipeline_key == "scene_calibration_pipeline" && scene_calib) {
+      return scene_calib->get_node_property(ref.node_name, key);
+    }
+    if (ref.pipeline_key == "point_reconstruction_pipeline" &&
+        multiview_point_reconstruction_pipeline_) {
+      return multiview_point_reconstruction_pipeline_->get_node_property(ref.node_name, key);
+    }
+    if (ref.pipeline_key == "image_reconstruction_pipeline" &&
+        multiview_image_reconstruction_pipeline_) {
+      return multiview_image_reconstruction_pipeline_->get_node_property(ref.node_name, key);
+    }
+    return std::nullopt;
+  }
+
+  template <typename PanelT>
+  std::optional<std::string> resolve_panel_detail_value(const PanelT* panel,
+                                                        const stargazer::config_tree_item& item) const {
+    if (!panel || item.detail_kind != stargazer::config_tree_detail_kind::property ||
+        item.runtime_node_id.empty()) {
+      return std::nullopt;
+    }
+
+    const auto runtime_it = panel->tree.runtime_nodes.find(item.runtime_node_id);
+    if (runtime_it == panel->tree.runtime_nodes.end()) {
+      return std::nullopt;
+    }
+
+    const auto value = query_runtime_node_property(runtime_it->second.ref, item.property_source_key);
+    if (!value.has_value()) {
+      return std::nullopt;
+    }
+    return format_property_value(value.value(), item.property_format);
+  }
+
   void sync_calibration_panel_state() {
     if (!calibration_panel_view_ || !top_bar_view_) {
       return;
@@ -179,12 +230,6 @@ class viewer_app : public window_base {
 
       const auto target_camera_name = get_intrinsic_target_camera_name();
       calibration_panel_view_->intrinsic_target_camera_name = target_camera_name;
-      const auto& intrinsic_nodes = calibration_intrinsic_single_camera_config->get_nodes();
-      auto intrinsic_node_it = std::find_if(
-          intrinsic_nodes.begin(), intrinsic_nodes.end(),
-          [&](const auto& node) {
-            return node.is_camera() && node.get_camera_name() == target_camera_name;
-          });
       return;
     }
 
@@ -229,6 +274,10 @@ class viewer_app : public window_base {
 
   void init_capture_panel() {
     capture_panel_view_ = std::make_unique<capture_panel_view>();
+    capture_panel_view_->resolve_detail_value = [this](const stargazer::config_tree_item& item)
+        -> std::optional<std::string> {
+      return resolve_panel_detail_value(capture_panel_view_.get(), item);
+    };
     capture_panel_view_->tree = build_config_tree(*capture_config);
 
     capture_panel_view_->is_streaming_changed.push_back(
@@ -452,30 +501,7 @@ class viewer_app : public window_base {
     calibration_panel_view_ = std::make_unique<calibration_panel_view>();
     calibration_panel_view_->resolve_detail_value = [this](const stargazer::config_tree_item& item)
         -> std::optional<std::string> {
-      if (item.detail_kind != stargazer::config_tree_detail_kind::property ||
-          item.runtime_node_id.empty() || !calibration_panel_view_) {
-        return std::nullopt;
-      }
-
-      const auto runtime_it = calibration_panel_view_->tree.runtime_nodes.find(item.runtime_node_id);
-      if (runtime_it == calibration_panel_view_->tree.runtime_nodes.end()) {
-        return std::nullopt;
-      }
-
-      std::optional<coalsack::property_value> value;
-      const auto& node_name = runtime_it->second.ref.node_name;
-      if (calibration_panel_view_->calibration_target_index == 0 && extrinsic_calib) {
-        value = extrinsic_calib->get_node_property(node_name, item.property_source_key);
-      } else if (calibration_panel_view_->calibration_target_index == 1 && intrinsic_calib) {
-        value = intrinsic_calib->get_node_property(node_name, item.property_source_key);
-      } else if (calibration_panel_view_->calibration_target_index == 2 && scene_calib) {
-        value = scene_calib->get_node_property(node_name, item.property_source_key);
-      }
-
-      if (!value.has_value()) {
-        return std::nullopt;
-      }
-      return format_property_value(value.value(), item.property_format);
+      return resolve_panel_detail_value(calibration_panel_view_.get(), item);
     };
     for (const auto& node : extrinsic_calibration_config->get_nodes()) {
       if (!node.is_camera()) {
@@ -912,6 +938,10 @@ class viewer_app : public window_base {
 
   void init_reconstruction_panel() {
     reconstruction_panel_view_ = std::make_unique<reconstruction_panel_view>();
+    reconstruction_panel_view_->resolve_detail_value =
+        [this](const stargazer::config_tree_item& item) -> std::optional<std::string> {
+      return resolve_panel_detail_value(reconstruction_panel_view_.get(), item);
+    };
     auto add_nodes_from_config = [&](const configuration& cfg) {
       for (const auto& node : cfg.get_nodes()) {
         std::string path;

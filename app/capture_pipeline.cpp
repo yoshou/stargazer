@@ -66,6 +66,10 @@ class local_server {
 
 class capture_pipeline::impl {
   std::unordered_map<std::string, std::shared_ptr<graph_node>> node_map;
+  std::unordered_map<std::string, std::string> callback_key_to_node_name;
+  mutable std::mutex property_mtx;
+  std::unordered_map<std::string, std::unordered_map<std::string, property_value>>
+      runtime_properties;
 
   local_server server;
   asio::io_context io_context;
@@ -111,6 +115,29 @@ class capture_pipeline::impl {
   impl(const std::map<std::string, cv::Mat>& masks) : server(0), masks(masks) {}
 
   void run(const std::vector<node_def>& nodes) {
+    callback_key_to_node_name.clear();
+    {
+      std::lock_guard lock(property_mtx);
+      runtime_properties.clear();
+    }
+
+    for (const auto& node : nodes) {
+      if (node.get_type() != node_type::callback) {
+        continue;
+      }
+
+      std::string callback_name;
+      std::string camera_name;
+      if (node.contains_param("callback_name")) {
+        callback_name = node.get_param<std::string>("callback_name");
+      }
+      if (node.contains_param("camera_name")) {
+        camera_name = node.get_param<std::string>("camera_name");
+      }
+
+      callback_key_to_node_name[callback_name + "|" + camera_name] = node.name;
+    }
+
     // Group nodes by subgraph instance
     std::map<std::string, std::vector<node_def>> nodes_by_subgraph;
     for (const auto& node : nodes) {
@@ -134,9 +161,25 @@ class capture_pipeline::impl {
 
     callbacks->add([this](const callback_node* node, std::string input_name,
                           graph_message_ptr message) {
+      (void)input_name;
       const auto& callback_name = node->get_callback_name();
       const auto& camera_name = node->get_camera_name();
       const auto callback_type = node->get_callback_type();
+      (void)callback_type;
+
+      const auto callback_key = callback_name + "|" + camera_name;
+      if (const auto found = callback_key_to_node_name.find(callback_key);
+          found != callback_key_to_node_name.end()) {
+        std::lock_guard lock(property_mtx);
+        auto& properties = runtime_properties[found->second];
+        std::int64_t received = 0;
+        if (const auto existing = properties.find("received"); existing != properties.end()) {
+          if (const auto* value = std::get_if<std::int64_t>(&existing->second)) {
+            received = *value;
+          }
+        }
+        properties["received"] = received + 1;
+      }
 
       // Handle individual image callback
       if (callback_name == "image") {
@@ -555,6 +598,17 @@ class capture_pipeline::impl {
 
   std::optional<property_value> get_node_property(const std::string& node_name,
                                                   const std::string& key) const {
+    {
+      std::lock_guard lock(property_mtx);
+      const auto node_found = runtime_properties.find(node_name);
+      if (node_found != runtime_properties.end()) {
+        const auto property_found = node_found->second.find(key);
+        if (property_found != node_found->second.end()) {
+          return property_found->second;
+        }
+      }
+    }
+
     const auto found = node_map.find(node_name);
     if (found == node_map.end() || !found->second) {
       return std::nullopt;

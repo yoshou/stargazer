@@ -3,9 +3,11 @@
 #include <glm/glm.hpp>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
+#include "coalsack/core/graph_node.h"
 #include "config.hpp"
 #include "parameters.hpp"
 #include "point_data.hpp"
@@ -32,4 +34,6 @@ class multiview_point_reconstruction_pipeline {
   void set_camera(const std::string& name, const stargazer::camera_t& camera);
   virtual glm::mat4 get_axis() const { return axis; }
   void set_axis(const glm::mat4& axis);
+  std::optional<coalsack::property_value> get_node_property(const std::string& node_name,
+                                                            const std::string& key) const;
 };
