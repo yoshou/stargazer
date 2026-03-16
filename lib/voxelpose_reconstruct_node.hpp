@@ -217,22 +217,13 @@ class voxelpose_reconstruct_node : public image_reconstruct_node {
               .clone()
               .convertTo(heatmap_mat, CV_8U, 255);
 
-          int output_width = 960;
-          int output_height = 540;
-          if (const auto camera_it = cameras.find(names[i]); camera_it != cameras.end()) {
-            output_width = camera_it->second.width;
-            output_height = camera_it->second.height;
-          }
-          cv::resize(heatmap_mat, heatmap_mat, cv::Size(output_width, output_height));
-          cv::cvtColor(heatmap_mat, heatmap_mat, cv::COLOR_GRAY2BGR);
-
-          coalsack::image feature_image(static_cast<std::uint32_t>(heatmap_mat.cols),
+          coalsack::image heatmap_image(static_cast<std::uint32_t>(heatmap_mat.cols),
                                         static_cast<std::uint32_t>(heatmap_mat.rows),
                                         static_cast<std::uint32_t>(heatmap_mat.elemSize()),
                                         static_cast<std::uint32_t>(heatmap_mat.step),
                                         heatmap_mat.data);
-          feature_image.set_format(coalsack::image_format::B8G8R8_UINT);
-          generic_result.feature_images.emplace(names[i], std::move(feature_image));
+          heatmap_image.set_format(coalsack::image_format::Y8_UINT);
+          generic_result.heatmaps.emplace(names[i], std::move(heatmap_image));
         }
       }
 
@@ -247,38 +238,6 @@ class voxelpose_reconstruct_node : public image_reconstruct_node {
     }
   }
 
-  std::map<std::string, cv::Mat> get_features() const override {
-    coalsack::tensor<float, 4> features;
-    std::vector<std::string> names;
-    {
-      std::lock_guard lock(features_mtx);
-      features = this->features;
-      names = this->names;
-    }
-    std::map<std::string, cv::Mat> result;
-    if (features.get_size() == 0) {
-      return result;
-    }
-    for (size_t i = 0; i < names.size(); i++) {
-      const auto name = names[i];
-      const auto heatmap =
-          features
-              .view<3>({features.shape[0], features.shape[1], features.shape[2], 0},
-                       {0, 0, 0, static_cast<uint32_t>(i)})
-              .contiguous()
-              .sum<1>({2});
-
-      cv::Mat heatmap_mat;
-      cv::Mat(heatmap.shape[1], heatmap.shape[0], CV_32FC1, (float*)heatmap.get_data())
-          .clone()
-          .convertTo(heatmap_mat, CV_8U, 255);
-      cv::resize(heatmap_mat, heatmap_mat, cv::Size(960, 540));
-      cv::cvtColor(heatmap_mat, heatmap_mat, cv::COLOR_GRAY2BGR);
-
-      result[name] = heatmap_mat;
-    }
-    return result;
-  }
 };
 
 }  // namespace stargazer

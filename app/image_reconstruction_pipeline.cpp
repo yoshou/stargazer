@@ -238,8 +238,6 @@ class multiview_image_reconstruction_pipeline::impl {
     return result;
   }
 
-  std::map<std::string, cv::Mat> get_features() const { return reconstruct_node->get_features(); }
-
   std::optional<property_value> get_node_property(const std::string& node_name,
                                                   const std::string& key) const {
     const auto found = node_map.find(node_name);
@@ -263,10 +261,6 @@ void multiview_image_reconstruction_pipeline::run(const std::vector<node_def>& n
 }
 
 void multiview_image_reconstruction_pipeline::stop() { pimpl->stop(); }
-
-std::map<std::string, cv::Mat> multiview_image_reconstruction_pipeline::get_features() const {
-  return pimpl->get_features();
-}
 
 std::vector<glm::vec3> multiview_image_reconstruction_pipeline::get_markers() const {
   return pimpl->get_markers();

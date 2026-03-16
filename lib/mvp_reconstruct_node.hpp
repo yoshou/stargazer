@@ -194,10 +194,6 @@ class mvp_reconstruct_node : public image_reconstruct_node {
     }
   }
 
-  std::map<std::string, cv::Mat> get_features() const override {
-    // MVP does not expose intermediate features like heatmaps
-    return std::map<std::string, cv::Mat>();
-  }
 };
 
 }  // namespace stargazer

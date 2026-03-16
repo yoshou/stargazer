@@ -27,7 +27,6 @@ class multiview_image_reconstruction_pipeline {
   void stop();
 
   std::vector<glm::vec3> get_markers() const;
-  std::map<std::string, cv::Mat> get_features() const;
   void set_camera(const std::string& name, const stargazer::camera_t& camera);
   void set_axis(const glm::mat4& axis);
   std::optional<coalsack::property_value> get_node_property(const std::string& node_name,

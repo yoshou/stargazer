@@ -75,11 +75,36 @@ class feature_render_node : public coalsack::graph_node {
       return;
     }
 
-    if (const auto feature_it = result_msg->get_result().feature_images.find(camera_name);
-        feature_it != result_msg->get_result().feature_images.end()) {
+    if (const auto heatmap_it = result_msg->get_result().heatmaps.find(camera_name);
+        heatmap_it != result_msg->get_result().heatmaps.end()) {
+      const auto& heatmap_img = heatmap_it->second;
+
+      int output_width = width;
+      int output_height = height;
+      const auto& cameras = result_msg->get_cameras();
+      if (const auto camera_it = cameras.find(camera_name); camera_it != cameras.end()) {
+        if (output_width <= 0) output_width = static_cast<int>(camera_it->second.width);
+        if (output_height <= 0) output_height = static_cast<int>(camera_it->second.height);
+      }
+      if (output_width <= 0) output_width = 960;
+      if (output_height <= 0) output_height = 540;
+
+      cv::Mat gray(static_cast<int>(heatmap_img.get_height()),
+                   static_cast<int>(heatmap_img.get_width()), CV_8UC1,
+                   const_cast<uint8_t*>(heatmap_img.get_data()),
+                   static_cast<size_t>(heatmap_img.get_stride()));
+      cv::Mat bgr;
+      cv::cvtColor(gray, bgr, cv::COLOR_GRAY2BGR);
+      cv::resize(bgr, bgr, cv::Size(output_width, output_height));
+
+      coalsack::image rendered(static_cast<std::uint32_t>(bgr.cols),
+                               static_cast<std::uint32_t>(bgr.rows),
+                               static_cast<std::uint32_t>(bgr.elemSize()),
+                               static_cast<std::uint32_t>(bgr.step), bgr.data);
+      rendered.set_format(coalsack::image_format::B8G8R8_UINT);
       {
         std::lock_guard lock(image_mtx);
-        current_image = std::make_shared<coalsack::image>(feature_it->second);
+        current_image = std::make_shared<coalsack::image>(rendered);
       }
       received_count.fetch_add(1);
       output->send(message);

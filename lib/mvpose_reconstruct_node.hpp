@@ -23,10 +23,6 @@ class mvpose_reconstruct_node : public image_reconstruct_node {
   glm::mat4 axis;
   graph_edge_ptr output;
 
-  std::vector<std::string> names;
-  coalsack::tensor<float, 4> features;
-  mutable std::mutex features_mtx;
-
   stargazer::mvpose::mvpose pose_estimator;
 
  public:
@@ -57,7 +53,6 @@ class mvpose_reconstruct_node : public image_reconstruct_node {
       const glm::mat4& axis, std::vector<std::string>& out_view_names) {
     using namespace stargazer::mvpose;
 
-    coalsack::tensor<float, 4> heatmaps;
     std::vector<cv::Mat> images_list;
     std::vector<camera_t> cameras_list;
 
@@ -100,12 +95,6 @@ class mvpose_reconstruct_node : public image_reconstruct_node {
     }
 
     const auto infer_result = pose_estimator.inference_with_matches(images_list, cameras_list);
-
-    {
-      std::lock_guard lock(features_mtx);
-      this->names = out_view_names;
-      this->features = std::move(heatmaps);
-    }
 
     return infer_result;
   }
@@ -213,38 +202,6 @@ class mvpose_reconstruct_node : public image_reconstruct_node {
     }
   }
 
-  std::map<std::string, cv::Mat> get_features() const override {
-    coalsack::tensor<float, 4> features;
-    std::vector<std::string> names;
-    {
-      std::lock_guard lock(features_mtx);
-      features = this->features;
-      names = this->names;
-    }
-    std::map<std::string, cv::Mat> result;
-    if (features.get_size() == 0) {
-      return result;
-    }
-    for (size_t i = 0; i < names.size(); i++) {
-      const auto name = names[i];
-      const auto heatmap =
-          features
-              .view<3>({features.shape[0], features.shape[1], features.shape[2], 0},
-                       {0, 0, 0, static_cast<uint32_t>(i)})
-              .contiguous()
-              .sum<1>({2});
-
-      cv::Mat heatmap_mat;
-      cv::Mat(heatmap.shape[1], heatmap.shape[0], CV_32FC1, (float*)heatmap.get_data())
-          .clone()
-          .convertTo(heatmap_mat, CV_8U, 255);
-      cv::resize(heatmap_mat, heatmap_mat, cv::Size(960, 540));
-      cv::cvtColor(heatmap_mat, heatmap_mat, cv::COLOR_GRAY2BGR);
-
-      result[name] = heatmap_mat;
-    }
-    return result;
-  }
 };
 
 }  // namespace stargazer

@@ -137,13 +137,13 @@ using match_t = std::vector<detection_id_t>;
 struct reconstruction_result_t {
   std::vector<float3> points3d;      // Final 3D keypoints
   std::vector<view_result_t> views;  // Per-view 2D detections
-  std::map<std::string, coalsack::image> feature_images;  // Per-view rendered feature images
+  std::map<std::string, coalsack::image> heatmaps;  // Per-view grayscale heatmaps (Y8_UINT)
   std::vector<match_t> matches;      // Multi-view correspondences
   size_t num_keypoints;
 
   template <typename Archive>
   void serialize(Archive& archive) {
-    archive(points3d, views, feature_images, matches, num_keypoints);
+    archive(points3d, views, heatmaps, matches, num_keypoints);
   }
 };
 
