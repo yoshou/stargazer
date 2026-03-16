@@ -244,6 +244,7 @@ class viewer_app : public window_base {
                                     image_tile_view::stream_info& stream) const {
     stream.property_node_name.clear();
     stream.property_key.clear();
+    stream.property_resource_kind.clear();
     stream.property_selector.clear();
 
     for (const auto& property : runtime_node.display_properties) {
@@ -252,6 +253,7 @@ class viewer_app : public window_base {
       }
       stream.property_node_name = runtime_node.ref.node_name;
       stream.property_key = property.source_key;
+      stream.property_resource_kind = property.resource_kind;
       stream.property_selector = property.selector;
       break;
     }
@@ -271,6 +273,9 @@ class viewer_app : public window_base {
   bool upload_capture_property_stream(
       const std::shared_ptr<image_tile_view::stream_info>& stream) const {
     if (!stream || stream->property_node_name.empty() || stream->property_key.empty()) {
+      return false;
+    }
+    if (!stream->property_resource_kind.empty() && stream->property_resource_kind != "raw") {
       return false;
     }
 

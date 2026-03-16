@@ -66,6 +66,7 @@ struct node_display_property {
   std::string label;
   std::string source_key;
   std::string target;
+  std::string resource_kind;
   std::string selector;
   std::string format;
   std::int64_t order = 0;
