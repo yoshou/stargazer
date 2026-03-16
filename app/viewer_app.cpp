@@ -270,6 +270,31 @@ class viewer_app : public window_base {
     }
   }
 
+  void bind_image_reconstruction_stream_property(const std::string& camera_name,
+                                                 image_tile_view::stream_info& stream) const {
+    stream.property_node_name.clear();
+    stream.property_key.clear();
+    stream.property_resource_kind.clear();
+    stream.property_selector.clear();
+
+    for (const auto& node : image_reconstruction_config->get_nodes("image_reconstruction_pipeline")) {
+      if (!node.contains_param("camera_name") ||
+          node.get_param<std::string>("camera_name") != camera_name) {
+        continue;
+      }
+      for (const auto& property : node.properties) {
+        if (property.target != "point") {
+          continue;
+        }
+        stream.property_node_name = node.name;
+        stream.property_key = property.source_key;
+        stream.property_resource_kind = property.resource_kind;
+        stream.property_selector = property.selector;
+        return;
+      }
+    }
+  }
+
   bool upload_capture_property_stream(
       const std::shared_ptr<image_tile_view::stream_info>& stream) const {
     if (!stream || stream->property_node_name.empty() || stream->property_key.empty()) {
@@ -301,6 +326,60 @@ class viewer_app : public window_base {
                   static_cast<size_t>((*image_ptr)->get_stride()));
     cv::Mat upload_image = frame.clone();
 
+    if (upload_image.empty()) {
+      return false;
+    }
+
+    switch ((*image_ptr)->get_format()) {
+      case coalsack::image_format::Y8_UINT:
+        cv::cvtColor(upload_image, upload_image, cv::COLOR_GRAY2RGB);
+        break;
+      case coalsack::image_format::B8G8R8_UINT:
+        cv::cvtColor(upload_image, upload_image, cv::COLOR_BGR2RGB);
+        break;
+      case coalsack::image_format::B8G8R8A8_UINT:
+        cv::cvtColor(upload_image, upload_image, cv::COLOR_BGRA2RGBA);
+        break;
+      default:
+        break;
+    }
+
+    stream->texture.upload_image(upload_image.cols, upload_image.rows, upload_image.data, 0);
+    return true;
+  }
+
+  bool upload_image_reconstruction_property_stream(
+      const std::shared_ptr<image_tile_view::stream_info>& stream) const {
+    if (!multiview_image_reconstruction_pipeline_ || !stream || stream->property_node_name.empty() ||
+        stream->property_key.empty()) {
+      return false;
+    }
+    if (!stream->property_resource_kind.empty() && stream->property_resource_kind != "feature") {
+      return false;
+    }
+
+    const auto value =
+        multiview_image_reconstruction_pipeline_->get_node_property(stream->property_node_name,
+                                                                    stream->property_key);
+    if (!value.has_value()) {
+      return false;
+    }
+
+    const auto image_ptr = std::get_if<std::shared_ptr<coalsack::image>>(&value.value());
+    if (!image_ptr || !(*image_ptr) || (*image_ptr)->empty()) {
+      return false;
+    }
+
+    const auto type = image_format_to_cv_type((*image_ptr)->get_format());
+    if (type < 0) {
+      return false;
+    }
+
+    cv::Mat frame(static_cast<int>((*image_ptr)->get_height()),
+                  static_cast<int>((*image_ptr)->get_width()), type,
+                  const_cast<uint8_t*>((*image_ptr)->get_data()),
+                  static_cast<size_t>((*image_ptr)->get_stride()));
+    cv::Mat upload_image = frame.clone();
     if (upload_image.empty()) {
       return false;
     }
@@ -719,6 +798,7 @@ class viewer_app : public window_base {
                   }
                   const auto stream = std::make_shared<image_tile_view::stream_info>(
                       camera_name, float2{(float)width, (float)height}, gfx_ctx);
+                  bind_image_reconstruction_stream_property(camera_name, *stream);
                   image_tile_view_->streams.push_back(stream);
                 }
               }
@@ -1204,6 +1284,7 @@ class viewer_app : public window_base {
                   }
                   const auto stream = std::make_shared<image_tile_view::stream_info>(
                       camera_name, float2{(float)width, (float)height}, gfx_ctx);
+                  bind_image_reconstruction_stream_property(camera_name, *stream);
                   image_tile_view_->streams.push_back(stream);
                 }
               }
@@ -1736,27 +1817,9 @@ class viewer_app : public window_base {
         }
       } else if (top_bar_view_->view_type == top_bar_view::ViewType::Point) {
         if (multiview_capture) {
-          const auto frames = multiview_image_reconstruction_pipeline_->get_features();
-          for (const auto& [name, frame] : frames) {
-            const auto node_name = name;
-            if (!frame.empty()) {
-              const auto stream_it =
-                  std::find_if(image_tile_view_->streams.begin(), image_tile_view_->streams.end(),
-                               [node_name](const auto& x) { return x->name == node_name; });
-
-              if (stream_it != image_tile_view_->streams.end()) {
-                cv::Mat color_image;
-                if (frame.channels() == 1) {
-                  cv::cvtColor(frame, color_image, cv::COLOR_GRAY2RGB);
-                } else if (frame.channels() == 3) {
-                  cv::cvtColor(frame, color_image, cv::COLOR_BGR2RGB);
-                }
-                if (!color_image.empty()) {
-                  (*stream_it)
-                      ->texture.upload_image(color_image.cols, color_image.rows, color_image.data,
-                                             0);
-                }
-              }
+          for (const auto& stream : image_tile_view_->streams) {
+            if (upload_image_reconstruction_property_stream(stream)) {
+              continue;
             }
           }
         }

@@ -187,15 +187,63 @@ class voxelpose_reconstruct_node : public image_reconstruct_node {
 
       const auto markers = reconstruct(cameras, images, axis);
 
-      auto marker_msg = std::make_shared<float3_list_message>();
-      std::vector<float3> marker_data;
+      reconstruction_result_t generic_result;
+      generic_result.num_keypoints = markers.size();
+      generic_result.points3d.reserve(markers.size());
       for (const auto& marker : markers) {
-        marker_data.push_back({marker.x, marker.y, marker.z});
+        generic_result.points3d.push_back({marker.x, marker.y, marker.z});
       }
-      marker_msg->set_data(marker_data);
-      marker_msg->set_frame_number(frame_msg->get_frame_number());
 
-      output->send(marker_msg);
+      coalsack::tensor<float, 4> features;
+      std::vector<std::string> names;
+      {
+        std::lock_guard lock(features_mtx);
+        features = this->features;
+        names = this->names;
+      }
+
+      if (features.get_size() != 0) {
+        for (size_t i = 0; i < names.size(); i++) {
+          const auto heatmap =
+              features
+                  .view<3>({features.shape[0], features.shape[1], features.shape[2], 0},
+                           {0, 0, 0, static_cast<uint32_t>(i)})
+                  .contiguous()
+                  .sum<1>({2});
+
+          cv::Mat heatmap_mat;
+          cv::Mat(static_cast<int>(heatmap.shape[1]), static_cast<int>(heatmap.shape[0]), CV_32FC1,
+                  (float*)heatmap.get_data())
+              .clone()
+              .convertTo(heatmap_mat, CV_8U, 255);
+
+          int output_width = 960;
+          int output_height = 540;
+          if (const auto camera_it = cameras.find(names[i]); camera_it != cameras.end()) {
+            output_width = camera_it->second.width;
+            output_height = camera_it->second.height;
+          }
+          cv::resize(heatmap_mat, heatmap_mat, cv::Size(output_width, output_height));
+          cv::cvtColor(heatmap_mat, heatmap_mat, cv::COLOR_GRAY2BGR);
+
+          coalsack::image feature_image(static_cast<std::uint32_t>(heatmap_mat.cols),
+                                        static_cast<std::uint32_t>(heatmap_mat.rows),
+                                        static_cast<std::uint32_t>(heatmap_mat.elemSize()),
+                                        static_cast<std::uint32_t>(heatmap_mat.step),
+                                        heatmap_mat.data);
+          feature_image.set_format(coalsack::image_format::B8G8R8_UINT);
+          generic_result.feature_images.emplace(names[i], std::move(feature_image));
+        }
+      }
+
+      auto result_msg = std::make_shared<reconstruction_result_message>();
+      result_msg->set_result(generic_result);
+      result_msg->set_cameras(cameras);
+      result_msg->set_axis(axis);
+      result_msg->set_frame_number(frame_msg->get_frame_number());
+      result_msg->set_timestamp(frame_msg->get_timestamp());
+
+      output->send(result_msg);
     }
   }
 

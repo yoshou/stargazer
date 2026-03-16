@@ -10,6 +10,7 @@
 #include "dump_reconstruction_node.hpp"
 #include "dump_se3_node.hpp"
 #include "epipolar_reconstruct_node.hpp"
+#include "feature_render_node.hpp"
 #include "coalsack/ext/graph_proc_cv_ext.h"
 #include "coalsack/ext/graph_proc_depthai.h"
 #include "coalsack/ext/graph_proc_jpeg.h"
@@ -36,6 +37,7 @@
 #include "object_map_node.hpp"
 #include "object_mux_node.hpp"
 #include "pattern_board_calibration_target_detector_node.hpp"
+#include "reconstruction_result_markers_node.hpp"
 #include "three_point_bar_calibration_target_detector_node.hpp"
 #include "voxelpose_reconstruct_node.hpp"
 
@@ -422,6 +424,20 @@ void build_graph_from_json(const std::vector<node_def>& nodes,
         graph_node = n;
         break;
       }
+      case node_type::feature_render: {
+        auto n = std::make_shared<feature_render_node>();
+        if (node.contains_param("camera_name")) {
+          n->set_camera_name(node.get_param<std::string>("camera_name"));
+        }
+        if (node.contains_param("width")) {
+          n->set_width(static_cast<int>(node.get_param<std::int64_t>("width")));
+        }
+        if (node.contains_param("height")) {
+          n->set_height(static_cast<int>(node.get_param<std::int64_t>("height")));
+        }
+        graph_node = n;
+        break;
+      }
       case node_type::charuco_detector: {
         auto n = std::make_shared<charuco_detector_node>();
         graph_node = n;
@@ -526,6 +542,11 @@ void build_graph_from_json(const std::vector<node_def>& nodes,
         if (node.contains_param("robust")) {
           n->set_robust(node.get_param<bool>("robust"));
         }
+        graph_node = n;
+        break;
+      }
+      case node_type::reconstruction_result_markers: {
+        auto n = std::make_shared<reconstruction_result_markers_node>();
         graph_node = n;
         break;
       }

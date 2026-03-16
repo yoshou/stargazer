@@ -112,6 +112,10 @@ static node_type get_node_type(const std::string& type) {
     return node_type::object_mux;
   } else if (type == "image_property") {
     return node_type::image_property;
+  } else if (type == "feature_render") {
+    return node_type::feature_render;
+  } else if (type == "reconstruction_result_markers") {
+    return node_type::reconstruction_result_markers;
   } else if (type == "intrinsic_calibration") {
     return node_type::intrinsic_calibration;
   } else if (type == "scene_calibration") {
@@ -208,6 +212,10 @@ static std::string get_node_type_name(node_type type) {
       return "object_mux";
     case node_type::image_property:
       return "image_property";
+    case node_type::feature_render:
+      return "feature_render";
+    case node_type::reconstruction_result_markers:
+      return "reconstruction_result_markers";
     case node_type::intrinsic_calibration:
       return "intrinsic_calibration";
     case node_type::scene_calibration:
