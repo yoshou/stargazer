@@ -402,6 +402,56 @@ class viewer_app : public window_base {
     return true;
   }
 
+  bool upload_contrail_property_stream(
+      const std::shared_ptr<image_tile_view::stream_info>& stream) const {
+    if (!extrinsic_calib || !stream || stream->property_node_name.empty() ||
+        stream->property_key.empty()) {
+      return false;
+    }
+
+    const auto value =
+        extrinsic_calib->get_node_property(stream->property_node_name, stream->property_key);
+    if (!value.has_value()) {
+      return false;
+    }
+
+    const auto image_ptr = std::get_if<std::shared_ptr<coalsack::image>>(&value.value());
+    if (!image_ptr || !(*image_ptr) || (*image_ptr)->empty()) {
+      return false;
+    }
+
+    const auto type = image_format_to_cv_type((*image_ptr)->get_format());
+    if (type < 0) {
+      return false;
+    }
+
+    cv::Mat frame(static_cast<int>((*image_ptr)->get_height()),
+                  static_cast<int>((*image_ptr)->get_width()), type,
+                  const_cast<uint8_t*>((*image_ptr)->get_data()),
+                  static_cast<size_t>((*image_ptr)->get_stride()));
+    cv::Mat upload_image = frame.clone();
+    if (upload_image.empty()) {
+      return false;
+    }
+
+    switch ((*image_ptr)->get_format()) {
+      case coalsack::image_format::Y8_UINT:
+        cv::cvtColor(upload_image, upload_image, cv::COLOR_GRAY2RGB);
+        break;
+      case coalsack::image_format::B8G8R8_UINT:
+        cv::cvtColor(upload_image, upload_image, cv::COLOR_BGR2RGB);
+        break;
+      case coalsack::image_format::B8G8R8A8_UINT:
+        cv::cvtColor(upload_image, upload_image, cv::COLOR_BGRA2RGBA);
+        break;
+      default:
+        break;
+    }
+
+    stream->texture.upload_image(upload_image.cols, upload_image.rows, upload_image.data, 0);
+    return true;
+  }
+
   static void upload_frame_to_stream(const cv::Mat& frame,
                                      const std::shared_ptr<image_tile_view::stream_info>& stream) {
     if (frame.empty()) return;
@@ -1580,6 +1630,30 @@ class viewer_app : public window_base {
 
     extrinsic_calib->run(extrinsic_calibration_config->get_nodes("extrinsic_calibration_pipeline"));
 
+    contrail_tile_view_->streams.clear();
+    for (const auto& node : extrinsic_calibration_config->get_nodes("extrinsic_calibration_pipeline")) {
+      if (node.get_type() != stargazer::node_type::contrail_render) {
+        continue;
+      }
+      if (!node.contains_param("camera_name")) {
+        continue;
+      }
+      const auto camera_name = node.get_param<std::string>("camera_name");
+      int width = 820;
+      int height = 616;
+      if (node.contains_param("width")) {
+        width = static_cast<int>(node.get_param<std::int64_t>("width"));
+      }
+      if (node.contains_param("height")) {
+        height = static_cast<int>(node.get_param<std::int64_t>("height"));
+      }
+      const auto stream = std::make_shared<image_tile_view::stream_info>(
+          camera_name, float2{(float)width, (float)height}, gfx_ctx);
+      stream->property_node_name = node.name;
+      stream->property_key = "image";
+      contrail_tile_view_->streams.push_back(stream);
+    }
+
     for (auto& [camera_name, camera] : extrinsic_calib->get_cameras()) {
       camera.extrin.rotation = glm::mat3(1.0);
       camera.extrin.translation = glm::vec3(1.0);
@@ -1739,38 +1813,8 @@ class viewer_app : public window_base {
           }
         }
       } else if (top_bar_view_->view_type == top_bar_view::ViewType::Contrail) {
-        for (const auto& node : extrinsic_calibration_config->get_nodes()) {
-          if (!node.is_camera()) {
-            continue;
-          }
-
-          const auto camera_name = node.get_camera_name();
-          std::shared_ptr<image_tile_view::stream_info> stream;
-          const auto width = static_cast<int>(std::round(node.get_param<float>("width")));
-          const auto height = static_cast<int>(std::round(node.get_param<float>("height")));
-
-          const auto found =
-              std::find_if(contrail_tile_view_->streams.begin(), contrail_tile_view_->streams.end(),
-                           [&](const auto& x) { return x->name == camera_name; });
-          if (found == contrail_tile_view_->streams.end()) {
-            stream = std::make_shared<image_tile_view::stream_info>(
-                camera_name, float2{(float)width, (float)height}, gfx_ctx);
-            contrail_tile_view_->streams.push_back(stream);
-          } else {
-            stream = *found;
-          }
-
-          const auto observed_points = extrinsic_calib->get_observed_points(camera_name);
-          cv::Mat cloud_image(height, width, CV_8UC3, cv::Scalar::all(0));
-
-          for (const auto& observed_point : observed_points) {
-            for (const auto& point : observed_point.points) {
-              if (point.x >= 0 && point.x < width && point.y >= 0 && point.y < height) {
-                cv::circle(cloud_image, cv::Point(point.x, point.y), 5, cv::Scalar(255, 0, 0));
-              }
-            }
-          }
-          stream->texture.upload_image(cloud_image.cols, cloud_image.rows, cloud_image.data, 0);
+        for (const auto& stream : contrail_tile_view_->streams) {
+          upload_contrail_property_stream(stream);
         }
       }
     } else if (top_bar_view_->view_mode == top_bar_view::Mode::Reconstruction) {

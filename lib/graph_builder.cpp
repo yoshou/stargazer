@@ -26,6 +26,7 @@
 #include "coalsack/network/p2p_tcp_listener_node.h"
 #include "coalsack/nodes/fifo_node.h"
 #include "grpc_server_node.hpp"
+#include "contrail_render_node.hpp"
 #include "image_property_node.hpp"
 #include "image_reconstruct_node.hpp"
 #include "intrinsic_calibration_node.hpp"
@@ -426,6 +427,20 @@ void build_graph_from_json(const std::vector<node_def>& nodes,
       }
       case node_type::feature_render: {
         auto n = std::make_shared<feature_render_node>();
+        if (node.contains_param("camera_name")) {
+          n->set_camera_name(node.get_param<std::string>("camera_name"));
+        }
+        if (node.contains_param("width")) {
+          n->set_width(static_cast<int>(node.get_param<std::int64_t>("width")));
+        }
+        if (node.contains_param("height")) {
+          n->set_height(static_cast<int>(node.get_param<std::int64_t>("height")));
+        }
+        graph_node = n;
+        break;
+      }
+      case node_type::contrail_render: {
+        auto n = std::make_shared<stargazer::contrail_render_node>();
         if (node.contains_param("camera_name")) {
           n->set_camera_name(node.get_param<std::string>("camera_name"));
         }

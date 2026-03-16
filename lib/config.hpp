@@ -59,6 +59,7 @@ enum class node_type {
   reconstruction_result_markers,
   intrinsic_calibration,
   scene_calibration,
+  contrail_render,
 };
 
 using node_param_t = std::variant<std::string, std::int64_t, double, float, bool>;
@@ -187,13 +188,17 @@ class node_def {
     if (type == node_type::image_property) {
       return contains_param("camera_name") && !get_param<std::string>("camera_name").empty();
     }
+    if (type == node_type::contrail_render) {
+      return contains_param("camera_name") && !get_param<std::string>("camera_name").empty();
+    }
     return false;
   }
 
   std::string get_camera_name() const {
     const auto type = get_type();
     // For callback nodes, use camera_name parameter
-    if ((type == node_type::callback || type == node_type::image_property) &&
+    if ((type == node_type::callback || type == node_type::image_property ||
+         type == node_type::contrail_render) &&
         contains_param("camera_name")) {
       return get_param<std::string>("camera_name");
     }

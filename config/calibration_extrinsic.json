@@ -349,6 +349,226 @@
           "camera_name": "camera20"
         },
         {
+          "name": "contrail_render_camera1",
+          "type": "contrail_render",
+          "camera_name": "camera1",
+          "width": 820,
+          "height": 616,
+          "inputs": { "default": "detector_camera1" },
+          "properties": [
+            { "id": "image", "source_key": "image", "target": "image" }
+          ]
+        },
+        {
+          "name": "contrail_render_camera2",
+          "type": "contrail_render",
+          "camera_name": "camera2",
+          "width": 820,
+          "height": 616,
+          "inputs": { "default": "detector_camera2" },
+          "properties": [
+            { "id": "image", "source_key": "image", "target": "image" }
+          ]
+        },
+        {
+          "name": "contrail_render_camera3",
+          "type": "contrail_render",
+          "camera_name": "camera3",
+          "width": 820,
+          "height": 616,
+          "inputs": { "default": "detector_camera3" },
+          "properties": [
+            { "id": "image", "source_key": "image", "target": "image" }
+          ]
+        },
+        {
+          "name": "contrail_render_camera4",
+          "type": "contrail_render",
+          "camera_name": "camera4",
+          "width": 820,
+          "height": 616,
+          "inputs": { "default": "detector_camera4" },
+          "properties": [
+            { "id": "image", "source_key": "image", "target": "image" }
+          ]
+        },
+        {
+          "name": "contrail_render_camera5",
+          "type": "contrail_render",
+          "camera_name": "camera5",
+          "width": 820,
+          "height": 616,
+          "inputs": { "default": "detector_camera5" },
+          "properties": [
+            { "id": "image", "source_key": "image", "target": "image" }
+          ]
+        },
+        {
+          "name": "contrail_render_camera6",
+          "type": "contrail_render",
+          "camera_name": "camera6",
+          "width": 820,
+          "height": 616,
+          "inputs": { "default": "detector_camera6" },
+          "properties": [
+            { "id": "image", "source_key": "image", "target": "image" }
+          ]
+        },
+        {
+          "name": "contrail_render_camera7",
+          "type": "contrail_render",
+          "camera_name": "camera7",
+          "width": 820,
+          "height": 616,
+          "inputs": { "default": "detector_camera7" },
+          "properties": [
+            { "id": "image", "source_key": "image", "target": "image" }
+          ]
+        },
+        {
+          "name": "contrail_render_camera8",
+          "type": "contrail_render",
+          "camera_name": "camera8",
+          "width": 820,
+          "height": 616,
+          "inputs": { "default": "detector_camera8" },
+          "properties": [
+            { "id": "image", "source_key": "image", "target": "image" }
+          ]
+        },
+        {
+          "name": "contrail_render_camera9",
+          "type": "contrail_render",
+          "camera_name": "camera9",
+          "width": 820,
+          "height": 616,
+          "inputs": { "default": "detector_camera9" },
+          "properties": [
+            { "id": "image", "source_key": "image", "target": "image" }
+          ]
+        },
+        {
+          "name": "contrail_render_camera10",
+          "type": "contrail_render",
+          "camera_name": "camera10",
+          "width": 820,
+          "height": 616,
+          "inputs": { "default": "detector_camera10" },
+          "properties": [
+            { "id": "image", "source_key": "image", "target": "image" }
+          ]
+        },
+        {
+          "name": "contrail_render_camera11",
+          "type": "contrail_render",
+          "camera_name": "camera11",
+          "width": 820,
+          "height": 616,
+          "inputs": { "default": "detector_camera11" },
+          "properties": [
+            { "id": "image", "source_key": "image", "target": "image" }
+          ]
+        },
+        {
+          "name": "contrail_render_camera12",
+          "type": "contrail_render",
+          "camera_name": "camera12",
+          "width": 820,
+          "height": 616,
+          "inputs": { "default": "detector_camera12" },
+          "properties": [
+            { "id": "image", "source_key": "image", "target": "image" }
+          ]
+        },
+        {
+          "name": "contrail_render_camera13",
+          "type": "contrail_render",
+          "camera_name": "camera13",
+          "width": 820,
+          "height": 616,
+          "inputs": { "default": "detector_camera13" },
+          "properties": [
+            { "id": "image", "source_key": "image", "target": "image" }
+          ]
+        },
+        {
+          "name": "contrail_render_camera14",
+          "type": "contrail_render",
+          "camera_name": "camera14",
+          "width": 820,
+          "height": 616,
+          "inputs": { "default": "detector_camera14" },
+          "properties": [
+            { "id": "image", "source_key": "image", "target": "image" }
+          ]
+        },
+        {
+          "name": "contrail_render_camera15",
+          "type": "contrail_render",
+          "camera_name": "camera15",
+          "width": 820,
+          "height": 616,
+          "inputs": { "default": "detector_camera15" },
+          "properties": [
+            { "id": "image", "source_key": "image", "target": "image" }
+          ]
+        },
+        {
+          "name": "contrail_render_camera16",
+          "type": "contrail_render",
+          "camera_name": "camera16",
+          "width": 820,
+          "height": 616,
+          "inputs": { "default": "detector_camera16" },
+          "properties": [
+            { "id": "image", "source_key": "image", "target": "image" }
+          ]
+        },
+        {
+          "name": "contrail_render_camera17",
+          "type": "contrail_render",
+          "camera_name": "camera17",
+          "width": 820,
+          "height": 616,
+          "inputs": { "default": "detector_camera17" },
+          "properties": [
+            { "id": "image", "source_key": "image", "target": "image" }
+          ]
+        },
+        {
+          "name": "contrail_render_camera18",
+          "type": "contrail_render",
+          "camera_name": "camera18",
+          "width": 820,
+          "height": 616,
+          "inputs": { "default": "detector_camera18" },
+          "properties": [
+            { "id": "image", "source_key": "image", "target": "image" }
+          ]
+        },
+        {
+          "name": "contrail_render_camera19",
+          "type": "contrail_render",
+          "camera_name": "camera19",
+          "width": 820,
+          "height": 616,
+          "inputs": { "default": "detector_camera19" },
+          "properties": [
+            { "id": "image", "source_key": "image", "target": "image" }
+          ]
+        },
+        {
+          "name": "contrail_render_camera20",
+          "type": "contrail_render",
+          "camera_name": "camera20",
+          "width": 820,
+          "height": 616,
+          "inputs": { "default": "detector_camera20" },
+          "properties": [
+            { "id": "image", "source_key": "image", "target": "image" }
+          ]
+        },
+        {
           "name": "extrinsic_calibration",
           "type": "extrinsic_calibration",
           "only_extrinsic": false,

@@ -120,6 +120,8 @@ static node_type get_node_type(const std::string& type) {
     return node_type::intrinsic_calibration;
   } else if (type == "scene_calibration") {
     return node_type::scene_calibration;
+  } else if (type == "contrail_render") {
+    return node_type::contrail_render;
   }
   throw std::runtime_error("Invalid node type");
 }
@@ -220,6 +222,8 @@ static std::string get_node_type_name(node_type type) {
       return "intrinsic_calibration";
     case node_type::scene_calibration:
       return "scene_calibration";
+    case node_type::contrail_render:
+      return "contrail_render";
   }
   throw std::runtime_error("Invalid node type");
 }
