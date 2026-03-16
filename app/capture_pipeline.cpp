@@ -9,18 +9,18 @@
 #include <set>
 
 #include "callback_node.hpp"
-#include "dump_blob_node.hpp"
-#include "dump_keypoint_node.hpp"
+#include "coalsack/core/graph_proc.h"
+#include "coalsack/core/graph_proc_client.h"
+#include "coalsack/core/graph_proc_server.h"
 #include "coalsack/ext/graph_proc_cv_ext.h"
 #include "coalsack/ext/graph_proc_depthai.h"
 #include "coalsack/ext/graph_proc_jpeg.h"
 #include "coalsack/ext/graph_proc_libcamera.h"
 #include "coalsack/ext/graph_proc_rs_d435.h"
-#include "graph_builder.hpp"
-#include "coalsack/core/graph_proc.h"
-#include "coalsack/core/graph_proc_server.h"
-#include "coalsack/core/graph_proc_client.h"
 #include "coalsack/image/graph_proc_cv.h"
+#include "dump_blob_node.hpp"
+#include "dump_keypoint_node.hpp"
+#include "graph_builder.hpp"
 #include "load_blob_node.hpp"
 #include "load_marker_node.hpp"
 #include "load_panoptic_node.hpp"
@@ -168,6 +168,18 @@ class capture_pipeline::impl {
           {
             std::lock_guard lock(frames_mtx);
             this->frames[camera_name] = frame;
+          }
+
+          std::vector<std::function<void(const std::map<std::string, cv::Mat>&)>> image_received;
+          {
+            std::lock_guard lock(image_received_mtx);
+            image_received = this->image_received;
+          }
+
+          for (const auto& f : image_received) {
+            std::map<std::string, cv::Mat> frames_map;
+            frames_map[camera_name] = frame;
+            f(frames_map);
           }
         }
       } else if (callback_name == "marker") {

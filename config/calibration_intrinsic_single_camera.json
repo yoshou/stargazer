@@ -17,6 +17,15 @@
           "inputs": { "default": "load_blob" }
         },
         {
+          "name": "display_image",
+          "type": "image_property",
+          "inputs": { "default": "decode_jpeg" },
+          "properties": [
+            { "id": "received", "label": "Received", "source_key": "received", "format": "integer", "default_value": 0 },
+            { "id": "image", "label": "Image", "source_key": "image", "target": "image" }
+          ]
+        },
+        {
           "name": "callback_image",
           "type": "callback",
           "inputs": { "default": "decode_jpeg" },
@@ -87,6 +96,15 @@
           "inputs": { "default": "load_blob" }
         },
         {
+          "name": "display_image",
+          "type": "image_property",
+          "inputs": { "default": "decode_jpeg" },
+          "properties": [
+            { "id": "received", "label": "Received", "source_key": "received", "format": "integer", "default_value": 0 },
+            { "id": "image", "label": "Image", "source_key": "image", "target": "image" }
+          ]
+        },
+        {
           "name": "callback_image",
           "type": "callback",
           "inputs": { "default": "decode_jpeg" },
@@ -119,6 +137,15 @@
           "name": "decode_jpeg",
           "type": "decode_jpeg",
           "inputs": { "default": "load_blob" }
+        },
+        {
+          "name": "display_image",
+          "type": "image_property",
+          "inputs": { "default": "decode_jpeg" },
+          "properties": [
+            { "id": "received", "label": "Received", "source_key": "received", "format": "integer", "default_value": 0 },
+            { "id": "image", "label": "Image", "source_key": "image", "target": "image" }
+          ]
         },
         {
           "name": "callback_image",
@@ -155,6 +182,15 @@
           "inputs": { "default": "load_blob" }
         },
         {
+          "name": "display_image",
+          "type": "image_property",
+          "inputs": { "default": "decode_jpeg" },
+          "properties": [
+            { "id": "received", "label": "Received", "source_key": "received", "format": "integer", "default_value": 0 },
+            { "id": "image", "label": "Image", "source_key": "image", "target": "image" }
+          ]
+        },
+        {
           "name": "callback_image",
           "type": "callback",
           "inputs": { "default": "decode_jpeg" },
@@ -189,6 +225,15 @@
           "inputs": { "default": "load_blob" }
         },
         {
+          "name": "display_image",
+          "type": "image_property",
+          "inputs": { "default": "decode_jpeg" },
+          "properties": [
+            { "id": "received", "label": "Received", "source_key": "received", "format": "integer", "default_value": 0 },
+            { "id": "image", "label": "Image", "source_key": "image", "target": "image" }
+          ]
+        },
+        {
           "name": "callback_image",
           "type": "callback",
           "inputs": { "default": "decode_jpeg" },
@@ -221,6 +266,15 @@
           "name": "decode_jpeg",
           "type": "decode_jpeg",
           "inputs": { "default": "load_blob" }
+        },
+        {
+          "name": "display_image",
+          "type": "image_property",
+          "inputs": { "default": "decode_jpeg" },
+          "properties": [
+            { "id": "received", "label": "Received", "source_key": "received", "format": "integer", "default_value": 0 },
+            { "id": "image", "label": "Image", "source_key": "image", "target": "image" }
+          ]
         },
         {
           "name": "callback_image",
@@ -287,6 +341,15 @@
         { "name": "p2p_tcp_listener_image", "type": "p2p_tcp_listener", "inputs": { "default": "p2p_tcp_talker_image" } },
         { "name": "decode_jpeg", "type": "decode_jpeg", "inputs": { "default": "p2p_tcp_listener_image" } },
         {
+          "name": "display_image",
+          "type": "image_property",
+          "inputs": { "default": "decode_jpeg" },
+          "properties": [
+            { "id": "received", "label": "Received", "source_key": "received", "format": "integer", "default_value": 0 },
+            { "id": "image", "label": "Image", "source_key": "image", "target": "image" }
+          ]
+        },
+        {
           "name": "callback_image",
           "type": "callback",
           "inputs": { "default": "decode_jpeg" },
@@ -346,6 +409,15 @@
         { "name": "p2p_tcp_talker_marker", "type": "p2p_tcp_talker", "inputs": { "default": "detect_circle_grid" } },
         { "name": "p2p_tcp_listener_image", "type": "p2p_tcp_listener", "inputs": { "default": "p2p_tcp_talker_image" } },
         { "name": "decode_jpeg", "type": "decode_jpeg", "inputs": { "default": "p2p_tcp_listener_image" } },
+        {
+          "name": "display_image",
+          "type": "image_property",
+          "inputs": { "default": "decode_jpeg" },
+          "properties": [
+            { "id": "received", "label": "Received", "source_key": "received", "format": "integer", "default_value": 0 },
+            { "id": "image", "label": "Image", "source_key": "image", "target": "image" }
+          ]
+        },
         {
           "name": "callback_image",
           "type": "callback",
@@ -407,6 +479,15 @@
         { "name": "p2p_tcp_listener_image", "type": "p2p_tcp_listener", "inputs": { "default": "p2p_tcp_talker_image" } },
         { "name": "decode_jpeg", "type": "decode_jpeg", "inputs": { "default": "p2p_tcp_listener_image" } },
         {
+          "name": "display_image",
+          "type": "image_property",
+          "inputs": { "default": "decode_jpeg" },
+          "properties": [
+            { "id": "received", "label": "Received", "source_key": "received", "format": "integer", "default_value": 0 },
+            { "id": "image", "label": "Image", "source_key": "image", "target": "image" }
+          ]
+        },
+        {
           "name": "callback_image",
           "type": "callback",
           "inputs": { "default": "decode_jpeg" },
@@ -467,6 +548,15 @@
         { "name": "p2p_tcp_listener_image", "type": "p2p_tcp_listener", "inputs": { "default": "p2p_tcp_talker_image" } },
         { "name": "decode_jpeg", "type": "decode_jpeg", "inputs": { "default": "p2p_tcp_listener_image" } },
         {
+          "name": "display_image",
+          "type": "image_property",
+          "inputs": { "default": "decode_jpeg" },
+          "properties": [
+            { "id": "received", "label": "Received", "source_key": "received", "format": "integer", "default_value": 0 },
+            { "id": "image", "label": "Image", "source_key": "image", "target": "image" }
+          ]
+        },
+        {
           "name": "callback_image",
           "type": "callback",
           "inputs": { "default": "decode_jpeg" },
@@ -526,6 +616,15 @@
         { "name": "p2p_tcp_talker_marker", "type": "p2p_tcp_talker", "inputs": { "default": "detect_circle_grid" } },
         { "name": "p2p_tcp_listener_image", "type": "p2p_tcp_listener", "inputs": { "default": "p2p_tcp_talker_image" } },
         { "name": "decode_jpeg", "type": "decode_jpeg", "inputs": { "default": "p2p_tcp_listener_image" } },
+        {
+          "name": "display_image",
+          "type": "image_property",
+          "inputs": { "default": "decode_jpeg" },
+          "properties": [
+            { "id": "received", "label": "Received", "source_key": "received", "format": "integer", "default_value": 0 },
+            { "id": "image", "label": "Image", "source_key": "image", "target": "image" }
+          ]
+        },
         {
           "name": "callback_image",
           "type": "callback",
