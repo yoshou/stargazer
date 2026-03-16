@@ -402,6 +402,50 @@ class viewer_app : public window_base {
     return true;
   }
 
+  static void upload_frame_to_stream(const cv::Mat& frame,
+                                     const std::shared_ptr<image_tile_view::stream_info>& stream) {
+    if (frame.empty()) return;
+    cv::Mat color_image;
+    if (frame.channels() == 1) {
+      cv::cvtColor(frame, color_image, cv::COLOR_GRAY2RGB);
+    } else if (frame.channels() == 3) {
+      cv::cvtColor(frame, color_image, cv::COLOR_BGR2RGB);
+    } else {
+      color_image = frame;
+    }
+    if (!color_image.empty()) {
+      stream->texture.upload_image(color_image.cols, color_image.rows, color_image.data, 0);
+    }
+  }
+
+  bool try_upload_property_stream(
+      const std::shared_ptr<image_tile_view::stream_info>& stream) const {
+    if (top_bar_view_->view_mode == top_bar_view::Mode::Capture) {
+      return upload_capture_property_stream(stream);
+    }
+    if (top_bar_view_->view_type == top_bar_view::ViewType::Point) {
+      return upload_image_reconstruction_property_stream(stream);
+    }
+    return false;
+  }
+
+  void try_upload_frame_from_capture(
+      const std::shared_ptr<image_tile_view::stream_info>& stream,
+      const std::map<std::string, cv::Mat>& multiview_frames) const {
+    const auto it = multiview_frames.find(stream->name);
+    if (it != multiview_frames.end()) {
+      upload_frame_to_stream(it->second, stream);
+      return;
+    }
+    const auto capture_it = captures.find(stream->name);
+    if (capture_it != captures.end()) {
+      const auto frames = capture_it->second->get_frames();
+      if (!frames.empty()) {
+        upload_frame_to_stream(frames.begin()->second, stream);
+      }
+    }
+  }
+
   template <typename PanelT>
   std::optional<std::string> resolve_panel_detail_value(
       const PanelT* panel, const stargazer::config_tree_item& item) const {
@@ -1613,57 +1657,13 @@ class viewer_app : public window_base {
     sync_calibration_panel_state();
     sync_reconstruction_panel_state();
 
-    if (top_bar_view_->view_type == top_bar_view::ViewType::Image) {
-      if (multiview_capture) {
-        const auto frames = multiview_capture->get_frames();
-        for (const auto& stream : image_tile_view_->streams) {
-          if (top_bar_view_->view_mode == top_bar_view::Mode::Capture &&
-              upload_capture_property_stream(stream)) {
-            continue;
-          }
-          const auto& frame_it = frames.find(stream->name);
-          if (frame_it != frames.end()) {
-            const auto& frame = frame_it->second;
-            if (!frame.empty()) {
-              cv::Mat color_image;
-              if (frame.channels() == 1) {
-                cv::cvtColor(frame, color_image, cv::COLOR_GRAY2RGB);
-              } else if (frame.channels() == 3) {
-                cv::cvtColor(frame, color_image, cv::COLOR_BGR2RGB);
-              }
-              stream->texture.upload_image(color_image.cols, color_image.rows, color_image.data, 0);
-            }
-          }
-        }
-      }
-
+    if (top_bar_view_->view_type == top_bar_view::ViewType::Image ||
+        top_bar_view_->view_type == top_bar_view::ViewType::Point) {
+      const auto multiview_frames =
+          multiview_capture ? multiview_capture->get_frames() : std::map<std::string, cv::Mat>{};
       for (const auto& stream : image_tile_view_->streams) {
-        if (top_bar_view_->view_mode == top_bar_view::Mode::Capture &&
-            upload_capture_property_stream(stream)) {
-          continue;
-        }
-        const auto capture_it = captures.find(stream->name);
-        if (capture_it != captures.end()) {
-          const auto capture = capture_it->second;
-          auto frames = capture->get_frames();
-
-          // For single camera, frames map has one entry with camera name as key
-          if (!frames.empty()) {
-            const auto& frame = frames.begin()->second;
-            if (!frame.empty()) {
-              cv::Mat color_image;
-              if (frame.channels() == 1) {
-                cv::cvtColor(frame, color_image, cv::COLOR_GRAY2RGB);
-              } else if (frame.channels() == 3) {
-                cv::cvtColor(frame, color_image, cv::COLOR_BGR2RGB);
-              }
-              if (!color_image.empty()) {
-                stream->texture.upload_image(color_image.cols, color_image.rows, color_image.data,
-                                             0);
-              }
-            }
-          }
-        }
+        if (try_upload_property_stream(stream)) continue;
+        try_upload_frame_from_capture(stream, multiview_frames);
       }
     }
 
@@ -1814,52 +1814,6 @@ class viewer_app : public window_base {
         }
         for (const auto& point : multiview_image_reconstruction_pipeline_->get_markers()) {
           pose_view_->points.push_back(point);
-        }
-      } else if (top_bar_view_->view_type == top_bar_view::ViewType::Point) {
-        if (multiview_capture) {
-          for (const auto& stream : image_tile_view_->streams) {
-            if (upload_image_reconstruction_property_stream(stream)) {
-              continue;
-            }
-          }
-        }
-
-        for (const auto& runtime_node_id : capture_panel_view_->tree.camera_node_ids) {
-          const auto runtime_it = capture_panel_view_->tree.runtime_nodes.find(runtime_node_id);
-          if (runtime_it == capture_panel_view_->tree.runtime_nodes.end()) {
-            continue;
-          }
-
-          const auto& node_name = runtime_it->second.ref.node_name;
-          const auto capture_it = captures.find(node_name);
-          if (capture_it != captures.end()) {
-            const auto capture = capture_it->second;
-            auto frames = capture->get_frames();
-
-            // For single camera, frames map has one entry
-            if (!frames.empty()) {
-              const auto& frame = frames.begin()->second;
-              if (!frame.empty()) {
-                const auto stream_it =
-                    std::find_if(image_tile_view_->streams.begin(), image_tile_view_->streams.end(),
-                                 [&](const auto& x) { return x->name == node_name; });
-
-                if (stream_it != image_tile_view_->streams.end()) {
-                  cv::Mat color_image;
-                  if (frame.channels() == 1) {
-                    cv::cvtColor(frame, color_image, cv::COLOR_GRAY2RGB);
-                  } else if (frame.channels() == 3) {
-                    cv::cvtColor(frame, color_image, cv::COLOR_BGR2RGB);
-                  }
-                  if (!color_image.empty()) {
-                    (*stream_it)
-                        ->texture.upload_image(color_image.cols, color_image.rows, color_image.data,
-                                               0);
-                  }
-                }
-              }
-            }
-          }
         }
       }
     }
