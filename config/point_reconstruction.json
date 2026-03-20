@@ -82,6 +82,13 @@
           }
         },
         {
+          "name": "marker_property",
+          "type": "marker_property",
+          "inputs": {
+            "default": "frame_number_ordering"
+          }
+        },
+        {
           "name": "callback_markers",
           "type": "callback",
           "properties": [

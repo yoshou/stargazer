@@ -192,6 +192,13 @@
           }
         },
         {
+          "name": "marker_property",
+          "type": "marker_property",
+          "inputs": {
+            "default": "ordering"
+          }
+        },
+        {
           "name": "callback",
           "type": "callback",
           "callback_name": "markers",
@@ -236,6 +243,13 @@
           "type": "dump_reconstruction",
           "db_path": "../data/mvpose_dump.db",
           "topic_name": "mvpose_reconstruction",
+          "inputs": {
+            "default": "reconstruct"
+          }
+        },
+        {
+          "name": "marker_property",
+          "type": "marker_property",
           "inputs": {
             "default": "reconstruct"
           }
@@ -410,6 +424,13 @@
           "type": "mvp_reconstruction",
           "inputs": {
             "default": "queue"
+          }
+        },
+        {
+          "name": "marker_property",
+          "type": "marker_property",
+          "inputs": {
+            "default": "reconstruct"
           }
         },
         {
