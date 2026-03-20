@@ -25,7 +25,13 @@
             "default": "decode_jpeg"
           },
           "properties": [
-            { "id": "received", "label": "Received", "source_key": "received", "format": "integer", "default_value": 0 }
+            {
+              "id": "received",
+              "label": "Received",
+              "source_key": "received",
+              "format": "integer",
+              "default_value": 0
+            }
           ],
           "callback_name": "image",
           "callback_type": "image"
@@ -57,6 +63,111 @@
       "name": "epipolar_reconstruction_subgraph",
       "nodes": [
         {
+          "name": "load_camera1",
+          "type": "load_parameter",
+          "id": "000000000001"
+        },
+        {
+          "name": "load_camera2",
+          "type": "load_parameter",
+          "id": "000000000002"
+        },
+        {
+          "name": "load_camera3",
+          "type": "load_parameter",
+          "id": "000000000003"
+        },
+        {
+          "name": "load_camera4",
+          "type": "load_parameter",
+          "id": "000000000004"
+        },
+        {
+          "name": "load_camera5",
+          "type": "load_parameter",
+          "id": "000000000005"
+        },
+        {
+          "name": "load_camera6",
+          "type": "load_parameter",
+          "id": "000000000006"
+        },
+        {
+          "name": "load_camera7",
+          "type": "load_parameter",
+          "id": "000000000007"
+        },
+        {
+          "name": "load_camera8",
+          "type": "load_parameter",
+          "id": "000000000008"
+        },
+        {
+          "name": "load_camera9",
+          "type": "load_parameter",
+          "id": "000000000009"
+        },
+        {
+          "name": "load_camera10",
+          "type": "load_parameter",
+          "id": "000000000010"
+        },
+        {
+          "name": "load_camera11",
+          "type": "load_parameter",
+          "id": "000000000011"
+        },
+        {
+          "name": "load_camera12",
+          "type": "load_parameter",
+          "id": "000000000012"
+        },
+        {
+          "name": "load_camera13",
+          "type": "load_parameter",
+          "id": "000000000013"
+        },
+        {
+          "name": "load_camera14",
+          "type": "load_parameter",
+          "id": "000000000014"
+        },
+        {
+          "name": "load_camera15",
+          "type": "load_parameter",
+          "id": "000000000015"
+        },
+        {
+          "name": "load_camera16",
+          "type": "load_parameter",
+          "id": "000000000016"
+        },
+        {
+          "name": "load_camera17",
+          "type": "load_parameter",
+          "id": "000000000017"
+        },
+        {
+          "name": "load_camera18",
+          "type": "load_parameter",
+          "id": "000000000018"
+        },
+        {
+          "name": "load_camera19",
+          "type": "load_parameter",
+          "id": "000000000019"
+        },
+        {
+          "name": "load_camera20",
+          "type": "load_parameter",
+          "id": "000000000020"
+        },
+        {
+          "name": "load_axis",
+          "type": "load_parameter",
+          "id": "scene"
+        },
+        {
           "name": "frame_number_numbering",
           "type": "frame_number_numbering"
         },
@@ -71,7 +182,28 @@
           "name": "epipolar_reconstruction",
           "type": "epipolar_reconstruction",
           "inputs": {
-            "default": "parallel_queue"
+            "default": "parallel_queue",
+            "camera.camera1": "load_camera1",
+            "camera.camera2": "load_camera2",
+            "camera.camera3": "load_camera3",
+            "camera.camera4": "load_camera4",
+            "camera.camera5": "load_camera5",
+            "camera.camera6": "load_camera6",
+            "camera.camera7": "load_camera7",
+            "camera.camera8": "load_camera8",
+            "camera.camera9": "load_camera9",
+            "camera.camera10": "load_camera10",
+            "camera.camera11": "load_camera11",
+            "camera.camera12": "load_camera12",
+            "camera.camera13": "load_camera13",
+            "camera.camera14": "load_camera14",
+            "camera.camera15": "load_camera15",
+            "camera.camera16": "load_camera16",
+            "camera.camera17": "load_camera17",
+            "camera.camera18": "load_camera18",
+            "camera.camera19": "load_camera19",
+            "camera.camera20": "load_camera20",
+            "axis": "load_axis"
           }
         },
         {
@@ -92,7 +224,13 @@
           "name": "callback_markers",
           "type": "callback",
           "properties": [
-            { "id": "received", "label": "Received", "source_key": "received", "format": "integer", "default_value": 0 }
+            {
+              "id": "received",
+              "label": "Received",
+              "source_key": "received",
+              "format": "integer",
+              "default_value": 0
+            }
           ],
           "callback_name": "markers",
           "inputs": {

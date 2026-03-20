@@ -1667,20 +1667,7 @@ class viewer_app : public window_base {
     }
 
     multiview_point_reconstruction_pipeline_ =
-        std::make_unique<multiview_point_reconstruction_pipeline>();
-
-    {
-      const auto& scene = std::get<scene_t>(parameters->at("scene"));
-      multiview_point_reconstruction_pipeline_->set_axis(scene.axis);
-    }
-
-    for (const auto& node : point_reconstruction_config->get_nodes()) {
-      if (node.is_camera()) {
-        const auto& params = std::get<camera_t>(parameters->at(node.get_param<std::string>("id")));
-        const auto camera_name = node.get_camera_name();
-        multiview_point_reconstruction_pipeline_->set_camera(camera_name, params);
-      }
-    }
+        std::make_unique<multiview_point_reconstruction_pipeline>(parameters);
 
     multiview_point_reconstruction_pipeline_->run(
         point_reconstruction_config->get_nodes("point_reconstruction_pipeline"));
@@ -1705,12 +1692,25 @@ class viewer_app : public window_base {
 
     extrinsic_calib = std::make_unique<extrinsic_calibration_pipeline>();
 
-    extrinsic_calib->add_calibrated([&](const std::unordered_map<std::string, camera_t>& cameras) {
-      for (const auto& [name, camera] : cameras) {
-        multiview_point_reconstruction_pipeline_->set_camera(name, camera);
-        multiview_image_reconstruction_pipeline_->set_camera(name, camera);
+    // Build camera name → parameter id map for point_reconstruction
+    std::unordered_map<std::string, std::string> point_recon_camera_id_map;
+    for (const auto& node : point_reconstruction_config->get_nodes()) {
+      if (node.is_camera() && node.contains_param("id")) {
+        point_recon_camera_id_map[node.get_camera_name()] = node.get_param<std::string>("id");
       }
-    });
+    }
+
+    extrinsic_calib->add_calibrated(
+        [&, point_recon_camera_id_map](const std::unordered_map<std::string, camera_t>& cameras) {
+          for (const auto& [name, camera] : cameras) {
+            // point_reconstruction uses load_parameter_node — update shared parameters_t
+            const auto it = point_recon_camera_id_map.find(name);
+            if (it != point_recon_camera_id_map.end()) {
+              parameters->update_camera(it->second, camera);
+            }
+            multiview_image_reconstruction_pipeline_->set_camera(name, camera);
+          }
+        });
 
     for (const auto& node : extrinsic_calibration_config->get_nodes()) {
       if (node.is_camera()) {
@@ -1778,7 +1778,8 @@ class viewer_app : public window_base {
     scene_calib = std::make_unique<scene_calibration_pipeline>(parameters);
 
     scene_calib->add_calibrated([&](const scene_t& scene) {
-      multiview_point_reconstruction_pipeline_->set_axis(scene.axis);
+      // point_reconstruction uses load_parameter_node — update shared parameters_t
+      parameters->update_scene("scene", scene);
       multiview_image_reconstruction_pipeline_->set_axis(scene.axis);
     });
 

@@ -61,6 +61,7 @@ enum class node_type {
   intrinsic_calibration,
   scene_calibration,
   contrail_render,
+  load_parameter,
 };
 
 using node_param_t = std::variant<std::string, std::int64_t, double, float, bool>;

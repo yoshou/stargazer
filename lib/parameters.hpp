@@ -1,9 +1,12 @@
 #pragma once
 
 #include <array>
+#include <atomic>
 #include <cereal/types/array.hpp>
+#include <condition_variable>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <mutex>
 #include <nlohmann/json.hpp>
 #include <opencv2/core.hpp>
 #include <string>
@@ -63,6 +66,9 @@ struct scene_t {
 class parameters_t {
   std::unordered_map<std::string, std::variant<camera_t, scene_t>> parameters;
   std::string path;
+  mutable std::mutex mtx;
+  std::condition_variable cv;
+  std::atomic<uint64_t> version{0};
 
  public:
   parameters_t(const std::string& path) : path(path) {}
@@ -72,14 +78,56 @@ class parameters_t {
   void save() const;
 
   std::variant<camera_t, scene_t> operator[](const std::string& key) const {
+    std::lock_guard lock(mtx);
     return parameters.at(key);
   }
-  std::variant<camera_t, scene_t>& operator[](const std::string& key) { return parameters[key]; }
+  std::variant<camera_t, scene_t>& operator[](const std::string& key) {
+    std::lock_guard lock(mtx);
+    return parameters[key];
+  }
 
-  std::variant<camera_t, scene_t> at(const std::string& key) const { return parameters.at(key); }
-  std::variant<camera_t, scene_t>& at(const std::string& key) { return parameters.at(key); }
+  std::variant<camera_t, scene_t> at(const std::string& key) const {
+    std::lock_guard lock(mtx);
+    return parameters.at(key);
+  }
+  std::variant<camera_t, scene_t>& at(const std::string& key) {
+    std::lock_guard lock(mtx);
+    return parameters.at(key);
+  }
 
-  bool contains(const std::string& key) const { return parameters.find(key) != parameters.end(); }
+  bool contains(const std::string& key) const {
+    std::lock_guard lock(mtx);
+    return parameters.find(key) != parameters.end();
+  }
+
+  void update_camera(const std::string& key, const camera_t& camera) {
+    {
+      std::lock_guard lock(mtx);
+      parameters[key] = camera;
+    }
+    ++version;
+    cv.notify_all();
+  }
+
+  void update_scene(const std::string& key, const scene_t& scene) {
+    {
+      std::lock_guard lock(mtx);
+      parameters[key] = scene;
+    }
+    ++version;
+    cv.notify_all();
+  }
+
+  uint64_t get_version() const { return version.load(); }
+
+  // Blocks until version changes from last_version or running is cleared, returns new version
+  uint64_t wait_for_change(uint64_t last_version, const std::atomic_bool& running) {
+    std::unique_lock lock(mtx);
+    cv.wait(lock, [&] { return version.load() != last_version || !running.load(); });
+    return version.load();
+  }
+
+  void notify_all() { cv.notify_all(); }
 };
 
 void get_cv_intrinsic(const camera_intrin_t& intrin, cv::Mat& camera_matrix, cv::Mat& dist_coeffs);

@@ -31,6 +31,7 @@ void parameters_t::load() {
 
   const auto j = nlohmann::json::parse(ifs);
 
+  std::lock_guard lock(mtx);
   for (const auto& [name, item] : j.items()) {
     if (item["type"] == "camera") {
       auto camera = item.get<camera_t>();
@@ -48,18 +49,21 @@ void parameters_t::save() const {
 
   nlohmann::json j;
 
-  for (const auto& [name, param] : parameters) {
-    nlohmann::json j_param;
+  {
+    std::lock_guard lock(mtx);
+    for (const auto& [name, param] : parameters) {
+      nlohmann::json j_param;
 
-    if (std::holds_alternative<camera_t>(param)) {
-      j_param = std::get<camera_t>(param);
-      j_param["type"] = "camera";
-    } else if (std::holds_alternative<scene_t>(param)) {
-      j_param = std::get<scene_t>(param);
-      j_param["type"] = "scene";
+      if (std::holds_alternative<camera_t>(param)) {
+        j_param = std::get<camera_t>(param);
+        j_param["type"] = "camera";
+      } else if (std::holds_alternative<scene_t>(param)) {
+        j_param = std::get<scene_t>(param);
+        j_param["type"] = "scene";
+      }
+
+      j[name] = j_param;
     }
-
-    j[name] = j_param;
   }
 
   ofs << j.dump(2);

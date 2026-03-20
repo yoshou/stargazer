@@ -9,6 +9,7 @@
 #include "graph_builder.hpp"
 #include "grpc_server_node.hpp"
 #include "messages.hpp"
+#include "parameter_resource.hpp"
 #include "parameters.hpp"
 #include "point_data.hpp"
 
@@ -25,11 +26,8 @@ class multiview_point_reconstruction_pipeline::impl {
   std::vector<glm::vec3> markers;
   std::vector<std::function<void(const std::vector<glm::vec3>&)>> markers_received;
 
-  std::shared_ptr<epipolar_reconstruct_node> reconstruct_node;
   std::shared_ptr<graph_node> input_node;
-
-  std::map<std::string, stargazer::camera_t> cameras;
-  glm::mat4 axis;
+  std::shared_ptr<parameters_t> parameters_;
 
  public:
   void add_markers_received(std::function<void(const std::vector<glm::vec3>&)> f) {
@@ -42,30 +40,9 @@ class multiview_point_reconstruction_pipeline::impl {
     markers_received.clear();
   }
 
-  impl()
-      : graph(),
-        running(false),
-        markers(),
-        markers_received(),
-        reconstruct_node(),
-        input_node(),
-        cameras(),
-        axis(1.0f) {}
-
-  void set_camera(const std::string& name, const stargazer::camera_t& camera) {
-    cameras[name] = camera;
-    if (reconstruct_node) {
-      std::map<std::string, stargazer::camera_t> updated_cameras = cameras;
-      reconstruct_node->set_cameras(updated_cameras);
-    }
-  }
-
-  void set_axis(const glm::mat4& new_axis) {
-    axis = new_axis;
-    if (reconstruct_node) {
-      reconstruct_node->set_axis(axis);
-    }
-  }
+  explicit impl(std::shared_ptr<parameters_t> parameters)
+      : graph(), running(false), markers(), markers_received(), input_node(),
+        parameters_(std::move(parameters)) {}
 
   using frame_type = std::map<std::string, std::vector<point_data>>;
 
@@ -112,25 +89,12 @@ class multiview_point_reconstruction_pipeline::impl {
     stargazer::build_graph_from_json(nodes, subgraphs, built_node_map);
     node_map = built_node_map;
 
-    // Extract specific nodes from the graph
+    // Find input node
     for (const auto& node : nodes) {
       if (node.get_type() == node_type::frame_number_numbering) {
-        if (input_node) {
-          spdlog::warn("Multiple frame_number_numbering nodes found, using the first one");
-        } else {
+        if (!input_node) {
           input_node =
               std::dynamic_pointer_cast<frame_number_numbering_node>(built_node_map.at(node.name));
-        }
-      } else if (node.get_type() == node_type::epipolar_reconstruction) {
-        if (reconstruct_node) {
-          spdlog::warn("Multiple epipolar_reconstruction nodes found, using the first one");
-        } else {
-          reconstruct_node =
-              std::dynamic_pointer_cast<epipolar_reconstruct_node>(built_node_map.at(node.name));
-          if (reconstruct_node) {
-            reconstruct_node->set_cameras(cameras);
-            reconstruct_node->set_axis(axis);
-          }
         }
       }
     }
@@ -163,6 +127,9 @@ class multiview_point_reconstruction_pipeline::impl {
       graph.deploy(subgraph_ptr);
     }
     graph.get_resources()->add(callbacks);
+    if (parameters_) {
+      graph.get_resources()->add(std::make_shared<parameter_resource>(parameters_));
+    }
     graph.run();
 
     running = true;
@@ -183,8 +150,9 @@ class multiview_point_reconstruction_pipeline::impl {
   }
 };
 
-multiview_point_reconstruction_pipeline::multiview_point_reconstruction_pipeline()
-    : pimpl(new impl()) {}
+multiview_point_reconstruction_pipeline::multiview_point_reconstruction_pipeline(
+    std::shared_ptr<stargazer::parameters_t> parameters)
+    : pimpl(new impl(std::move(parameters))) {}
 multiview_point_reconstruction_pipeline::~multiview_point_reconstruction_pipeline() = default;
 
 void multiview_point_reconstruction_pipeline::push_frame(const frame_type& frame) {
@@ -197,16 +165,8 @@ void multiview_point_reconstruction_pipeline::run(const std::vector<node_def>& n
 
 void multiview_point_reconstruction_pipeline::stop() { pimpl->stop(); }
 
-void multiview_point_reconstruction_pipeline::set_camera(const std::string& name,
-                                                         const stargazer::camera_t& camera) {
-  pimpl->set_camera(name, camera);
-}
-
-void multiview_point_reconstruction_pipeline::set_axis(const glm::mat4& axis) {
-  pimpl->set_axis(axis);
-}
-
 std::optional<property_value> multiview_point_reconstruction_pipeline::get_node_property(
     const std::string& node_name, const std::string& key) const {
   return pimpl->get_node_property(node_name, key);
 }
+
