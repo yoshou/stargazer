@@ -4,9 +4,9 @@
 #include <memory>
 #include <optional>
 
-#include "coalsack/core/graph_node.h"
 #include "bundle_adjust_data.hpp"
 #include "calibration.hpp"
+#include "coalsack/core/graph_node.h"
 #include "config.hpp"
 #include "parameters.hpp"
 #include "point_data.hpp"
@@ -25,8 +25,6 @@ class extrinsic_calibration_pipeline {
   size_t get_camera_size() const;
 
   const std::unordered_map<std::string, stargazer::camera_t>& get_cameras() const;
-
-  std::unordered_map<std::string, stargazer::camera_t>& get_cameras();
 
   const std::unordered_map<std::string, stargazer::camera_t>& get_calibrated_cameras() const;
 

@@ -2,6 +2,7 @@
 
 #include <spdlog/spdlog.h>
 
+#include "coalsack_math_conv.hpp"
 #include "render3d.hpp"
 
 using namespace stargazer;
@@ -385,11 +386,11 @@ void draw_detail_row(const stargazer::config_tree_item& item,
 
   const auto value_min = ImVec2(start.x + 24.0f + label_width, start.y + 1.0f);
   const auto value_max = ImVec2(start.x + 24.0f + label_width + value_width, start.y + row_height);
-  ImGui::GetWindowDrawList()->AddRectFilled(value_min, value_max, ImGui::ColorConvertFloat4ToU32(node_info_color), 2.0f);
+  ImGui::GetWindowDrawList()->AddRectFilled(value_min, value_max,
+                                            ImGui::ColorConvertFloat4ToU32(node_info_color), 2.0f);
   const auto& value = value_override.has_value() ? value_override.value() : item.summary;
   ImGui::GetWindowDrawList()->AddText(font, font_size, ImVec2(value_min.x + 6.0f, start.y + 4.0f),
-                                      ImGui::ColorConvertFloat4ToU32(yellowish),
-                                      value.c_str());
+                                      ImGui::ColorConvertFloat4ToU32(yellowish), value.c_str());
   ImGui::Unindent(12.0f);
   ImGui::Dummy({0.0f, row_height - ImGui::GetTextLineHeight()});
 }
@@ -409,8 +410,7 @@ ImVec4 get_tree_text_color(stargazer::config_tree_item_kind kind) {
 }
 
 void draw_calibration_tree_item(calibration_panel_view* panel,
-                                const stargazer::config_tree_item& item,
-                                view_context* context,
+                                const stargazer::config_tree_item& item, view_context* context,
                                 bool show_metric_values) {
   (void)context;
   (void)show_metric_values;
@@ -449,8 +449,7 @@ void draw_calibration_tree_item(calibration_panel_view* panel,
 }
 
 void draw_reconstruction_tree_item(reconstruction_panel_view* panel,
-                                   const stargazer::config_tree_item& item,
-                                   view_context* context) {
+                                   const stargazer::config_tree_item& item, view_context* context) {
   (void)context;
   if (item.kind == stargazer::config_tree_item_kind::detail) {
     if (item.detail_kind == stargazer::config_tree_detail_kind::property &&
@@ -523,14 +522,16 @@ void draw_capture_tree_item(capture_panel_view* panel, const stargazer::config_t
       if (runtime_node.is_camera) {
         const auto cursor = ImGui::GetCursorPos();
         const float button_width = 52.0f;
-        ImGui::SetCursorPosX(std::max(cursor.x, ImGui::GetContentRegionMax().x - button_width - 10.0f));
+        ImGui::SetCursorPosX(
+            std::max(cursor.x, ImGui::GetContentRegionMax().x - button_width - 10.0f));
         const bool next_state = !runtime_node.status.is_streaming;
         std::string button_label = next_state ? "Start" : "Stop";
         ImGui::PushStyleColor(ImGuiCol_Text,
                               runtime_node.status.is_streaming ? light_blue : light_grey);
         ImGui::PushStyleColor(ImGuiCol_TextSelectedBg,
                               runtime_node.status.is_streaming ? light_blue : light_grey);
-        if (ImGui::Button((button_label + "##" + runtime_node.stable_id).c_str(), {button_width, 22.0f})) {
+        if (ImGui::Button((button_label + "##" + runtime_node.stable_id).c_str(),
+                          {button_width, 22.0f})) {
           const bool previous_state = runtime_node.status.is_streaming;
           runtime_node.status.is_streaming = next_state;
           if (!runtime_node.actions.empty()) {
@@ -610,14 +611,15 @@ void top_bar_view::render(view_context* context) {
   const auto item_spacing = ImGui::GetStyle().ItemSpacing.x;
   const float viewport_button_width = 80.0f;
   const float viewport_buttons_width = viewport_button_width * 4.0f + item_spacing * 3.0f;
-  const float left_region_width = std::max(0.0f, window_size.x - viewport_buttons_width - item_spacing);
-    constexpr float mode_button_count = 6.0f;
-  const float mode_button_width =
-      std::max(90.0f, std::min(150.0f, (left_region_width - item_spacing * (mode_button_count - 1.0f)) /
-                         mode_button_count));
-    const float right_button_start_x = std::max(mode_button_width * mode_button_count +
-                            item_spacing * (mode_button_count - 1.0f),
-                                              window_size.x - viewport_buttons_width);
+  const float left_region_width =
+      std::max(0.0f, window_size.x - viewport_buttons_width - item_spacing);
+  constexpr float mode_button_count = 6.0f;
+  const float mode_button_width = std::max(
+      90.0f, std::min(150.0f, (left_region_width - item_spacing * (mode_button_count - 1.0f)) /
+                                  mode_button_count));
+  const float right_button_start_x =
+      std::max(mode_button_width * mode_button_count + item_spacing * (mode_button_count - 1.0f),
+               window_size.x - viewport_buttons_width);
 
   ImGui::SetNextWindowPos({0, 0});
   ImGui::SetNextWindowSize({window_size.x, top_bar_height});
@@ -639,33 +641,31 @@ void top_bar_view::render(view_context* context) {
     ImGui::PopStyleColor(2);
   };
 
-  draw_mode_button(0.0f, "Capture##mode_capture", view_mode == Mode::Capture, [&]() {
-    view_mode = Mode::Capture;
-  });
+  draw_mode_button(0.0f, "Capture##mode_capture", view_mode == Mode::Capture,
+                   [&]() { view_mode = Mode::Capture; });
 
-  draw_mode_button(mode_button_width + item_spacing, "Extrinsic##mode_extrinsic",
-                   view_mode == Mode::Calibration &&
-                       calibration_pipeline == CalibrationPipeline::Extrinsic,
-                   [&]() {
-                     view_mode = Mode::Calibration;
-                     calibration_pipeline = CalibrationPipeline::Extrinsic;
-                   });
+  draw_mode_button(
+      mode_button_width + item_spacing, "Extrinsic##mode_extrinsic",
+      view_mode == Mode::Calibration && calibration_pipeline == CalibrationPipeline::Extrinsic,
+      [&]() {
+        view_mode = Mode::Calibration;
+        calibration_pipeline = CalibrationPipeline::Extrinsic;
+      });
 
-  draw_mode_button((mode_button_width + item_spacing) * 2.0f, "Intrinsic##mode_intrinsic",
-                   view_mode == Mode::Calibration &&
-                       calibration_pipeline == CalibrationPipeline::Intrinsic,
-                   [&]() {
-                     view_mode = Mode::Calibration;
-                     calibration_pipeline = CalibrationPipeline::Intrinsic;
-                   });
+  draw_mode_button(
+      (mode_button_width + item_spacing) * 2.0f, "Intrinsic##mode_intrinsic",
+      view_mode == Mode::Calibration && calibration_pipeline == CalibrationPipeline::Intrinsic,
+      [&]() {
+        view_mode = Mode::Calibration;
+        calibration_pipeline = CalibrationPipeline::Intrinsic;
+      });
 
-  draw_mode_button((mode_button_width + item_spacing) * 3.0f, "Scene##mode_scene",
-                   view_mode == Mode::Calibration &&
-                       calibration_pipeline == CalibrationPipeline::Scene,
-                   [&]() {
-                     view_mode = Mode::Calibration;
-                     calibration_pipeline = CalibrationPipeline::Scene;
-                   });
+  draw_mode_button(
+      (mode_button_width + item_spacing) * 3.0f, "Scene##mode_scene",
+      view_mode == Mode::Calibration && calibration_pipeline == CalibrationPipeline::Scene, [&]() {
+        view_mode = Mode::Calibration;
+        calibration_pipeline = CalibrationPipeline::Scene;
+      });
 
   draw_mode_button((mode_button_width + item_spacing) * 4.0f, "Marker##mode_reconstruction_marker",
                    view_mode == Mode::Reconstruction &&
@@ -675,13 +675,13 @@ void top_bar_view::render(view_context* context) {
                      reconstruction_pipeline = ReconstructionPipeline::Marker;
                    });
 
-  draw_mode_button((mode_button_width + item_spacing) * 5.0f, "Image##mode_reconstruction_image",
-                   view_mode == Mode::Reconstruction &&
-                       reconstruction_pipeline == ReconstructionPipeline::Image,
-                   [&]() {
-                     view_mode = Mode::Reconstruction;
-                     reconstruction_pipeline = ReconstructionPipeline::Image;
-                   });
+  draw_mode_button(
+      (mode_button_width + item_spacing) * 5.0f, "Image##mode_reconstruction_image",
+      view_mode == Mode::Reconstruction && reconstruction_pipeline == ReconstructionPipeline::Image,
+      [&]() {
+        view_mode = Mode::Reconstruction;
+        reconstruction_pipeline = ReconstructionPipeline::Image;
+      });
 
   {
     const auto draw_view_button = [&](float x, const char* label, ViewType type) {
@@ -699,8 +699,8 @@ void top_bar_view::render(view_context* context) {
                      ViewType::Point);
     draw_view_button(right_button_start_x + (viewport_button_width + item_spacing) * 2.0f,
                      "Contrail", ViewType::Contrail);
-    draw_view_button(right_button_start_x + (viewport_button_width + item_spacing) * 3.0f,
-                     "Pose", ViewType::Pose);
+    draw_view_button(right_button_start_x + (viewport_button_width + item_spacing) * 3.0f, "Pose",
+                     ViewType::Pose);
   }
 
   ImGui::PopStyleColor();
@@ -856,7 +856,8 @@ float calibration_panel_view::draw_control_panel(view_context* context) {
   const float icons_width = 78.0f;
   const ImVec2 node_panel_icons_size{icons_width, 25};
   const auto draw_icon_button = [&](const std::string& button_name, textual_icon icon,
-                                    const ImVec4& text_color, const std::function<void()>& on_click) {
+                                    const ImVec4& text_color,
+                                    const std::function<void()>& on_click) {
     ImGui::PushStyleColor(ImGuiCol_Text, text_color);
     ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, text_color);
     const std::string icon_button_name = to_string() << icon << button_name;
@@ -1272,7 +1273,7 @@ void pose_view::render(view_context* context, vk::CommandBuffer cmd, vk::Extent2
   // Draw camera frustums
   for (const auto& [name, camera] : cameras) {
     // Camera pose in world space (apply axis transformation and scale)
-    glm::mat4 camera_pose = scaled_axis * camera.pose;
+    glm::mat4 camera_pose = scaled_axis * stargazer::to_glm(camera.pose);
 
     // Draw frustum using deproject method
     for (float d = 1; d < 6; d += 2) {

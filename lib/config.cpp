@@ -112,6 +112,8 @@ static node_type get_node_type(const std::string& type) {
     return node_type::object_mux;
   } else if (type == "image_property") {
     return node_type::image_property;
+  } else if (type == "marker_property") {
+    return node_type::marker_property;
   } else if (type == "feature_render") {
     return node_type::feature_render;
   } else if (type == "reconstruction_result_markers") {
@@ -214,6 +216,8 @@ static std::string get_node_type_name(node_type type) {
       return "object_mux";
     case node_type::image_property:
       return "image_property";
+    case node_type::marker_property:
+      return "marker_property";
     case node_type::feature_render:
       return "feature_render";
     case node_type::reconstruction_result_markers:
@@ -493,7 +497,8 @@ configuration::configuration(const std::string& path) : path(path) {
                 } else if (key == "properties") {
                   std::int64_t property_index = 0;
                   for (const auto& j_property : value) {
-                    node.properties.push_back(json_to_display_property(j_property, property_index++));
+                    node.properties.push_back(
+                        json_to_display_property(j_property, property_index++));
                   }
                 } else {
                   node.params[key] = json_to_param(value);

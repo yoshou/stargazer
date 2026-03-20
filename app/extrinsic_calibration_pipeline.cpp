@@ -11,12 +11,12 @@
 #include "calibration.hpp"
 #include "calibration_target.hpp"
 #include "callback_node.hpp"
-#include "extrinsic_calibration_node.hpp"
-#include "glm_serialize.hpp"
-#include "graph_builder.hpp"
 #include "coalsack/core/graph_proc.h"
 #include "coalsack/image/graph_proc_cv.h"
 #include "coalsack/image/image_nodes.h"
+#include "extrinsic_calibration_node.hpp"
+#include "glm_serialize.hpp"
+#include "graph_builder.hpp"
 #include "messages.hpp"
 #include "object_map_node.hpp"
 #include "object_mux_node.hpp"
@@ -42,13 +42,14 @@ class extrinsic_calibration_pipeline::impl {
   std::shared_ptr<extrinsic_calibration_node> calib_node;
   std::shared_ptr<graph_node> input_node;
 
-  std::unordered_map<std::string, camera_t> cameras;
-  std::unordered_map<std::string, camera_t> calibrated_cameras;
+  std::unordered_map<std::string, stargazer::camera_t> cameras;
+  std::unordered_map<std::string, stargazer::camera_t> calibrated_cameras;
 
-  std::vector<std::function<void(const std::unordered_map<std::string, camera_t>&)>> calibrated;
+  std::vector<std::function<void(const std::unordered_map<std::string, stargazer::camera_t>&)>>
+      calibrated;
 
   void add_calibrated(
-      std::function<void(const std::unordered_map<std::string, camera_t>&)> callback) {
+      std::function<void(const std::unordered_map<std::string, stargazer::camera_t>&)> callback) {
     calibrated.push_back(callback);
   }
 
@@ -75,7 +76,7 @@ class extrinsic_calibration_pipeline::impl {
     }
   }
 
-  void calibrate(const std::unordered_map<std::string, camera_t>& cameras) {
+  void calibrate(const std::unordered_map<std::string, stargazer::camera_t>& cameras) {
     std::shared_ptr<object_message> msg(new object_message());
     for (const auto& [name, camera] : cameras) {
       std::shared_ptr<camera_message> camera_msg(new camera_message(camera));
@@ -106,9 +107,11 @@ class extrinsic_calibration_pipeline::impl {
     // Extract specific nodes from the graph
     for (const auto& node : nodes) {
       if (node.get_type() == node_type::frame_number_numbering) {
-        input_node = std::dynamic_pointer_cast<frame_number_numbering_node>(built_node_map.at(node.name));
+        input_node =
+            std::dynamic_pointer_cast<frame_number_numbering_node>(built_node_map.at(node.name));
       } else if (node.get_type() == node_type::extrinsic_calibration) {
-        calib_node = std::dynamic_pointer_cast<extrinsic_calibration_node>(built_node_map.at(node.name));
+        calib_node =
+            std::dynamic_pointer_cast<extrinsic_calibration_node>(built_node_map.at(node.name));
         // Set cameras for calibration node
         if (calib_node) {
           calib_node->set_cameras(cameras);
@@ -197,18 +200,15 @@ extrinsic_calibration_pipeline::extrinsic_calibration_pipeline()
 
 extrinsic_calibration_pipeline::~extrinsic_calibration_pipeline() = default;
 
-void extrinsic_calibration_pipeline::set_camera(const std::string& name, const camera_t& camera) {
+void extrinsic_calibration_pipeline::set_camera(const std::string& name,
+                                                const stargazer::camera_t& camera) {
   pimpl->cameras[name] = camera;
 }
 
 size_t extrinsic_calibration_pipeline::get_camera_size() const { return pimpl->cameras.size(); }
 
-const std::unordered_map<std::string, camera_t>& extrinsic_calibration_pipeline::get_cameras()
-    const {
-  return pimpl->cameras;
-}
-
-std::unordered_map<std::string, camera_t>& extrinsic_calibration_pipeline::get_cameras() {
+const std::unordered_map<std::string, stargazer::camera_t>&
+extrinsic_calibration_pipeline::get_cameras() const {
   return pimpl->cameras;
 }
 
@@ -217,7 +217,7 @@ void extrinsic_calibration_pipeline::run(const std::vector<node_def>& nodes) { p
 void extrinsic_calibration_pipeline::stop() { pimpl->stop(); }
 
 void extrinsic_calibration_pipeline::add_calibrated(
-    std::function<void(const std::unordered_map<std::string, camera_t>&)> callback) {
+    std::function<void(const std::unordered_map<std::string, stargazer::camera_t>&)> callback) {
   pimpl->add_calibrated(callback);
 }
 
@@ -232,7 +232,7 @@ const std::vector<observed_points_t> extrinsic_calibration_pipeline::get_observe
   return pimpl->get_observed_points(name);
 }
 
-const std::unordered_map<std::string, camera_t>&
+const std::unordered_map<std::string, stargazer::camera_t>&
 extrinsic_calibration_pipeline::get_calibrated_cameras() const {
   return pimpl->calibrated_cameras;
 }

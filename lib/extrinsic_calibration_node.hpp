@@ -3,6 +3,7 @@
 #include <spdlog/spdlog.h>
 
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_inverse.hpp>
 #include <mutex>
 #include <string>
 #include <unordered_map>
@@ -15,10 +16,9 @@
 
 namespace stargazer {
 
-using namespace coalsack;
 using namespace stargazer::calibration;
 
-class extrinsic_calibration_node : public graph_node {
+class extrinsic_calibration_node : public coalsack::graph_node {
   bool only_extrinsic;
   bool robust;
 
@@ -29,14 +29,14 @@ class extrinsic_calibration_node : public graph_node {
   std::unordered_map<std::string, camera_t> cameras;
   std::unordered_map<std::string, camera_t> calibrated_cameras;
 
-  graph_edge_ptr output;
+  coalsack::graph_edge_ptr output;
 
  public:
   extrinsic_calibration_node()
-      : graph_node(),
+      : coalsack::graph_node(),
         only_extrinsic(true),
         robust(false),
-        output(std::make_shared<graph_edge>(this)) {
+        output(std::make_shared<coalsack::graph_edge>(this)) {
     set_output(output);
   }
 
@@ -57,11 +57,32 @@ class extrinsic_calibration_node : public graph_node {
 
   size_t get_num_frames(std::string name) const { return observed_frames.get_num_points(name); }
 
-  virtual std::optional<property_value> get_property(const std::string& key) const override {
-    static constexpr std::string_view prefix = "collected.";
-    if (key.rfind(prefix.data(), 0) == 0) {
-      const auto camera_name = key.substr(prefix.size());
+  virtual std::optional<coalsack::property_value> get_property(
+      const std::string& key) const override {
+    static constexpr std::string_view collected_prefix = "collected.";
+    static constexpr std::string_view calibrated_prefix = "calibrated.";
+    if (key.rfind(collected_prefix.data(), 0) == 0) {
+      const auto camera_name = key.substr(collected_prefix.size());
       return static_cast<std::int64_t>(get_num_frames(camera_name));
+    }
+    if (key.rfind(calibrated_prefix.data(), 0) == 0) {
+      const auto camera_name = key.substr(calibrated_prefix.size());
+      std::lock_guard lock(cameras_mtx);
+      auto it = calibrated_cameras.find(camera_name);
+      if (it != calibrated_cameras.end()) {
+        const auto& cam = it->second;
+        coalsack::camera_t result;
+        result.width = static_cast<int>(cam.width);
+        result.height = static_cast<int>(cam.height);
+        result.ppx = cam.intrin.cx;
+        result.ppy = cam.intrin.cy;
+        result.fx = cam.intrin.fx;
+        result.fy = cam.intrin.fy;
+        for (int i = 0; i < 5; ++i) result.coeffs[i] = cam.intrin.coeffs[i];
+        const glm::mat4 inv = glm::inverse(cam.extrin.transform_matrix());
+        for (int i = 0; i < 16; ++i) result.pose.data[i] = (&inv[0][0])[i];
+        return result;
+      }
     }
     return std::nullopt;
   }
@@ -111,7 +132,7 @@ class extrinsic_calibration_node : public graph_node {
     }
   }
 
-  virtual void process(std::string input_name, graph_message_ptr message) override {
+  virtual void process(std::string input_name, coalsack::graph_message_ptr message) override {
     if (input_name == "calibrate") {
       camera_names.clear();
 

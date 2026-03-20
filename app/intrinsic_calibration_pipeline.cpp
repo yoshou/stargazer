@@ -6,11 +6,11 @@
 
 #include "calibration.hpp"
 #include "callback_node.hpp"
-#include "glm_serialize.hpp"
-#include "graph_builder.hpp"
 #include "coalsack/core/graph_proc.h"
 #include "coalsack/image/graph_proc_cv.h"
 #include "coalsack/image/image_nodes.h"
+#include "glm_serialize.hpp"
+#include "graph_builder.hpp"
 #include "intrinsic_calibration_node.hpp"
 #include "messages.hpp"
 #include "parameters.hpp"
@@ -53,9 +53,11 @@ class intrinsic_calibration_pipeline::impl {
     // Extract specific nodes from the graph
     for (const auto& node : nodes) {
       if (node.get_type() == node_type::frame_number_numbering) {
-        input_node = std::dynamic_pointer_cast<frame_number_numbering_node>(built_node_map.at(node.name));
+        input_node =
+            std::dynamic_pointer_cast<frame_number_numbering_node>(built_node_map.at(node.name));
       } else if (node.get_type() == node_type::intrinsic_calibration) {
-        calib_node = std::dynamic_pointer_cast<intrinsic_calibration_node>(built_node_map.at(node.name));
+        calib_node =
+            std::dynamic_pointer_cast<intrinsic_calibration_node>(built_node_map.at(node.name));
       }
     }
 
@@ -111,18 +113,18 @@ double intrinsic_calibration_pipeline::get_rms() const {
 
 void intrinsic_calibration_pipeline::set_image_size(int width, int height) {
   if (pimpl->calib_node) {
-    camera_t initial_camera;
+    stargazer::camera_t initial_camera;
     initial_camera.width = width;
     initial_camera.height = height;
     pimpl->calib_node->set_initial_camera(initial_camera);
   }
 }
 
-const camera_t& intrinsic_calibration_pipeline::get_calibrated_camera() const {
+const stargazer::camera_t& intrinsic_calibration_pipeline::get_calibrated_camera() const {
   if (pimpl->calib_node) {
     return pimpl->calib_node->get_calibrated_camera();
   }
-  static camera_t empty_camera;
+  static stargazer::camera_t empty_camera;
   return empty_camera;
 }
 

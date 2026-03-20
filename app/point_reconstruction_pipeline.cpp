@@ -3,10 +3,10 @@
 #include <spdlog/spdlog.h>
 
 #include "callback_node.hpp"
+#include "coalsack/core/graph_proc.h"
 #include "epipolar_reconstruct_node.hpp"
 #include "glm_serialize.hpp"
 #include "graph_builder.hpp"
-#include "coalsack/core/graph_proc.h"
 #include "grpc_server_node.hpp"
 #include "messages.hpp"
 #include "parameters.hpp"
@@ -28,7 +28,7 @@ class multiview_point_reconstruction_pipeline::impl {
   std::shared_ptr<epipolar_reconstruct_node> reconstruct_node;
   std::shared_ptr<graph_node> input_node;
 
-  std::map<std::string, camera_t> cameras;
+  std::map<std::string, stargazer::camera_t> cameras;
   glm::mat4 axis;
 
  public:
@@ -52,10 +52,10 @@ class multiview_point_reconstruction_pipeline::impl {
         cameras(),
         axis(1.0f) {}
 
-  void set_camera(const std::string& name, const camera_t& camera) {
+  void set_camera(const std::string& name, const stargazer::camera_t& camera) {
     cameras[name] = camera;
     if (reconstruct_node) {
-      std::map<std::string, camera_t> updated_cameras = cameras;
+      std::map<std::string, stargazer::camera_t> updated_cameras = cameras;
       reconstruct_node->set_cameras(updated_cameras);
     }
   }
@@ -173,17 +173,6 @@ class multiview_point_reconstruction_pipeline::impl {
     graph.stop();
   }
 
-  std::vector<glm::vec3> get_markers() const {
-    std::vector<glm::vec3> result;
-
-    {
-      std::lock_guard lock(markers_mtx);
-      result = this->markers;
-    }
-
-    return result;
-  }
-
   std::optional<property_value> get_node_property(const std::string& node_name,
                                                   const std::string& key) const {
     const auto found = node_map.find(node_name);
@@ -208,18 +197,12 @@ void multiview_point_reconstruction_pipeline::run(const std::vector<node_def>& n
 
 void multiview_point_reconstruction_pipeline::stop() { pimpl->stop(); }
 
-std::vector<glm::vec3> multiview_point_reconstruction_pipeline::get_markers() const {
-  return pimpl->get_markers();
-}
-
 void multiview_point_reconstruction_pipeline::set_camera(const std::string& name,
-                                                         const camera_t& camera) {
-  cameras[name] = camera;
+                                                         const stargazer::camera_t& camera) {
   pimpl->set_camera(name, camera);
 }
 
 void multiview_point_reconstruction_pipeline::set_axis(const glm::mat4& axis) {
-  this->axis = axis;
   pimpl->set_axis(axis);
 }
 

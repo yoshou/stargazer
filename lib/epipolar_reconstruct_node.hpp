@@ -1,5 +1,6 @@
 #pragma once
 
+#include <glm/gtc/matrix_inverse.hpp>
 #include <mutex>
 
 #include "coalsack/core/graph_proc.h"
@@ -8,18 +9,19 @@
 
 namespace stargazer {
 
-using namespace coalsack;
-
-class epipolar_reconstruct_node : public graph_node {
+class epipolar_reconstruct_node : public coalsack::graph_node {
   mutable std::mutex cameras_mtx;
   std::map<std::string, camera_t> cameras;
   mutable std::mutex axis_mtx;
   glm::mat4 axis;
-  graph_edge_ptr output;
+  coalsack::graph_edge_ptr output;
 
  public:
   epipolar_reconstruct_node()
-      : graph_node(), cameras(), axis(), output(std::make_shared<graph_edge>(this)) {
+      : coalsack::graph_node(),
+        cameras(),
+        axis(),
+        output(std::make_shared<coalsack::graph_edge>(this)) {
     set_output(output);
   }
 
@@ -40,7 +42,38 @@ class epipolar_reconstruct_node : public graph_node {
     archive(cameras, axis);
   }
 
-  virtual void process(std::string input_name, graph_message_ptr message) override {
+  virtual std::optional<coalsack::property_value> get_property(
+      const std::string& key) const override {
+    if (key == "axis") {
+      std::lock_guard lock(axis_mtx);
+      coalsack::mat4 result;
+      for (int i = 0; i < 16; ++i) result.data[i] = (&axis[0][0])[i];
+      return result;
+    }
+    static constexpr std::string_view camera_prefix = "camera.";
+    if (key.rfind(camera_prefix.data(), 0) == 0) {
+      const auto camera_name = key.substr(camera_prefix.size());
+      std::lock_guard lock(cameras_mtx);
+      auto it = cameras.find(camera_name);
+      if (it != cameras.end()) {
+        const auto& cam = it->second;
+        coalsack::camera_t result;
+        result.width = static_cast<int>(cam.width);
+        result.height = static_cast<int>(cam.height);
+        result.ppx = cam.intrin.cx;
+        result.ppy = cam.intrin.cy;
+        result.fx = cam.intrin.fx;
+        result.fy = cam.intrin.fy;
+        for (int i = 0; i < 5; ++i) result.coeffs[i] = cam.intrin.coeffs[i];
+        const glm::mat4 inv = glm::inverse(cam.extrin.transform_matrix());
+        for (int i = 0; i < 16; ++i) result.pose.data[i] = (&inv[0][0])[i];
+        return result;
+      }
+    }
+    return std::nullopt;
+  }
+
+  virtual void process(std::string input_name, coalsack::graph_message_ptr message) override {
     if (input_name == "cameras") {
       if (auto camera_msg = std::dynamic_pointer_cast<object_message>(message)) {
         for (const auto& [name, field] : camera_msg->get_fields()) {

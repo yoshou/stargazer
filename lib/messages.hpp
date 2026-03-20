@@ -35,17 +35,12 @@ struct camera_intrinsics {
 
   template <typename Archive>
   void serialize(Archive& archive) {
-    archive(focal_length, principal_point, image_size, distortion.k1, distortion.k2,
-            distortion.p1, distortion.p2, distortion.k3);
+    archive(focal_length, principal_point, image_size, distortion.k1, distortion.k2, distortion.p1,
+            distortion.p2, distortion.k3);
   }
 };
 
-enum class image_data_format {
-  UNKNOWN = 0,
-  JPEG = 1,
-  PNG = 2,
-  RAW = 3
-};
+enum class image_data_format { UNKNOWN = 0, JPEG = 1, PNG = 2, RAW = 3 };
 
 struct camera_image {
   std::vector<uint8_t> image_data;
@@ -135,10 +130,10 @@ using match_t = std::vector<detection_id_t>;
 
 // Complete reconstruction result
 struct reconstruction_result_t {
-  std::vector<float3> points3d;      // Final 3D keypoints
-  std::vector<view_result_t> views;  // Per-view 2D detections
+  std::vector<float3> points3d;                     // Final 3D keypoints
+  std::vector<view_result_t> views;                 // Per-view 2D detections
   std::map<std::string, coalsack::image> heatmaps;  // Per-view grayscale heatmaps (Y8_UINT)
-  std::vector<match_t> matches;      // Multi-view correspondences
+  std::vector<match_t> matches;                     // Multi-view correspondences
   size_t num_keypoints;
 
   template <typename Archive>
@@ -155,18 +150,18 @@ using camera_image_list_message = frame_message<std::vector<camera_image>>;
 using inertial_list_message = frame_message<std::vector<inertial>>;
 
 class camera_message : public graph_message {
-  camera_t camera;
+  stargazer::camera_t camera;
 
  public:
   camera_message() : graph_message(), camera() {}
 
-  camera_message(const camera_t& camera) : graph_message(), camera(camera) {}
+  camera_message(const stargazer::camera_t& camera) : graph_message(), camera(camera) {}
 
   static std::string get_type() { return "camera"; }
 
-  camera_t get_camera() const { return camera; }
+  stargazer::camera_t get_camera() const { return camera; }
 
-  void set_camera(const camera_t& value) { camera = value; }
+  void set_camera(const stargazer::camera_t& value) { camera = value; }
 
   template <typename Archive>
   void serialize(Archive& archive) {
@@ -197,16 +192,18 @@ class scene_message : public graph_message {
 // Generic multi-view reconstruction result message
 class reconstruction_result_message : public frame_message_base {
   reconstruction_result_t result;
-  std::map<std::string, camera_t> cameras;
+  std::map<std::string, stargazer::camera_t> cameras;
   glm::mat4 axis;
 
  public:
   void set_result(const reconstruction_result_t& result) { this->result = result; }
-  void set_cameras(const std::map<std::string, camera_t>& cameras) { this->cameras = cameras; }
+  void set_cameras(const std::map<std::string, stargazer::camera_t>& cameras) {
+    this->cameras = cameras;
+  }
   void set_axis(const glm::mat4& axis) { this->axis = axis; }
 
   const reconstruction_result_t& get_result() const { return result; }
-  const std::map<std::string, camera_t>& get_cameras() const { return cameras; }
+  const std::map<std::string, stargazer::camera_t>& get_cameras() const { return cameras; }
   const glm::mat4& get_axis() const { return axis; }
 
   template <typename Archive>

@@ -55,6 +55,7 @@ enum class node_type {
   object_map,
   object_mux,
   image_property,
+  marker_property,
   feature_render,
   reconstruction_result_markers,
   intrinsic_calibration,

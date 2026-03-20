@@ -10,13 +10,14 @@
 #include <glm/gtx/transform.hpp>
 #include <map>
 #include <memory>
-#include <optional>
 #include <opencv2/core.hpp>
+#include <optional>
 #include <unordered_set>
 #include <vector>
 
-#include "config_tree.hpp"
+#include "coalsack/camera/camera.h"
 #include "config.hpp"
+#include "config_tree.hpp"
 #include "imgui-fonts-fontawesome.hpp"
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
@@ -198,7 +199,8 @@ class capture_panel_view {
   std::unordered_set<std::string> expanded_item_ids;
   std::vector<std::function<bool(bool)>> is_all_streaming_changed;
   std::vector<std::function<bool(const std::string&, bool)>> is_streaming_changed;
-  std::function<std::optional<std::string>(const stargazer::config_tree_item&)> resolve_detail_value;
+  std::function<std::optional<std::string>(const stargazer::config_tree_item&)>
+      resolve_detail_value;
 
  private:
   float draw_control_panel(view_context* context);
@@ -233,7 +235,8 @@ class calibration_panel_view {
   std::vector<std::function<bool(const std::vector<node_def>&, bool)>> is_streaming_changed;
   std::vector<std::function<bool(const std::vector<node_def>&, bool)>> is_masking_changed;
   std::vector<std::function<bool(const std::vector<node_def>&, bool)>> on_calibrate;
-  std::function<std::optional<std::string>(const stargazer::config_tree_item&)> resolve_detail_value;
+  std::function<std::optional<std::string>(const stargazer::config_tree_item&)>
+      resolve_detail_value;
 
   int calibration_target_index = 0;
 
@@ -266,7 +269,8 @@ class reconstruction_panel_view {
 
   std::vector<std::function<bool(const std::vector<node_def>&, bool)>> is_streaming_changed;
   std::vector<std::function<bool(const std::vector<node_def>&, bool)>> is_recording_changed;
-  std::function<std::optional<std::string>(const stargazer::config_tree_item&)> resolve_detail_value;
+  std::function<std::optional<std::string>(const stargazer::config_tree_item&)>
+      resolve_detail_value;
 
  private:
   float draw_control_panel(view_context* context);
@@ -322,21 +326,20 @@ class azimuth_elevation;
 
 class pose_view {
  public:
-  struct camera_t {
-    int width;  /**< Width of the image in pixels */
-    int height; /**< Height of the image in pixels */
-    float ppx;  /**< Horizontal coordinate of the principal point of the image, as a pixel offset
-                   from the left edge */
-    float ppy;  /**< Vertical coordinate of the principal point of the image, as a pixel offset from
-                   the top edge */
-    float fx;   /**< Focal length of the image plane, as a multiple of pixel width */
-    float fy;   /**< Focal length of the image plane, as a multiple of pixel height */
-    std::array<float, 5> coeffs;
-    glm::mat4 pose;
+  using camera_t = coalsack::camera_t;
+
+  struct pose_property_source {
+    stargazer::config_tree_ref ref;
+    std::string property_key;
   };
+
   std::map<std::string, camera_t> cameras;
   std::vector<glm::vec3> points;
   glm::mat4 axis;
+
+  std::map<std::string, pose_property_source> camera_sources;
+  pose_property_source axis_source;
+  std::vector<pose_property_source> point_sources;
 
   void initialize(vk::Device device, vk::PhysicalDevice physical_device,
                   vk::RenderPass render_pass);

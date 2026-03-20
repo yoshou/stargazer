@@ -2,43 +2,44 @@
 
 #include <iostream>
 
-#include "extrinsic_calibration_node.hpp"
-#include "scene_calibration_node.hpp"
 #include "callback_node.hpp"
-#include "dump_blob_node.hpp"
-#include "dump_keypoint_node.hpp"
-#include "dump_reconstruction_node.hpp"
-#include "dump_se3_node.hpp"
-#include "epipolar_reconstruct_node.hpp"
-#include "feature_render_node.hpp"
+#include "coalsack/core/graph_proc.h"
 #include "coalsack/ext/graph_proc_cv_ext.h"
 #include "coalsack/ext/graph_proc_depthai.h"
 #include "coalsack/ext/graph_proc_jpeg.h"
 #include "coalsack/ext/graph_proc_libcamera.h"
 #include "coalsack/ext/graph_proc_rs_d435.h"
-#include "glm_serialize.hpp"
-#include "coalsack/core/graph_proc.h"
 #include "coalsack/image/graph_proc_cv.h"
 #include "coalsack/image/image_nodes.h"
-#include "coalsack/network/broadcast_talker_node.h"
 #include "coalsack/network/broadcast_listener_node.h"
-#include "coalsack/network/p2p_tcp_talker_node.h"
+#include "coalsack/network/broadcast_talker_node.h"
 #include "coalsack/network/p2p_tcp_listener_node.h"
+#include "coalsack/network/p2p_tcp_talker_node.h"
 #include "coalsack/nodes/fifo_node.h"
-#include "grpc_server_node.hpp"
 #include "contrail_render_node.hpp"
+#include "dump_blob_node.hpp"
+#include "dump_keypoint_node.hpp"
+#include "dump_reconstruction_node.hpp"
+#include "dump_se3_node.hpp"
+#include "epipolar_reconstruct_node.hpp"
+#include "extrinsic_calibration_node.hpp"
+#include "feature_render_node.hpp"
+#include "glm_serialize.hpp"
+#include "grpc_server_node.hpp"
 #include "image_property_node.hpp"
 #include "image_reconstruct_node.hpp"
 #include "intrinsic_calibration_node.hpp"
 #include "load_blob_node.hpp"
 #include "load_marker_node.hpp"
 #include "load_panoptic_node.hpp"
+#include "marker_property_node.hpp"
 #include "mvp_reconstruct_node.hpp"
 #include "mvpose_reconstruct_node.hpp"
 #include "object_map_node.hpp"
 #include "object_mux_node.hpp"
 #include "pattern_board_calibration_target_detector_node.hpp"
 #include "reconstruction_result_markers_node.hpp"
+#include "scene_calibration_node.hpp"
 #include "three_point_bar_calibration_target_detector_node.hpp"
 #include "voxelpose_reconstruct_node.hpp"
 
@@ -422,6 +423,11 @@ void build_graph_from_json(const std::vector<node_def>& nodes,
       }
       case node_type::image_property: {
         auto n = std::make_shared<image_property_node>();
+        graph_node = n;
+        break;
+      }
+      case node_type::marker_property: {
+        auto n = std::make_shared<marker_property_node>();
         graph_node = n;
         break;
       }

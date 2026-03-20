@@ -15,6 +15,7 @@
 #include <vulkan/vulkan.hpp>
 
 #include "capture_pipeline.hpp"
+#include "coalsack_math_conv.hpp"
 #include "config.hpp"
 #include "extrinsic_calibration_pipeline.hpp"
 #include "gui.hpp"
@@ -103,6 +104,12 @@ static std::string format_property_value(const coalsack::property_value& value,
           return raw_value ? "true" : "false";
         } else if constexpr (std::is_same_v<value_t, std::shared_ptr<coalsack::image>>) {
           return raw_value ? "<image>" : "-";
+        } else if constexpr (std::is_same_v<value_t, coalsack::camera_t>) {
+          return std::string{"<camera>"};
+        } else if constexpr (std::is_same_v<value_t, coalsack::mat4>) {
+          return std::string{"<mat4>"};
+        } else if constexpr (std::is_same_v<value_t, std::vector<coalsack::vec3>>) {
+          return std::string{"<points:"} + std::to_string(raw_value.size()) + ">";
         }
         return std::string{"-"};
       },
@@ -240,6 +247,100 @@ class viewer_app : public window_base {
     return std::nullopt;
   }
 
+  // Bind pose view camera/axis/point sources from the active pipeline configs.
+  void bind_pose_property() {
+    if (!pose_view_) return;
+    pose_view_->camera_sources.clear();
+    pose_view_->point_sources.clear();
+    pose_view_->axis_source = {};
+
+    // Bind cameras from point_reconstruction_config (epipolar_reconstruct_node)
+    if (point_reconstruction_config) {
+      for (const auto& node :
+           point_reconstruction_config->get_nodes("point_reconstruction_pipeline")) {
+        if (node.get_type() != stargazer::node_type::epipolar_reconstruction) continue;
+        const stargazer::config_tree_ref ref{"point_reconstruction_pipeline", "", node.name};
+        // axis
+        pose_view_->axis_source = {ref, "axis"};
+        // cameras: derive names from point_reconstruction_config (is_camera nodes)
+        for (const auto& cam_node : point_reconstruction_config->get_nodes()) {
+          if (!cam_node.is_camera()) continue;
+          const auto cam_name = cam_node.get_camera_name();
+          pose_view_->camera_sources[cam_name] = {ref, "camera." + cam_name};
+        }
+      }
+      // marker_property nodes → point_sources
+      for (const auto& node :
+           point_reconstruction_config->get_nodes("point_reconstruction_pipeline")) {
+        if (node.get_type() != stargazer::node_type::marker_property) continue;
+        const stargazer::config_tree_ref ref{"point_reconstruction_pipeline", "", node.name};
+        pose_view_->point_sources.push_back({ref, "markers"});
+      }
+    }
+    // image_reconstruction marker_property nodes
+    if (image_reconstruction_config) {
+      for (const auto& node :
+           image_reconstruction_config->get_nodes("image_reconstruction_pipeline")) {
+        if (node.get_type() != stargazer::node_type::marker_property) continue;
+        const stargazer::config_tree_ref ref{"image_reconstruction_pipeline", "", node.name};
+        pose_view_->point_sources.push_back({ref, "markers"});
+      }
+    }
+  }
+
+  // Bind extrinsic calibration pose property sources.
+  void bind_extrinsic_calibration_pose_property() {
+    if (!pose_view_) return;
+    pose_view_->camera_sources.clear();
+    pose_view_->point_sources.clear();
+    pose_view_->axis_source = {};
+
+    if (extrinsic_calibration_config) {
+      for (const auto& node :
+           extrinsic_calibration_config->get_nodes("extrinsic_calibration_pipeline")) {
+        if (node.get_type() != stargazer::node_type::extrinsic_calibration) continue;
+        const stargazer::config_tree_ref ref{"extrinsic_calibration_pipeline", "", node.name};
+        // calibrated cameras: derive names from extrinsic_calibration node inputs
+        for (const auto& [cam_name, _input] : node.inputs) {
+          pose_view_->camera_sources[cam_name] = {ref, "calibrated." + cam_name};
+        }
+      }
+    }
+  }
+
+  // Read pose properties from the bound sources and update pose_view_.
+  void update_pose_from_properties() {
+    if (!pose_view_) return;
+
+    // Update cameras
+    for (const auto& [cam_name, source] : pose_view_->camera_sources) {
+      const auto value = query_runtime_node_property(source.ref, source.property_key);
+      if (value && std::holds_alternative<coalsack::camera_t>(value.value())) {
+        pose_view_->cameras[cam_name] = std::get<coalsack::camera_t>(value.value());
+      }
+    }
+
+    // Update axis
+    if (!pose_view_->axis_source.property_key.empty()) {
+      const auto value = query_runtime_node_property(pose_view_->axis_source.ref,
+                                                     pose_view_->axis_source.property_key);
+      if (value && std::holds_alternative<coalsack::mat4>(value.value())) {
+        pose_view_->axis = stargazer::to_glm(std::get<coalsack::mat4>(value.value()));
+      }
+    }
+
+    // Update points
+    pose_view_->points.clear();
+    for (const auto& source : pose_view_->point_sources) {
+      const auto value = query_runtime_node_property(source.ref, source.property_key);
+      if (value && std::holds_alternative<std::vector<coalsack::vec3>>(value.value())) {
+        for (const auto& p : std::get<std::vector<coalsack::vec3>>(value.value())) {
+          pose_view_->points.push_back(stargazer::to_glm(p));
+        }
+      }
+    }
+  }
+
   void bind_capture_stream_property(const stargazer::runtime_node_handle& runtime_node,
                                     image_tile_view::stream_info& stream) const {
     stream.property_node_name.clear();
@@ -277,7 +378,8 @@ class viewer_app : public window_base {
     stream.property_resource_kind.clear();
     stream.property_selector.clear();
 
-    for (const auto& node : image_reconstruction_config->get_nodes("image_reconstruction_pipeline")) {
+    for (const auto& node :
+         image_reconstruction_config->get_nodes("image_reconstruction_pipeline")) {
       if (!node.contains_param("camera_name") ||
           node.get_param<std::string>("camera_name") != camera_name) {
         continue;
@@ -350,17 +452,16 @@ class viewer_app : public window_base {
 
   bool upload_image_reconstruction_property_stream(
       const std::shared_ptr<image_tile_view::stream_info>& stream) const {
-    if (!multiview_image_reconstruction_pipeline_ || !stream || stream->property_node_name.empty() ||
-        stream->property_key.empty()) {
+    if (!multiview_image_reconstruction_pipeline_ || !stream ||
+        stream->property_node_name.empty() || stream->property_key.empty()) {
       return false;
     }
     if (!stream->property_resource_kind.empty() && stream->property_resource_kind != "feature") {
       return false;
     }
 
-    const auto value =
-        multiview_image_reconstruction_pipeline_->get_node_property(stream->property_node_name,
-                                                                    stream->property_key);
+    const auto value = multiview_image_reconstruction_pipeline_->get_node_property(
+        stream->property_node_name, stream->property_key);
     if (!value.has_value()) {
       return false;
     }
@@ -479,9 +580,8 @@ class viewer_app : public window_base {
     return false;
   }
 
-  void try_upload_frame_from_capture(
-      const std::shared_ptr<image_tile_view::stream_info>& stream,
-      const std::map<std::string, cv::Mat>& multiview_frames) const {
+  void try_upload_frame_from_capture(const std::shared_ptr<image_tile_view::stream_info>& stream,
+                                     const std::map<std::string, cv::Mat>& multiview_frames) const {
     const auto it = multiview_frames.find(stream->name);
     if (it != multiview_frames.end()) {
       upload_frame_to_stream(it->second, stream);
@@ -1631,7 +1731,8 @@ class viewer_app : public window_base {
     extrinsic_calib->run(extrinsic_calibration_config->get_nodes("extrinsic_calibration_pipeline"));
 
     contrail_tile_view_->streams.clear();
-    for (const auto& node : extrinsic_calibration_config->get_nodes("extrinsic_calibration_pipeline")) {
+    for (const auto& node :
+         extrinsic_calibration_config->get_nodes("extrinsic_calibration_pipeline")) {
       if (node.get_type() != stargazer::node_type::contrail_render) {
         continue;
       }
@@ -1654,9 +1755,24 @@ class viewer_app : public window_base {
       contrail_tile_view_->streams.push_back(stream);
     }
 
-    for (auto& [camera_name, camera] : extrinsic_calib->get_cameras()) {
-      camera.extrin.rotation = glm::mat3(1.0);
-      camera.extrin.translation = glm::vec3(1.0);
+    if (extrinsic_calibration_config) {
+      for (const auto& node : extrinsic_calibration_config->get_nodes()) {
+        if (node.get_type() != stargazer::node_type::extrinsic_calibration) continue;
+        for (const auto& [cam_name, _input] : node.inputs) {
+          // Find camera id from capture_config
+          if (!capture_config) break;
+          for (const auto& cam_node : capture_config->get_nodes()) {
+            if (!cam_node.is_camera() || cam_node.get_camera_name() != cam_name) continue;
+            if (!cam_node.contains_param("id")) continue;
+            const auto cam_id = cam_node.get_param<std::string>("id");
+            if (!parameters->contains(cam_id)) continue;
+            auto params = std::get<stargazer::camera_t>(parameters->at(cam_id));
+            params.extrin.rotation = glm::mat3(1.0);
+            params.extrin.translation = glm::vec3(0.0);
+            extrinsic_calib->set_camera(cam_name, params);
+          }
+        }
+      }
     }
 
     scene_calib = std::make_unique<scene_calibration_pipeline>(parameters);
@@ -1688,6 +1804,8 @@ class viewer_app : public window_base {
 
     intrinsic_calib->run(
         calibration_intrinsic_single_camera_config->get_nodes("intrinsic_calibration_pipeline"));
+
+    bind_pose_property();
 
     window_base::initialize();
   }
@@ -1798,20 +1916,8 @@ class viewer_app : public window_base {
         context->view = view;
 
         pose_view_->cameras.clear();
-
-        for (const auto& node : extrinsic_calibration_config->get_nodes()) {
-          const auto& cameras = extrinsic_calib->get_calibrated_cameras();
-
-          if (cameras.find(node.name) != cameras.end()) {
-            const auto& camera = cameras.at(node.name);
-            pose_view_->cameras[node.name] = pose_view::camera_t{
-                (int)camera.width,    (int)camera.height,
-                camera.intrin.cx,     camera.intrin.cy,
-                camera.intrin.fx,     camera.intrin.fy,
-                camera.intrin.coeffs, glm::inverse(camera.extrin.transform_matrix()),
-            };
-          }
-        }
+        bind_extrinsic_calibration_pose_property();
+        update_pose_from_properties();
       } else if (top_bar_view_->view_type == top_bar_view::ViewType::Contrail) {
         for (const auto& stream : contrail_tile_view_->streams) {
           upload_contrail_property_stream(stream);
@@ -1830,35 +1936,8 @@ class viewer_app : public window_base {
         context->view = view;
 
         pose_view_->cameras.clear();
-
-        for (const auto& node : point_reconstruction_config->get_nodes()) {
-          if (!node.is_camera()) {
-            continue;
-          }
-
-          const auto camera_name = node.get_camera_name();
-          const auto& cameras = multiview_point_reconstruction_pipeline_->get_cameras();
-
-          if (cameras.find(camera_name) != cameras.end()) {
-            const auto& camera = cameras.at(camera_name);
-            pose_view_->cameras[camera_name] = pose_view::camera_t{
-                (int)camera.width,    (int)camera.height,
-                camera.intrin.cx,     camera.intrin.cy,
-                camera.intrin.fx,     camera.intrin.fy,
-                camera.intrin.coeffs, glm::inverse(camera.extrin.transform_matrix()),
-            };
-          }
-        }
-
-        pose_view_->axis = multiview_point_reconstruction_pipeline_->get_axis();
-
-        pose_view_->points.clear();
-        for (const auto& point : multiview_point_reconstruction_pipeline_->get_markers()) {
-          pose_view_->points.push_back(point);
-        }
-        for (const auto& point : multiview_image_reconstruction_pipeline_->get_markers()) {
-          pose_view_->points.push_back(point);
-        }
+        bind_pose_property();
+        update_pose_from_properties();
       }
     }
 
