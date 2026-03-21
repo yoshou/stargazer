@@ -14,8 +14,8 @@
 #include "messages.hpp"
 #include "object_map_node.hpp"
 #include "object_mux_node.hpp"
-#include "parameters.hpp"
 #include "parameter_resource.hpp"
+#include "parameters.hpp"
 #include "reconstruction.hpp"
 #include "scene_calibration_node.hpp"
 #include "triangulation.hpp"
@@ -35,6 +35,7 @@ class scene_calibration_pipeline::impl {
 
   std::shared_ptr<scene_calibration_node> calib_node;
   std::shared_ptr<graph_node> input_node;
+  std::unordered_map<std::string, graph_node_ptr> action_map_;
 
   std::shared_ptr<parameters_t> parameters;
 
@@ -59,8 +60,11 @@ class scene_calibration_pipeline::impl {
     }
   }
 
-  void calibrate() {
-    graph.process(calib_node.get(), "calibrate", nullptr);
+  void dispatch_action(const std::string& action_id) {
+    const auto it = action_map_.find(action_id);
+    if (it != action_map_.end() && it->second) {
+      graph.process(it->second.get(), nullptr);
+    }
   }
 
   void run(const std::vector<node_def>& nodes) {
@@ -90,6 +94,10 @@ class scene_calibration_pipeline::impl {
       } else if (node.get_type() == node_type::scene_calibration) {
         calib_node =
             std::dynamic_pointer_cast<scene_calibration_node>(built_node_map.at(node.name));
+      } else if (node.get_type() == node_type::action) {
+        const auto action_id =
+            node.contains_param("action_id") ? node.get_param<std::string>("action_id") : node.name;
+        action_map_[action_id] = built_node_map.at(node.name);
       }
     }
 
@@ -143,7 +151,9 @@ void scene_calibration_pipeline::push_frame(
 void scene_calibration_pipeline::run(const std::vector<node_def>& nodes) { pimpl->run(nodes); }
 void scene_calibration_pipeline::stop() { pimpl->stop(); }
 
-void scene_calibration_pipeline::calibrate() { pimpl->calibrate(); }
+void scene_calibration_pipeline::dispatch_action(const std::string& action_node_name) {
+  pimpl->dispatch_action(action_node_name);
+}
 
 std::optional<property_value> scene_calibration_pipeline::get_node_property(
     const std::string& node_name, const std::string& key) const {

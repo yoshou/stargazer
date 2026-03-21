@@ -737,6 +737,13 @@
           }
         },
         {
+          "name": "calibrate_action",
+          "type": "action",
+          "action_id": "calibrate",
+          "label": "Calibrate",
+          "icon": "refresh"
+        },
+        {
           "name": "scene_calibration",
           "type": "scene_calibration",
           "properties": [
@@ -747,6 +754,7 @@
             { "id": "camera105_collected", "label": "Collected camera105", "source_key": "collected.camera105", "format": "integer", "default_value": 0 }
           ],
           "inputs": {
+            "calibrate": "calibrate_action",
             "default": "object_mux",
             "camera.camera101": "load_camera101",
             "camera.camera102": "load_camera102",

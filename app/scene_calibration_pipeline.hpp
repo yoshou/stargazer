@@ -4,8 +4,8 @@
 #include <memory>
 #include <optional>
 
-#include "coalsack/core/graph_node.h"
 #include "calibration.hpp"
+#include "coalsack/core/graph_node.h"
 #include "config.hpp"
 #include "parameters.hpp"
 #include "point_data.hpp"
@@ -23,7 +23,7 @@ class scene_calibration_pipeline {
   void run(const std::vector<stargazer::node_def>& nodes);
   void stop();
 
-  void calibrate();
+  void dispatch_action(const std::string& action_node_name);
 
   std::optional<coalsack::property_value> get_node_property(const std::string& node_name,
                                                             const std::string& key) const;

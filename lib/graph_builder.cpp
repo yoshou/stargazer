@@ -2,6 +2,7 @@
 
 #include <iostream>
 
+#include "action_node.hpp"
 #include "callback_node.hpp"
 #include "coalsack/core/graph_proc.h"
 #include "coalsack/ext/graph_proc_cv_ext.h"
@@ -33,7 +34,6 @@
 #include "load_marker_node.hpp"
 #include "load_panoptic_node.hpp"
 #include "load_parameter_node.hpp"
-#include "store_parameter_node.hpp"
 #include "marker_property_node.hpp"
 #include "mvp_reconstruct_node.hpp"
 #include "mvpose_reconstruct_node.hpp"
@@ -42,6 +42,7 @@
 #include "pattern_board_calibration_target_detector_node.hpp"
 #include "reconstruction_result_markers_node.hpp"
 #include "scene_calibration_node.hpp"
+#include "store_parameter_node.hpp"
 #include "three_point_bar_calibration_target_detector_node.hpp"
 #include "voxelpose_reconstruct_node.hpp"
 
@@ -651,6 +652,20 @@ void build_graph_from_json(const std::vector<node_def>& nodes,
       }
       case node_type::store_parameter: {
         auto n = std::make_shared<store_parameter_node>();
+        graph_node = n;
+        break;
+      }
+      case node_type::action: {
+        auto n = std::make_shared<action_node>();
+        if (node.contains_param("action_id")) {
+          n->set_action_id(node.get_param<std::string>("action_id"));
+        }
+        if (node.contains_param("label")) {
+          n->set_label(node.get_param<std::string>("label"));
+        }
+        if (node.contains_param("icon")) {
+          n->set_icon(node.get_param<std::string>("icon"));
+        }
         graph_node = n;
         break;
       }

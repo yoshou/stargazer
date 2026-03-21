@@ -63,6 +63,7 @@ enum class node_type {
   contrail_render,
   load_parameter,
   store_parameter,
+  action,
 };
 
 using node_param_t = std::variant<std::string, std::int64_t, double, float, bool>;

@@ -57,6 +57,13 @@
           "inputs": { "default": "frame_number_numbering" }
         },
         {
+          "name": "calibrate_action",
+          "type": "action",
+          "action_id": "calibrate",
+          "label": "Calibrate",
+          "icon": "refresh"
+        },
+        {
           "name": "intrinsic_calibration",
           "type": "intrinsic_calibration",
           "properties": [
@@ -73,6 +80,7 @@
             { "id": "p1", "label": "p1", "source_key": "intrinsics.p1", "format": "fixed3", "default_value": 0.0 }
           ],
           "inputs": {
+            "calibrate": "calibrate_action",
             "default": "object_mux",
             "camera": "load_camera101"
           }

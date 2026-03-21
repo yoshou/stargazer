@@ -43,6 +43,7 @@ struct runtime_node_property {
 struct runtime_node_action {
   std::string id;
   std::string label;
+  std::string icon;
   bool enabled = true;
 };
 

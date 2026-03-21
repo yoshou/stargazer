@@ -23,7 +23,7 @@ class extrinsic_calibration_pipeline {
   void run(const std::vector<stargazer::node_def>& nodes);
   void stop();
 
-  void calibrate();
+  void dispatch_action(const std::string& action_node_name);
 
   std::optional<coalsack::property_value> get_node_property(const std::string& node_name,
                                                             const std::string& key) const;

@@ -29,6 +29,7 @@ class intrinsic_calibration_pipeline::impl {
 
   std::shared_ptr<intrinsic_calibration_node> calib_node;
   std::shared_ptr<graph_node> input_node;
+  std::unordered_map<std::string, graph_node_ptr> action_map_;
 
   std::shared_ptr<stargazer::parameters_t> parameters_;
 
@@ -62,6 +63,10 @@ class intrinsic_calibration_pipeline::impl {
       } else if (node.get_type() == node_type::intrinsic_calibration) {
         calib_node =
             std::dynamic_pointer_cast<intrinsic_calibration_node>(built_node_map.at(node.name));
+      } else if (node.get_type() == node_type::action) {
+        const auto action_id =
+            node.contains_param("action_id") ? node.get_param<std::string>("action_id") : node.name;
+        action_map_[action_id] = built_node_map.at(node.name);
       }
     }
 
@@ -123,9 +128,10 @@ void intrinsic_calibration_pipeline::push_frame(const cv::Mat& frame) {
   }
 }
 
-void intrinsic_calibration_pipeline::calibrate() {
-  if (pimpl->calib_node) {
-    pimpl->calib_node->calibrate();
+void intrinsic_calibration_pipeline::dispatch_action(const std::string& action_id) {
+  const auto it = pimpl->action_map_.find(action_id);
+  if (it != pimpl->action_map_.end() && it->second) {
+    pimpl->graph.process(it->second.get(), nullptr);
   }
 }
 

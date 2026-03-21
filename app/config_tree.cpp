@@ -42,13 +42,11 @@ std::vector<std::string> get_node_badges(const node_def& node) {
   return badges;
 }
 
-config_tree_item make_detail_item(const std::string& stable_id, const std::string& label,
-                                  const std::string& summary,
-                                  config_tree_detail_kind detail_kind =
-                                      config_tree_detail_kind::param,
-                                  const std::string& runtime_node_id = {},
-                                  const std::string& property_source_key = {},
-                                  const std::string& property_format = {}) {
+config_tree_item make_detail_item(
+    const std::string& stable_id, const std::string& label, const std::string& summary,
+    config_tree_detail_kind detail_kind = config_tree_detail_kind::param,
+    const std::string& runtime_node_id = {}, const std::string& property_source_key = {},
+    const std::string& property_format = {}) {
   config_tree_item item;
   item.stable_id = stable_id;
   item.kind = config_tree_item_kind::detail;
@@ -61,13 +59,14 @@ config_tree_item make_detail_item(const std::string& stable_id, const std::strin
   return item;
 }
 
-std::vector<config_tree_item> build_detail_items(const node_def& node, const std::string& runtime_id) {
+std::vector<config_tree_item> build_detail_items(const node_def& node,
+                                                 const std::string& runtime_id) {
   std::vector<config_tree_item> children;
 
   for (const auto& [key, value] : node.params) {
-    children.push_back(
-        make_detail_item(runtime_id + ".param." + key, key, node_param_to_string(value),
-                         config_tree_detail_kind::param, runtime_id));
+    children.push_back(make_detail_item(runtime_id + ".param." + key, key,
+                                        node_param_to_string(value), config_tree_detail_kind::param,
+                                        runtime_id));
   }
 
   for (const auto& [key, value] : node.inputs) {
@@ -76,9 +75,9 @@ std::vector<config_tree_item> build_detail_items(const node_def& node, const std
   }
 
   for (size_t index = 0; index < node.outputs.size(); ++index) {
-    children.push_back(make_detail_item(runtime_id + ".output." + std::to_string(index),
-                                        "output", node.outputs[index],
-                                        config_tree_detail_kind::output, runtime_id));
+    children.push_back(make_detail_item(runtime_id + ".output." + std::to_string(index), "output",
+                                        node.outputs[index], config_tree_detail_kind::output,
+                                        runtime_id));
   }
 
   auto properties = node.properties;
@@ -116,8 +115,8 @@ void append_pipeline_tree(config_tree_model& model, const configuration& config,
   const auto nodes = config.get_nodes(pipeline_key);
 
   for (const auto& node : nodes) {
-    const auto subgraph_name = node.subgraph_instance.empty() ? std::string("pipeline")
-                                                              : node.subgraph_instance;
+    const auto subgraph_name =
+        node.subgraph_instance.empty() ? std::string("pipeline") : node.subgraph_instance;
     size_t subgraph_index = 0;
     if (subgraph_indices.find(subgraph_name) == subgraph_indices.end()) {
       config_tree_item subgraph_item;
@@ -137,10 +136,10 @@ void append_pipeline_tree(config_tree_model& model, const configuration& config,
     runtime_node_handle runtime_node;
     runtime_node.stable_id = runtime_id;
     runtime_node.ref = config_tree_ref{
-      pipeline_key,
-      subgraph_name,
-      node.name,
-      node.is_camera() ? node.get_camera_name() : std::string{},
+        pipeline_key,
+        subgraph_name,
+        node.name,
+        node.is_camera() ? node.get_camera_name() : std::string{},
     };
     runtime_node.label = node.name;
     runtime_node.summary = get_node_summary(node);
@@ -148,11 +147,22 @@ void append_pipeline_tree(config_tree_model& model, const configuration& config,
     runtime_node.badges = get_node_badges(node);
     runtime_node.display_properties = node.properties;
     for (const auto& [key, value] : node.params) {
-      runtime_node.properties.push_back(runtime_node_property{key, node_param_to_string(value), true});
+      runtime_node.properties.push_back(
+          runtime_node_property{key, node_param_to_string(value), true});
     }
     if (runtime_node.is_camera) {
-      runtime_node.actions.push_back(runtime_node_action{"capture.toggle_stream", "Start", true});
+      runtime_node.actions.push_back(
+          runtime_node_action{"capture.toggle_stream", "Start", "", true});
       model.camera_node_ids.push_back(runtime_id);
+    }
+    if (node.get_type() == node_type::action) {
+      const auto action_id =
+          node.contains_param("action_id") ? node.get_param<std::string>("action_id") : node.name;
+      const auto label =
+          node.contains_param("label") ? node.get_param<std::string>("label") : node.name;
+      const auto icon = node.contains_param("icon") ? node.get_param<std::string>("icon")
+                                                    : std::string("refresh");
+      runtime_node.actions.push_back(runtime_node_action{action_id, label, icon, true});
     }
     model.runtime_nodes.insert_or_assign(runtime_id, runtime_node);
 

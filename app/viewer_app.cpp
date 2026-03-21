@@ -1223,41 +1223,19 @@ class viewer_app : public window_base {
       sync_calibration_panel_state();
     }
 
-    calibration_panel_view_->on_calibrate.push_back(
-        [this](const std::vector<calibration_panel_view::node_def>& panel_nodes,
-               bool on_calibrate) {
+    calibration_panel_view_->on_action.push_back(
+        [this](const std::string& node_id, const std::string& action_id) {
           if (calibration_panel_view_->calibration_target_index == 0) {
             spdlog::info("Start calibration");
-            extrinsic_calib->calibrate();
+            extrinsic_calib->dispatch_action(action_id);
             spdlog::info("End calibration");
             return true;
           } else if (calibration_panel_view_->calibration_target_index == 1) {
-            const auto target_camera_name = get_intrinsic_target_camera_name();
-            auto panel_node_it = std::find_if(
-                panel_nodes.begin(), panel_nodes.end(),
-                [&](const auto& panel_node) { return panel_node.name == target_camera_name; });
-            if (panel_node_it == panel_nodes.end()) {
-              return false;
-            }
-            const auto& panel_node = *panel_node_it;
-
-            const auto& nodes = calibration_intrinsic_single_camera_config->get_nodes();
-            auto found = std::find_if(nodes.begin(), nodes.end(), [&](const auto& x) {
-              return x.is_camera() && x.get_camera_name() == panel_node.name;
-            });
-            if (found == nodes.end()) {
-              return false;
-            }
-            const auto& node = *found;
-
-            intrinsic_calib->calibrate();
-
+            intrinsic_calib->dispatch_action(action_id);
             return true;
           } else if (calibration_panel_view_->calibration_target_index == 2) {
             spdlog::info("Start calibration");
-
-            scene_calib->calibrate();
-
+            scene_calib->dispatch_action(action_id);
             spdlog::info("End calibration");
             return true;
           }

@@ -359,6 +359,15 @@ static const textual_icon circle{u8"\uf111"};
 
 namespace {
 
+textual_icon get_textual_icon(const std::string& name) {
+  if (name == "refresh") return textual_icons::refresh;
+  if (name == "play") return textual_icons::play;
+  if (name == "stop") return textual_icons::stop;
+  if (name == "edit") return textual_icons::edit;
+  if (name == "circle") return textual_icons::circle;
+  return textual_icons::refresh;
+}
+
 void draw_badges(const std::vector<std::string>& badges) {
   for (const auto& badge : badges) {
     ImGui::SameLine();
@@ -931,16 +940,9 @@ float calibration_panel_view::draw_control_panel(view_context* context) {
     }
   };
 
-  const auto trigger_calibrate = [&]() {
-    for (const auto& f : on_calibrate) {
-      f(nodes, true);
-    }
-  };
-
   const auto collect_button_color = is_marker_collecting ? light_blue : light_grey;
   const auto streaming_button_color = is_streaming ? light_blue : light_grey;
   const auto mask_button_color = is_masking ? light_blue : light_grey;
-  const auto calibrate_button_color = light_grey;
 
   if (uses_collect_primary_button) {
     draw_icon_button("##collect", is_marker_collecting ? textual_icons::stop : textual_icons::play,
@@ -951,9 +953,17 @@ float calibration_panel_view::draw_control_panel(view_context* context) {
                    streaming_button_color, toggle_streaming);
   ImGui::SameLine();
   draw_icon_button("##mask", textual_icons::edit, mask_button_color, toggle_mask);
-  ImGui::SameLine();
-  draw_icon_button("##calibrate", textual_icons::refresh, calibrate_button_color,
-                   trigger_calibrate);
+  for (const auto& [node_id, runtime_node] : tree.runtime_nodes) {
+    if (runtime_node.is_camera || runtime_node.actions.empty()) continue;
+    for (const auto& action : runtime_node.actions) {
+      ImGui::SameLine();
+      draw_icon_button("##" + action.id, get_textual_icon(action.icon), light_grey, [&]() {
+        for (const auto& f : on_action) {
+          f(node_id, action.id);
+        }
+      });
+    }
+  }
 
   ImGui::SetCursorPos({panel_pos.x, ImGui::GetCursorPosY()});
   if (uses_collect_primary_button) {
@@ -963,8 +973,13 @@ float calibration_panel_view::draw_control_panel(view_context* context) {
   draw_label_button(is_streaming ? "Stop" : "Start", streaming_button_color);
   ImGui::SameLine();
   draw_label_button("Mask", mask_button_color);
-  ImGui::SameLine();
-  draw_label_button("Calibrate", calibrate_button_color);
+  for (const auto& [node_id, runtime_node] : tree.runtime_nodes) {
+    if (runtime_node.is_camera || runtime_node.actions.empty()) continue;
+    for (const auto& action : runtime_node.actions) {
+      ImGui::SameLine();
+      draw_label_button(action.label.c_str(), light_grey);
+    }
+  }
 
   ImGui::PopStyleVar();
   ImGui::PopStyleColor(7);

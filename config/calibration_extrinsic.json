@@ -669,6 +669,13 @@
           ]
         },
         {
+          "name": "calibrate_action",
+          "type": "action",
+          "action_id": "calibrate",
+          "label": "Calibrate",
+          "icon": "refresh"
+        },
+        {
           "name": "extrinsic_calibration",
           "type": "extrinsic_calibration",
           "only_extrinsic": false,
@@ -696,6 +703,7 @@
             { "id": "camera20_collected", "label": "Collected camera20", "source_key": "collected.camera20", "format": "integer", "default_value": 0 }
           ],
           "inputs": {
+            "calibrate": "calibrate_action",
             "camera1": "detector_camera1",
             "camera2": "detector_camera2",
             "camera3": "detector_camera3",
