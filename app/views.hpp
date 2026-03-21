@@ -227,12 +227,10 @@ class calibration_panel_view {
   stargazer::config_tree_model tree;
   bool is_marker_collecting = false;
   bool is_streaming = false;
-  bool is_masking = false;
   std::string intrinsic_target_camera_name;
 
   std::vector<std::function<bool(const std::vector<node_def>&, bool)>> is_marker_collecting_changed;
   std::vector<std::function<bool(const std::vector<node_def>&, bool)>> is_streaming_changed;
-  std::vector<std::function<bool(const std::vector<node_def>&, bool)>> is_masking_changed;
   std::vector<std::function<bool(const std::string&, const std::string&)>> on_action;
   std::function<std::optional<std::string>(const stargazer::config_tree_item&)>
       resolve_detail_value;

@@ -179,10 +179,31 @@
           "sigma_y": 1.5
         },
         {
+          "name": "action_mask_generate",
+          "type": "action",
+          "action_id": "generate",
+          "label": "Mask",
+          "icon": "edit"
+        },
+        {
+          "name": "action_mask_clear",
+          "type": "action",
+          "action_id": "clear",
+          "label": "Unmask",
+          "icon": "eraser"
+        },
+        {
+          "name": "mask_generator",
+          "type": "mask_generator",
+          "inputs": { "default": "gaussian_blur", "generate": "action_mask_generate", "clear": "action_mask_clear" },
+          "path": "/tmp/mask.png"
+        },
+        {
           "name": "mask",
           "type": "mask",
           "inputs": {
-            "default": "gaussian_blur"
+            "default": "gaussian_blur",
+            "mask": "mask_generator"
           }
         },
         {
@@ -320,10 +341,31 @@
           "sigma_y": 1.5
         },
         {
+          "name": "action_mask_generate",
+          "type": "action",
+          "action_id": "generate",
+          "label": "Mask",
+          "icon": "edit"
+        },
+        {
+          "name": "action_mask_clear",
+          "type": "action",
+          "action_id": "clear",
+          "label": "Unmask",
+          "icon": "eraser"
+        },
+        {
+          "name": "mask_generator",
+          "type": "mask_generator",
+          "inputs": { "default": "gaussian_blur", "generate": "action_mask_generate", "clear": "action_mask_clear" },
+          "path": "/tmp/mask.png"
+        },
+        {
           "name": "mask",
           "type": "mask",
           "inputs": {
-            "default": "gaussian_blur"
+            "default": "gaussian_blur",
+            "mask": "mask_generator"
           }
         },
         {

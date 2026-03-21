@@ -130,6 +130,8 @@ static node_type get_node_type(const std::string& type) {
     return node_type::store_parameter;
   } else if (type == "action") {
     return node_type::action;
+  } else if (type == "mask_generator") {
+    return node_type::mask_generator;
   }
   throw std::runtime_error("Invalid node type");
 }
@@ -240,6 +242,8 @@ static std::string get_node_type_name(node_type type) {
       return "store_parameter";
     case node_type::action:
       return "action";
+    case node_type::mask_generator:
+      return "mask_generator";
   }
   throw std::runtime_error("Invalid node type");
 }

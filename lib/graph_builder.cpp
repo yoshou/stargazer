@@ -2,9 +2,9 @@
 
 #include <iostream>
 
-#include "action_node.hpp"
 #include "callback_node.hpp"
 #include "coalsack/core/graph_proc.h"
+#include "coalsack/ext/graph_proc_action.h"
 #include "coalsack/ext/graph_proc_cv_ext.h"
 #include "coalsack/ext/graph_proc_depthai.h"
 #include "coalsack/ext/graph_proc_jpeg.h"
@@ -656,7 +656,7 @@ void build_graph_from_json(const std::vector<node_def>& nodes,
         break;
       }
       case node_type::action: {
-        auto n = std::make_shared<action_node>();
+        auto n = std::make_shared<coalsack::action_node>();
         if (node.contains_param("action_id")) {
           n->set_action_id(node.get_param<std::string>("action_id"));
         }
@@ -665,6 +665,14 @@ void build_graph_from_json(const std::vector<node_def>& nodes,
         }
         if (node.contains_param("icon")) {
           n->set_icon(node.get_param<std::string>("icon"));
+        }
+        graph_node = n;
+        break;
+      }
+      case node_type::mask_generator: {
+        auto n = std::make_shared<coalsack::mask_generator_node>();
+        if (node.contains_param("path")) {
+          n->set_path(node.get_param<std::string>("path"));
         }
         graph_node = n;
         break;

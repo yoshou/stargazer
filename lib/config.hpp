@@ -64,6 +64,7 @@ enum class node_type {
   load_parameter,
   store_parameter,
   action,
+  mask_generator,
 };
 
 using node_param_t = std::variant<std::string, std::int64_t, double, float, bool>;

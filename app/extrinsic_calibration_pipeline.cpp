@@ -12,6 +12,7 @@
 #include "calibration_target.hpp"
 #include "callback_node.hpp"
 #include "coalsack/core/graph_proc.h"
+#include "coalsack/ext/graph_proc_action.h"
 #include "coalsack/image/graph_proc_cv.h"
 #include "coalsack/image/image_nodes.h"
 #include "extrinsic_calibration_node.hpp"
@@ -42,7 +43,6 @@ class extrinsic_calibration_pipeline::impl {
 
   std::shared_ptr<extrinsic_calibration_node> calib_node;
   std::shared_ptr<graph_node> input_node;
-  std::unordered_map<std::string, graph_node_ptr> action_map_;
 
   std::shared_ptr<stargazer::parameters_t> parameters_;
 
@@ -68,9 +68,12 @@ class extrinsic_calibration_pipeline::impl {
   }
 
   void dispatch_action(const std::string& action_id) {
-    const auto it = action_map_.find(action_id);
-    if (it != action_map_.end() && it->second) {
-      graph.process(it->second.get(), nullptr);
+    for (const auto& [name, node] : node_map) {
+      if (auto action = std::dynamic_pointer_cast<coalsack::action_node>(node)) {
+        if (action->get_action_id() == action_id) {
+          graph.process(action.get(), nullptr);
+        }
+      }
     }
   }
 
@@ -101,10 +104,6 @@ class extrinsic_calibration_pipeline::impl {
       } else if (node.get_type() == node_type::extrinsic_calibration) {
         calib_node =
             std::dynamic_pointer_cast<extrinsic_calibration_node>(built_node_map.at(node.name));
-      } else if (node.get_type() == node_type::action) {
-        const auto action_id =
-            node.contains_param("action_id") ? node.get_param<std::string>("action_id") : node.name;
-        action_map_[action_id] = built_node_map.at(node.name);
       }
     }
 

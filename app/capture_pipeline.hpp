@@ -2,8 +2,8 @@
 
 #include <glm/glm.hpp>
 #include <memory>
-#include <optional>
 #include <opencv2/opencv.hpp>
+#include <optional>
 #include <string>
 
 #include "coalsack/core/graph_node.h"
@@ -26,17 +26,14 @@ class capture_pipeline {
 
  public:
   capture_pipeline();
-  capture_pipeline(const std::map<std::string, cv::Mat>& masks);
   virtual ~capture_pipeline();
 
   void run(const std::vector<stargazer::node_def>& nodes);
   void stop();
 
   std::map<std::string, cv::Mat> get_frames() const;
-  std::map<std::string, cv::Mat> get_masks() const;
 
-  void gen_mask();
-  void clear_mask();
+  void dispatch_action(const std::string& action_id);
 
   void enable_marker_collecting(std::string name);
   void disable_marker_collecting(std::string name);

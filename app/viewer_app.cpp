@@ -150,7 +150,6 @@ class viewer_app : public window_base {
   std::shared_ptr<azimuth_elevation> view_controller;
 
   std::shared_ptr<parameters_t> parameters;
-  std::map<std::string, cv::Mat> masks;
 
   std::map<std::string, std::shared_ptr<capture_pipeline>> captures;
   std::shared_ptr<capture_pipeline> multiview_capture;
@@ -764,11 +763,7 @@ class viewer_app : public window_base {
 
         const auto& nodes = capture_config->get_nodes();
 
-        if (calibration_panel_view_->is_masking) {
-          multiview_capture.reset(new capture_pipeline(masks));
-        } else {
-          multiview_capture.reset(new capture_pipeline());
-        }
+        multiview_capture.reset(new capture_pipeline());
 
         for (const auto& node : nodes) {
           if (node.is_camera()) {
@@ -857,11 +852,7 @@ class viewer_app : public window_base {
               // Extrinsic calibration
               const auto& nodes = extrinsic_calibration_config->get_nodes();
 
-              if (calibration_panel_view_->is_masking) {
-                multiview_capture.reset(new capture_pipeline(masks));
-              } else {
-                multiview_capture.reset(new capture_pipeline());
-              }
+              multiview_capture.reset(new capture_pipeline());
 
               multiview_capture->add_marker_received(
                   [this](const std::map<std::string, marker_frame_data>& marker_frame) {
@@ -964,11 +955,7 @@ class viewer_app : public window_base {
               // Axis calibration
               const auto& nodes = scene_calibration_config->get_nodes();
 
-              if (calibration_panel_view_->is_masking) {
-                multiview_capture.reset(new capture_pipeline(masks));
-              } else {
-                multiview_capture.reset(new capture_pipeline());
-              }
+              multiview_capture.reset(new capture_pipeline());
 
               multiview_capture->add_marker_received(
                   [this](const std::map<std::string, marker_frame_data>& marker_frame) {
@@ -1091,21 +1078,6 @@ class viewer_app : public window_base {
           return true;
         });
 
-    calibration_panel_view_->is_masking_changed.push_back(
-        [this](const std::vector<calibration_panel_view::node_def>& panel_nodes, bool is_masking) {
-          if (!multiview_capture) {
-            return false;
-          }
-          if (is_masking) {
-            multiview_capture->gen_mask();
-            masks = multiview_capture->get_masks();
-          } else {
-            multiview_capture->clear_mask();
-            masks.clear();
-          }
-          return true;
-        });
-
     calibration_panel_view_->is_marker_collecting_changed.push_back(
         [this](const std::vector<calibration_panel_view::node_def>& panel_nodes,
                bool is_marker_collecting) {
@@ -1145,6 +1117,9 @@ class viewer_app : public window_base {
 
     calibration_panel_view_->on_action.push_back(
         [this](const std::string& node_id, const std::string& action_id) {
+          if (multiview_capture) {
+            multiview_capture->dispatch_action(action_id);
+          }
           if (calibration_panel_view_->calibration_target_index == 0) {
             spdlog::info("Start calibration");
             extrinsic_calib->dispatch_action(action_id);
@@ -1198,11 +1173,7 @@ class viewer_app : public window_base {
 
               const auto& nodes = point_reconstruction_config->get_nodes();
 
-              if (calibration_panel_view_->is_masking) {
-                multiview_capture.reset(new capture_pipeline(masks));
-              } else {
-                multiview_capture.reset(new capture_pipeline());
-              }
+              multiview_capture.reset(new capture_pipeline());
 
               multiview_capture->add_marker_received(
                   [this](const std::map<std::string, marker_frame_data>& marker_frame) {
@@ -1265,11 +1236,7 @@ class viewer_app : public window_base {
 
               const auto& nodes = image_reconstruction_config->get_nodes();
 
-              if (calibration_panel_view_->is_masking) {
-                multiview_capture.reset(new capture_pipeline(masks));
-              } else {
-                multiview_capture.reset(new capture_pipeline());
-              }
+              multiview_capture.reset(new capture_pipeline());
 
               multiview_capture->add_image_received(
                   [this](const std::map<std::string, cv::Mat>& image_frame) {

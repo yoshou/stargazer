@@ -12,6 +12,7 @@
 #include "coalsack/core/graph_proc.h"
 #include "coalsack/core/graph_proc_client.h"
 #include "coalsack/core/graph_proc_server.h"
+#include "coalsack/ext/graph_proc_action.h"
 #include "coalsack/ext/graph_proc_cv_ext.h"
 #include "coalsack/ext/graph_proc_depthai.h"
 #include "coalsack/ext/graph_proc_jpeg.h"
@@ -41,9 +42,6 @@ class capture_pipeline::impl {
 
   mutable std::mutex image_received_mtx;
   std::vector<std::function<void(const std::map<std::string, cv::Mat>&)>> image_received;
-
-  std::map<std::string, std::shared_ptr<mask_node>> mask_nodes;
-  std::map<std::string, cv::Mat> masks;
 
   mutable std::mutex marker_collecting_clusters_mtx;
   std::unordered_set<std::string> marker_collecting_clusters;
@@ -90,7 +88,7 @@ class capture_pipeline::impl {
     image_received.clear();
   }
 
-  impl(const std::map<std::string, cv::Mat>& masks)
+  impl()
       : node_map(),
         local_graph(),
         local_subgraph(),
@@ -101,8 +99,6 @@ class capture_pipeline::impl {
         frames(),
         image_received_mtx(),
         image_received(),
-        mask_nodes(),
-        masks(masks),
         marker_collecting_clusters_mtx(),
         marker_collecting_clusters(),
         frame_received_mtx(),
@@ -473,6 +469,16 @@ class capture_pipeline::impl {
     local_subgraph.reset();
   }
 
+  void dispatch_action(const std::string& action_id) {
+    for (const auto& [name, node] : node_map) {
+      if (auto action = std::dynamic_pointer_cast<coalsack::action_node>(node)) {
+        if (action->get_action_id() == action_id) {
+          process_node(action.get(), "default", nullptr);
+        }
+      }
+    }
+  }
+
   std::map<std::string, cv::Mat> get_frames() const {
     std::map<std::string, cv::Mat> result;
 
@@ -483,51 +489,6 @@ class capture_pipeline::impl {
 
     return result;
   }
-  void gen_mask() {
-    const auto frames = get_frames();
-    for (const auto& [name, mask_node] : mask_nodes) {
-      if (frames.find(name) == frames.end()) {
-        continue;
-      }
-      const auto frame_img = frames.at(name);
-      if (frame_img.empty()) {
-        continue;
-      }
-
-      cv::Mat mask_img;
-      {
-        cv::threshold(frame_img, mask_img, 128, 255, cv::THRESH_BINARY);
-        cv::morphologyEx(mask_img, mask_img, cv::MORPH_OPEN,
-                         cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(2, 2)));
-        cv::dilate(mask_img, mask_img,
-                   cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(10, 10)));
-        cv::bitwise_not(mask_img, mask_img);
-      }
-
-      image mask(mask_img.cols, mask_img.rows, CV_8UC1, mask_img.step,
-                 (const uint8_t*)mask_img.data);
-      const auto mask_msg = std::make_shared<image_message>();
-      mask_msg->set_image(mask);
-      process_node(mask_node.get(), "mask", mask_msg);
-
-      masks[name] = mask_img;
-    }
-  }
-  void clear_mask() {
-    for (const auto& [name, mask_node] : mask_nodes) {
-      const int width = 820;
-      const int height = 616;
-      cv::Mat mask_img(height, width, CV_8UC1, cv::Scalar(255));
-      image mask(mask_img.cols, mask_img.rows, CV_8UC1, mask_img.step,
-                 (const uint8_t*)mask_img.data);
-      const auto image_msg = std::make_shared<image_message>();
-      image_msg->set_image(mask);
-      process_node(mask_node.get(), "mask", image_msg);
-
-      masks[name] = mask_img;
-    }
-  }
-  std::map<std::string, cv::Mat> get_masks() const { return masks; }
 
   void enable_marker_collecting(std::string name) {
     std::lock_guard lock(marker_collecting_clusters_mtx);
@@ -551,18 +512,16 @@ class capture_pipeline::impl {
   }
 };
 
-capture_pipeline::capture_pipeline() : pimpl(new impl(std::map<std::string, cv::Mat>())) {}
-capture_pipeline::capture_pipeline(const std::map<std::string, cv::Mat>& masks)
-    : pimpl(new impl(masks)) {}
+capture_pipeline::capture_pipeline() : pimpl(new impl()) {}
 capture_pipeline::~capture_pipeline() = default;
 
 void capture_pipeline::run(const std::vector<node_def>& nodes) { pimpl->run(nodes); }
 
 void capture_pipeline::stop() { pimpl->stop(); }
 std::map<std::string, cv::Mat> capture_pipeline::get_frames() const { return pimpl->get_frames(); }
-void capture_pipeline::gen_mask() { pimpl->gen_mask(); }
-void capture_pipeline::clear_mask() { pimpl->clear_mask(); }
-std::map<std::string, cv::Mat> capture_pipeline::get_masks() const { return pimpl->get_masks(); }
+void capture_pipeline::dispatch_action(const std::string& action_id) {
+  pimpl->dispatch_action(action_id);
+}
 
 void capture_pipeline::enable_marker_collecting(std::string name) {
   pimpl->enable_marker_collecting(name);

@@ -354,6 +354,7 @@ static const textual_icon refresh{u8"\uf021"};
 static const textual_icon edit{u8"\uf044"};
 static const textual_icon play{u8"\uf04b"};
 static const textual_icon stop{u8"\uf04d"};
+static const textual_icon eraser{u8"\uf12d"};
 static const textual_icon circle{u8"\uf111"};
 }  // namespace textual_icons
 
@@ -364,6 +365,7 @@ textual_icon get_textual_icon(const std::string& name) {
   if (name == "play") return textual_icons::play;
   if (name == "stop") return textual_icons::stop;
   if (name == "edit") return textual_icons::edit;
+  if (name == "eraser") return textual_icons::eraser;
   if (name == "circle") return textual_icons::circle;
   return textual_icons::refresh;
 }
@@ -847,10 +849,23 @@ float capture_panel_view::draw_control_panel(view_context* context) {
 }
 
 float calibration_panel_view::draw_control_panel(view_context* context) {
-  const float node_panel_height = 60.0f;
   auto panel_pos = ImGui::GetCursorPos();
   const bool uses_collect_primary_button =
       calibration_target_index == 0 || calibration_target_index == 2;
+
+  // Collect unique action buttons (deduplicated by action_id)
+  std::vector<std::pair<std::string, runtime_node_action>> unique_actions;
+  {
+    std::unordered_set<std::string> seen;
+    for (const auto& [node_id, runtime_node] : tree.runtime_nodes) {
+      if (runtime_node.is_camera || runtime_node.actions.empty()) continue;
+      for (const auto& action : runtime_node.actions) {
+        if (seen.insert(action.id).second) {
+          unique_actions.emplace_back(node_id, action);
+        }
+      }
+    }
+  }
 
   ImGui::PushFont(context->large_font);
   ImGui::PushStyleColor(ImGuiCol_Button, sensor_bg);
@@ -864,6 +879,25 @@ float calibration_panel_view::draw_control_panel(view_context* context) {
 
   const float icons_width = 78.0f;
   const ImVec2 node_panel_icons_size{icons_width, 25};
+
+  // Compute how many buttons fit per row, then assign each button a row/col
+  const float panel_width = ImGui::GetContentRegionAvail().x;
+  const int buttons_per_row = std::max(1, static_cast<int>(panel_width / icons_width));
+  // Fixed buttons: collect (optional) + streaming = 1 or 2
+  const int fixed_count = uses_collect_primary_button ? 2 : 1;
+  // Assign column indices continuing from fixed buttons
+  // row 0 cols [0..buttons_per_row-1], row 1 cols [0..], etc.
+  struct ButtonSlot {
+    int row;
+    int col;
+  };
+  std::vector<ButtonSlot> action_slots;
+  for (int i = 0; i < (int)unique_actions.size(); ++i) {
+    int global_idx = fixed_count + i;
+    action_slots.push_back({global_idx / buttons_per_row, global_idx % buttons_per_row});
+  }
+  int total_rows = unique_actions.empty() ? 1 : action_slots.back().row + 1;
+  const float node_panel_height = total_rows * 60.0f;
   const auto draw_icon_button = [&](const std::string& button_name, textual_icon icon,
                                     const ImVec4& text_color,
                                     const std::function<void()>& on_click) {
@@ -920,30 +954,11 @@ float calibration_panel_view::draw_control_panel(view_context* context) {
     }
   };
 
-  const auto toggle_mask = [&]() {
-    if (is_masking) {
-      is_masking = false;
-      for (const auto& f : is_masking_changed) {
-        if (!f(nodes, is_masking)) {
-          is_masking = true;
-          break;
-        }
-      }
-    } else {
-      is_masking = true;
-      for (const auto& f : is_masking_changed) {
-        if (!f(nodes, is_masking)) {
-          is_masking = false;
-          break;
-        }
-      }
-    }
-  };
-
   const auto collect_button_color = is_marker_collecting ? light_blue : light_grey;
   const auto streaming_button_color = is_streaming ? light_blue : light_grey;
-  const auto mask_button_color = is_masking ? light_blue : light_grey;
 
+  // --- Icon row(s) ---
+  // Row 0: fixed buttons
   if (uses_collect_primary_button) {
     draw_icon_button("##collect", is_marker_collecting ? textual_icons::stop : textual_icons::play,
                      collect_button_color, toggle_collect);
@@ -951,35 +966,43 @@ float calibration_panel_view::draw_control_panel(view_context* context) {
   }
   draw_icon_button("##streaming", is_streaming ? textual_icons::stop : textual_icons::play,
                    streaming_button_color, toggle_streaming);
-  ImGui::SameLine();
-  draw_icon_button("##mask", textual_icons::edit, mask_button_color, toggle_mask);
-  for (const auto& [node_id, runtime_node] : tree.runtime_nodes) {
-    if (runtime_node.is_camera || runtime_node.actions.empty()) continue;
-    for (const auto& action : runtime_node.actions) {
+  // Action buttons, wrapping to new rows
+  for (size_t i = 0; i < unique_actions.size(); ++i) {
+    const auto& [action_node_id, action] = unique_actions[i];
+    const auto& slot = action_slots[i];
+    if (slot.col == 0) {
+      // Start of a new icon row: bump Y by 60 from panel_pos
+      ImGui::SetCursorPos({panel_pos.x, panel_pos.y + slot.row * 60.0f});
+    } else {
       ImGui::SameLine();
-      draw_icon_button("##" + action.id, get_textual_icon(action.icon), light_grey, [&]() {
-        for (const auto& f : on_action) {
-          f(node_id, action.id);
-        }
-      });
     }
+    draw_icon_button("##" + action.id, get_textual_icon(action.icon), light_grey, [&]() {
+      for (const auto& f : on_action) {
+        f(action_node_id, action.id);
+      }
+    });
   }
 
-  ImGui::SetCursorPos({panel_pos.x, ImGui::GetCursorPosY()});
+  // --- Label row(s) ---
+  // Row 0 labels
+  ImGui::SetCursorPos({panel_pos.x, panel_pos.y + 30.0f});
   if (uses_collect_primary_button) {
     draw_label_button(is_marker_collecting ? "Stop Collect" : "Collect", collect_button_color);
     ImGui::SameLine();
   }
   draw_label_button(is_streaming ? "Stop" : "Start", streaming_button_color);
-  ImGui::SameLine();
-  draw_label_button("Mask", mask_button_color);
-  for (const auto& [node_id, runtime_node] : tree.runtime_nodes) {
-    if (runtime_node.is_camera || runtime_node.actions.empty()) continue;
-    for (const auto& action : runtime_node.actions) {
+  // Action labels, same wrap positions as icons
+  for (size_t i = 0; i < unique_actions.size(); ++i) {
+    const auto& slot = action_slots[i];
+    if (slot.col == 0) {
+      ImGui::SetCursorPos({panel_pos.x, panel_pos.y + slot.row * 60.0f + 30.0f});
+    } else {
       ImGui::SameLine();
-      draw_label_button(action.label.c_str(), light_grey);
     }
+    draw_label_button(unique_actions[i].second.label.c_str(), light_grey);
   }
+
+  ImGui::SetCursorPos({panel_pos.x, panel_pos.y + node_panel_height});
 
   ImGui::PopStyleVar();
   ImGui::PopStyleColor(7);
