@@ -112,22 +112,6 @@ intrinsic_calibration_pipeline::~intrinsic_calibration_pipeline() = default;
 void intrinsic_calibration_pipeline::run(const std::vector<node_def>& nodes) { pimpl->run(nodes); }
 void intrinsic_calibration_pipeline::stop() { pimpl->stop(); }
 
-double intrinsic_calibration_pipeline::get_rms() const {
-  if (pimpl->calib_node) {
-    return pimpl->calib_node->get_rms();
-  }
-  return 0.0;
-}
-
-
-const stargazer::camera_t& intrinsic_calibration_pipeline::get_calibrated_camera() const {
-  if (pimpl->calib_node) {
-    return pimpl->calib_node->get_calibrated_camera();
-  }
-  static stargazer::camera_t empty_camera;
-  return empty_camera;
-}
-
 void intrinsic_calibration_pipeline::push_frame(const std::vector<point_data>& frame) {
   if (pimpl->calib_node) {
     pimpl->calib_node->push_frame(frame);

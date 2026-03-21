@@ -20,10 +20,6 @@ class intrinsic_calibration_pipeline {
   explicit intrinsic_calibration_pipeline(std::shared_ptr<stargazer::parameters_t> parameters);
   virtual ~intrinsic_calibration_pipeline();
 
-  double get_rms() const;
-
-  const stargazer::camera_t& get_calibrated_camera() const;
-
   void push_frame(const std::vector<stargazer::point_data>& frame);
   void push_frame(const cv::Mat& frame);
 
