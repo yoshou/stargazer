@@ -36,15 +36,7 @@ class scene_calibration_pipeline::impl {
   std::shared_ptr<scene_calibration_node> calib_node;
   std::shared_ptr<graph_node> input_node;
 
-  using callback_func_type = std::function<void(const scene_t&)>;
-
-  std::vector<callback_func_type> calibrated;
-
   std::shared_ptr<parameters_t> parameters;
-
-  void add_calibrated(callback_func_type callback) { calibrated.push_back(callback); }
-
-  void clear_calibrated() { calibrated.clear(); }
 
   void push_frame(const std::map<std::string, std::vector<point_data>>& frame) {
     if (!running) {
@@ -108,21 +100,6 @@ class scene_calibration_pipeline::impl {
 
     const auto callbacks = std::make_shared<callback_list>();
 
-    callbacks->add(
-        [this](const callback_node* node, std::string input_name, graph_message_ptr message) {
-          if (node->get_callback_name() == "scene") {
-            if (auto scene_msg = std::dynamic_pointer_cast<scene_message>(message)) {
-              for (const auto& f : calibrated) {
-                f(scene_msg->get_scene());
-              }
-
-              auto& scene = std::get<scene_t>(parameters->at("scene"));
-              scene = scene_msg->get_scene();
-              parameters->save();
-            }
-          }
-        });
-
     // Deploy all subgraphs
     for (const auto& [subgraph_name, subgraph_ptr] : subgraphs) {
       graph.deploy(subgraph_ptr);
@@ -172,13 +149,6 @@ scene_calibration_pipeline::scene_calibration_pipeline(std::shared_ptr<parameter
 }
 
 scene_calibration_pipeline::~scene_calibration_pipeline() = default;
-
-void scene_calibration_pipeline::add_calibrated(std::function<void(const scene_t&)> f) {
-  pimpl->add_calibrated(f);
-}
-
-void scene_calibration_pipeline::clear_calibrated() { pimpl->clear_calibrated(); }
-
 
 size_t scene_calibration_pipeline::get_num_frames(std::string name) const {
   return pimpl->get_num_frames(name);

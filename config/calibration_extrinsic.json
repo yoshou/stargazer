@@ -739,9 +739,8 @@
           }
         },
         {
-          "name": "callback_cameras",
-          "type": "callback",
-          "callback_name": "cameras",
+          "name": "store_cameras",
+          "type": "store_parameter",
           "inputs": {
             "default": "extrinsic_calibration"
           }
@@ -865,9 +864,8 @@
           }
         },
         {
-          "name": "callback_cameras",
-          "type": "callback",
-          "callback_name": "cameras",
+          "name": "store_cameras",
+          "type": "store_parameter",
           "inputs": {
             "default": "extrinsic_calibration"
           }

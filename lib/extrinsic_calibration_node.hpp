@@ -28,6 +28,7 @@ class extrinsic_calibration_node : public coalsack::graph_node {
   std::vector<std::string> camera_names;
   std::unordered_map<std::string, camera_t> cameras;
   std::unordered_map<std::string, camera_t> calibrated_cameras;
+  std::unordered_map<std::string, std::string> camera_name_to_id_;
 
   coalsack::graph_edge_ptr output;
 
@@ -146,8 +147,10 @@ class extrinsic_calibration_node : public coalsack::graph_node {
 
       std::shared_ptr<object_message> msg(new object_message());
       for (const auto& [name, camera] : calibrated_cameras) {
+        const auto id_it = camera_name_to_id_.find(name);
+        const auto& field_name = (id_it != camera_name_to_id_.end()) ? id_it->second : name;
         std::shared_ptr<camera_message> camera_msg(new camera_message(camera));
-        msg->add_field(name, camera_msg);
+        msg->add_field(field_name, camera_msg);
       }
       output->send(msg);
 
@@ -157,9 +160,14 @@ class extrinsic_calibration_node : public coalsack::graph_node {
     static constexpr std::string_view single_camera_prefix = "camera.";
     if (input_name.rfind(single_camera_prefix.data(), 0) == 0) {
       const auto camera_name = input_name.substr(single_camera_prefix.size());
-      if (auto cam_msg = std::dynamic_pointer_cast<camera_message>(message)) {
-        std::lock_guard lock(cameras_mtx);
-        cameras[camera_name] = cam_msg->get_camera();
+      if (auto obj_msg = std::dynamic_pointer_cast<object_message>(message)) {
+        for (const auto& [id, field] : obj_msg->get_fields()) {
+          if (auto cam_msg = std::dynamic_pointer_cast<camera_message>(field)) {
+            std::lock_guard lock(cameras_mtx);
+            cameras[camera_name] = cam_msg->get_camera();
+            camera_name_to_id_[camera_name] = id;
+          }
+        }
       }
       return;
     }

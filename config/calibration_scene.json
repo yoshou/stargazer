@@ -756,9 +756,8 @@
           }
         },
         {
-          "name": "callback_scene",
-          "type": "callback",
-          "callback_name": "scene",
+          "name": "store_scene",
+          "type": "store_parameter",
           "inputs": {
             "default": "scene_calibration"
           }

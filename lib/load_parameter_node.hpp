@@ -22,15 +22,13 @@ class load_parameter_node : public coalsack::graph_node {
     if (!params.contains(id_)) return;
 
     const auto value = params.at(id_);
+    auto obj_msg = std::make_shared<object_message>();
     if (std::holds_alternative<camera_t>(value)) {
-      auto msg = std::make_shared<camera_message>(std::get<camera_t>(value));
-      output_->send(msg);
+      obj_msg->add_field(id_, std::make_shared<camera_message>(std::get<camera_t>(value)));
     } else if (std::holds_alternative<scene_t>(value)) {
-      const auto& scene = std::get<scene_t>(value);
-      auto msg = std::make_shared<mat4_message>();
-      msg->set_data(scene.axis);
-      output_->send(msg);
+      obj_msg->add_field(id_, std::make_shared<scene_message>(std::get<scene_t>(value)));
     }
+    output_->send(obj_msg);
   }
 
  public:

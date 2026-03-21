@@ -38,6 +38,7 @@ class intrinsic_calibration_node : public graph_node {
   std::vector<std::vector<point_data>> frames;
   camera_t initial_camera;
   camera_t calibrated_camera;
+  std::string camera_id_;
   double rms = 0.0;
 
  public:
@@ -54,8 +55,13 @@ class intrinsic_calibration_node : public graph_node {
 
   virtual void process(std::string input_name, graph_message_ptr message) override {
     if (input_name == "camera") {
-      if (auto camera_msg = std::dynamic_pointer_cast<camera_message>(message)) {
-        initial_camera = camera_msg->get_camera();
+      if (auto obj_msg = std::dynamic_pointer_cast<object_message>(message)) {
+        for (const auto& [id, field] : obj_msg->get_fields()) {
+          if (auto cam_msg = std::dynamic_pointer_cast<camera_message>(field)) {
+            initial_camera = cam_msg->get_camera();
+            camera_id_ = id;
+          }
+        }
       }
       return;
     }
@@ -63,8 +69,9 @@ class intrinsic_calibration_node : public graph_node {
     if (input_name == "calibrate") {
       calibrate();
 
-      auto camera_msg = std::make_shared<camera_message>(calibrated_camera);
-      output->send(camera_msg);
+      auto obj_msg = std::make_shared<object_message>();
+      obj_msg->add_field(camera_id_, std::make_shared<camera_message>(calibrated_camera));
+      output->send(obj_msg);
     }
 
     if (auto points_msg = std::dynamic_pointer_cast<float2_list_message>(message)) {

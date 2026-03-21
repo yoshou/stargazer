@@ -1241,35 +1241,6 @@ class viewer_app : public window_base {
 
                 extrinsic_calib->calibrate();
 
-                const auto& nodes = extrinsic_calibration_config->get_nodes();
-
-                std::unordered_map<std::string, std::string> camera_name_to_id;
-                for (const auto& panel_node : panel_nodes) {
-                  auto found = std::find_if(nodes.begin(), nodes.end(), [&](const auto& x) {
-                    return x.is_camera() && x.get_camera_name() == panel_node.name;
-                  });
-                  if (found == nodes.end()) {
-                    spdlog::error("Node {} not found in calibration config", panel_node.name);
-                    return false;
-                  }
-                  const auto& node = *found;
-                  if (node.is_camera()) {
-                    const auto camera_name = node.get_camera_name();
-                    camera_name_to_id[camera_name] = node.get_param<std::string>("id");
-                  }
-                }
-
-                for (const auto& [camera_name, camera] :
-                     extrinsic_calib->get_calibrated_cameras()) {
-                  const auto& camera_id = camera_name_to_id.at(camera_name);
-
-                  auto& params = std::get<camera_t>(parameters->at(camera_id));
-                  params.extrin = camera.extrin;
-                  params.intrin = camera.intrin;
-                }
-
-                parameters->save();
-
                 spdlog::info("End calibration");
 
                 break;
@@ -1297,21 +1268,6 @@ class viewer_app : public window_base {
 
             intrinsic_calib->calibrate();
 
-            const auto& calibrated_camera = intrinsic_calib->get_calibrated_camera();
-
-            auto& params = std::get<camera_t>(parameters->at(node.get_param<std::string>("id")));
-            params.intrin.fx = calibrated_camera.intrin.fx;
-            params.intrin.fy = calibrated_camera.intrin.fy;
-            params.intrin.cx = calibrated_camera.intrin.cx;
-            params.intrin.cy = calibrated_camera.intrin.cy;
-            params.intrin.coeffs[0] = calibrated_camera.intrin.coeffs[0];
-            params.intrin.coeffs[1] = calibrated_camera.intrin.coeffs[1];
-            params.intrin.coeffs[2] = calibrated_camera.intrin.coeffs[2];
-            params.intrin.coeffs[3] = calibrated_camera.intrin.coeffs[3];
-            params.intrin.coeffs[4] = calibrated_camera.intrin.coeffs[4];
-            params.width = calibrated_camera.width;
-            params.height = calibrated_camera.height;
-            parameters->save();
             return true;
           } else if (calibration_panel_view_->calibration_target_index == 2) {
             spdlog::info("Start calibration");
@@ -1674,24 +1630,6 @@ class viewer_app : public window_base {
 
     extrinsic_calib = std::make_unique<extrinsic_calibration_pipeline>(parameters);
 
-    // Build camera name → parameter id map from extrinsic calibration config
-    std::unordered_map<std::string, std::string> extrinsic_camera_id_map;
-    for (const auto& node : extrinsic_calibration_config->get_nodes()) {
-      if (node.is_camera() && node.contains_param("id")) {
-        extrinsic_camera_id_map[node.get_camera_name()] = node.get_param<std::string>("id");
-      }
-    }
-
-    extrinsic_calib->add_calibrated(
-        [&, extrinsic_camera_id_map](const std::unordered_map<std::string, camera_t>& cameras) {
-          for (const auto& [name, camera] : cameras) {
-            const auto it = extrinsic_camera_id_map.find(name);
-            if (it != extrinsic_camera_id_map.end()) {
-              parameters->update_camera(it->second, camera);
-            }
-          }
-        });
-
     extrinsic_calib->run(extrinsic_calibration_config->get_nodes("extrinsic_calibration_pipeline"));
 
     contrail_tile_view_->streams.clear();
@@ -1720,10 +1658,6 @@ class viewer_app : public window_base {
     }
 
     scene_calib = std::make_unique<scene_calibration_pipeline>(parameters);
-
-    scene_calib->add_calibrated([&](const scene_t& scene) {
-      parameters->update_scene("scene", scene);
-    });
 
     scene_calib->run(scene_calibration_config->get_nodes("scene_calibration_pipeline"));
 

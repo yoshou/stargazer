@@ -334,8 +334,9 @@ class scene_calibration_node : public graph_node {
       scene_t scene;
       scene.axis = reconstructor.get_axis();
 
-      std::shared_ptr<scene_message> msg(new scene_message(scene));
-      output->send(msg);
+      auto obj_msg = std::make_shared<object_message>();
+      obj_msg->add_field("scene", std::make_shared<scene_message>(scene));
+      output->send(obj_msg);
 
       return;
     }
@@ -343,9 +344,13 @@ class scene_calibration_node : public graph_node {
     static constexpr std::string_view single_camera_prefix = "camera.";
     if (input_name.rfind(single_camera_prefix.data(), 0) == 0) {
       const auto camera_name = input_name.substr(single_camera_prefix.size());
-      if (auto cam_msg = std::dynamic_pointer_cast<camera_message>(message)) {
-        std::lock_guard lock(cameras_mtx);
-        cameras[camera_name] = cam_msg->get_camera();
+      if (auto obj_msg = std::dynamic_pointer_cast<object_message>(message)) {
+        for (const auto& [id, field] : obj_msg->get_fields()) {
+          if (auto cam_msg = std::dynamic_pointer_cast<camera_message>(field)) {
+            std::lock_guard lock(cameras_mtx);
+            cameras[camera_name] = cam_msg->get_camera();
+          }
+        }
       }
       return;
     }

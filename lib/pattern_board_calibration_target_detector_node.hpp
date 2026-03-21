@@ -49,10 +49,14 @@ class pattern_board_calibration_target_detector_node : public graph_node {
 
   virtual void process(std::string input_name, graph_message_ptr message) override {
     if (input_name == "camera") {
-      if (auto camera_msg = std::dynamic_pointer_cast<camera_message>(message)) {
-        camera = camera_msg->get_camera();
-        if (detector) {
-          detector = std::make_unique<pattern_board_calibration_target>(get_object_points(), camera);
+      if (auto obj_msg = std::dynamic_pointer_cast<object_message>(message)) {
+        for (const auto& [id, field] : obj_msg->get_fields()) {
+          if (auto cam_msg = std::dynamic_pointer_cast<camera_message>(field)) {
+            camera = cam_msg->get_camera();
+            if (detector) {
+              detector = std::make_unique<pattern_board_calibration_target>(get_object_points(), camera);
+            }
+          }
         }
       }
       return;

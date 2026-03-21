@@ -18,9 +18,6 @@ class scene_calibration_pipeline {
   scene_calibration_pipeline(std::shared_ptr<stargazer::parameters_t> parameters);
   virtual ~scene_calibration_pipeline();
 
-  void add_calibrated(std::function<void(const stargazer::scene_t&)> f);
-  void clear_calibrated();
-
   size_t get_num_frames(std::string name) const;
   const std::vector<stargazer::calibration::observed_points_t> get_observed_points(
       std::string name) const;

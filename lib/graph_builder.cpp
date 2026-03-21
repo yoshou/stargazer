@@ -33,6 +33,7 @@
 #include "load_marker_node.hpp"
 #include "load_panoptic_node.hpp"
 #include "load_parameter_node.hpp"
+#include "store_parameter_node.hpp"
 #include "marker_property_node.hpp"
 #include "mvp_reconstruct_node.hpp"
 #include "mvpose_reconstruct_node.hpp"
@@ -645,6 +646,11 @@ void build_graph_from_json(const std::vector<node_def>& nodes,
         if (node.contains_param("id")) {
           n->set_id(node.get_param<std::string>("id"));
         }
+        graph_node = n;
+        break;
+      }
+      case node_type::store_parameter: {
+        auto n = std::make_shared<store_parameter_node>();
         graph_node = n;
         break;
       }

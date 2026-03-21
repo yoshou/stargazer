@@ -16,12 +16,6 @@ class extrinsic_calibration_pipeline {
   std::unique_ptr<impl> pimpl;
 
  public:
-  void add_calibrated(
-      std::function<void(const std::unordered_map<std::string, stargazer::camera_t>&)> f);
-  void clear_calibrated();
-
-  const std::unordered_map<std::string, stargazer::camera_t>& get_calibrated_cameras() const;
-
   explicit extrinsic_calibration_pipeline(std::shared_ptr<stargazer::parameters_t> parameters);
   virtual ~extrinsic_calibration_pipeline();
 

@@ -149,9 +149,13 @@ class voxelpose_reconstruct_node : public image_reconstruct_node {
       return;
     }
     if (input_name == "axis") {
-      if (auto mat4_msg = std::dynamic_pointer_cast<mat4_message>(message)) {
-        std::lock_guard lock(axis_mtx);
-        axis = mat4_msg->get_data();
+      if (auto obj_msg = std::dynamic_pointer_cast<object_message>(message)) {
+        for (const auto& [id, field] : obj_msg->get_fields()) {
+          if (auto scene_msg = std::dynamic_pointer_cast<scene_message>(field)) {
+            std::lock_guard lock(axis_mtx);
+            axis = scene_msg->get_scene().axis;
+          }
+        }
       }
 
       return;
@@ -160,9 +164,13 @@ class voxelpose_reconstruct_node : public image_reconstruct_node {
     static constexpr std::string_view single_camera_prefix = "camera.";
     if (input_name.rfind(single_camera_prefix.data(), 0) == 0) {
       const auto camera_name = input_name.substr(single_camera_prefix.size());
-      if (auto cam_msg = std::dynamic_pointer_cast<camera_message>(message)) {
-        std::lock_guard lock(cameras_mtx);
-        cameras[camera_name] = cam_msg->get_camera();
+      if (auto obj_msg = std::dynamic_pointer_cast<object_message>(message)) {
+        for (const auto& [id, field] : obj_msg->get_fields()) {
+          if (auto cam_msg = std::dynamic_pointer_cast<camera_message>(field)) {
+            std::lock_guard lock(cameras_mtx);
+            cameras[camera_name] = cam_msg->get_camera();
+          }
+        }
       }
       return;
     }

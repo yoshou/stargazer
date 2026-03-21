@@ -78,9 +78,8 @@
           }
         },
         {
-          "name": "callback_camera",
-          "type": "callback",
-          "callback_name": "camera",
+          "name": "store_camera",
+          "type": "store_parameter",
           "inputs": { "default": "intrinsic_calibration" }
         }
       ]

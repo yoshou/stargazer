@@ -126,6 +126,8 @@ static node_type get_node_type(const std::string& type) {
     return node_type::contrail_render;
   } else if (type == "load_parameter") {
     return node_type::load_parameter;
+  } else if (type == "store_parameter") {
+    return node_type::store_parameter;
   }
   throw std::runtime_error("Invalid node type");
 }
@@ -230,6 +232,10 @@ static std::string get_node_type_name(node_type type) {
       return "scene_calibration";
     case node_type::contrail_render:
       return "contrail_render";
+    case node_type::load_parameter:
+      return "load_parameter";
+    case node_type::store_parameter:
+      return "store_parameter";
   }
   throw std::runtime_error("Invalid node type");
 }
