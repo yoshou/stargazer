@@ -20,15 +20,9 @@ class extrinsic_calibration_pipeline {
       std::function<void(const std::unordered_map<std::string, stargazer::camera_t>&)> f);
   void clear_calibrated();
 
-  void set_camera(const std::string& name, const stargazer::camera_t& camera);
-
-  size_t get_camera_size() const;
-
-  const std::unordered_map<std::string, stargazer::camera_t>& get_cameras() const;
-
   const std::unordered_map<std::string, stargazer::camera_t>& get_calibrated_cameras() const;
 
-  extrinsic_calibration_pipeline();
+  explicit extrinsic_calibration_pipeline(std::shared_ptr<stargazer::parameters_t> parameters);
   virtual ~extrinsic_calibration_pipeline();
 
   size_t get_num_frames(std::string name) const;

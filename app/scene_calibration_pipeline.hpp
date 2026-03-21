@@ -21,14 +21,6 @@ class scene_calibration_pipeline {
   void add_calibrated(std::function<void(const stargazer::scene_t&)> f);
   void clear_calibrated();
 
-  void set_camera(const std::string& name, const stargazer::camera_t& camera);
-
-  size_t get_camera_size() const;
-
-  const std::unordered_map<std::string, stargazer::camera_t>& get_cameras() const;
-
-  std::unordered_map<std::string, stargazer::camera_t>& get_cameras();
-
   size_t get_num_frames(std::string name) const;
   const std::vector<stargazer::calibration::observed_points_t> get_observed_points(
       std::string name) const;

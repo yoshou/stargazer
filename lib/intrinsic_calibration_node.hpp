@@ -53,11 +53,14 @@ class intrinsic_calibration_node : public graph_node {
   }
 
   virtual void process(std::string input_name, graph_message_ptr message) override {
-    if (input_name == "calibrate") {
+    if (input_name == "camera") {
       if (auto camera_msg = std::dynamic_pointer_cast<camera_message>(message)) {
         initial_camera = camera_msg->get_camera();
       }
+      return;
+    }
 
+    if (input_name == "calibrate") {
       calibrate();
 
       auto camera_msg = std::make_shared<camera_message>(calibrated_camera);

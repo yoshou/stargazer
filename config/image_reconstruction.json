@@ -89,6 +89,36 @@
       "name": "voxelpose_reconstruction_subgraph",
       "nodes": [
         {
+          "name": "load_camera101",
+          "type": "load_parameter",
+          "id": "000000000026"
+        },
+        {
+          "name": "load_camera102",
+          "type": "load_parameter",
+          "id": "000000000027"
+        },
+        {
+          "name": "load_camera103",
+          "type": "load_parameter",
+          "id": "000000000028"
+        },
+        {
+          "name": "load_camera104",
+          "type": "load_parameter",
+          "id": "000000000029"
+        },
+        {
+          "name": "load_camera105",
+          "type": "load_parameter",
+          "id": "000000000030"
+        },
+        {
+          "name": "load_axis",
+          "type": "load_parameter",
+          "id": "scene"
+        },
+        {
           "name": "numbering",
           "type": "frame_number_numbering"
         },
@@ -104,7 +134,13 @@
           "name": "reconstruct",
           "type": "voxelpose_reconstruction",
           "inputs": {
-            "default": "queue"
+            "default": "queue",
+            "camera.camera101": "load_camera101",
+            "camera.camera102": "load_camera102",
+            "camera.camera103": "load_camera103",
+            "camera.camera104": "load_camera104",
+            "camera.camera105": "load_camera105",
+            "axis": "load_axis"
           }
         },
         {
@@ -220,6 +256,36 @@
       "name": "mvpose_reconstruction_subgraph",
       "nodes": [
         {
+          "name": "load_camera101",
+          "type": "load_parameter",
+          "id": "000000000026"
+        },
+        {
+          "name": "load_camera102",
+          "type": "load_parameter",
+          "id": "000000000027"
+        },
+        {
+          "name": "load_camera103",
+          "type": "load_parameter",
+          "id": "000000000028"
+        },
+        {
+          "name": "load_camera104",
+          "type": "load_parameter",
+          "id": "000000000029"
+        },
+        {
+          "name": "load_camera105",
+          "type": "load_parameter",
+          "id": "000000000030"
+        },
+        {
+          "name": "load_axis",
+          "type": "load_parameter",
+          "id": "scene"
+        },
+        {
           "name": "numbering",
           "type": "frame_number_numbering"
         },
@@ -235,7 +301,13 @@
           "name": "reconstruct",
           "type": "mvpose_reconstruction",
           "inputs": {
-            "default": "queue"
+            "default": "queue",
+            "camera.camera101": "load_camera101",
+            "camera.camera102": "load_camera102",
+            "camera.camera103": "load_camera103",
+            "camera.camera104": "load_camera104",
+            "camera.camera105": "load_camera105",
+            "axis": "load_axis"
           }
         },
         {
@@ -408,6 +480,36 @@
       "name": "mvp_reconstruction_subgraph",
       "nodes": [
         {
+          "name": "load_camera101",
+          "type": "load_parameter",
+          "id": "000000000026"
+        },
+        {
+          "name": "load_camera102",
+          "type": "load_parameter",
+          "id": "000000000027"
+        },
+        {
+          "name": "load_camera103",
+          "type": "load_parameter",
+          "id": "000000000028"
+        },
+        {
+          "name": "load_camera104",
+          "type": "load_parameter",
+          "id": "000000000029"
+        },
+        {
+          "name": "load_camera105",
+          "type": "load_parameter",
+          "id": "000000000030"
+        },
+        {
+          "name": "load_axis",
+          "type": "load_parameter",
+          "id": "scene"
+        },
+        {
           "name": "numbering",
           "type": "frame_number_numbering"
         },
@@ -423,7 +525,13 @@
           "name": "reconstruct",
           "type": "mvp_reconstruction",
           "inputs": {
-            "default": "queue"
+            "default": "queue",
+            "camera.camera101": "load_camera101",
+            "camera.camera102": "load_camera102",
+            "camera.camera103": "load_camera103",
+            "camera.camera104": "load_camera104",
+            "camera.camera105": "load_camera105",
+            "axis": "load_axis"
           }
         },
         {

@@ -21,6 +21,7 @@
 #include "object_map_node.hpp"
 #include "object_mux_node.hpp"
 #include "parameters.hpp"
+#include "parameter_resource.hpp"
 #include "pattern_board_calibration_target_detector_node.hpp"
 #include "reconstruction.hpp"
 #include "three_point_bar_calibration_target_detector_node.hpp"
@@ -42,7 +43,7 @@ class extrinsic_calibration_pipeline::impl {
   std::shared_ptr<extrinsic_calibration_node> calib_node;
   std::shared_ptr<graph_node> input_node;
 
-  std::unordered_map<std::string, stargazer::camera_t> cameras;
+  std::shared_ptr<stargazer::parameters_t> parameters_;
   std::unordered_map<std::string, stargazer::camera_t> calibrated_cameras;
 
   std::vector<std::function<void(const std::unordered_map<std::string, stargazer::camera_t>&)>>
@@ -76,13 +77,8 @@ class extrinsic_calibration_pipeline::impl {
     }
   }
 
-  void calibrate(const std::unordered_map<std::string, stargazer::camera_t>& cameras) {
-    std::shared_ptr<object_message> msg(new object_message());
-    for (const auto& [name, camera] : cameras) {
-      std::shared_ptr<camera_message> camera_msg(new camera_message(camera));
-      msg->add_field(name, camera_msg);
-    }
-    graph.process(calib_node.get(), "calibrate", msg);
+  void calibrate() {
+    graph.process(calib_node.get(), "calibrate", nullptr);
   }
 
   void run(const std::vector<node_def>& nodes) {
@@ -112,23 +108,6 @@ class extrinsic_calibration_pipeline::impl {
       } else if (node.get_type() == node_type::extrinsic_calibration) {
         calib_node =
             std::dynamic_pointer_cast<extrinsic_calibration_node>(built_node_map.at(node.name));
-        // Set cameras for calibration node
-        if (calib_node) {
-          calib_node->set_cameras(cameras);
-        }
-      } else if (node.get_type() == node_type::pattern_board_calibration_target_detector) {
-        // Set camera from cameras map if camera_name parameter is provided
-        if (node.contains_param("camera_name")) {
-          const auto camera_name = node.get_param<std::string>("camera_name");
-          if (cameras.find(camera_name) != cameras.end()) {
-            auto detector_node =
-                std::dynamic_pointer_cast<pattern_board_calibration_target_detector_node>(
-                    built_node_map.at(node.name));
-            if (detector_node) {
-              detector_node->set_camera(cameras.at(camera_name));
-            }
-          }
-        }
       }
     }
 
@@ -160,6 +139,9 @@ class extrinsic_calibration_pipeline::impl {
       graph.deploy(subgraph_ptr);
     }
     graph.get_resources()->add(callbacks);
+    if (parameters_) {
+      graph.get_resources()->add(std::make_shared<parameter_resource>(parameters_));
+    }
     graph.run();
 
     running = true;
@@ -195,22 +177,13 @@ class extrinsic_calibration_pipeline::impl {
   }
 };
 
-extrinsic_calibration_pipeline::extrinsic_calibration_pipeline()
-    : pimpl(std::make_unique<impl>()) {}
+extrinsic_calibration_pipeline::extrinsic_calibration_pipeline(
+    std::shared_ptr<stargazer::parameters_t> parameters)
+    : pimpl(std::make_unique<impl>()) {
+  pimpl->parameters_ = std::move(parameters);
+}
 
 extrinsic_calibration_pipeline::~extrinsic_calibration_pipeline() = default;
-
-void extrinsic_calibration_pipeline::set_camera(const std::string& name,
-                                                const stargazer::camera_t& camera) {
-  pimpl->cameras[name] = camera;
-}
-
-size_t extrinsic_calibration_pipeline::get_camera_size() const { return pimpl->cameras.size(); }
-
-const std::unordered_map<std::string, stargazer::camera_t>&
-extrinsic_calibration_pipeline::get_cameras() const {
-  return pimpl->cameras;
-}
 
 void extrinsic_calibration_pipeline::run(const std::vector<node_def>& nodes) { pimpl->run(nodes); }
 
@@ -242,7 +215,7 @@ void extrinsic_calibration_pipeline::push_frame(
   pimpl->push_frame(frame);
 }
 
-void extrinsic_calibration_pipeline::calibrate() { pimpl->calibrate(pimpl->cameras); }
+void extrinsic_calibration_pipeline::calibrate() { pimpl->calibrate(); }
 
 std::optional<property_value> extrinsic_calibration_pipeline::get_node_property(
     const std::string& node_name, const std::string& key) const {

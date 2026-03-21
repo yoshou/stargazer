@@ -157,6 +157,16 @@ class voxelpose_reconstruct_node : public image_reconstruct_node {
       return;
     }
 
+    static constexpr std::string_view single_camera_prefix = "camera.";
+    if (input_name.rfind(single_camera_prefix.data(), 0) == 0) {
+      const auto camera_name = input_name.substr(single_camera_prefix.size());
+      if (auto cam_msg = std::dynamic_pointer_cast<camera_message>(message)) {
+        std::lock_guard lock(cameras_mtx);
+        cameras[camera_name] = cam_msg->get_camera();
+      }
+      return;
+    }
+
     if (auto frame_msg = std::dynamic_pointer_cast<frame_message<object_message>>(message)) {
       const auto obj_msg = frame_msg->get_data();
 

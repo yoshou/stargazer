@@ -1295,11 +1295,6 @@ class viewer_app : public window_base {
             }
             const auto& node = *found;
 
-            const auto image_width = static_cast<int>(std::round(node.get_param<float>("width")));
-            const auto image_height = static_cast<int>(std::round(node.get_param<float>("height")));
-
-            intrinsic_calib->set_image_size(image_width, image_height);
-
             intrinsic_calib->calibrate();
 
             const auto& calibrated_camera = intrinsic_calib->get_calibrated_camera();
@@ -1673,60 +1668,29 @@ class viewer_app : public window_base {
         point_reconstruction_config->get_nodes("point_reconstruction_pipeline"));
 
     multiview_image_reconstruction_pipeline_ =
-        std::make_unique<multiview_image_reconstruction_pipeline>();
+        std::make_unique<multiview_image_reconstruction_pipeline>(parameters);
     multiview_image_reconstruction_pipeline_->run(
         image_reconstruction_config->get_nodes("image_reconstruction_pipeline"));
 
-    {
-      const auto& scene = std::get<scene_t>(parameters->at("scene"));
-      multiview_image_reconstruction_pipeline_->set_axis(scene.axis);
-    }
+    extrinsic_calib = std::make_unique<extrinsic_calibration_pipeline>(parameters);
 
-    for (const auto& node : image_reconstruction_config->get_nodes()) {
-      if (node.is_camera()) {
-        const auto& params = std::get<camera_t>(parameters->at(node.get_param<std::string>("id")));
-        const auto camera_name = node.get_camera_name();
-        multiview_image_reconstruction_pipeline_->set_camera(camera_name, params);
-      }
-    }
-
-    extrinsic_calib = std::make_unique<extrinsic_calibration_pipeline>();
-
-    // Build camera name → parameter id map for point_reconstruction
-    std::unordered_map<std::string, std::string> point_recon_camera_id_map;
-    for (const auto& node : point_reconstruction_config->get_nodes()) {
+    // Build camera name → parameter id map from extrinsic calibration config
+    std::unordered_map<std::string, std::string> extrinsic_camera_id_map;
+    for (const auto& node : extrinsic_calibration_config->get_nodes()) {
       if (node.is_camera() && node.contains_param("id")) {
-        point_recon_camera_id_map[node.get_camera_name()] = node.get_param<std::string>("id");
+        extrinsic_camera_id_map[node.get_camera_name()] = node.get_param<std::string>("id");
       }
     }
 
     extrinsic_calib->add_calibrated(
-        [&, point_recon_camera_id_map](const std::unordered_map<std::string, camera_t>& cameras) {
+        [&, extrinsic_camera_id_map](const std::unordered_map<std::string, camera_t>& cameras) {
           for (const auto& [name, camera] : cameras) {
-            // point_reconstruction uses load_parameter_node — update shared parameters_t
-            const auto it = point_recon_camera_id_map.find(name);
-            if (it != point_recon_camera_id_map.end()) {
+            const auto it = extrinsic_camera_id_map.find(name);
+            if (it != extrinsic_camera_id_map.end()) {
               parameters->update_camera(it->second, camera);
             }
-            multiview_image_reconstruction_pipeline_->set_camera(name, camera);
           }
         });
-
-    for (const auto& node : extrinsic_calibration_config->get_nodes()) {
-      if (node.is_camera()) {
-        if (!node.contains_param("id")) {
-          continue;
-        }
-        if (parameters->contains(node.get_param<std::string>("id"))) {
-          const auto& params =
-              std::get<camera_t>(parameters->at(node.get_param<std::string>("id")));
-          const auto camera_name = node.get_camera_name();
-          extrinsic_calib->set_camera(camera_name, params);
-        } else {
-          spdlog::error("No camera params found for node: {}", node.name);
-        }
-      }
-    }
 
     extrinsic_calib->run(extrinsic_calibration_config->get_nodes("extrinsic_calibration_pipeline"));
 
@@ -1755,53 +1719,15 @@ class viewer_app : public window_base {
       contrail_tile_view_->streams.push_back(stream);
     }
 
-    if (extrinsic_calibration_config) {
-      for (const auto& node : extrinsic_calibration_config->get_nodes()) {
-        if (node.get_type() != stargazer::node_type::extrinsic_calibration) continue;
-        for (const auto& [cam_name, _input] : node.inputs) {
-          // Find camera id from capture_config
-          if (!capture_config) break;
-          for (const auto& cam_node : capture_config->get_nodes()) {
-            if (!cam_node.is_camera() || cam_node.get_camera_name() != cam_name) continue;
-            if (!cam_node.contains_param("id")) continue;
-            const auto cam_id = cam_node.get_param<std::string>("id");
-            if (!parameters->contains(cam_id)) continue;
-            auto params = std::get<stargazer::camera_t>(parameters->at(cam_id));
-            params.extrin.rotation = glm::mat3(1.0);
-            params.extrin.translation = glm::vec3(0.0);
-            extrinsic_calib->set_camera(cam_name, params);
-          }
-        }
-      }
-    }
-
     scene_calib = std::make_unique<scene_calibration_pipeline>(parameters);
 
     scene_calib->add_calibrated([&](const scene_t& scene) {
-      // point_reconstruction uses load_parameter_node — update shared parameters_t
       parameters->update_scene("scene", scene);
-      multiview_image_reconstruction_pipeline_->set_axis(scene.axis);
     });
-
-    for (const auto& node : scene_calibration_config->get_nodes()) {
-      if (node.is_camera()) {
-        if (!node.contains_param("id")) {
-          continue;
-        }
-        if (parameters->contains(node.get_param<std::string>("id"))) {
-          const auto& params =
-              std::get<camera_t>(parameters->at(node.get_param<std::string>("id")));
-          const auto camera_name = node.get_camera_name();
-          scene_calib->set_camera(camera_name, params);
-        } else {
-          spdlog::error("No camera params found for node: {}", node.name);
-        }
-      }
-    }
 
     scene_calib->run(scene_calibration_config->get_nodes("scene_calibration_pipeline"));
 
-    intrinsic_calib = std::make_unique<intrinsic_calibration_pipeline>();
+    intrinsic_calib = std::make_unique<intrinsic_calibration_pipeline>(parameters);
 
     intrinsic_calib->run(
         calibration_intrinsic_single_camera_config->get_nodes("intrinsic_calibration_pipeline"));
@@ -1817,6 +1743,7 @@ class viewer_app : public window_base {
       pose_view_->cleanup();
     }
 
+    intrinsic_calib->stop();
     extrinsic_calib->stop();
     scene_calib->stop();
     multiview_point_reconstruction_pipeline_->stop();

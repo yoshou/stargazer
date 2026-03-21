@@ -18,15 +18,13 @@ class multiview_image_reconstruction_pipeline {
   using frame_type = std::map<std::string, cv::Mat>;
 
  public:
-  multiview_image_reconstruction_pipeline();
+  explicit multiview_image_reconstruction_pipeline(std::shared_ptr<stargazer::parameters_t> parameters);
   virtual ~multiview_image_reconstruction_pipeline();
 
   void push_frame(const frame_type& frame);
   void run(const std::vector<stargazer::node_def>& nodes);
   void stop();
 
-  void set_camera(const std::string& name, const stargazer::camera_t& camera);
-  void set_axis(const glm::mat4& axis);
   std::optional<coalsack::property_value> get_node_property(const std::string& node_name,
                                                             const std::string& key) const;
 };

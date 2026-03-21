@@ -15,6 +15,7 @@
 #include "object_map_node.hpp"
 #include "object_mux_node.hpp"
 #include "parameters.hpp"
+#include "parameter_resource.hpp"
 #include "reconstruction.hpp"
 #include "scene_calibration_node.hpp"
 #include "triangulation.hpp"
@@ -38,10 +39,6 @@ class scene_calibration_pipeline::impl {
   using callback_func_type = std::function<void(const scene_t&)>;
 
   std::vector<callback_func_type> calibrated;
-
-  mutable std::mutex cameras_mtx;
-  std::vector<std::string> camera_names;
-  std::unordered_map<std::string, stargazer::camera_t> cameras;
 
   std::shared_ptr<parameters_t> parameters;
 
@@ -71,12 +68,7 @@ class scene_calibration_pipeline::impl {
   }
 
   void calibrate() {
-    std::shared_ptr<object_message> msg(new object_message());
-    for (const auto& [name, camera] : cameras) {
-      std::shared_ptr<camera_message> camera_msg(new camera_message(camera));
-      msg->add_field(name, camera_msg);
-    }
-    graph.process(calib_node.get(), "calibrate", msg);
+    graph.process(calib_node.get(), "calibrate", nullptr);
   }
 
   void run(const std::vector<node_def>& nodes) {
@@ -136,6 +128,9 @@ class scene_calibration_pipeline::impl {
       graph.deploy(subgraph_ptr);
     }
     graph.get_resources()->add(callbacks);
+    if (parameters) {
+      graph.get_resources()->add(std::make_shared<parameter_resource>(parameters));
+    }
     graph.run();
 
     running = true;
@@ -184,21 +179,6 @@ void scene_calibration_pipeline::add_calibrated(std::function<void(const scene_t
 
 void scene_calibration_pipeline::clear_calibrated() { pimpl->clear_calibrated(); }
 
-void scene_calibration_pipeline::set_camera(const std::string& name,
-                                            const stargazer::camera_t& camera) {
-  pimpl->cameras[name] = camera;
-}
-
-size_t scene_calibration_pipeline::get_camera_size() const { return pimpl->cameras.size(); }
-
-const std::unordered_map<std::string, stargazer::camera_t>&
-scene_calibration_pipeline::get_cameras() const {
-  return pimpl->cameras;
-}
-
-std::unordered_map<std::string, stargazer::camera_t>& scene_calibration_pipeline::get_cameras() {
-  return pimpl->cameras;
-}
 
 size_t scene_calibration_pipeline::get_num_frames(std::string name) const {
   return pimpl->get_num_frames(name);

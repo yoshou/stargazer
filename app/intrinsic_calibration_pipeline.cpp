@@ -13,6 +13,7 @@
 #include "graph_builder.hpp"
 #include "intrinsic_calibration_node.hpp"
 #include "messages.hpp"
+#include "parameter_resource.hpp"
 #include "parameters.hpp"
 
 using namespace stargazer;
@@ -29,7 +30,10 @@ class intrinsic_calibration_pipeline::impl {
   std::shared_ptr<intrinsic_calibration_node> calib_node;
   std::shared_ptr<graph_node> input_node;
 
-  impl() = default;
+  std::shared_ptr<stargazer::parameters_t> parameters_;
+
+  explicit impl(std::shared_ptr<stargazer::parameters_t> parameters)
+      : parameters_(std::move(parameters)) {}
 
   void run(const std::vector<node_def>& nodes) {
     // Group nodes by subgraph instance
@@ -76,6 +80,9 @@ class intrinsic_calibration_pipeline::impl {
       graph.deploy(subgraph_ptr);
     }
     graph.get_resources()->add(callbacks);
+    if (parameters_) {
+      graph.get_resources()->add(std::make_shared<parameter_resource>(parameters_));
+    }
     graph.run();
 
     running = true;
@@ -96,8 +103,9 @@ class intrinsic_calibration_pipeline::impl {
   }
 };
 
-intrinsic_calibration_pipeline::intrinsic_calibration_pipeline()
-    : pimpl(std::make_unique<impl>()) {}
+intrinsic_calibration_pipeline::intrinsic_calibration_pipeline(
+    std::shared_ptr<stargazer::parameters_t> parameters)
+    : pimpl(std::make_unique<impl>(std::move(parameters))) {}
 
 intrinsic_calibration_pipeline::~intrinsic_calibration_pipeline() = default;
 
@@ -111,14 +119,6 @@ double intrinsic_calibration_pipeline::get_rms() const {
   return 0.0;
 }
 
-void intrinsic_calibration_pipeline::set_image_size(int width, int height) {
-  if (pimpl->calib_node) {
-    stargazer::camera_t initial_camera;
-    initial_camera.width = width;
-    initial_camera.height = height;
-    pimpl->calib_node->set_initial_camera(initial_camera);
-  }
-}
 
 const stargazer::camera_t& intrinsic_calibration_pipeline::get_calibrated_camera() const {
   if (pimpl->calib_node) {

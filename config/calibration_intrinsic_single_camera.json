@@ -43,6 +43,11 @@
       "name": "intrinsic_calibration_subgraph",
       "nodes": [
         {
+          "name": "load_camera101",
+          "type": "load_parameter",
+          "id": "000000000026"
+        },
+        {
           "name": "frame_number_numbering",
           "type": "frame_number_numbering"
         },
@@ -67,7 +72,10 @@
             { "id": "p0", "label": "p0", "source_key": "intrinsics.p0", "format": "fixed3", "default_value": 0.0 },
             { "id": "p1", "label": "p1", "source_key": "intrinsics.p1", "format": "fixed3", "default_value": 0.0 }
           ],
-          "inputs": { "default": "object_mux" }
+          "inputs": {
+            "default": "object_mux",
+            "camera": "load_camera101"
+          }
         },
         {
           "name": "callback_camera",

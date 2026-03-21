@@ -135,14 +135,10 @@ class extrinsic_calibration_node : public coalsack::graph_node {
   virtual void process(std::string input_name, coalsack::graph_message_ptr message) override {
     if (input_name == "calibrate") {
       camera_names.clear();
-
-      if (auto camera_msg = std::dynamic_pointer_cast<object_message>(message)) {
-        for (const auto& [name, field] : camera_msg->get_fields()) {
-          if (auto camera_msg = std::dynamic_pointer_cast<camera_message>(field)) {
-            std::lock_guard lock(cameras_mtx);
-            cameras[name] = camera_msg->get_camera();
-            camera_names.push_back(name);
-          }
+      {
+        std::lock_guard lock(cameras_mtx);
+        for (const auto& [name, _] : cameras) {
+          camera_names.push_back(name);
         }
       }
 
@@ -155,6 +151,16 @@ class extrinsic_calibration_node : public coalsack::graph_node {
       }
       output->send(msg);
 
+      return;
+    }
+
+    static constexpr std::string_view single_camera_prefix = "camera.";
+    if (input_name.rfind(single_camera_prefix.data(), 0) == 0) {
+      const auto camera_name = input_name.substr(single_camera_prefix.size());
+      if (auto cam_msg = std::dynamic_pointer_cast<camera_message>(message)) {
+        std::lock_guard lock(cameras_mtx);
+        cameras[camera_name] = cam_msg->get_camera();
+      }
       return;
     }
 

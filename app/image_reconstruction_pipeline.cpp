@@ -17,6 +17,7 @@
 #include "mvpose.hpp"
 #include "mvpose_reconstruct_node.hpp"
 #include "parameters.hpp"
+#include "parameter_resource.hpp"
 #include "utils.hpp"
 #include "voxelpose.hpp"
 #include "voxelpose_reconstruct_node.hpp"
@@ -37,8 +38,7 @@ class multiview_image_reconstruction_pipeline::impl {
   std::shared_ptr<image_reconstruct_node> reconstruct_node;
   std::shared_ptr<graph_node> input_node;
 
-  std::map<std::string, stargazer::camera_t> cameras;
-  glm::mat4 axis;
+  std::shared_ptr<stargazer::parameters_t> parameters_;
 
  public:
   void add_markers_received(std::function<void(const std::vector<glm::vec3>&)> f) {
@@ -51,30 +51,14 @@ class multiview_image_reconstruction_pipeline::impl {
     markers_received.clear();
   }
 
-  impl()
+  explicit impl(std::shared_ptr<stargazer::parameters_t> parameters)
       : graph(),
         running(false),
         markers(),
         markers_received(),
         reconstruct_node(),
         input_node(),
-        cameras(),
-        axis(1.0f) {}
-
-  void set_camera(const std::string& name, const stargazer::camera_t& camera) {
-    cameras[name] = camera;
-    if (reconstruct_node) {
-      std::map<std::string, stargazer::camera_t> updated_cameras = cameras;
-      reconstruct_node->set_cameras(updated_cameras);
-    }
-  }
-
-  void set_axis(const glm::mat4& new_axis) {
-    axis = new_axis;
-    if (reconstruct_node) {
-      reconstruct_node->set_axis(axis);
-    }
-  }
+        parameters_(std::move(parameters)) {}
 
   using frame_type = std::map<std::string, cv::Mat>;
 
@@ -146,47 +130,11 @@ class multiview_image_reconstruction_pipeline::impl {
           input_node =
               std::dynamic_pointer_cast<frame_number_numbering_node>(built_node_map.at(node.name));
         }
-      } else if (node.get_type() == node_type::voxelpose_reconstruction) {
-        if (reconstruct_node) {
-          spdlog::warn("Multiple reconstruction nodes found, using the first one");
-        } else {
-          reconstruct_node =
-              std::dynamic_pointer_cast<voxelpose_reconstruct_node>(built_node_map.at(node.name));
-          if (reconstruct_node) {
-            reconstruct_node->set_cameras(cameras);
-            reconstruct_node->set_axis(axis);
-          }
-        }
-      } else if (node.get_type() == node_type::mvpose_reconstruction) {
-        if (reconstruct_node) {
-          spdlog::warn("Multiple reconstruction nodes found, using the first one");
-        } else {
-          reconstruct_node =
-              std::dynamic_pointer_cast<mvpose_reconstruct_node>(built_node_map.at(node.name));
-          if (reconstruct_node) {
-            reconstruct_node->set_cameras(cameras);
-            reconstruct_node->set_axis(axis);
-          }
-        }
-      } else if (node.get_type() == node_type::mvp_reconstruction) {
-        if (reconstruct_node) {
-          spdlog::warn("Multiple reconstruction nodes found, using the first one");
-        } else {
-          reconstruct_node =
-              std::dynamic_pointer_cast<mvp_reconstruct_node>(built_node_map.at(node.name));
-          if (reconstruct_node) {
-            reconstruct_node->set_cameras(cameras);
-            reconstruct_node->set_axis(axis);
-          }
-        }
       }
     }
 
     if (!input_node) {
       spdlog::warn("frame_number_numbering node not found in image reconstruction pipeline");
-    }
-    if (!reconstruct_node) {
-      spdlog::warn("reconstruction node not found in image reconstruction pipeline");
     }
 
     const auto callbacks = std::make_shared<callback_list>();
@@ -217,6 +165,9 @@ class multiview_image_reconstruction_pipeline::impl {
       graph.deploy(subgraph_ptr);
     }
     graph.get_resources()->add(callbacks);
+    if (parameters_) {
+      graph.get_resources()->add(std::make_shared<parameter_resource>(parameters_));
+    }
     graph.run();
 
     running = true;
@@ -237,8 +188,9 @@ class multiview_image_reconstruction_pipeline::impl {
   }
 };
 
-multiview_image_reconstruction_pipeline::multiview_image_reconstruction_pipeline()
-    : pimpl(new impl()) {}
+multiview_image_reconstruction_pipeline::multiview_image_reconstruction_pipeline(
+    std::shared_ptr<stargazer::parameters_t> parameters)
+    : pimpl(new impl(std::move(parameters))) {}
 multiview_image_reconstruction_pipeline::~multiview_image_reconstruction_pipeline() = default;
 
 void multiview_image_reconstruction_pipeline::push_frame(const frame_type& frame) {
@@ -250,15 +202,6 @@ void multiview_image_reconstruction_pipeline::run(const std::vector<node_def>& n
 }
 
 void multiview_image_reconstruction_pipeline::stop() { pimpl->stop(); }
-
-void multiview_image_reconstruction_pipeline::set_camera(const std::string& name,
-                                                         const stargazer::camera_t& camera) {
-  pimpl->set_camera(name, camera);
-}
-
-void multiview_image_reconstruction_pipeline::set_axis(const glm::mat4& axis) {
-  pimpl->set_axis(axis);
-}
 
 std::optional<property_value> multiview_image_reconstruction_pipeline::get_node_property(
     const std::string& node_name, const std::string& key) const {

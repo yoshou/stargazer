@@ -17,12 +17,10 @@ class intrinsic_calibration_pipeline {
   std::unique_ptr<impl> pimpl;
 
  public:
-  intrinsic_calibration_pipeline();
+  explicit intrinsic_calibration_pipeline(std::shared_ptr<stargazer::parameters_t> parameters);
   virtual ~intrinsic_calibration_pipeline();
 
   double get_rms() const;
-
-  void set_image_size(int width, int height);
 
   const stargazer::camera_t& get_calibrated_camera() const;
 
