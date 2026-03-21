@@ -128,13 +128,6 @@ const stargazer::camera_t& intrinsic_calibration_pipeline::get_calibrated_camera
   return empty_camera;
 }
 
-size_t intrinsic_calibration_pipeline::get_num_frames() const {
-  if (pimpl->calib_node) {
-    return pimpl->calib_node->get_num_frames();
-  }
-  return 0;
-}
-
 void intrinsic_calibration_pipeline::push_frame(const std::vector<point_data>& frame) {
   if (pimpl->calib_node) {
     pimpl->calib_node->push_frame(frame);

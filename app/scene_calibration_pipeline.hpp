@@ -18,10 +18,6 @@ class scene_calibration_pipeline {
   scene_calibration_pipeline(std::shared_ptr<stargazer::parameters_t> parameters);
   virtual ~scene_calibration_pipeline();
 
-  size_t get_num_frames(std::string name) const;
-  const std::vector<stargazer::calibration::observed_points_t> get_observed_points(
-      std::string name) const;
-
   void push_frame(const std::map<std::string, std::vector<stargazer::point_data>>& frame);
 
   void run(const std::vector<stargazer::node_def>& nodes);

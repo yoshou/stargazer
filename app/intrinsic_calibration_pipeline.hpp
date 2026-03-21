@@ -24,8 +24,6 @@ class intrinsic_calibration_pipeline {
 
   const stargazer::camera_t& get_calibrated_camera() const;
 
-  size_t get_num_frames() const;
-
   void push_frame(const std::vector<stargazer::point_data>& frame);
   void push_frame(const cv::Mat& frame);
 

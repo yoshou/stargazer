@@ -143,6 +143,11 @@ class extrinsic_calibration_node : public coalsack::graph_node {
         }
       }
 
+      if (observed_frames.get_num_frames() == 0) {
+        spdlog::warn("No frames collected, skipping calibration");
+        return;
+      }
+
       calibrate();
 
       std::shared_ptr<object_message> msg(new object_message());

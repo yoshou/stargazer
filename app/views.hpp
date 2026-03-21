@@ -218,7 +218,6 @@ class calibration_panel_view {
     std::string address;
     std::unordered_map<std::string, stargazer::node_param_t> params;
     bool is_streaming = true;
-    size_t num_points = 0;
 
     node_def(const std::string& name, const std::string& address,
              const std::unordered_map<std::string, stargazer::node_param_t>& params)

@@ -1227,25 +1227,9 @@ class viewer_app : public window_base {
         [this](const std::vector<calibration_panel_view::node_def>& panel_nodes,
                bool on_calibrate) {
           if (calibration_panel_view_->calibration_target_index == 0) {
-            for (const auto& panel_node : panel_nodes) {
-              const auto& nodes = extrinsic_calibration_config->get_nodes();
-              auto found = std::find_if(nodes.begin(), nodes.end(), [&](const auto& x) {
-                return x.is_camera() && x.get_camera_name() == panel_node.name;
-              });
-              if (found == nodes.end() || !found->is_camera()) {
-                continue;
-              }
-              const auto camera_name = found->get_camera_name();
-              if (extrinsic_calib->get_num_frames(camera_name) > 0) {
-                spdlog::info("Start calibration");
-
-                extrinsic_calib->calibrate();
-
-                spdlog::info("End calibration");
-
-                break;
-              }
-            }
+            spdlog::info("Start calibration");
+            extrinsic_calib->calibrate();
+            spdlog::info("End calibration");
             return true;
           } else if (calibration_panel_view_->calibration_target_index == 1) {
             const auto target_camera_name = get_intrinsic_target_camera_name();
@@ -1718,42 +1702,6 @@ class viewer_app : public window_base {
       for (const auto& stream : image_tile_view_->streams) {
         if (try_upload_property_stream(stream)) continue;
         try_upload_frame_from_capture(stream, multiview_frames);
-      }
-    }
-
-    if (top_bar_view_->view_mode == top_bar_view::Mode::Calibration) {
-      if (calibration_panel_view_->calibration_target_index == 0) {
-        for (auto& node : calibration_panel_view_->nodes) {
-          const auto& nodes = extrinsic_calibration_config->get_nodes();
-          if (const auto found_node = std::find_if(
-                  nodes.begin(), nodes.end(),
-                  [&](const auto& x) { return x.is_camera() && x.get_camera_name() == node.name; });
-              found_node != nodes.end() && found_node->is_camera()) {
-            const auto camera_name = found_node->get_camera_name();
-            node.num_points = extrinsic_calib->get_num_frames(camera_name);
-          }
-        }
-      } else if (calibration_panel_view_->calibration_target_index == 1) {
-        const auto& node_name = calibration_panel_view_->intrinsic_target_camera_name;
-        auto panel_node_it = std::find_if(calibration_panel_view_->nodes.begin(),
-                                          calibration_panel_view_->nodes.end(),
-                                          [&](auto& node) { return node.name == node_name; });
-        if (panel_node_it == calibration_panel_view_->nodes.end()) {
-          // Keep rendering the rest of the frame even if the configured camera is absent.
-        } else {
-          panel_node_it->num_points = intrinsic_calib->get_num_frames();
-        }
-      } else if (calibration_panel_view_->calibration_target_index == 2) {
-        for (auto& node : calibration_panel_view_->nodes) {
-          const auto& nodes = scene_calibration_config->get_nodes();
-          if (const auto found_node = std::find_if(
-                  nodes.begin(), nodes.end(),
-                  [&](const auto& x) { return x.is_camera() && x.get_camera_name() == node.name; });
-              found_node != nodes.end() && found_node->is_camera()) {
-            const auto camera_name = found_node->get_camera_name();
-            node.num_points = scene_calib->get_num_frames(camera_name);
-          }
-        }
       }
     }
 

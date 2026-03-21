@@ -118,21 +118,6 @@ class scene_calibration_pipeline::impl {
     graph.stop();
   }
 
-  size_t get_num_frames(std::string name) const {
-    if (!calib_node) {
-      return 0;
-    }
-    return calib_node->get_num_frames(name);
-  }
-
-  const std::vector<observed_points_t> get_observed_points(std::string name) const {
-    if (!calib_node) {
-      static std::vector<observed_points_t> empty;
-      return empty;
-    }
-    return calib_node->get_observed_points(name);
-  }
-
   std::optional<property_value> get_node_property(const std::string& node_name,
                                                   const std::string& key) const {
     const auto found = node_map.find(node_name);
@@ -149,15 +134,6 @@ scene_calibration_pipeline::scene_calibration_pipeline(std::shared_ptr<parameter
 }
 
 scene_calibration_pipeline::~scene_calibration_pipeline() = default;
-
-size_t scene_calibration_pipeline::get_num_frames(std::string name) const {
-  return pimpl->get_num_frames(name);
-}
-
-const std::vector<observed_points_t> scene_calibration_pipeline::get_observed_points(
-    std::string name) const {
-  return pimpl->get_observed_points(name);
-}
 
 void scene_calibration_pipeline::push_frame(
     const std::map<std::string, std::vector<point_data>>& frame) {
