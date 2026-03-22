@@ -19,6 +19,22 @@
           }
         },
         {
+          "name": "display_image",
+          "type": "image_property",
+          "inputs": {
+            "default": "decode_jpeg"
+          },
+          "properties": [
+            {
+              "id": "image",
+              "label": "Image",
+              "source_key": "image",
+              "target": "image",
+              "resource_kind": "raw"
+            }
+          ]
+        },
+        {
           "name": "callback_image",
           "type": "callback",
           "inputs": {

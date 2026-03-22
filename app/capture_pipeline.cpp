@@ -479,17 +479,6 @@ class capture_pipeline::impl {
     }
   }
 
-  std::map<std::string, cv::Mat> get_frames() const {
-    std::map<std::string, cv::Mat> result;
-
-    {
-      std::lock_guard lock(frames_mtx);
-      result = this->frames;
-    }
-
-    return result;
-  }
-
   void enable_marker_collecting(std::string name) {
     std::lock_guard lock(marker_collecting_clusters_mtx);
     marker_collecting_clusters.insert(name);
@@ -518,7 +507,6 @@ capture_pipeline::~capture_pipeline() = default;
 void capture_pipeline::run(const std::vector<node_def>& nodes) { pimpl->run(nodes); }
 
 void capture_pipeline::stop() { pimpl->stop(); }
-std::map<std::string, cv::Mat> capture_pipeline::get_frames() const { return pimpl->get_frames(); }
 void capture_pipeline::dispatch_action(const std::string& action_id) {
   pimpl->dispatch_action(action_id);
 }

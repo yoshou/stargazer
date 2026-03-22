@@ -32,6 +32,16 @@
           }
         },
         {
+          "name": "display_image",
+          "type": "image_property",
+          "inputs": {
+            "default": "decode_jpeg"
+          },
+          "properties": [
+            { "id": "image", "label": "Image", "source_key": "image", "target": "image", "resource_kind": "raw" }
+          ]
+        },
+        {
           "name": "callback_image",
           "type": "callback",
           "inputs": {
@@ -70,6 +80,16 @@
           "inputs": {
             "default": "load_panoptic"
           }
+        },
+        {
+          "name": "display_image",
+          "type": "image_property",
+          "inputs": {
+            "default": "decode_jpeg"
+          },
+          "properties": [
+            { "id": "image", "label": "Image", "source_key": "image", "target": "image", "resource_kind": "raw" }
+          ]
         },
         {
           "name": "callback_image",
@@ -810,6 +830,16 @@
           "inputs": {
             "default": "p2p_tcp_listener_image"
           }
+        },
+        {
+          "name": "display_image",
+          "type": "image_property",
+          "inputs": {
+            "default": "decode_jpeg"
+          },
+          "properties": [
+            { "id": "image", "label": "Image", "source_key": "image", "target": "image", "resource_kind": "raw" }
+          ]
         },
         {
           "name": "callback_image",

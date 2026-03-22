@@ -31,8 +31,6 @@ class capture_pipeline {
   void run(const std::vector<stargazer::node_def>& nodes);
   void stop();
 
-  std::map<std::string, cv::Mat> get_frames() const;
-
   void dispatch_action(const std::string& action_id);
 
   void enable_marker_collecting(std::string name);

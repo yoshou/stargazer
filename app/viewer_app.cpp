@@ -145,6 +145,7 @@ class viewer_app : public window_base {
   std::unique_ptr<calibration_panel_view> calibration_panel_view_;
   std::unique_ptr<reconstruction_panel_view> reconstruction_panel_view_;
   std::unique_ptr<image_tile_view> image_tile_view_;
+  std::unique_ptr<image_tile_view> point_tile_view_;
   std::unique_ptr<image_tile_view> contrail_tile_view_;
   std::unique_ptr<pose_view> pose_view_;
   std::shared_ptr<azimuth_elevation> view_controller;
@@ -552,49 +553,6 @@ class viewer_app : public window_base {
     return true;
   }
 
-  static void upload_frame_to_stream(const cv::Mat& frame,
-                                     const std::shared_ptr<image_tile_view::stream_info>& stream) {
-    if (frame.empty()) return;
-    cv::Mat color_image;
-    if (frame.channels() == 1) {
-      cv::cvtColor(frame, color_image, cv::COLOR_GRAY2RGB);
-    } else if (frame.channels() == 3) {
-      cv::cvtColor(frame, color_image, cv::COLOR_BGR2RGB);
-    } else {
-      color_image = frame;
-    }
-    if (!color_image.empty()) {
-      stream->texture.upload_image(color_image.cols, color_image.rows, color_image.data, 0);
-    }
-  }
-
-  bool try_upload_property_stream(
-      const std::shared_ptr<image_tile_view::stream_info>& stream) const {
-    if (top_bar_view_->view_mode == top_bar_view::Mode::Capture) {
-      return upload_capture_property_stream(stream);
-    }
-    if (top_bar_view_->view_type == top_bar_view::ViewType::Point) {
-      return upload_image_reconstruction_property_stream(stream);
-    }
-    return false;
-  }
-
-  void try_upload_frame_from_capture(const std::shared_ptr<image_tile_view::stream_info>& stream,
-                                     const std::map<std::string, cv::Mat>& multiview_frames) const {
-    const auto it = multiview_frames.find(stream->name);
-    if (it != multiview_frames.end()) {
-      upload_frame_to_stream(it->second, stream);
-      return;
-    }
-    const auto capture_it = captures.find(stream->name);
-    if (capture_it != captures.end()) {
-      const auto frames = capture_it->second->get_frames();
-      if (!frames.empty()) {
-        upload_frame_to_stream(frames.begin()->second, stream);
-      }
-    }
-  }
-
   template <typename PanelT>
   std::optional<std::string> resolve_panel_detail_value(
       const PanelT* panel, const stargazer::config_tree_item& item) const {
@@ -903,7 +861,12 @@ class viewer_app : public window_base {
                   }
                   const auto stream = std::make_shared<image_tile_view::stream_info>(
                       camera_name, float2{(float)width, (float)height}, gfx_ctx);
-                  bind_image_reconstruction_stream_property(camera_name, *stream);
+                  const auto runtime_id = std::string{"node:pipeline:"} + node.name;
+                  if (const auto runtime_it =
+                          calibration_panel_view_->tree.runtime_nodes.find(runtime_id);
+                      runtime_it != calibration_panel_view_->tree.runtime_nodes.end()) {
+                    bind_capture_stream_property(runtime_it->second, *stream);
+                  }
                   image_tile_view_->streams.push_back(stream);
                 }
               }
@@ -950,6 +913,12 @@ class viewer_app : public window_base {
 
               const auto stream = std::make_shared<image_tile_view::stream_info>(
                   panel_node.name, float2{(float)width, (float)height}, gfx_ctx);
+              const auto runtime_id = std::string{"node:pipeline:"} + node.name;
+              if (const auto runtime_it =
+                      calibration_panel_view_->tree.runtime_nodes.find(runtime_id);
+                  runtime_it != calibration_panel_view_->tree.runtime_nodes.end()) {
+                bind_capture_stream_property(runtime_it->second, *stream);
+              }
               image_tile_view_->streams.push_back(stream);
             } else if (calibration_panel_view_->calibration_target_index == 2) {
               // Axis calibration
@@ -1006,6 +975,12 @@ class viewer_app : public window_base {
                   }
                   const auto stream = std::make_shared<image_tile_view::stream_info>(
                       camera_name, float2{(float)width, (float)height}, gfx_ctx);
+                  const auto runtime_id = std::string{"node:pipeline:"} + node.name;
+                  if (const auto runtime_it =
+                          calibration_panel_view_->tree.runtime_nodes.find(runtime_id);
+                      runtime_it != calibration_panel_view_->tree.runtime_nodes.end()) {
+                    bind_capture_stream_property(runtime_it->second, *stream);
+                  }
                   image_tile_view_->streams.push_back(stream);
                 }
               }
@@ -1225,6 +1200,12 @@ class viewer_app : public window_base {
                   }
                   const auto stream = std::make_shared<image_tile_view::stream_info>(
                       camera_name, float2{(float)width, (float)height}, gfx_ctx);
+                  const auto runtime_id = std::string{"node:pipeline:"} + node.name;
+                  if (const auto runtime_it =
+                          reconstruction_panel_view_->tree.runtime_nodes.find(runtime_id);
+                      runtime_it != reconstruction_panel_view_->tree.runtime_nodes.end()) {
+                    bind_capture_stream_property(runtime_it->second, *stream);
+                  }
                   image_tile_view_->streams.push_back(stream);
                 }
               }
@@ -1278,8 +1259,17 @@ class viewer_app : public window_base {
                   }
                   const auto stream = std::make_shared<image_tile_view::stream_info>(
                       camera_name, float2{(float)width, (float)height}, gfx_ctx);
-                  bind_image_reconstruction_stream_property(camera_name, *stream);
+                  const auto runtime_id = std::string{"node:pipeline:"} + node.name;
+                  if (const auto runtime_it =
+                          reconstruction_panel_view_->tree.runtime_nodes.find(runtime_id);
+                      runtime_it != reconstruction_panel_view_->tree.runtime_nodes.end()) {
+                    bind_capture_stream_property(runtime_it->second, *stream);
+                  }
                   image_tile_view_->streams.push_back(stream);
+                  const auto point_stream = std::make_shared<image_tile_view::stream_info>(
+                      camera_name, float2{(float)width, (float)height}, gfx_ctx);
+                  bind_image_reconstruction_stream_property(camera_name, *point_stream);
+                  point_tile_view_->streams.push_back(point_stream);
                 }
               }
             }
@@ -1421,6 +1411,11 @@ class viewer_app : public window_base {
         stream->texture.set_context(gfx_ctx);
       }
     }
+    if (point_tile_view_) {
+      for (auto& stream : point_tile_view_->streams) {
+        stream->texture.set_context(gfx_ctx);
+      }
+    }
     if (contrail_tile_view_) {
       for (auto& stream : contrail_tile_view_->streams) {
         stream->texture.set_context(gfx_ctx);
@@ -1449,6 +1444,7 @@ class viewer_app : public window_base {
 
     top_bar_view_ = std::make_unique<top_bar_view>();
     image_tile_view_ = std::make_unique<image_tile_view>();
+    point_tile_view_ = std::make_unique<image_tile_view>();
     contrail_tile_view_ = std::make_unique<image_tile_view>();
 
     init_capture_panel();
@@ -1560,14 +1556,11 @@ class viewer_app : public window_base {
     sync_calibration_panel_state();
     sync_reconstruction_panel_state();
 
-    if (top_bar_view_->view_type == top_bar_view::ViewType::Image ||
-        top_bar_view_->view_type == top_bar_view::ViewType::Point) {
-      const auto multiview_frames =
-          multiview_capture ? multiview_capture->get_frames() : std::map<std::string, cv::Mat>{};
-      for (const auto& stream : image_tile_view_->streams) {
-        if (try_upload_property_stream(stream)) continue;
-        try_upload_frame_from_capture(stream, multiview_frames);
-      }
+    for (const auto& stream : image_tile_view_->streams) {
+      upload_capture_property_stream(stream);
+    }
+    for (const auto& stream : point_tile_view_->streams) {
+      upload_image_reconstruction_property_stream(stream);
     }
 
     if (top_bar_view_->view_mode == top_bar_view::Mode::Capture) {
@@ -1621,7 +1614,7 @@ class viewer_app : public window_base {
     } else if (top_bar_view_->view_type == top_bar_view::ViewType::Contrail) {
       contrail_tile_view_->render(context.get());
     } else if (top_bar_view_->view_type == top_bar_view::ViewType::Point) {
-      image_tile_view_->render(context.get());
+      point_tile_view_->render(context.get());
     } else if (top_bar_view_->view_type == top_bar_view::ViewType::Pose) {
       if (gfx_ctx && pose_view_) {
         vk::CommandBuffer cmd = gfx_ctx->command_buffers[gfx_ctx->current_frame].get();
