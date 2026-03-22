@@ -115,6 +115,7 @@ class scene_calibration_pipeline::impl {
     if (parameters) {
       graph.get_resources()->add(std::make_shared<parameter_resource>(parameters));
     }
+    graph.initialize();
     graph.run();
 
     running = true;
@@ -123,6 +124,7 @@ class scene_calibration_pipeline::impl {
   void stop() {
     running.store(false);
     graph.stop();
+    graph.finalize();
   }
 
   std::optional<property_value> get_node_property(const std::string& node_name,

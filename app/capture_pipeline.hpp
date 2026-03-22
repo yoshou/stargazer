@@ -29,6 +29,8 @@ class capture_pipeline {
   virtual ~capture_pipeline();
 
   void run(const std::vector<stargazer::node_def>& nodes);
+  void start();
+  void pause();
   void stop();
 
   void dispatch_action(const std::string& action_id);

@@ -105,7 +105,7 @@ class capture_pipeline::impl {
         marker_received(),
         has_remote_subgraphs(false) {}
 
-  void run(const std::vector<node_def>& nodes) {
+  void deploy(const std::vector<node_def>& nodes) {
     node_map.clear();
     local_graph = graph_proc();
     local_subgraph.reset();
@@ -438,7 +438,7 @@ class capture_pipeline::impl {
 
     if (local_subgraph && local_subgraph->get_node_count() > 0) {
       local_graph.deploy(local_subgraph);
-      local_graph.run();
+      local_graph.initialize();
     }
 
     if (!deploy_order.empty()) {
@@ -449,6 +449,15 @@ class capture_pipeline::impl {
       }
 
       io_thread.reset(new std::thread([this] { io_context.run(); }));
+      client.initialize();
+    }
+  }
+
+  void run() {
+    if (local_subgraph && local_subgraph->get_node_count() > 0) {
+      local_graph.run();
+    }
+    if (has_remote_subgraphs) {
       client.run();
     }
   }
@@ -456,10 +465,19 @@ class capture_pipeline::impl {
   void stop() {
     if (has_remote_subgraphs) {
       client.stop();
-      has_remote_subgraphs = false;
     }
     if (local_subgraph && local_subgraph->get_node_count() > 0) {
       local_graph.stop();
+    }
+  }
+
+  void finalize() {
+    if (has_remote_subgraphs) {
+      client.finalize();
+      has_remote_subgraphs = false;
+    }
+    if (local_subgraph && local_subgraph->get_node_count() > 0) {
+      local_graph.finalize();
     }
     io_context.stop();
     if (io_thread && io_thread->joinable()) {
@@ -504,9 +522,10 @@ class capture_pipeline::impl {
 capture_pipeline::capture_pipeline() : pimpl(new impl()) {}
 capture_pipeline::~capture_pipeline() = default;
 
-void capture_pipeline::run(const std::vector<node_def>& nodes) { pimpl->run(nodes); }
-
-void capture_pipeline::stop() { pimpl->stop(); }
+void capture_pipeline::run(const std::vector<node_def>& nodes) { pimpl->deploy(nodes); }
+void capture_pipeline::start() { pimpl->run(); }
+void capture_pipeline::pause() { pimpl->stop(); }
+void capture_pipeline::stop() { pimpl->finalize(); }
 void capture_pipeline::dispatch_action(const std::string& action_id) {
   pimpl->dispatch_action(action_id);
 }

@@ -41,7 +41,11 @@ class multiview_point_reconstruction_pipeline::impl {
   }
 
   explicit impl(std::shared_ptr<parameters_t> parameters)
-      : graph(), running(false), markers(), markers_received(), input_node(),
+      : graph(),
+        running(false),
+        markers(),
+        markers_received(),
+        input_node(),
         parameters_(std::move(parameters)) {}
 
   using frame_type = std::map<std::string, std::vector<point_data>>;
@@ -130,6 +134,7 @@ class multiview_point_reconstruction_pipeline::impl {
     if (parameters_) {
       graph.get_resources()->add(std::make_shared<parameter_resource>(parameters_));
     }
+    graph.initialize();
     graph.run();
 
     running = true;
@@ -138,6 +143,7 @@ class multiview_point_reconstruction_pipeline::impl {
   void stop() {
     running.store(false);
     graph.stop();
+    graph.finalize();
   }
 
   std::optional<property_value> get_node_property(const std::string& node_name,
@@ -169,4 +175,3 @@ std::optional<property_value> multiview_point_reconstruction_pipeline::get_node_
     const std::string& node_name, const std::string& key) const {
   return pimpl->get_node_property(node_name, key);
 }
-
