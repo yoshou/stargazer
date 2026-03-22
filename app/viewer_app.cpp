@@ -826,13 +826,6 @@ class viewer_app : public window_base {
                     extrinsic_calib->push_frame(frame);
                   });
 
-              for (const auto& node : nodes) {
-                if (node.is_camera()) {
-                  const auto camera_name = node.get_camera_name();
-                  multiview_capture->enable_marker_collecting(camera_name);
-                }
-              }
-
               multiview_capture->run(nodes);
 
               for (const auto& node : nodes) {
