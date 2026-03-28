@@ -112,7 +112,6 @@ class viewer_app : public window_base {
   std::shared_ptr<parameters_t> parameters;
 
   std::unique_ptr<capture_pipeline> capture_for_capture_;
-  std::unique_ptr<capture_pipeline> capture_for_intrinsic_;
   std::unique_ptr<capture_pipeline> capture_for_scene_;
   std::unique_ptr<capture_pipeline> capture_for_point_recon_;
   std::unique_ptr<capture_pipeline> capture_for_image_recon_;
@@ -120,7 +119,7 @@ class viewer_app : public window_base {
   std::set<std::string> active_individual_captures_;
   bool all_capture_running_ = false;
   bool extrinsic_capture_running_ = false;
-  bool intrinsic_capture_running_ = false;
+  bool intrinsic_running_ = false;
   bool scene_capture_running_ = false;
   bool point_recon_capture_running_ = false;
   bool image_recon_capture_running_ = false;
@@ -140,7 +139,8 @@ class viewer_app : public window_base {
   std::unique_ptr<configuration> calibration_intrinsic_single_camera_config;
 
   std::string get_intrinsic_target_camera_name() const {
-    for (const auto& node : calibration_intrinsic_single_camera_config->get_nodes()) {
+    for (const auto& node :
+         calibration_intrinsic_single_camera_config->get_nodes("intrinsic_calibration_pipeline")) {
       if (node.is_camera()) {
         return node.get_camera_name();
       }
@@ -161,7 +161,10 @@ class viewer_app : public window_base {
         return std::nullopt;
       } else if (top_bar_view_->calibration_pipeline ==
                  top_bar_view::CalibrationPipeline::Intrinsic) {
-        pipeline = capture_for_intrinsic_.get();
+        if (intrinsic_calib) {
+          return intrinsic_calib->get_node_property(node_name, key);
+        }
+        return std::nullopt;
       } else {
         pipeline = capture_for_scene_.get();
       }
@@ -178,7 +181,8 @@ class viewer_app : public window_base {
     return std::nullopt;
   }
 
-  void rebuild_calibration_panel_nodes(const configuration& config, const std::string& pipeline_key = "pipeline") {
+  void rebuild_calibration_panel_nodes(const configuration& config,
+                                       const std::string& pipeline_key = "pipeline") {
     if (!calibration_panel_view_) {
       return;
     }
@@ -567,7 +571,8 @@ class viewer_app : public window_base {
     calibration_panel_view_->calibration_target_index = next_target_index;
 
     if (next_target_index == 0) {
-      rebuild_calibration_panel_nodes(*extrinsic_calibration_config, "extrinsic_calibration_pipeline");
+      rebuild_calibration_panel_nodes(*extrinsic_calibration_config,
+                                      "extrinsic_calibration_pipeline");
       calibration_panel_view_->tree =
           build_config_tree(*extrinsic_calibration_config,
                             std::vector<std::string>{"extrinsic_calibration_pipeline"});
@@ -575,10 +580,11 @@ class viewer_app : public window_base {
     }
 
     if (next_target_index == 1) {
-      rebuild_calibration_panel_nodes(*calibration_intrinsic_single_camera_config);
+      rebuild_calibration_panel_nodes(*calibration_intrinsic_single_camera_config,
+                                      "intrinsic_calibration_pipeline");
       calibration_panel_view_->tree =
           build_config_tree(*calibration_intrinsic_single_camera_config,
-                            std::vector<std::string>{"pipeline", "intrinsic_calibration_pipeline"});
+                            std::vector<std::string>{"intrinsic_calibration_pipeline"});
 
       const auto target_camera_name = get_intrinsic_target_camera_name();
       calibration_panel_view_->intrinsic_target_camera_name = target_camera_name;
@@ -794,7 +800,8 @@ class viewer_app : public window_base {
               if (extrinsic_capture_running_) {
                 return false;
               }
-              const auto& nodes = extrinsic_calibration_config->get_nodes("extrinsic_calibration_pipeline");
+              const auto& nodes =
+                  extrinsic_calibration_config->get_nodes("extrinsic_calibration_pipeline");
               extrinsic_capture_running_ = true;
               extrinsic_calib->start();
 
@@ -824,7 +831,8 @@ class viewer_app : public window_base {
                   }
                   const auto stream = std::make_shared<image_tile_view::stream_info>(
                       camera_name, float2{(float)width, (float)height}, gfx_ctx);
-                  const auto runtime_id = std::string{"node:extrinsic_calibration_pipeline:"} + node.name;
+                  const auto runtime_id =
+                      std::string{"node:extrinsic_calibration_pipeline:"} + node.name;
                   if (const auto runtime_it =
                           calibration_panel_view_->tree.runtime_nodes.find(runtime_id);
                       runtime_it != calibration_panel_view_->tree.runtime_nodes.end()) {
@@ -835,10 +843,11 @@ class viewer_app : public window_base {
               }
             } else if (calibration_panel_view_->calibration_target_index == 1) {
               // Intrinsic calibration
-              if (intrinsic_capture_running_) {
+              if (intrinsic_running_) {
                 return false;
               }
-              const auto& nodes = calibration_intrinsic_single_camera_config->get_nodes();
+              const auto& nodes = calibration_intrinsic_single_camera_config->get_nodes(
+                  "intrinsic_calibration_pipeline");
               auto found = std::find_if(nodes.begin(), nodes.end(),
                                         [&](const auto& x) { return x.is_camera(); });
               if (found == nodes.end()) {
@@ -854,8 +863,8 @@ class viewer_app : public window_base {
               }
               const auto& panel_node = *panel_node_it;
 
-              intrinsic_capture_running_ = true;
-              capture_for_intrinsic_->start();
+              intrinsic_running_ = true;
+              intrinsic_calib->start();
 
               int width, height;
               if (node.contains_param("width")) {
@@ -879,7 +888,8 @@ class viewer_app : public window_base {
 
               const auto stream = std::make_shared<image_tile_view::stream_info>(
                   panel_node.name, float2{(float)width, (float)height}, gfx_ctx);
-              const auto runtime_id = std::string{"node:pipeline:"} + node.name;
+              const auto runtime_id =
+                  std::string{"node:intrinsic_calibration_pipeline:"} + node.name;
               if (const auto runtime_it =
                       calibration_panel_view_->tree.runtime_nodes.find(runtime_id);
                   runtime_it != calibration_panel_view_->tree.runtime_nodes.end()) {
@@ -937,7 +947,8 @@ class viewer_app : public window_base {
               extrinsic_capture_running_ = false;
               extrinsic_calib->pause();
 
-              const auto& nodes = extrinsic_calibration_config->get_nodes("extrinsic_calibration_pipeline");
+              const auto& nodes =
+                  extrinsic_calibration_config->get_nodes("extrinsic_calibration_pipeline");
 
               for (const auto& node : nodes) {
                 if (node.get_type() == node_type::callback && node.is_camera()) {
@@ -961,9 +972,9 @@ class viewer_app : public window_base {
               }
               const auto& panel_node = *panel_node_it;
 
-              if (!intrinsic_capture_running_) return true;
-              intrinsic_capture_running_ = false;
-              capture_for_intrinsic_->pause();
+              if (!intrinsic_running_) return true;
+              intrinsic_running_ = false;
+              intrinsic_calib->pause();
 
               const auto stream_it =
                   std::find_if(image_tile_view_->streams.begin(), image_tile_view_->streams.end(),
@@ -1053,9 +1064,6 @@ class viewer_app : public window_base {
             spdlog::info("End calibration");
             return true;
           } else if (calibration_panel_view_->calibration_target_index == 1) {
-            if (intrinsic_capture_running_) {
-              capture_for_intrinsic_->dispatch_action(action_id);
-            }
             intrinsic_calib->dispatch_action(action_id);
             return true;
           } else if (calibration_panel_view_->calibration_target_index == 2) {
@@ -1448,15 +1456,6 @@ class viewer_app : public window_base {
     capture_for_capture_ = std::make_unique<capture_pipeline>();
     capture_for_capture_->run(capture_config->get_nodes());
 
-    capture_for_intrinsic_ = std::make_unique<capture_pipeline>();
-    capture_for_intrinsic_->add_image_received(
-        [this](const std::map<std::string, cv::Mat>& frames) {
-          if (!frames.empty()) {
-            intrinsic_calib->push_frame(frames.begin()->second);
-          }
-        });
-    capture_for_intrinsic_->run(calibration_intrinsic_single_camera_config->get_nodes());
-
     capture_for_scene_ = std::make_unique<capture_pipeline>();
     capture_for_scene_->add_marker_received(
         [this](const std::map<std::string, marker_frame_data>& marker_frame) {
@@ -1528,14 +1527,13 @@ class viewer_app : public window_base {
       capture_for_capture_->pause();
     }
     if (extrinsic_capture_running_) extrinsic_calib->pause();
-    if (intrinsic_capture_running_) capture_for_intrinsic_->pause();
+    if (intrinsic_running_) intrinsic_calib->pause();
     if (scene_capture_running_) capture_for_scene_->pause();
     if (point_recon_capture_running_) capture_for_point_recon_->pause();
     if (image_recon_capture_running_) capture_for_image_recon_->pause();
 
     // Stop all capture pipelines
     capture_for_capture_->stop();
-    capture_for_intrinsic_->stop();
     capture_for_scene_->stop();
     capture_for_point_recon_->stop();
     capture_for_image_recon_->stop();

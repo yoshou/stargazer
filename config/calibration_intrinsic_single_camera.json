@@ -654,31 +654,46 @@
     }
   ],
   "pipelines": {
-    "single_camera_capture": {
+    "intrinsic_calibration": {
       "subgraphs": [
         {
           "name": "target_camera",
           "extends": ["playback_color_camera101_subgraph"]
+        },
+        {
+          "name": "intrinsic_calibration",
+          "extends": ["intrinsic_calibration_subgraph"],
+          "nodes": [
+            {
+              "name": "frame_number_numbering",
+              "inputs": {
+                "default": "target_camera.decode_jpeg"
+              }
+            }
+          ]
         }
       ]
     },
-    "single_camera_live_capture": {
+    "intrinsic_calibration_live": {
       "subgraphs": [
         {
           "name": "target_camera",
           "extends": ["capture_color_camera101_subgraph"]
-        }
-      ]
-    },
-    "intrinsic_calibration": {
-      "subgraphs": [
+        },
         {
           "name": "intrinsic_calibration",
-          "extends": ["intrinsic_calibration_subgraph"]
+          "extends": ["intrinsic_calibration_subgraph"],
+          "nodes": [
+            {
+              "name": "frame_number_numbering",
+              "inputs": {
+                "default": "target_camera.decode_jpeg"
+              }
+            }
+          ]
         }
       ]
     }
   },
-  "pipeline": "single_camera_capture",
   "intrinsic_calibration_pipeline": "intrinsic_calibration"
 }
