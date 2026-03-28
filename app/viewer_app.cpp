@@ -112,7 +112,6 @@ class viewer_app : public window_base {
   std::shared_ptr<parameters_t> parameters;
 
   std::unique_ptr<capture_pipeline> capture_for_capture_;
-  std::unique_ptr<capture_pipeline> capture_for_point_recon_;
   std::unique_ptr<capture_pipeline> capture_for_image_recon_;
 
   std::set<std::string> active_individual_captures_;
@@ -120,7 +119,6 @@ class viewer_app : public window_base {
   bool extrinsic_capture_running_ = false;
   bool intrinsic_running_ = false;
   bool scene_capture_running_ = false;
-  bool point_recon_capture_running_ = false;
   bool image_recon_capture_running_ = false;
 
   std::unique_ptr<extrinsic_calibration_pipeline> extrinsic_calib;
@@ -172,7 +170,10 @@ class viewer_app : public window_base {
       }
     } else if (top_bar_view_->view_mode == top_bar_view::Mode::Reconstruction) {
       if (top_bar_view_->reconstruction_pipeline == top_bar_view::ReconstructionPipeline::Marker) {
-        pipeline = capture_for_point_recon_.get();
+        if (multiview_point_reconstruction_pipeline_) {
+          return multiview_point_reconstruction_pipeline_->get_node_property(node_name, key);
+        }
+        return std::nullopt;
       } else {
         pipeline = capture_for_image_recon_.get();
       }
@@ -249,7 +250,8 @@ class viewer_app : public window_base {
         // axis
         pose_view_->axis_source = {ref, "axis"};
         // cameras: derive names from point_reconstruction_config (is_camera nodes)
-        for (const auto& cam_node : point_reconstruction_config->get_nodes()) {
+        for (const auto& cam_node :
+             point_reconstruction_config->get_nodes("point_reconstruction_pipeline")) {
           if (!cam_node.is_camera()) continue;
           const auto cam_name = cam_node.get_camera_name();
           pose_view_->camera_sources[cam_name] = {ref, "camera." + cam_name};
@@ -616,7 +618,7 @@ class viewer_app : public window_base {
             : *image_reconstruction_config;
 
     reconstruction_panel_view_->tree = build_config_tree(
-        selected_recon_config, std::vector<std::string>{"pipeline", pipeline_name});
+        selected_recon_config, std::vector<std::string>{pipeline_name});
   }
 
   std::string generate_new_id() const {
@@ -1085,8 +1087,9 @@ class viewer_app : public window_base {
         [this](const stargazer::config_tree_item& item) -> std::optional<std::string> {
       return resolve_panel_detail_value(reconstruction_panel_view_.get(), item);
     };
-    auto add_nodes_from_config = [&](const configuration& cfg) {
-      for (const auto& node : cfg.get_nodes()) {
+    auto add_nodes_from_config = [&](const configuration& cfg,
+                                       const std::string& pipeline_key = "pipeline") {
+      for (const auto& node : cfg.get_nodes(pipeline_key)) {
         std::string path;
         if (node.contains_param("address")) {
           path = node.get_param<std::string>("address");
@@ -1098,7 +1101,7 @@ class viewer_app : public window_base {
             reconstruction_panel_view::node_def{node.name, path});
       }
     };
-    add_nodes_from_config(*point_reconstruction_config);
+    add_nodes_from_config(*point_reconstruction_config, "point_reconstruction_pipeline");
     add_nodes_from_config(*image_reconstruction_config);
     sync_reconstruction_panel_state();
 
@@ -1108,12 +1111,9 @@ class viewer_app : public window_base {
           if (is_streaming) {
             if (top_bar_view_->reconstruction_pipeline ==
                 top_bar_view::ReconstructionPipeline::Marker) {
-              if (point_recon_capture_running_) {
-                return false;
-              }
-              const auto& nodes = point_reconstruction_config->get_nodes();
-              point_recon_capture_running_ = true;
-              capture_for_point_recon_->start();
+              const auto& nodes =
+                  point_reconstruction_config->get_nodes("point_reconstruction_pipeline");
+              multiview_point_reconstruction_pipeline_->start();
 
               for (const auto& node : nodes) {
                 if (node.is_camera()) {
@@ -1142,7 +1142,8 @@ class viewer_app : public window_base {
                   }
                   const auto stream = std::make_shared<image_tile_view::stream_info>(
                       camera_name, float2{(float)width, (float)height}, gfx_ctx);
-                  const auto runtime_id = std::string{"node:pipeline:"} + node.name;
+                  const auto runtime_id =
+                      std::string{"node:point_reconstruction_pipeline:"} + node.name;
                   if (const auto runtime_it =
                           reconstruction_panel_view_->tree.runtime_nodes.find(runtime_id);
                       runtime_it != reconstruction_panel_view_->tree.runtime_nodes.end()) {
@@ -1204,11 +1205,10 @@ class viewer_app : public window_base {
           } else {
             if (top_bar_view_->reconstruction_pipeline ==
                 top_bar_view::ReconstructionPipeline::Marker) {
-              if (!point_recon_capture_running_) return true;
-              point_recon_capture_running_ = false;
-              capture_for_point_recon_->pause();
+              multiview_point_reconstruction_pipeline_->pause();
 
-              for (const auto& node : point_reconstruction_config->get_nodes()) {
+              for (const auto& node :
+                   point_reconstruction_config->get_nodes("point_reconstruction_pipeline")) {
                 if (node.is_camera()) {
                   const auto camera_name = node.get_camera_name();
                   const auto stream_it = std::find_if(
@@ -1456,27 +1456,6 @@ class viewer_app : public window_base {
     capture_for_capture_ = std::make_unique<capture_pipeline>();
     capture_for_capture_->run(capture_config->get_nodes());
 
-    capture_for_point_recon_ = std::make_unique<capture_pipeline>();
-    capture_for_point_recon_->add_marker_received(
-        [this](const std::map<std::string, marker_frame_data>& marker_frame) {
-          std::map<std::string, std::vector<point_data>> frame;
-          for (const auto& [name, markers] : marker_frame) {
-            std::vector<point_data> points;
-            for (const auto& marker : markers.markers) {
-              points.push_back(
-                  point_data{glm::vec2(marker.x, marker.y), marker.r, markers.timestamp});
-            }
-            frame.insert(std::make_pair(name, points));
-          }
-          multiview_point_reconstruction_pipeline_->push_frame(frame);
-        });
-    for (const auto& node : point_reconstruction_config->get_nodes()) {
-      if (node.is_camera()) {
-        capture_for_point_recon_->enable_marker_collecting(node.get_camera_name());
-      }
-    }
-    capture_for_point_recon_->run(point_reconstruction_config->get_nodes());
-
     capture_for_image_recon_ = std::make_unique<capture_pipeline>();
     capture_for_image_recon_->add_image_received(
         [this](const std::map<std::string, cv::Mat>& image_frame) {
@@ -1508,12 +1487,10 @@ class viewer_app : public window_base {
     if (extrinsic_capture_running_) extrinsic_calib->pause();
     if (intrinsic_running_) intrinsic_calib->pause();
     if (scene_capture_running_) scene_calib->pause();
-    if (point_recon_capture_running_) capture_for_point_recon_->pause();
     if (image_recon_capture_running_) capture_for_image_recon_->pause();
 
     // Stop all capture pipelines
     capture_for_capture_->stop();
-    capture_for_point_recon_->stop();
     capture_for_image_recon_->stop();
 
     intrinsic_calib->stop();

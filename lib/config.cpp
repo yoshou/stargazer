@@ -136,6 +136,8 @@ static node_type get_node_type(const std::string& type) {
     return node_type::gate;
   } else if (type == "keypoint_to_float2_map") {
     return node_type::keypoint_to_float2_map;
+  } else if (type == "object_to_frame") {
+    return node_type::object_to_frame;
   }
   throw std::runtime_error("Invalid node type");
 }
@@ -252,6 +254,8 @@ static std::string get_node_type_name(node_type type) {
       return "gate";
     case node_type::keypoint_to_float2_map:
       return "keypoint_to_float2_map";
+    case node_type::object_to_frame:
+      return "object_to_frame";
   }
   throw std::runtime_error("Invalid node type");
 }

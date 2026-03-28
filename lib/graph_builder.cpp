@@ -44,6 +44,7 @@
 #include "scene_calibration_node.hpp"
 #include "gate_node.hpp"
 #include "keypoint_to_float2_map_node.hpp"
+#include "object_to_frame_node.hpp"
 #include "store_parameter_node.hpp"
 #include "three_point_bar_calibration_target_detector_node.hpp"
 #include "voxelpose_reconstruct_node.hpp"
@@ -686,6 +687,11 @@ void build_graph_from_json(const std::vector<node_def>& nodes,
       }
       case node_type::keypoint_to_float2_map: {
         auto n = std::make_shared<stargazer::keypoint_to_float2_map_node>();
+        graph_node = n;
+        break;
+      }
+      case node_type::object_to_frame: {
+        auto n = std::make_shared<stargazer::object_to_frame_node>();
         graph_node = n;
         break;
       }

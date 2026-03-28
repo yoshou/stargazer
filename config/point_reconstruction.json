@@ -184,8 +184,15 @@
           "id": "scene"
         },
         {
+          "name": "object_to_frame",
+          "type": "object_to_frame"
+        },
+        {
           "name": "frame_number_numbering",
-          "type": "frame_number_numbering"
+          "type": "frame_number_numbering",
+          "inputs": {
+            "default": "object_to_frame"
+          }
         },
         {
           "name": "parallel_queue",
@@ -417,7 +424,11 @@
         {
           "name": "mask_generator",
           "type": "mask_generator",
-          "inputs": { "default": "gaussian_blur", "generate": "action_mask_generate", "clear": "action_mask_clear" },
+          "inputs": {
+            "default": "gaussian_blur",
+            "generate": "action_mask_generate",
+            "clear": "action_mask_clear"
+          },
           "path": "/tmp/mask.png"
         },
         {
@@ -579,7 +590,11 @@
         {
           "name": "mask_generator",
           "type": "mask_generator",
-          "inputs": { "default": "gaussian_blur", "generate": "action_mask_generate", "clear": "action_mask_clear" },
+          "inputs": {
+            "default": "gaussian_blur",
+            "generate": "action_mask_generate",
+            "clear": "action_mask_clear"
+          },
           "path": "/tmp/mask.png"
         },
         {
@@ -2662,14 +2677,480 @@
     "epipolar_reconstruction": {
       "subgraphs": [
         {
+          "name": "camera1",
+          "extends": [
+            "playback_subgraph"
+          ],
+          "id": "000000000001",
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_1"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_1"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera1"
+            }
+          ]
+        },
+        {
+          "name": "camera2",
+          "extends": [
+            "playback_subgraph"
+          ],
+          "id": "000000000002",
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_2"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_2"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera2"
+            }
+          ]
+        },
+        {
+          "name": "camera3",
+          "extends": [
+            "playback_subgraph"
+          ],
+          "id": "000000000003",
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_3"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_3"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera3"
+            }
+          ]
+        },
+        {
+          "name": "camera4",
+          "extends": [
+            "playback_subgraph"
+          ],
+          "id": "000000000004",
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_4"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_4"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera4"
+            }
+          ]
+        },
+        {
+          "name": "camera5",
+          "extends": [
+            "playback_subgraph"
+          ],
+          "id": "000000000005",
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_5"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_5"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera5"
+            }
+          ]
+        },
+        {
+          "name": "camera6",
+          "extends": [
+            "playback_subgraph"
+          ],
+          "id": "000000000006",
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_6"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_6"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera6"
+            }
+          ]
+        },
+        {
+          "name": "camera7",
+          "extends": [
+            "playback_subgraph"
+          ],
+          "id": "000000000007",
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_7"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_7"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera7"
+            }
+          ]
+        },
+        {
+          "name": "camera8",
+          "extends": [
+            "playback_subgraph"
+          ],
+          "id": "000000000008",
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_8"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_8"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera8"
+            }
+          ]
+        },
+        {
+          "name": "camera9",
+          "extends": [
+            "playback_subgraph"
+          ],
+          "id": "000000000009",
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_9"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_9"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera9"
+            }
+          ]
+        },
+        {
+          "name": "camera10",
+          "extends": [
+            "playback_subgraph"
+          ],
+          "id": "000000000010",
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_10"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_10"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera10"
+            }
+          ]
+        },
+        {
+          "name": "camera11",
+          "extends": [
+            "playback_subgraph"
+          ],
+          "id": "000000000011",
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_11"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_11"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera11"
+            }
+          ]
+        },
+        {
+          "name": "camera12",
+          "extends": [
+            "playback_subgraph"
+          ],
+          "id": "000000000012",
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_12"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_12"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera12"
+            }
+          ]
+        },
+        {
+          "name": "camera13",
+          "extends": [
+            "playback_subgraph"
+          ],
+          "id": "000000000013",
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_13"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_13"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera13"
+            }
+          ]
+        },
+        {
+          "name": "camera14",
+          "extends": [
+            "playback_subgraph"
+          ],
+          "id": "000000000014",
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_14"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_14"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera14"
+            }
+          ]
+        },
+        {
+          "name": "camera15",
+          "extends": [
+            "playback_subgraph"
+          ],
+          "id": "000000000015",
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_15"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_15"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera15"
+            }
+          ]
+        },
+        {
+          "name": "camera16",
+          "extends": [
+            "playback_subgraph"
+          ],
+          "id": "000000000016",
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_16"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_16"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera16"
+            }
+          ]
+        },
+        {
+          "name": "camera17",
+          "extends": [
+            "playback_subgraph"
+          ],
+          "id": "000000000017",
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_17"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_17"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera17"
+            }
+          ]
+        },
+        {
+          "name": "camera18",
+          "extends": [
+            "playback_subgraph"
+          ],
+          "id": "000000000018",
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_18"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_18"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera18"
+            }
+          ]
+        },
+        {
+          "name": "camera19",
+          "extends": [
+            "playback_subgraph"
+          ],
+          "id": "000000000019",
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_19"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_19"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera19"
+            }
+          ]
+        },
+        {
+          "name": "camera20",
+          "extends": [
+            "playback_subgraph"
+          ],
+          "id": "000000000020",
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_20"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_20"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera20"
+            }
+          ]
+        },
+        {
+          "name": "sync",
+          "nodes": [
+            {
+              "name": "approximate_time_sync_markers",
+              "type": "approximate_time_sync",
+              "interval": 11.611,
+              "inputs": {
+                "camera1": "camera1.load_marker",
+                "camera2": "camera2.load_marker",
+                "camera3": "camera3.load_marker",
+                "camera4": "camera4.load_marker",
+                "camera5": "camera5.load_marker",
+                "camera6": "camera6.load_marker",
+                "camera7": "camera7.load_marker",
+                "camera8": "camera8.load_marker",
+                "camera9": "camera9.load_marker",
+                "camera10": "camera10.load_marker",
+                "camera11": "camera11.load_marker",
+                "camera12": "camera12.load_marker",
+                "camera13": "camera13.load_marker",
+                "camera14": "camera14.load_marker",
+                "camera15": "camera15.load_marker",
+                "camera16": "camera16.load_marker",
+                "camera17": "camera17.load_marker",
+                "camera18": "camera18.load_marker",
+                "camera19": "camera19.load_marker",
+                "camera20": "camera20.load_marker"
+              }
+            },
+            {
+              "name": "keypoint_to_float2",
+              "type": "keypoint_to_float2_map",
+              "inputs": {
+                "default": "approximate_time_sync_markers"
+              }
+            }
+          ]
+        },
+        {
           "name": "epipolar_reconstruction",
           "extends": [
             "epipolar_reconstruction_subgraph"
+          ],
+          "nodes": [
+            {
+              "name": "object_to_frame",
+              "inputs": {
+                "default": "keypoint_to_float2"
+              }
+            }
           ]
         }
       ]
     }
   },
-  "pipeline": "playback_ir",
   "point_reconstruction_pipeline": "epipolar_reconstruction"
 }
