@@ -132,6 +132,10 @@ static node_type get_node_type(const std::string& type) {
     return node_type::action;
   } else if (type == "mask_generator") {
     return node_type::mask_generator;
+  } else if (type == "gate") {
+    return node_type::gate;
+  } else if (type == "keypoint_to_float2_map") {
+    return node_type::keypoint_to_float2_map;
   }
   throw std::runtime_error("Invalid node type");
 }
@@ -244,6 +248,10 @@ static std::string get_node_type_name(node_type type) {
       return "action";
     case node_type::mask_generator:
       return "mask_generator";
+    case node_type::gate:
+      return "gate";
+    case node_type::keypoint_to_float2_map:
+      return "keypoint_to_float2_map";
   }
   throw std::runtime_error("Invalid node type");
 }
@@ -435,7 +443,9 @@ configuration::configuration(const std::string& path) : path(path) {
       }
     }
 
-    pipeline_names.insert(std::make_pair("pipeline", j["pipeline"].get<std::string>()));
+    if (j.contains("pipeline")) {
+      pipeline_names.insert(std::make_pair("pipeline", j["pipeline"].get<std::string>()));
+    }
     if (j.contains("static_pipeline")) {
       pipeline_names.insert(
           std::make_pair("static_pipeline", j["static_pipeline"].get<std::string>()));

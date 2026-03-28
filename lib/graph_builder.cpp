@@ -42,6 +42,8 @@
 #include "pattern_board_calibration_target_detector_node.hpp"
 #include "reconstruction_result_markers_node.hpp"
 #include "scene_calibration_node.hpp"
+#include "gate_node.hpp"
+#include "keypoint_to_float2_map_node.hpp"
 #include "store_parameter_node.hpp"
 #include "three_point_bar_calibration_target_detector_node.hpp"
 #include "voxelpose_reconstruct_node.hpp"
@@ -674,6 +676,16 @@ void build_graph_from_json(const std::vector<node_def>& nodes,
         if (node.contains_param("path")) {
           n->set_path(node.get_param<std::string>("path"));
         }
+        graph_node = n;
+        break;
+      }
+      case node_type::gate: {
+        auto n = std::make_shared<stargazer::gate_node>();
+        graph_node = n;
+        break;
+      }
+      case node_type::keypoint_to_float2_map: {
+        auto n = std::make_shared<stargazer::keypoint_to_float2_map_node>();
         graph_node = n;
         break;
       }

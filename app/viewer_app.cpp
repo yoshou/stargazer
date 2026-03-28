@@ -112,7 +112,6 @@ class viewer_app : public window_base {
   std::shared_ptr<parameters_t> parameters;
 
   std::unique_ptr<capture_pipeline> capture_for_capture_;
-  std::unique_ptr<capture_pipeline> capture_for_extrinsic_;
   std::unique_ptr<capture_pipeline> capture_for_intrinsic_;
   std::unique_ptr<capture_pipeline> capture_for_scene_;
   std::unique_ptr<capture_pipeline> capture_for_point_recon_;
@@ -156,7 +155,10 @@ class viewer_app : public window_base {
       pipeline = capture_for_capture_.get();
     } else if (top_bar_view_->view_mode == top_bar_view::Mode::Calibration) {
       if (top_bar_view_->calibration_pipeline == top_bar_view::CalibrationPipeline::Extrinsic) {
-        pipeline = capture_for_extrinsic_.get();
+        if (extrinsic_calib) {
+          return extrinsic_calib->get_node_property(node_name, key);
+        }
+        return std::nullopt;
       } else if (top_bar_view_->calibration_pipeline ==
                  top_bar_view::CalibrationPipeline::Intrinsic) {
         pipeline = capture_for_intrinsic_.get();
@@ -176,13 +178,13 @@ class viewer_app : public window_base {
     return std::nullopt;
   }
 
-  void rebuild_calibration_panel_nodes(const configuration& config) {
+  void rebuild_calibration_panel_nodes(const configuration& config, const std::string& pipeline_key = "pipeline") {
     if (!calibration_panel_view_) {
       return;
     }
 
     calibration_panel_view_->nodes.clear();
-    for (const auto& node : config.get_nodes()) {
+    for (const auto& node : config.get_nodes(pipeline_key)) {
       if (!node.is_camera()) {
         continue;
       }
@@ -565,10 +567,10 @@ class viewer_app : public window_base {
     calibration_panel_view_->calibration_target_index = next_target_index;
 
     if (next_target_index == 0) {
-      rebuild_calibration_panel_nodes(*extrinsic_calibration_config);
+      rebuild_calibration_panel_nodes(*extrinsic_calibration_config, "extrinsic_calibration_pipeline");
       calibration_panel_view_->tree =
           build_config_tree(*extrinsic_calibration_config,
-                            std::vector<std::string>{"pipeline", "extrinsic_calibration_pipeline"});
+                            std::vector<std::string>{"extrinsic_calibration_pipeline"});
       return;
     }
 
@@ -792,12 +794,12 @@ class viewer_app : public window_base {
               if (extrinsic_capture_running_) {
                 return false;
               }
-              const auto& nodes = extrinsic_calibration_config->get_nodes();
+              const auto& nodes = extrinsic_calibration_config->get_nodes("extrinsic_calibration_pipeline");
               extrinsic_capture_running_ = true;
-              capture_for_extrinsic_->start();
+              extrinsic_calib->start();
 
               for (const auto& node : nodes) {
-                if (node.is_camera()) {
+                if (node.get_type() == node_type::callback && node.is_camera()) {
                   const auto camera_name = node.get_camera_name();
                   int width, height;
                   if (node.contains_param("width")) {
@@ -822,7 +824,7 @@ class viewer_app : public window_base {
                   }
                   const auto stream = std::make_shared<image_tile_view::stream_info>(
                       camera_name, float2{(float)width, (float)height}, gfx_ctx);
-                  const auto runtime_id = std::string{"node:pipeline:"} + node.name;
+                  const auto runtime_id = std::string{"node:extrinsic_calibration_pipeline:"} + node.name;
                   if (const auto runtime_it =
                           calibration_panel_view_->tree.runtime_nodes.find(runtime_id);
                       runtime_it != calibration_panel_view_->tree.runtime_nodes.end()) {
@@ -933,12 +935,12 @@ class viewer_app : public window_base {
             if (calibration_panel_view_->calibration_target_index == 0) {
               if (!extrinsic_capture_running_) return true;
               extrinsic_capture_running_ = false;
-              capture_for_extrinsic_->pause();
+              extrinsic_calib->pause();
 
-              const auto& nodes = extrinsic_calibration_config->get_nodes();
+              const auto& nodes = extrinsic_calibration_config->get_nodes("extrinsic_calibration_pipeline");
 
               for (const auto& node : nodes) {
-                if (node.is_camera()) {
+                if (node.get_type() == node_type::callback && node.is_camera()) {
                   const auto camera_name = node.get_camera_name();
                   const auto stream_it = std::find_if(
                       image_tile_view_->streams.begin(), image_tile_view_->streams.end(),
@@ -1003,10 +1005,10 @@ class viewer_app : public window_base {
             return true;
           }
           const bool is_extrinsic = (calibration_panel_view_->calibration_target_index == 0);
-          capture_pipeline* pipeline =
-              is_extrinsic ? capture_for_extrinsic_.get() : capture_for_scene_.get();
-          const auto& config_nodes = is_extrinsic ? extrinsic_calibration_config->get_nodes()
-                                                  : scene_calibration_config->get_nodes();
+          const auto& config_nodes =
+              is_extrinsic
+                  ? extrinsic_calibration_config->get_nodes("extrinsic_calibration_pipeline")
+                  : scene_calibration_config->get_nodes();
           if (is_marker_collecting) {
             for (const auto& panel_node : panel_nodes) {
               auto found =
@@ -1014,7 +1016,11 @@ class viewer_app : public window_base {
                     return x.is_camera() && x.get_camera_name() == panel_node.name;
                   });
               if (found != config_nodes.end() && found->is_camera()) {
-                pipeline->enable_marker_collecting(found->get_camera_name());
+                if (is_extrinsic) {
+                  extrinsic_calib->enable_marker_collecting(found->get_camera_name());
+                } else {
+                  capture_for_scene_->enable_marker_collecting(found->get_camera_name());
+                }
               }
             }
           } else {
@@ -1024,7 +1030,11 @@ class viewer_app : public window_base {
                     return x.is_camera() && x.get_camera_name() == panel_node.name;
                   });
               if (found != config_nodes.end() && found->is_camera()) {
-                pipeline->disable_marker_collecting(found->get_camera_name());
+                if (is_extrinsic) {
+                  extrinsic_calib->disable_marker_collecting(found->get_camera_name());
+                } else {
+                  capture_for_scene_->disable_marker_collecting(found->get_camera_name());
+                }
               }
             }
           }
@@ -1038,9 +1048,6 @@ class viewer_app : public window_base {
     calibration_panel_view_->on_action.push_back(
         [this](const std::string& node_id, const std::string& action_id) {
           if (calibration_panel_view_->calibration_target_index == 0) {
-            if (extrinsic_capture_running_) {
-              capture_for_extrinsic_->dispatch_action(action_id);
-            }
             spdlog::info("Start calibration");
             extrinsic_calib->dispatch_action(action_id);
             spdlog::info("End calibration");
@@ -1441,22 +1448,6 @@ class viewer_app : public window_base {
     capture_for_capture_ = std::make_unique<capture_pipeline>();
     capture_for_capture_->run(capture_config->get_nodes());
 
-    capture_for_extrinsic_ = std::make_unique<capture_pipeline>();
-    capture_for_extrinsic_->add_marker_received(
-        [this](const std::map<std::string, marker_frame_data>& marker_frame) {
-          std::map<std::string, std::vector<point_data>> frame;
-          for (const auto& [name, markers] : marker_frame) {
-            std::vector<point_data> points;
-            for (const auto& marker : markers.markers) {
-              points.push_back(
-                  point_data{glm::vec2(marker.x, marker.y), marker.r, markers.timestamp});
-            }
-            frame.insert(std::make_pair(name, points));
-          }
-          extrinsic_calib->push_frame(frame);
-        });
-    capture_for_extrinsic_->run(extrinsic_calibration_config->get_nodes());
-
     capture_for_intrinsic_ = std::make_unique<capture_pipeline>();
     capture_for_intrinsic_->add_image_received(
         [this](const std::map<std::string, cv::Mat>& frames) {
@@ -1536,7 +1527,7 @@ class viewer_app : public window_base {
     if (!active_individual_captures_.empty() || all_capture_running_) {
       capture_for_capture_->pause();
     }
-    if (extrinsic_capture_running_) capture_for_extrinsic_->pause();
+    if (extrinsic_capture_running_) extrinsic_calib->pause();
     if (intrinsic_capture_running_) capture_for_intrinsic_->pause();
     if (scene_capture_running_) capture_for_scene_->pause();
     if (point_recon_capture_running_) capture_for_point_recon_->pause();
@@ -1544,7 +1535,6 @@ class viewer_app : public window_base {
 
     // Stop all capture pipelines
     capture_for_capture_->stop();
-    capture_for_extrinsic_->stop();
     capture_for_intrinsic_->stop();
     capture_for_scene_->stop();
     capture_for_point_recon_->stop();

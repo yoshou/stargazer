@@ -65,6 +65,8 @@ enum class node_type {
   store_parameter,
   action,
   mask_generator,
+  gate,
+  keypoint_to_float2_map,
 };
 
 using node_param_t = std::variant<std::string, std::int64_t, double, float, bool>;
