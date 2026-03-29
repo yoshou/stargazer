@@ -221,8 +221,8 @@ struct subgraph_def {
   std::vector<node_def> nodes;
   std::vector<std::string> outputs;
   std::unordered_map<std::string, node_param_t> params;
-  std::vector<std::string> extends;    // Template subgraph names to inherit from
-  std::vector<subgraph_def> subgraphs; // Nested subgraph instances (for group templates)
+  std::vector<std::string> extends;     // Template subgraph names to inherit from
+  std::vector<subgraph_def> subgraphs;  // Nested subgraph instances (for group templates)
 };
 
 struct pipeline_def {
@@ -243,10 +243,8 @@ class configuration {
   // outer_params: params inherited from an enclosing scope (group template
   //               or outer pipeline instance).
   std::vector<node_def> expand_sg(
-      const subgraph_def& sg_instance,
-      const std::string& prefix,
+      const subgraph_def& sg_instance, const std::string& prefix,
       const std::unordered_map<std::string, node_param_t>& outer_params = {}) const {
-
     // ── Case 1: instance extends a template ────────────────────────────────
     if (!sg_instance.extends.empty()) {
       const auto& template_name = sg_instance.extends.front();
@@ -260,6 +258,10 @@ class configuration {
         for (const auto& [k, v] : sg_instance.params) scope_params[k] = v;
 
         // ── Case 1a: template contains nested subgraph instances ───────────
+        // The template defines a self-contained name space; inner subgraph
+        // names are NOT prefixed with the outer instance prefix.  The outer
+        // prefix is only used by Case 2 (inline nested in a pipeline instance)
+        // so that two instances of the same group template can coexist.
         if (!sg_template.subgraphs.empty()) {
           std::vector<node_def> result;
           for (const auto& nested : sg_template.subgraphs) {
@@ -270,7 +272,7 @@ class configuration {
                 nested_instance.params[k] = v;
               }
             }
-            auto sub = expand_sg(nested_instance, prefix + "_" + nested.name, {});
+            auto sub = expand_sg(nested_instance, nested.name, {});
             result.insert(result.end(), sub.begin(), sub.end());
           }
           return result;

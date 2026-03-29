@@ -27,4 +27,5 @@ target_compile_features(test_config PRIVATE cxx_std_17)
 
 target_compile_definitions(test_config PRIVATE
     TEST_DATA_DIR="${CMAKE_SOURCE_DIR}/lib/testdata"
+    REAL_CONFIG_DIR="${CMAKE_SOURCE_DIR}/config"
 )

@@ -181,7 +181,9 @@ TEST(ConfigGetNodes, TC7_Roundtrip) {
 // TC8: Nested subgraph expansion via group template
 // group_template has subgraphs: [src→src_template, sink→sink_template]
 // Instance "cam0" extends "group_template".
-// Expected: 2 nodes named "cam0_src_loader" and "cam0_sink_decoder".
+// Case 1a: template's internal name space is self-contained; outer prefix
+// ("cam0") is NOT propagated into nested subgraphs.
+// Expected: 2 nodes named "src_loader" and "sink_decoder".
 // ---------------------------------------------------------------------------
 TEST(ConfigGetNodes, TC8_NestedExpansion) {
   stargazer::configuration cfg(fixture("test_nested_expansion.json"));
@@ -189,26 +191,27 @@ TEST(ConfigGetNodes, TC8_NestedExpansion) {
 
   ASSERT_EQ(nodes.size(), 2u);
 
-  auto src_loader =
-      std::find_if(nodes.begin(), nodes.end(), [](const auto& n) { return n.name == "cam0_src_loader"; });
-  auto sink_decoder =
-      std::find_if(nodes.begin(), nodes.end(), [](const auto& n) { return n.name == "cam0_sink_decoder"; });
+  auto src_loader = std::find_if(nodes.begin(), nodes.end(),
+                                 [](const auto& n) { return n.name == "src_loader"; });
+  auto sink_decoder = std::find_if(nodes.begin(), nodes.end(),
+                                   [](const auto& n) { return n.name == "sink_decoder"; });
 
-  ASSERT_NE(src_loader, nodes.end()) << "Expected 'cam0_src_loader' not found";
-  ASSERT_NE(sink_decoder, nodes.end()) << "Expected 'cam0_sink_decoder' not found";
+  ASSERT_NE(src_loader, nodes.end()) << "Expected 'src_loader' not found";
+  ASSERT_NE(sink_decoder, nodes.end()) << "Expected 'sink_decoder' not found";
 }
 
 // ---------------------------------------------------------------------------
 // TC9: Nested subgraph param propagation
 // Instance "cam0" extends "group" (which has nested subgraphs) with db_path="cam0_db".
-// Expected: inner node "cam0_src_loader" gets db_path="cam0_db".
+// Case 1a: outer prefix not propagated. Node name is "src_loader".
+// Expected: inner node "src_loader" gets db_path="cam0_db".
 // ---------------------------------------------------------------------------
 TEST(ConfigGetNodes, TC9_NestedParamPropagation) {
   stargazer::configuration cfg(fixture("test_nested_params.json"));
   auto nodes = cfg.get_nodes("pipeline");
 
   ASSERT_EQ(nodes.size(), 1u);
-  EXPECT_EQ(nodes[0].name, "cam0_src_loader");
+  EXPECT_EQ(nodes[0].name, "src_loader");
   EXPECT_EQ(nodes[0].get_param<std::string>("db_path"), "cam0_db");
 }
 
@@ -223,10 +226,10 @@ TEST(ConfigGetNodes, TC10_InlineNestedSubgraphs) {
 
   ASSERT_EQ(nodes.size(), 2u);
 
-  auto part1 =
-      std::find_if(nodes.begin(), nodes.end(), [](const auto& n) { return n.name == "cam0_part1_loader"; });
-  auto part2 =
-      std::find_if(nodes.begin(), nodes.end(), [](const auto& n) { return n.name == "cam0_part2_loader"; });
+  auto part1 = std::find_if(nodes.begin(), nodes.end(),
+                            [](const auto& n) { return n.name == "cam0_part1_loader"; });
+  auto part2 = std::find_if(nodes.begin(), nodes.end(),
+                            [](const auto& n) { return n.name == "cam0_part2_loader"; });
 
   ASSERT_NE(part1, nodes.end()) << "Expected 'cam0_part1_loader' not found";
   ASSERT_NE(part2, nodes.end()) << "Expected 'cam0_part2_loader' not found";
@@ -272,12 +275,10 @@ TEST(ConfigGetNodes, TC12_DirectNodesDotConversion) {
 
   ASSERT_EQ(nodes.size(), 2u);
 
-  auto sync_node =
-      std::find_if(nodes.begin(), nodes.end(),
-                   [](const auto& n) { return n.name == "approximate_time_sync"; });
+  auto sync_node = std::find_if(nodes.begin(), nodes.end(),
+                                [](const auto& n) { return n.name == "approximate_time_sync"; });
   auto cb_node =
-      std::find_if(nodes.begin(), nodes.end(),
-                   [](const auto& n) { return n.name == "callback"; });
+      std::find_if(nodes.begin(), nodes.end(), [](const auto& n) { return n.name == "callback"; });
 
   ASSERT_NE(sync_node, nodes.end()) << "Expected 'approximate_time_sync' not found";
   ASSERT_NE(cb_node, nodes.end()) << "Expected 'callback' not found";
@@ -290,6 +291,52 @@ TEST(ConfigGetNodes, TC12_DirectNodesDotConversion) {
 
   // Local reference (no dot) must remain unchanged
   EXPECT_EQ(cb_node->inputs.at("default"), "approximate_time_sync");
+}
+
+// ---------------------------------------------------------------------------
+// TC13: Real config files — load + get_nodes() without crash
+// Regression test: verifies all existing config files survive the
+// expand_sg Case 1a prefix fix (none of them use nested subgraphs in
+// templates, so behavior should be identical to before the fix).
+// ---------------------------------------------------------------------------
+TEST(ConfigRealFiles, TC13_RealConfigFilesLoad) {
+  // calibration_extrinsic.json
+  {
+    stargazer::configuration cfg(std::string(REAL_CONFIG_DIR) + "/calibration_extrinsic.json");
+    auto nodes = cfg.get_nodes("extrinsic_calibration_pipeline");
+    EXPECT_GT(nodes.size(), 0u) << "calibration_extrinsic_ir pipeline empty";
+  }
+  // image_reconstruction.json
+  {
+    stargazer::configuration cfg(std::string(REAL_CONFIG_DIR) + "/image_reconstruction.json");
+    auto nodes = cfg.get_nodes("image_reconstruction_pipeline");
+    EXPECT_GT(nodes.size(), 0u) << "image_reconstruction pipeline empty";
+  }
+  // capture.json
+  {
+    stargazer::configuration cfg(std::string(REAL_CONFIG_DIR) + "/capture.json");
+    auto nodes = cfg.get_nodes("pipeline");
+    EXPECT_GT(nodes.size(), 0u) << "capture pipeline empty";
+  }
+  // calibration_intrinsic_single_camera.json
+  {
+    stargazer::configuration cfg(std::string(REAL_CONFIG_DIR) +
+                                 "/calibration_intrinsic_single_camera.json");
+    auto nodes = cfg.get_nodes("intrinsic_calibration_pipeline");
+    EXPECT_GT(nodes.size(), 0u) << "intrinsic_calibration pipeline empty";
+  }
+  // calibration_scene.json
+  {
+    stargazer::configuration cfg(std::string(REAL_CONFIG_DIR) + "/calibration_scene.json");
+    auto nodes = cfg.get_nodes("scene_calibration_pipeline");
+    EXPECT_GT(nodes.size(), 0u) << "scene_calibration pipeline empty";
+  }
+  // point_reconstruction.json
+  {
+    stargazer::configuration cfg(std::string(REAL_CONFIG_DIR) + "/point_reconstruction.json");
+    auto nodes = cfg.get_nodes("point_reconstruction_pipeline");
+    EXPECT_GT(nodes.size(), 0u) << "point_reconstruction pipeline empty";
+  }
 }
 
 }  // namespace
