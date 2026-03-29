@@ -1,0 +1,23 @@
+{
+  "pipeline": "tc7_pipeline",
+  "subgraphs": [
+    {
+      "name": "sg_template",
+      "nodes": [
+        { "name": "source", "type": "load_blob" },
+        { "name": "target", "type": "decode_jpeg", "inputs": { "default": "source" } }
+      ],
+      "outputs": ["target"]
+    }
+  ],
+  "pipelines": {
+    "tc7_pipeline": {
+      "subgraphs": [
+        {
+          "name": "cam0",
+          "extends": ["sg_template"]
+        }
+      ]
+    }
+  }
+}

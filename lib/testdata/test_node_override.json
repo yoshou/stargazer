@@ -1,0 +1,25 @@
+{
+  "pipeline": "tc4_pipeline",
+  "subgraphs": [
+    {
+      "name": "src_template",
+      "nodes": [
+        { "name": "loader", "type": "load_blob", "db_path": "template_db" }
+      ],
+      "outputs": ["loader"]
+    }
+  ],
+  "pipelines": {
+    "tc4_pipeline": {
+      "subgraphs": [
+        {
+          "name": "cam0",
+          "extends": ["src_template"],
+          "nodes": [
+            { "name": "loader", "db_path": "override_db" }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -37,6 +37,7 @@ include(protos/CMakeLists.txt)
 include(fonts/CMakeLists.txt)
 include(lib/CMakeLists.txt)
 include(app/CMakeLists.txt)
+include(lib/test/CMakeLists.txt)
 
 include_directories(
     ${CMAKE_SOURCE_DIR}/coalsack/include

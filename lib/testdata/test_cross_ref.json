@@ -1,0 +1,32 @@
+{
+  "pipeline": "tc5_pipeline",
+  "subgraphs": [
+    {
+      "name": "consumer_template",
+      "nodes": [
+        { "name": "local_src", "type": "load_blob" },
+        { "name": "processor", "type": "approximate_time_sync", "inputs": { "cam0": "local_src" } }
+      ],
+      "outputs": ["processor"]
+    }
+  ],
+  "pipelines": {
+    "tc5_pipeline": {
+      "subgraphs": [
+        {
+          "name": "sg1",
+          "extends": ["consumer_template"],
+          "nodes": [
+            {
+              "name": "processor",
+              "inputs": {
+                "cam0": "ext_sg.source_node",
+                "cam1": "ext_sg.other_node"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

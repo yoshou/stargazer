@@ -1,0 +1,25 @@
+{
+  "pipeline": "tc3_pipeline",
+  "subgraphs": [
+    {
+      "name": "cam_template",
+      "fps": 30,
+      "db_path": "template_db",
+      "nodes": [
+        { "name": "loader", "type": "load_blob", "fps": 60 }
+      ],
+      "outputs": ["loader"]
+    }
+  ],
+  "pipelines": {
+    "tc3_pipeline": {
+      "subgraphs": [
+        {
+          "name": "cam0",
+          "extends": ["cam_template"],
+          "db_path": "cam0_db"
+        }
+      ]
+    }
+  }
+}

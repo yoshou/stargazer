@@ -1,0 +1,16 @@
+{
+  "pipeline": "tc2_pipeline",
+  "pipelines": {
+    "tc2_pipeline": {
+      "subgraphs": [
+        {
+          "name": "direct_sg",
+          "nodes": [
+            { "name": "source_node", "type": "load_blob" },
+            { "name": "sink_node", "type": "decode_jpeg", "inputs": { "default": "source_node" } }
+          ]
+        }
+      ]
+    }
+  }
+}

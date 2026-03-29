@@ -1,0 +1,23 @@
+{
+  "pipeline": "tc1_pipeline",
+  "subgraphs": [
+    {
+      "name": "cam_sg",
+      "nodes": [
+        { "name": "source", "type": "load_blob" },
+        { "name": "decoder", "type": "decode_jpeg", "inputs": { "default": "source" } }
+      ],
+      "outputs": ["decoder"]
+    }
+  ],
+  "pipelines": {
+    "tc1_pipeline": {
+      "subgraphs": [
+        {
+          "name": "cam0",
+          "extends": ["cam_sg"]
+        }
+      ]
+    }
+  }
+}

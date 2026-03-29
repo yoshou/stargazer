@@ -1,0 +1,33 @@
+{
+  "pipeline": "tc6_pipeline",
+  "subgraphs": [
+    {
+      "name": "camera_template",
+      "nodes": [
+        { "name": "loader", "type": "load_blob" },
+        { "name": "decoder", "type": "decode_jpeg", "inputs": { "default": "loader" } }
+      ],
+      "outputs": ["decoder"]
+    }
+  ],
+  "pipelines": {
+    "tc6_pipeline": {
+      "subgraphs": [
+        {
+          "name": "cam0",
+          "extends": ["camera_template"]
+        },
+        {
+          "name": "reconstructor",
+          "nodes": [
+            {
+              "name": "reconstruct_node",
+              "type": "epipolar_reconstruction",
+              "inputs": { "cam0": "cam0_decoder" }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
