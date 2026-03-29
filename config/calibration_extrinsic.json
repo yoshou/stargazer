@@ -2277,6 +2277,88 @@
               "camera_name": "camera20"
             }
           ]
+        },
+        {
+          "name": "sync",
+          "nodes": [
+            {
+              "name": "approximate_time_sync_images",
+              "type": "approximate_time_sync",
+              "interval": 11.611,
+              "inputs": {
+                "camera1": "camera1.decode_jpeg",
+                "camera2": "camera2.decode_jpeg",
+                "camera3": "camera3.decode_jpeg",
+                "camera4": "camera4.decode_jpeg",
+                "camera5": "camera5.decode_jpeg",
+                "camera6": "camera6.decode_jpeg",
+                "camera7": "camera7.decode_jpeg",
+                "camera8": "camera8.decode_jpeg",
+                "camera9": "camera9.decode_jpeg",
+                "camera10": "camera10.decode_jpeg",
+                "camera11": "camera11.decode_jpeg",
+                "camera12": "camera12.decode_jpeg",
+                "camera13": "camera13.decode_jpeg",
+                "camera14": "camera14.decode_jpeg",
+                "camera15": "camera15.decode_jpeg",
+                "camera16": "camera16.decode_jpeg",
+                "camera17": "camera17.decode_jpeg",
+                "camera18": "camera18.decode_jpeg",
+                "camera19": "camera19.decode_jpeg",
+                "camera20": "camera20.decode_jpeg"
+              }
+            },
+            {
+              "name": "callback_images",
+              "type": "callback",
+              "callback_name": "images",
+              "callback_type": "object",
+              "inputs": {
+                "default": "approximate_time_sync_images"
+              }
+            },
+            {
+              "name": "approximate_time_sync_markers",
+              "type": "approximate_time_sync",
+              "interval": 11.611,
+              "inputs": {
+                "camera1": "camera1.load_marker",
+                "camera2": "camera2.load_marker",
+                "camera3": "camera3.load_marker",
+                "camera4": "camera4.load_marker",
+                "camera5": "camera5.load_marker",
+                "camera6": "camera6.load_marker",
+                "camera7": "camera7.load_marker",
+                "camera8": "camera8.load_marker",
+                "camera9": "camera9.load_marker",
+                "camera10": "camera10.load_marker",
+                "camera11": "camera11.load_marker",
+                "camera12": "camera12.load_marker",
+                "camera13": "camera13.load_marker",
+                "camera14": "camera14.load_marker",
+                "camera15": "camera15.load_marker",
+                "camera16": "camera16.load_marker",
+                "camera17": "camera17.load_marker",
+                "camera18": "camera18.load_marker",
+                "camera19": "camera19.load_marker",
+                "camera20": "camera20.load_marker"
+              }
+            },
+            {
+              "name": "marker_gate",
+              "type": "gate",
+              "inputs": {
+                "default": "approximate_time_sync_markers"
+              }
+            },
+            {
+              "name": "keypoint_to_float2",
+              "type": "keypoint_to_float2_map",
+              "inputs": {
+                "default": "marker_gate"
+              }
+            }
+          ]
         }
       ]
     },
@@ -4572,83 +4654,6 @@
           "extends": [
             "playback_ir_cameras_subgraph"
           ]
-        },
-        {
-          "name": "sync",
-          "nodes": [
-            {
-              "name": "approximate_time_sync_images",
-              "type": "approximate_time_sync",
-              "interval": 11.611,
-              "inputs": {
-                "camera1": "camera1.decode_jpeg",
-                "camera2": "camera2.decode_jpeg",
-                "camera3": "camera3.decode_jpeg",
-                "camera4": "camera4.decode_jpeg",
-                "camera5": "camera5.decode_jpeg",
-                "camera6": "camera6.decode_jpeg",
-                "camera7": "camera7.decode_jpeg",
-                "camera8": "camera8.decode_jpeg",
-                "camera9": "camera9.decode_jpeg",
-                "camera10": "camera10.decode_jpeg",
-                "camera11": "camera11.decode_jpeg",
-                "camera12": "camera12.decode_jpeg",
-                "camera13": "camera13.decode_jpeg",
-                "camera14": "camera14.decode_jpeg",
-                "camera15": "camera15.decode_jpeg",
-                "camera16": "camera16.decode_jpeg",
-                "camera17": "camera17.decode_jpeg",
-                "camera18": "camera18.decode_jpeg",
-                "camera19": "camera19.decode_jpeg",
-                "camera20": "camera20.decode_jpeg"
-              }
-            },
-            {
-              "name": "callback_images",
-              "type": "callback",
-              "callback_name": "images",
-              "callback_type": "object",
-              "inputs": {
-                "default": "approximate_time_sync_images"
-              }
-            },
-            {
-              "name": "approximate_time_sync_markers",
-              "type": "approximate_time_sync",
-              "interval": 11.611,
-              "inputs": {
-                "camera1": "camera1.load_marker",
-                "camera2": "camera2.load_marker",
-                "camera3": "camera3.load_marker",
-                "camera4": "camera4.load_marker",
-                "camera5": "camera5.load_marker",
-                "camera6": "camera6.load_marker",
-                "camera7": "camera7.load_marker",
-                "camera8": "camera8.load_marker",
-                "camera9": "camera9.load_marker",
-                "camera10": "camera10.load_marker",
-                "camera11": "camera11.load_marker",
-                "camera12": "camera12.load_marker",
-                "camera13": "camera13.load_marker",
-                "camera14": "camera14.load_marker",
-                "camera15": "camera15.load_marker",
-                "camera16": "camera16.load_marker",
-                "camera17": "camera17.load_marker",
-                "camera18": "camera18.load_marker",
-                "camera19": "camera19.load_marker",
-                "camera20": "camera20.load_marker"
-              }
-            },
-            {
-              "name": "callback_markers",
-              "type": "callback",
-              "callback_name": "markers",
-              "callback_type": "object",
-              "inputs": {
-                "default": "approximate_time_sync_markers"
-              }
-            }
-          ]
         }
       ]
     },
@@ -4678,88 +4683,6 @@
           "name": "cameras",
           "extends": [
             "playback_ir_cameras_subgraph"
-          ]
-        },
-        {
-          "name": "sync",
-          "nodes": [
-            {
-              "name": "approximate_time_sync_images",
-              "type": "approximate_time_sync",
-              "interval": 11.611,
-              "inputs": {
-                "camera1": "camera1.decode_jpeg",
-                "camera2": "camera2.decode_jpeg",
-                "camera3": "camera3.decode_jpeg",
-                "camera4": "camera4.decode_jpeg",
-                "camera5": "camera5.decode_jpeg",
-                "camera6": "camera6.decode_jpeg",
-                "camera7": "camera7.decode_jpeg",
-                "camera8": "camera8.decode_jpeg",
-                "camera9": "camera9.decode_jpeg",
-                "camera10": "camera10.decode_jpeg",
-                "camera11": "camera11.decode_jpeg",
-                "camera12": "camera12.decode_jpeg",
-                "camera13": "camera13.decode_jpeg",
-                "camera14": "camera14.decode_jpeg",
-                "camera15": "camera15.decode_jpeg",
-                "camera16": "camera16.decode_jpeg",
-                "camera17": "camera17.decode_jpeg",
-                "camera18": "camera18.decode_jpeg",
-                "camera19": "camera19.decode_jpeg",
-                "camera20": "camera20.decode_jpeg"
-              }
-            },
-            {
-              "name": "callback_images",
-              "type": "callback",
-              "callback_name": "images",
-              "callback_type": "object",
-              "inputs": {
-                "default": "approximate_time_sync_images"
-              }
-            },
-            {
-              "name": "approximate_time_sync_markers",
-              "type": "approximate_time_sync",
-              "interval": 11.611,
-              "inputs": {
-                "camera1": "camera1.load_marker",
-                "camera2": "camera2.load_marker",
-                "camera3": "camera3.load_marker",
-                "camera4": "camera4.load_marker",
-                "camera5": "camera5.load_marker",
-                "camera6": "camera6.load_marker",
-                "camera7": "camera7.load_marker",
-                "camera8": "camera8.load_marker",
-                "camera9": "camera9.load_marker",
-                "camera10": "camera10.load_marker",
-                "camera11": "camera11.load_marker",
-                "camera12": "camera12.load_marker",
-                "camera13": "camera13.load_marker",
-                "camera14": "camera14.load_marker",
-                "camera15": "camera15.load_marker",
-                "camera16": "camera16.load_marker",
-                "camera17": "camera17.load_marker",
-                "camera18": "camera18.load_marker",
-                "camera19": "camera19.load_marker",
-                "camera20": "camera20.load_marker"
-              }
-            },
-            {
-              "name": "marker_gate",
-              "type": "gate",
-              "inputs": {
-                "default": "approximate_time_sync_markers"
-              }
-            },
-            {
-              "name": "keypoint_to_float2",
-              "type": "keypoint_to_float2_map",
-              "inputs": {
-                "default": "marker_gate"
-              }
-            }
           ]
         },
         {
