@@ -1,0 +1,34 @@
+{
+  "pipeline": "tc8_pipeline",
+  "subgraphs": [
+    {
+      "name": "src_template",
+      "nodes": [
+        { "name": "loader", "type": "load_blob" }
+      ]
+    },
+    {
+      "name": "sink_template",
+      "nodes": [
+        { "name": "decoder", "type": "decode_jpeg" }
+      ]
+    },
+    {
+      "name": "group_template",
+      "subgraphs": [
+        { "name": "src", "extends": ["src_template"] },
+        { "name": "sink", "extends": ["sink_template"] }
+      ]
+    }
+  ],
+  "pipelines": {
+    "tc8_pipeline": {
+      "subgraphs": [
+        {
+          "name": "cam0",
+          "extends": ["group_template"]
+        }
+      ]
+    }
+  }
+}

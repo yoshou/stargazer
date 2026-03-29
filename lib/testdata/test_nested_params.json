@@ -1,0 +1,28 @@
+{
+  "pipeline": "tc9_pipeline",
+  "subgraphs": [
+    {
+      "name": "node_template",
+      "nodes": [
+        { "name": "loader", "type": "load_blob" }
+      ]
+    },
+    {
+      "name": "group",
+      "subgraphs": [
+        { "name": "src", "extends": ["node_template"] }
+      ]
+    }
+  ],
+  "pipelines": {
+    "tc9_pipeline": {
+      "subgraphs": [
+        {
+          "name": "cam0",
+          "extends": ["group"],
+          "db_path": "cam0_db"
+        }
+      ]
+    }
+  }
+}

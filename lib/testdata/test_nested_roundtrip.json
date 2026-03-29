@@ -1,0 +1,29 @@
+{
+  "pipeline": "tc11_pipeline",
+  "subgraphs": [
+    {
+      "name": "leaf_template",
+      "nodes": [
+        { "name": "source", "type": "load_blob" },
+        { "name": "target", "type": "decode_jpeg", "inputs": { "default": "source" } }
+      ]
+    },
+    {
+      "name": "group_template",
+      "subgraphs": [
+        { "name": "part_a", "extends": ["leaf_template"] },
+        { "name": "part_b", "extends": ["leaf_template"] }
+      ]
+    }
+  ],
+  "pipelines": {
+    "tc11_pipeline": {
+      "subgraphs": [
+        {
+          "name": "cam0",
+          "extends": ["group_template"]
+        }
+      ]
+    }
+  }
+}

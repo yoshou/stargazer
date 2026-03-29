@@ -440,9 +440,24 @@ configuration::configuration(const std::string& path) : path(path) {
           subgraph.outputs = j_subgraph["outputs"].get<std::vector<std::string>>();
         }
 
+        // Nested subgraph instances within this template
+        if (j_subgraph.contains("subgraphs")) {
+          for (const auto& j_nested : j_subgraph["subgraphs"]) {
+            subgraph_def nested;
+            if (j_nested.contains("name")) nested.name = j_nested["name"].get<std::string>();
+            if (j_nested.contains("extends")) nested.extends = j_nested["extends"].get<std::vector<std::string>>();
+            for (const auto& [key, value] : j_nested.items()) {
+              if (key != "name" && key != "extends" && key != "nodes" && key != "outputs" && key != "subgraphs") {
+                nested.params[key] = json_to_param(value);
+              }
+            }
+            subgraph.subgraphs.push_back(nested);
+          }
+        }
+
         // Subgraph-level parameters (e.g., db_path, fps, etc.)
         for (const auto& [key, value] : j_subgraph.items()) {
-          if (key != "name" && key != "nodes" && key != "outputs" && key != "extends") {
+          if (key != "name" && key != "nodes" && key != "outputs" && key != "extends" && key != "subgraphs") {
             subgraph.params[key] = json_to_param(value);
           }
         }
@@ -502,8 +517,23 @@ configuration::configuration(const std::string& path) : path(path) {
 
           // Instance-specific parameters (override template params)
           for (const auto& [key, value] : j_sg.items()) {
-            if (key != "name" && key != "extends" && key != "nodes" && key != "outputs") {
+            if (key != "name" && key != "extends" && key != "nodes" && key != "outputs" && key != "subgraphs") {
               sg_instance.params[key] = json_to_param(value);
+            }
+          }
+
+          // Nested subgraph instances within this pipeline instance
+          if (j_sg.contains("subgraphs")) {
+            for (const auto& j_nested : j_sg["subgraphs"]) {
+              subgraph_def nested;
+              if (j_nested.contains("name")) nested.name = j_nested["name"].get<std::string>();
+              if (j_nested.contains("extends")) nested.extends = j_nested["extends"].get<std::vector<std::string>>();
+              for (const auto& [key, value] : j_nested.items()) {
+                if (key != "name" && key != "extends" && key != "nodes" && key != "outputs" && key != "subgraphs") {
+                  nested.params[key] = json_to_param(value);
+                }
+              }
+              sg_instance.subgraphs.push_back(nested);
             }
           }
 
@@ -625,6 +655,18 @@ void configuration::update() {
         j_subgraph["outputs"] = sg.outputs;
       }
 
+      if (!sg.subgraphs.empty()) {
+        std::vector<nlohmann::json> j_nested_sgs;
+        for (const auto& nested : sg.subgraphs) {
+          nlohmann::json j_nested;
+          j_nested["name"] = nested.name;
+          if (!nested.extends.empty()) j_nested["extends"] = nested.extends;
+          for (const auto& [k, v] : nested.params) j_nested[k] = v;
+          j_nested_sgs.push_back(j_nested);
+        }
+        j_subgraph["subgraphs"] = j_nested_sgs;
+      }
+
       for (const auto& [key, value] : sg.params) {
         j_subgraph[key] = value;
       }
@@ -676,6 +718,18 @@ void configuration::update() {
             j_nodes.push_back(j_node);
           }
           j_sg["nodes"] = j_nodes;
+        }
+
+        if (!sg.subgraphs.empty()) {
+          std::vector<nlohmann::json> j_nested_sgs;
+          for (const auto& nested : sg.subgraphs) {
+            nlohmann::json j_nested;
+            j_nested["name"] = nested.name;
+            if (!nested.extends.empty()) j_nested["extends"] = nested.extends;
+            for (const auto& [k, v] : nested.params) j_nested[k] = v;
+            j_nested_sgs.push_back(j_nested);
+          }
+          j_sg["subgraphs"] = j_nested_sgs;
         }
 
         j_subgraphs.push_back(j_sg);

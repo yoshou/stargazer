@@ -221,7 +221,8 @@ struct subgraph_def {
   std::vector<node_def> nodes;
   std::vector<std::string> outputs;
   std::unordered_map<std::string, node_param_t> params;
-  std::vector<std::string> extends;  // Template subgraph names to inherit from
+  std::vector<std::string> extends;    // Template subgraph names to inherit from
+  std::vector<subgraph_def> subgraphs; // Nested subgraph instances (for group templates)
 };
 
 struct pipeline_def {
@@ -236,6 +237,123 @@ class configuration {
   std::unordered_map<std::string, std::shared_ptr<node_def>> nodes;
   std::unordered_map<std::string, subgraph_def> subgraph_templates;  // Template definitions
 
+  // Expand a single subgraph instance into a flat list of node_def.
+  // prefix      : full prefix to apply to node names (= the fully-qualified
+  //               subgraph instance name, e.g. "camera1" or "camera1_receiver").
+  // outer_params: params inherited from an enclosing scope (group template
+  //               or outer pipeline instance).
+  std::vector<node_def> expand_sg(
+      const subgraph_def& sg_instance,
+      const std::string& prefix,
+      const std::unordered_map<std::string, node_param_t>& outer_params = {}) const {
+
+    // ── Case 1: instance extends a template ────────────────────────────────
+    if (!sg_instance.extends.empty()) {
+      const auto& template_name = sg_instance.extends.front();
+      if (subgraph_templates.find(template_name) != subgraph_templates.end()) {
+        const auto& sg_template = subgraph_templates.at(template_name);
+
+        // Build the params that the template/instance contribute to children
+        std::unordered_map<std::string, node_param_t> scope_params;
+        for (const auto& [k, v] : outer_params) scope_params[k] = v;
+        for (const auto& [k, v] : sg_template.params) scope_params[k] = v;
+        for (const auto& [k, v] : sg_instance.params) scope_params[k] = v;
+
+        // ── Case 1a: template contains nested subgraph instances ───────────
+        if (!sg_template.subgraphs.empty()) {
+          std::vector<node_def> result;
+          for (const auto& nested : sg_template.subgraphs) {
+            // Propagate scope_params (nested's own params take priority)
+            subgraph_def nested_instance = nested;
+            for (const auto& [k, v] : scope_params) {
+              if (nested_instance.params.find(k) == nested_instance.params.end()) {
+                nested_instance.params[k] = v;
+              }
+            }
+            auto sub = expand_sg(nested_instance, prefix + "_" + nested.name, {});
+            result.insert(result.end(), sub.begin(), sub.end());
+          }
+          return result;
+        }
+
+        // ── Case 1b: template contains flat nodes ─────────────────────────
+        std::vector<node_def> sg_nodes = sg_template.nodes;
+
+        std::unordered_set<std::string> local_names;
+        for (const auto& n : sg_nodes) local_names.insert(n.name);
+
+        for (auto& node : sg_nodes) {
+          node.subgraph_instance = prefix;
+
+          // Param hierarchy: outer < template-sg < instance < node
+          std::unordered_map<std::string, node_param_t> merged;
+          for (const auto& [k, v] : scope_params) merged[k] = v;
+          for (const auto& [k, v] : node.params) merged[k] = v;
+          node.params = merged;
+
+          // Prefix node name
+          if (node.name.find(prefix) == std::string::npos) {
+            node.name = prefix + "_" + node.name;
+          }
+
+          // Prefix local input references
+          for (auto& [input_key, source] : node.inputs) {
+            size_t colon = source.find(':');
+            std::string ref = colon != std::string::npos ? source.substr(0, colon) : source;
+            std::string out = colon != std::string::npos ? source.substr(colon) : "";
+            if (local_names.count(ref) > 0 && ref.find(prefix) == std::string::npos) {
+              source = prefix + "_" + ref + out;
+            }
+          }
+        }
+
+        // Apply instance-level node overrides
+        for (const auto& ov : sg_instance.nodes) {
+          std::string target = ov.name;
+          if (target.find(prefix) == std::string::npos) target = prefix + "_" + target;
+          for (auto& node : sg_nodes) {
+            if (node.name == target) {
+              for (const auto& [k, v] : ov.params) node.params[k] = v;
+              for (auto [k, v] : ov.inputs) {
+                std::replace(v.begin(), v.end(), '.', '_');
+                node.inputs[k] = v;
+              }
+              break;
+            }
+          }
+        }
+
+        return sg_nodes;
+      }
+    }
+
+    // ── Case 2: instance has inline nested subgraphs ───────────────────────
+    if (!sg_instance.subgraphs.empty()) {
+      std::vector<node_def> result;
+      for (const auto& nested : sg_instance.subgraphs) {
+        subgraph_def nested_instance = nested;
+        for (const auto& [k, v] : sg_instance.params) {
+          if (nested_instance.params.find(k) == nested_instance.params.end()) {
+            nested_instance.params[k] = v;
+          }
+        }
+        auto sub = expand_sg(nested_instance, prefix + "_" + nested.name, {});
+        result.insert(result.end(), sub.begin(), sub.end());
+      }
+      return result;
+    }
+
+    // ── Case 3: direct nodes (no extends, no nested subgraphs) ────────────
+    // Apply '.' → '_' replacement on all input values (cross-subgraph references).
+    auto direct_nodes = sg_instance.nodes;
+    for (auto& node : direct_nodes) {
+      for (auto& [input_key, source] : node.inputs) {
+        std::replace(source.begin(), source.end(), '.', '_');
+      }
+    }
+    return direct_nodes;
+  }
+
  public:
   configuration(const std::string& path);
 
@@ -245,105 +363,9 @@ class configuration {
     const auto& pipeline_name = pipeline_names.at(pipeline_key);
     const auto& pipeline = pipelines.at(pipeline_name);
     std::vector<node_def> result;
-
     for (const auto& sg_instance : pipeline.subgraphs) {
-      std::vector<node_def> sg_nodes = sg_instance.nodes;
-
-      for (const auto& template_name : sg_instance.extends) {
-        if (subgraph_templates.find(template_name) != subgraph_templates.end()) {
-          const auto& sg_template = subgraph_templates.at(template_name);
-          sg_nodes = sg_template.nodes;
-
-          // Build a map of original node names in this subgraph
-          std::unordered_set<std::string> local_node_names;
-          for (const auto& n : sg_nodes) {
-            local_node_names.insert(n.name);
-          }
-
-          for (auto& node : sg_nodes) {
-            // Set subgraph instance name
-            node.subgraph_instance = sg_instance.name;
-
-            // Build parameter hierarchy (lowest to highest priority):
-            // 1. Template subgraph params (lowest)
-            // 2. Instance params
-            // 3. Template node params (already in node.params)
-            // 4. Instance node overrides (applied later, highest)
-
-            std::unordered_map<std::string, node_param_t> merged_params;
-
-            // Start with template subgraph parameters
-            for (const auto& [key, value] : sg_template.params) {
-              merged_params[key] = value;
-            }
-
-            // Override with instance parameters
-            for (const auto& [key, value] : sg_instance.params) {
-              merged_params[key] = value;
-            }
-
-            // Override with node's own parameters (from template)
-            for (const auto& [key, value] : node.params) {
-              merged_params[key] = value;
-            }
-
-            // Set the merged parameters
-            node.params = merged_params;
-
-            // Prefix node name with subgraph instance name if not already prefixed
-            if (node.name.find(sg_instance.name) == std::string::npos) {
-              node.name = sg_instance.name + "_" + node.name;
-            }
-
-            // Update input references to use prefixed names
-            for (auto& [input_name, source_name] : node.inputs) {
-              // Parse source_name to extract node reference and optional output name
-              size_t colon_pos = source_name.find(':');
-              std::string node_ref =
-                  colon_pos != std::string::npos ? source_name.substr(0, colon_pos) : source_name;
-              std::string output_ref =
-                  colon_pos != std::string::npos ? source_name.substr(colon_pos) : "";
-
-              // Check if this is a local reference (node exists in subgraph)
-              if (local_node_names.count(node_ref) > 0) {
-                // This is a local reference, prefix it
-                if (node_ref.find(sg_instance.name) == std::string::npos) {
-                  source_name = sg_instance.name + "_" + node_ref + output_ref;
-                }
-              }
-            }
-          }
-        }
-      }
-
-      // Apply instance-specific node overrides
-      for (const auto& override_node : sg_instance.nodes) {
-        std::string target_node_name = override_node.name;
-
-        // If the override node name doesn't include the instance prefix, add it
-        if (target_node_name.find(sg_instance.name) == std::string::npos) {
-          target_node_name = sg_instance.name + "_" + target_node_name;
-        }
-
-        // Find the node in sg_nodes and apply overrides
-        for (auto& node : sg_nodes) {
-          if (node.name == target_node_name) {
-            // Override parameters
-            for (const auto& [key, value] : override_node.params) {
-              node.params[key] = value;
-            }
-            // Override inputs
-            for (auto [key, value] : override_node.inputs) {
-              // Replace '.' with '_' in cross-subgraph references
-              std::replace(value.begin(), value.end(), '.', '_');
-              node.inputs[key] = value;
-            }
-            break;
-          }
-        }
-      }
-
-      result.insert(result.end(), sg_nodes.begin(), sg_nodes.end());
+      auto expanded = expand_sg(sg_instance, sg_instance.name);
+      result.insert(result.end(), expanded.begin(), expanded.end());
     }
     return result;
   }

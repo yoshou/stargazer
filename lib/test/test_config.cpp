@@ -177,4 +177,119 @@ TEST(ConfigGetNodes, TC7_Roundtrip) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// TC8: Nested subgraph expansion via group template
+// group_template has subgraphs: [src→src_template, sink→sink_template]
+// Instance "cam0" extends "group_template".
+// Expected: 2 nodes named "cam0_src_loader" and "cam0_sink_decoder".
+// ---------------------------------------------------------------------------
+TEST(ConfigGetNodes, TC8_NestedExpansion) {
+  stargazer::configuration cfg(fixture("test_nested_expansion.json"));
+  auto nodes = cfg.get_nodes("pipeline");
+
+  ASSERT_EQ(nodes.size(), 2u);
+
+  auto src_loader =
+      std::find_if(nodes.begin(), nodes.end(), [](const auto& n) { return n.name == "cam0_src_loader"; });
+  auto sink_decoder =
+      std::find_if(nodes.begin(), nodes.end(), [](const auto& n) { return n.name == "cam0_sink_decoder"; });
+
+  ASSERT_NE(src_loader, nodes.end()) << "Expected 'cam0_src_loader' not found";
+  ASSERT_NE(sink_decoder, nodes.end()) << "Expected 'cam0_sink_decoder' not found";
+}
+
+// ---------------------------------------------------------------------------
+// TC9: Nested subgraph param propagation
+// Instance "cam0" extends "group" (which has nested subgraphs) with db_path="cam0_db".
+// Expected: inner node "cam0_src_loader" gets db_path="cam0_db".
+// ---------------------------------------------------------------------------
+TEST(ConfigGetNodes, TC9_NestedParamPropagation) {
+  stargazer::configuration cfg(fixture("test_nested_params.json"));
+  auto nodes = cfg.get_nodes("pipeline");
+
+  ASSERT_EQ(nodes.size(), 1u);
+  EXPECT_EQ(nodes[0].name, "cam0_src_loader");
+  EXPECT_EQ(nodes[0].get_param<std::string>("db_path"), "cam0_db");
+}
+
+// ---------------------------------------------------------------------------
+// TC10: Inline nested subgraphs in pipeline instance (no extends on outer)
+// Pipeline instance "cam0" has inline subgraphs: [part1, part2] each extending node_template.
+// Expected: 2 nodes "cam0_part1_loader" and "cam0_part2_loader".
+// ---------------------------------------------------------------------------
+TEST(ConfigGetNodes, TC10_InlineNestedSubgraphs) {
+  stargazer::configuration cfg(fixture("test_inline_nested.json"));
+  auto nodes = cfg.get_nodes("pipeline");
+
+  ASSERT_EQ(nodes.size(), 2u);
+
+  auto part1 =
+      std::find_if(nodes.begin(), nodes.end(), [](const auto& n) { return n.name == "cam0_part1_loader"; });
+  auto part2 =
+      std::find_if(nodes.begin(), nodes.end(), [](const auto& n) { return n.name == "cam0_part2_loader"; });
+
+  ASSERT_NE(part1, nodes.end()) << "Expected 'cam0_part1_loader' not found";
+  ASSERT_NE(part2, nodes.end()) << "Expected 'cam0_part2_loader' not found";
+}
+
+// ---------------------------------------------------------------------------
+// TC11: Nested roundtrip — load → update() → reload → same nodes
+// Uses a group template with two nested subgraphs (part_a, part_b), each
+// extending leaf_template which has internal input references.
+// ---------------------------------------------------------------------------
+TEST(ConfigGetNodes, TC11_NestedRoundtrip) {
+  const std::string orig_path = fixture("test_nested_roundtrip.json");
+  const std::string temp_path = "/tmp/stargazer_test_nested_roundtrip.json";
+
+  std::filesystem::copy_file(orig_path, temp_path,
+                             std::filesystem::copy_options::overwrite_existing);
+
+  stargazer::configuration cfg1(temp_path);
+  auto nodes_before = cfg1.get_nodes("pipeline");
+  cfg1.update();
+
+  stargazer::configuration cfg2(temp_path);
+  auto nodes_after = cfg2.get_nodes("pipeline");
+
+  std::filesystem::remove(temp_path);
+
+  ASSERT_EQ(nodes_before.size(), nodes_after.size());
+  for (size_t i = 0; i < nodes_before.size(); ++i) {
+    EXPECT_EQ(nodes_before[i].name, nodes_after[i].name);
+    EXPECT_EQ(nodes_before[i].get_type(), nodes_after[i].get_type());
+  }
+}
+
+// ---------------------------------------------------------------------------
+// TC12: Direct nodes with cross-subgraph dot references
+// Subgraph "sync" has direct nodes (no extends). Inputs use dot notation
+// like "camera1_sg.decoder" which must be converted to "camera1_sg_decoder".
+// This is a regression test for the Case 3 dot→underscore conversion.
+// ---------------------------------------------------------------------------
+TEST(ConfigGetNodes, TC12_DirectNodesDotConversion) {
+  stargazer::configuration cfg(fixture("test_direct_dot_ref.json"));
+  auto nodes = cfg.get_nodes("pipeline");
+
+  ASSERT_EQ(nodes.size(), 2u);
+
+  auto sync_node =
+      std::find_if(nodes.begin(), nodes.end(),
+                   [](const auto& n) { return n.name == "approximate_time_sync"; });
+  auto cb_node =
+      std::find_if(nodes.begin(), nodes.end(),
+                   [](const auto& n) { return n.name == "callback"; });
+
+  ASSERT_NE(sync_node, nodes.end()) << "Expected 'approximate_time_sync' not found";
+  ASSERT_NE(cb_node, nodes.end()) << "Expected 'callback' not found";
+
+  // Dot in cross-subgraph reference must be converted to underscore
+  ASSERT_TRUE(sync_node->inputs.count("camera1") > 0);
+  ASSERT_TRUE(sync_node->inputs.count("camera2") > 0);
+  EXPECT_EQ(sync_node->inputs.at("camera1"), "camera1_sg_decoder");
+  EXPECT_EQ(sync_node->inputs.at("camera2"), "camera2_sg_decoder");
+
+  // Local reference (no dot) must remain unchanged
+  EXPECT_EQ(cb_node->inputs.at("default"), "approximate_time_sync");
+}
+
 }  // namespace

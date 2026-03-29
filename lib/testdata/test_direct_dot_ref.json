@@ -1,0 +1,27 @@
+{
+  "pipeline": "tc12_pipeline",
+  "pipelines": {
+    "tc12_pipeline": {
+      "subgraphs": [
+        {
+          "name": "sync",
+          "nodes": [
+            {
+              "name": "approximate_time_sync",
+              "type": "approximate_time_sync",
+              "inputs": {
+                "camera1": "camera1_sg.decoder",
+                "camera2": "camera2_sg.decoder"
+              }
+            },
+            {
+              "name": "callback",
+              "type": "callback",
+              "inputs": { "default": "approximate_time_sync" }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
