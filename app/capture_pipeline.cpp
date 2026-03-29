@@ -1,29 +1,21 @@
 #include "capture_pipeline.hpp"
 
-#include <sqlite3.h>
-
 #include <filesystem>
 #include <fstream>
 #include <nlohmann/json.hpp>
 #include <regex>
 #include <set>
 
-#include "callback_node.hpp"
 #include "coalsack/core/graph_proc.h"
 #include "coalsack/core/graph_proc_client.h"
 #include "coalsack/core/graph_proc_server.h"
-#include "coalsack/ext/graph_proc_action.h"
-#include "coalsack/ext/graph_proc_cv_ext.h"
 #include "coalsack/ext/graph_proc_depthai.h"
 #include "coalsack/ext/graph_proc_jpeg.h"
 #include "coalsack/ext/graph_proc_libcamera.h"
 #include "coalsack/ext/graph_proc_rs_d435.h"
-#include "coalsack/image/graph_proc_cv.h"
 #include "dump_blob_node.hpp"
-#include "dump_keypoint_node.hpp"
 #include "graph_builder.hpp"
 #include "load_blob_node.hpp"
-#include "load_marker_node.hpp"
 #include "load_panoptic_node.hpp"
 
 using namespace coalsack;
@@ -36,18 +28,6 @@ class capture_pipeline::impl {
   asio::io_context io_context;
   graph_proc_client client;
   std::unique_ptr<std::thread> io_thread;
-
-  mutable std::mutex frames_mtx;
-  std::map<std::string, cv::Mat> frames;
-
-  mutable std::mutex image_received_mtx;
-  std::vector<std::function<void(const std::map<std::string, cv::Mat>&)>> image_received;
-
-  mutable std::mutex marker_collecting_clusters_mtx;
-  std::unordered_set<std::string> marker_collecting_clusters;
-
-  mutable std::mutex frame_received_mtx;
-  std::vector<std::function<void(const std::map<std::string, marker_frame_data>&)>> marker_received;
 
   bool has_remote_subgraphs = false;
 
@@ -68,26 +48,6 @@ class capture_pipeline::impl {
   }
 
  public:
-  void add_marker_received(std::function<void(const std::map<std::string, marker_frame_data>&)> f) {
-    std::lock_guard lock(frame_received_mtx);
-    marker_received.push_back(f);
-  }
-
-  void clear_marker_received() {
-    std::lock_guard lock(frame_received_mtx);
-    marker_received.clear();
-  }
-
-  void add_image_received(std::function<void(const std::map<std::string, cv::Mat>&)> f) {
-    std::lock_guard lock(image_received_mtx);
-    image_received.push_back(f);
-  }
-
-  void clear_image_received() {
-    std::lock_guard lock(image_received_mtx);
-    image_received.clear();
-  }
-
   impl()
       : node_map(),
         local_graph(),
@@ -95,14 +55,6 @@ class capture_pipeline::impl {
         io_context(),
         client(),
         io_thread(),
-        frames_mtx(),
-        frames(),
-        image_received_mtx(),
-        image_received(),
-        marker_collecting_clusters_mtx(),
-        marker_collecting_clusters(),
-        frame_received_mtx(),
-        marker_received(),
         has_remote_subgraphs(false) {}
 
   void deploy(const std::vector<node_def>& nodes) {
@@ -131,181 +83,6 @@ class capture_pipeline::impl {
     // Build all subgraphs in one pass
     stargazer::build_graph_from_json(nodes, subgraphs, global_node_map);
     node_map = global_node_map;
-
-    const auto callbacks = std::make_shared<callback_list>();
-
-    callbacks->add([this](const callback_node* node, std::string input_name,
-                          graph_message_ptr message) {
-      (void)input_name;
-      const auto& callback_name = node->get_callback_name();
-      const auto& camera_name = node->get_camera_name();
-      const auto callback_type = node->get_callback_type();
-      (void)callback_type;
-
-      // Handle individual image callback
-      if (callback_name == "image") {
-        if (auto image_msg = std::dynamic_pointer_cast<frame_message<image>>(message)) {
-          const auto& img = image_msg->get_data();
-
-          int type = -1;
-          if (image_msg->get_profile()) {
-            auto format = image_msg->get_profile()->get_format();
-            type = stream_format_to_cv_type(format);
-          }
-
-          if (type < 0) {
-            throw std::logic_error("Unknown image format");
-          }
-
-          cv::Mat frame = cv::Mat(img.get_height(), img.get_width(), type, (uchar*)img.get_data(),
-                                  img.get_stride())
-                              .clone();
-
-          {
-            std::lock_guard lock(frames_mtx);
-            this->frames[camera_name] = frame;
-          }
-
-          std::vector<std::function<void(const std::map<std::string, cv::Mat>&)>> image_received;
-          {
-            std::lock_guard lock(image_received_mtx);
-            image_received = this->image_received;
-          }
-
-          for (const auto& f : image_received) {
-            std::map<std::string, cv::Mat> frames_map;
-            frames_map[camera_name] = frame;
-            f(frames_map);
-          }
-        }
-      } else if (callback_name == "marker") {
-        {
-          std::lock_guard lock(marker_collecting_clusters_mtx);
-          if (marker_collecting_clusters.empty() ||
-              marker_collecting_clusters.find(camera_name) == marker_collecting_clusters.end()) {
-            return;
-          }
-        }
-
-        if (const auto keypoints_msg = std::dynamic_pointer_cast<keypoint_frame_message>(message)) {
-          const auto& keypoints = keypoints_msg->get_data();
-
-          marker_frame_data frame_data;
-          for (const auto& keypoint : keypoints) {
-            marker_data kp;
-            kp.x = keypoint.pt_x;
-            kp.y = keypoint.pt_y;
-            kp.r = keypoint.size;
-            frame_data.markers.push_back(kp);
-          }
-
-          frame_data.timestamp = keypoints_msg->get_timestamp();
-          frame_data.frame_number = keypoints_msg->get_frame_number();
-
-          std::vector<std::function<void(const std::map<std::string, marker_frame_data>&)>>
-              marker_received;
-          {
-            std::lock_guard lock(frame_received_mtx);
-            marker_received = this->marker_received;
-          }
-
-          for (const auto& f : marker_received) {
-            std::map<std::string, marker_frame_data> frames_map;
-            frames_map[camera_name] = frame_data;
-            f(frames_map);
-          }
-        }
-      }
-
-      // Keep old format support for backward compatibility
-      if (callback_name == "images") {
-        if (auto obj_msg = std::dynamic_pointer_cast<object_message>(message)) {
-          // Use local variable for aggregated images, don't update this->frames
-          std::map<std::string, cv::Mat> frames;
-          for (const auto& [name, field] : obj_msg->get_fields()) {
-            if (auto image_msg = std::dynamic_pointer_cast<frame_message<image>>(field)) {
-              const auto& image = image_msg->get_data();
-
-              int type = -1;
-              if (image_msg->get_profile()) {
-                auto format = image_msg->get_profile()->get_format();
-                type = stream_format_to_cv_type(format);
-              }
-
-              if (type < 0) {
-                throw std::logic_error("Unknown image format");
-              }
-
-              frames.insert(
-                  std::make_pair(name, cv::Mat(image.get_height(), image.get_width(), type,
-                                               (uchar*)image.get_data(), image.get_stride())
-                                           .clone()));
-            }
-          }
-
-          // Don't update this->frames here - it's for individual image display only
-          std::vector<std::function<void(const std::map<std::string, cv::Mat>&)>> image_received;
-          {
-            std::lock_guard lock(image_received_mtx);
-            image_received = this->image_received;
-          }
-
-          for (const auto& f : image_received) {
-            f(frames);
-          }
-        }
-      } else if (node->get_callback_name() == "markers") {
-        {
-          std::lock_guard lock(marker_collecting_clusters_mtx);
-          if (marker_collecting_clusters.empty()) {
-            return;
-          }
-        }
-        if (auto obj_msg = std::dynamic_pointer_cast<object_message>(message)) {
-          // Use local variable for aggregated markers
-          std::map<std::string, marker_frame_data> frames;
-          for (const auto& [name, field] : obj_msg->get_fields()) {
-            {
-              std::lock_guard lock(marker_collecting_clusters_mtx);
-              if (marker_collecting_clusters.find(name) == marker_collecting_clusters.end()) {
-                continue;
-              }
-            }
-            if (const auto keypoints_msg =
-                    std::dynamic_pointer_cast<keypoint_frame_message>(field)) {
-              const auto& keypoints = keypoints_msg->get_data();
-
-              marker_frame_data frame;
-              for (const auto& keypoint : keypoints) {
-                marker_data kp;
-                kp.x = keypoint.pt_x;
-                kp.y = keypoint.pt_y;
-                kp.r = keypoint.size;
-                frame.markers.push_back(kp);
-              }
-
-              frame.timestamp = keypoints_msg->get_timestamp();
-              frame.frame_number = keypoints_msg->get_frame_number();
-
-              frames.insert(std::make_pair(name, frame));
-            }
-          }
-
-          std::vector<std::function<void(const std::map<std::string, marker_frame_data>&)>>
-              marker_received;
-          {
-            std::lock_guard lock(frame_received_mtx);
-            marker_received = this->marker_received;
-          }
-
-          for (const auto& f : marker_received) {
-            f(frames);
-          }
-        }
-      }
-    });
-
-    local_graph.get_resources()->add(callbacks);
 
     std::map<std::string, std::pair<std::string, uint16_t>> remote_subgraph_deploy_info;
     std::vector<std::string> local_subgraph_names;
@@ -487,28 +264,6 @@ class capture_pipeline::impl {
     local_subgraph.reset();
   }
 
-  void dispatch_action(const std::string& action_id) {
-    for (const auto& [name, node] : node_map) {
-      if (auto action = std::dynamic_pointer_cast<coalsack::action_node>(node)) {
-        if (action->get_action_id() == action_id) {
-          process_node(action.get(), "default", nullptr);
-        }
-      }
-    }
-  }
-
-  void enable_marker_collecting(std::string name) {
-    std::lock_guard lock(marker_collecting_clusters_mtx);
-    marker_collecting_clusters.insert(name);
-  }
-  void disable_marker_collecting(std::string name) {
-    std::lock_guard lock(marker_collecting_clusters_mtx);
-    const auto found = marker_collecting_clusters.find(name);
-    if (found != marker_collecting_clusters.end()) {
-      marker_collecting_clusters.erase(found);
-    }
-  }
-
   std::optional<property_value> get_node_property(const std::string& node_name,
                                                   const std::string& key) const {
     const auto found = node_map.find(node_name);
@@ -526,26 +281,6 @@ void capture_pipeline::run(const std::vector<node_def>& nodes) { pimpl->deploy(n
 void capture_pipeline::start() { pimpl->run(); }
 void capture_pipeline::pause() { pimpl->stop(); }
 void capture_pipeline::stop() { pimpl->finalize(); }
-void capture_pipeline::dispatch_action(const std::string& action_id) {
-  pimpl->dispatch_action(action_id);
-}
-
-void capture_pipeline::enable_marker_collecting(std::string name) {
-  pimpl->enable_marker_collecting(name);
-}
-void capture_pipeline::disable_marker_collecting(std::string name) {
-  pimpl->disable_marker_collecting(name);
-}
-void capture_pipeline::add_marker_received(
-    std::function<void(const std::map<std::string, marker_frame_data>&)> f) {
-  pimpl->add_marker_received(f);
-}
-void capture_pipeline::clear_marker_received() { pimpl->clear_marker_received(); }
-void capture_pipeline::add_image_received(
-    std::function<void(const std::map<std::string, cv::Mat>&)> f) {
-  pimpl->add_image_received(f);
-}
-void capture_pipeline::clear_image_received() { pimpl->clear_image_received(); }
 
 std::optional<property_value> capture_pipeline::get_node_property(const std::string& node_name,
                                                                   const std::string& key) const {
