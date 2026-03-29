@@ -810,6 +810,25 @@ class viewer_app : public window_base {
               extrinsic_calib->start();
 
               for (const auto& node : nodes) {
+                if (node.get_type() == node_type::contrail_render &&
+                    node.contains_param("camera_name")) {
+                  const auto camera_name = node.get_param<std::string>("camera_name");
+                  int width = 820;
+                  int height = 616;
+                  if (node.contains_param("width")) {
+                    width = static_cast<int>(node.get_param<std::int64_t>("width"));
+                  }
+                  if (node.contains_param("height")) {
+                    height = static_cast<int>(node.get_param<std::int64_t>("height"));
+                  }
+                  const auto stream = std::make_shared<image_tile_view::stream_info>(
+                      camera_name, float2{(float)width, (float)height}, gfx_ctx);
+                  stream->property_node_name = node.name;
+                  stream->property_key = "image";
+                  contrail_tile_view_->streams.push_back(stream);
+                }
+              }
+              for (const auto& node : nodes) {
                 if (node.get_type() == node_type::callback && node.is_camera()) {
                   const auto camera_name = node.get_camera_name();
                   int width, height;
@@ -964,6 +983,16 @@ class viewer_app : public window_base {
 
                   if (stream_it != image_tile_view_->streams.end()) {
                     image_tile_view_->streams.erase(stream_it);
+                  }
+                }
+                if (node.get_type() == node_type::contrail_render &&
+                    node.contains_param("camera_name")) {
+                  const auto camera_name = node.get_param<std::string>("camera_name");
+                  const auto stream_it = std::find_if(
+                      contrail_tile_view_->streams.begin(), contrail_tile_view_->streams.end(),
+                      [&](const auto& x) { return x->name == camera_name; });
+                  if (stream_it != contrail_tile_view_->streams.end()) {
+                    contrail_tile_view_->streams.erase(stream_it);
                   }
                 }
               }
@@ -1415,31 +1444,6 @@ class viewer_app : public window_base {
 
     extrinsic_calib->run(extrinsic_calibration_config->get_nodes("extrinsic_calibration_pipeline"));
 
-    contrail_tile_view_->streams.clear();
-    for (const auto& node :
-         extrinsic_calibration_config->get_nodes("extrinsic_calibration_pipeline")) {
-      if (node.get_type() != stargazer::node_type::contrail_render) {
-        continue;
-      }
-      if (!node.contains_param("camera_name")) {
-        continue;
-      }
-      const auto camera_name = node.get_param<std::string>("camera_name");
-      int width = 820;
-      int height = 616;
-      if (node.contains_param("width")) {
-        width = static_cast<int>(node.get_param<std::int64_t>("width"));
-      }
-      if (node.contains_param("height")) {
-        height = static_cast<int>(node.get_param<std::int64_t>("height"));
-      }
-      const auto stream = std::make_shared<image_tile_view::stream_info>(
-          camera_name, float2{(float)width, (float)height}, gfx_ctx);
-      stream->property_node_name = node.name;
-      stream->property_key = "image";
-      contrail_tile_view_->streams.push_back(stream);
-    }
-
     scene_calib = std::make_unique<scene_calibration_pipeline>(parameters);
 
     scene_calib->run(scene_calibration_config->get_nodes("scene_calibration_pipeline"));
@@ -1480,6 +1484,10 @@ class viewer_app : public window_base {
     scene_calib->stop();
     multiview_point_reconstruction_pipeline_->stop();
     multiview_image_reconstruction_pipeline_->stop();
+
+    if (image_tile_view_) image_tile_view_->streams.clear();
+    if (point_tile_view_) point_tile_view_->streams.clear();
+    if (contrail_tile_view_) contrail_tile_view_->streams.clear();
 
     window_base::finalize();
   }
