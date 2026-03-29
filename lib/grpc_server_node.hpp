@@ -280,7 +280,7 @@ class grpc_server_node : public graph_node {
     archive(address);
   }
 
-  virtual void run() override {
+  virtual void initialize() override {
     server.reset(new grpc_server(address));
 
     server->receive_se3(
@@ -316,9 +316,9 @@ class grpc_server_node : public graph_node {
           spdlog::info("Received inertial data: name={}, timestamp={}, samples={}", name,
                        timestamp, samples.size());
         });
-
-    server->run();
   }
+
+  virtual void run() override { server->run(); }
 
   virtual void process(std::string input_name, graph_message_ptr message) override {
     if (const auto msg = std::dynamic_pointer_cast<float3_list_message>(message)) {
@@ -331,10 +331,9 @@ class grpc_server_node : public graph_node {
     }
   }
 
-  virtual void stop() override {
-    server->stop();
-    server.reset();
-  }
+  virtual void stop() override { server->stop(); }
+
+  virtual void finalize() override { server.reset(); }
 };
 
 }  // namespace stargazer
