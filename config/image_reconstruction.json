@@ -143,11 +143,25 @@
           "type": "frame_number_numbering"
         },
         {
+          "name": "object_to_frame",
+          "type": "object_to_frame",
+          "inputs": {
+            "default": "numbering"
+          }
+        },
+        {
+          "name": "unframe_image_fields",
+          "type": "unframe_image_fields",
+          "inputs": {
+            "default": "object_to_frame"
+          }
+        },
+        {
           "name": "queue",
           "type": "parallel_queue",
           "num_threads": 1,
           "inputs": {
-            "default": "numbering"
+            "default": "unframe_image_fields"
           }
         },
         {
@@ -1645,9 +1659,139 @@
     "voxelpose_reconstruction": {
       "subgraphs": [
         {
+          "name": "camera101",
+          "extends": [
+            "playback_color_subgraph"
+          ],
+          "id": "000000000026",
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_101"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_101"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera101"
+            }
+          ]
+        },
+        {
+          "name": "camera102",
+          "extends": [
+            "playback_color_subgraph"
+          ],
+          "id": "000000000027",
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_102"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_102"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera102"
+            }
+          ]
+        },
+        {
+          "name": "camera103",
+          "extends": [
+            "playback_color_subgraph"
+          ],
+          "id": "000000000028",
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_103"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_103"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera103"
+            }
+          ]
+        },
+        {
+          "name": "camera104",
+          "extends": [
+            "playback_color_subgraph"
+          ],
+          "id": "000000000029",
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_104"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_104"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera104"
+            }
+          ]
+        },
+        {
+          "name": "camera105",
+          "extends": [
+            "playback_color_subgraph"
+          ],
+          "id": "000000000030",
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_105"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_105"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera105"
+            }
+          ]
+        },
+        {
+          "name": "sync",
+          "nodes": [
+            {
+              "name": "approximate_time_sync_images",
+              "type": "approximate_time_sync",
+              "interval": 33.833,
+              "inputs": {
+                "camera101": "camera101.decode_jpeg",
+                "camera102": "camera102.decode_jpeg",
+                "camera103": "camera103.decode_jpeg",
+                "camera104": "camera104.decode_jpeg",
+                "camera105": "camera105.decode_jpeg"
+              }
+            }
+          ]
+        },
+        {
           "name": "voxelpose_reconstruction",
           "extends": [
             "voxelpose_reconstruction_subgraph"
+          ],
+          "nodes": [
+            {
+              "name": "numbering",
+              "inputs": {
+                "default": "approximate_time_sync_images"
+              }
+            }
           ]
         }
       ]
@@ -1673,6 +1817,5 @@
       ]
     }
   },
-  "pipeline": "playback_color",
   "image_reconstruction_pipeline": "voxelpose_reconstruction"
 }

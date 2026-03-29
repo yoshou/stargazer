@@ -68,6 +68,7 @@ enum class node_type {
   gate,
   keypoint_to_float2_map,
   object_to_frame,
+  unframe_image_fields,
 };
 
 using node_param_t = std::variant<std::string, std::int64_t, double, float, bool>;

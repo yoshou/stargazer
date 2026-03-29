@@ -2,7 +2,6 @@
 
 #include <map>
 #include <memory>
-#include <opencv2/core.hpp>
 #include <optional>
 #include <string>
 #include <vector>
@@ -15,14 +14,14 @@ class multiview_image_reconstruction_pipeline {
   class impl;
   std::unique_ptr<impl> pimpl;
 
-  using frame_type = std::map<std::string, cv::Mat>;
-
  public:
-  explicit multiview_image_reconstruction_pipeline(std::shared_ptr<stargazer::parameters_t> parameters);
+  explicit multiview_image_reconstruction_pipeline(
+      std::shared_ptr<stargazer::parameters_t> parameters);
   virtual ~multiview_image_reconstruction_pipeline();
 
-  void push_frame(const frame_type& frame);
   void run(const std::vector<stargazer::node_def>& nodes);
+  void start();
+  void pause();
   void stop();
 
   std::optional<coalsack::property_value> get_node_property(const std::string& node_name,

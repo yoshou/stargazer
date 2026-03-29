@@ -2,8 +2,12 @@
 
 #include <spdlog/spdlog.h>
 
+#include <set>
+#include <unordered_map>
+
 #include "callback_node.hpp"
 #include "coalsack/core/graph_proc.h"
+#include "coalsack/core/graph_proc_client.h"
 #include "coalsack/image/graph_proc_cv.h"
 #include "coalsack/image/image_nodes.h"
 #include "coalsack/tensor/graph_proc_tensor.h"
@@ -26,158 +30,237 @@ using namespace coalsack;
 using namespace stargazer;
 
 class multiview_image_reconstruction_pipeline::impl {
-  graph_proc graph;
-  std::unordered_map<std::string, graph_node_ptr> node_map;
+  std::unordered_map<std::string, std::shared_ptr<graph_node>> node_map;
 
-  std::atomic_bool running;
+  graph_proc local_graph;
+  std::shared_ptr<subgraph> local_subgraph;
+  asio::io_context io_context;
+  graph_proc_client client;
+  std::unique_ptr<std::thread> io_thread;
+
+  bool has_remote_subgraphs = false;
 
   mutable std::mutex markers_mtx;
   std::vector<glm::vec3> markers;
-  std::vector<std::function<void(const std::vector<glm::vec3>&)>> markers_received;
-
-  std::shared_ptr<image_reconstruct_node> reconstruct_node;
-  std::shared_ptr<graph_node> input_node;
 
   std::shared_ptr<stargazer::parameters_t> parameters_;
 
+  bool is_local_node(const graph_node* node) const {
+    return node && local_subgraph && node->get_parent() == local_subgraph.get();
+  }
+
  public:
-  void add_markers_received(std::function<void(const std::vector<glm::vec3>&)> f) {
-    std::lock_guard lock(markers_mtx);
-    markers_received.push_back(f);
-  }
+  impl()
+      : node_map(),
+        local_graph(),
+        local_subgraph(),
+        io_context(),
+        client(),
+        io_thread(),
+        has_remote_subgraphs(false),
+        parameters_() {}
 
-  void clear_markers_received() {
-    std::lock_guard lock(markers_mtx);
-    markers_received.clear();
-  }
+  void deploy(const std::vector<node_def>& nodes) {
+    node_map.clear();
+    local_graph = graph_proc();
+    local_subgraph.reset();
+    client = graph_proc_client();
+    io_context.restart();
+    has_remote_subgraphs = false;
 
-  explicit impl(std::shared_ptr<stargazer::parameters_t> parameters)
-      : graph(),
-        running(false),
-        markers(),
-        markers_received(),
-        reconstruct_node(),
-        input_node(),
-        parameters_(std::move(parameters)) {}
-
-  using frame_type = std::map<std::string, cv::Mat>;
-
-  static image_format convert_to_image_format(int type) {
-    switch (type) {
-      case CV_8UC1:
-        return image_format::Y8_UINT;
-      case CV_8UC3:
-        return image_format::B8G8R8_UINT;
-      case CV_8UC4:
-        return image_format::B8G8R8A8_UINT;
-      default:
-        throw std::runtime_error("Invalid image format");
-    }
-  }
-
-  void push_frame(const frame_type& frame) {
-    if (!running) {
-      return;
-    }
-
-    auto msg = std::make_shared<object_message>();
-    for (const auto& [name, field] : frame) {
-      auto img_msg = std::make_shared<image_message>();
-
-      image img(static_cast<std::uint32_t>(field.size().width),
-                static_cast<std::uint32_t>(field.size().height),
-                static_cast<std::uint32_t>(field.elemSize()),
-                static_cast<std::uint32_t>(field.step), (const uint8_t*)field.data);
-      img.set_format(convert_to_image_format(field.type()));
-
-      img_msg->set_image(std::move(img));
-      msg->add_field(name, img_msg);
-    }
-
-    auto frame_msg = std::make_shared<frame_message<object_message>>();
-    frame_msg->set_data(*msg);
-
-    if (input_node) {
-      graph.process(input_node.get(), frame_msg);
-    }
-  }
-
-  void run(const std::vector<node_def>& nodes) {
-    // Group nodes by subgraph instance
     std::map<std::string, std::vector<node_def>> nodes_by_subgraph;
     for (const auto& node : nodes) {
       nodes_by_subgraph[node.subgraph_instance].push_back(node);
     }
 
-    // Create empty subgraphs first
+    std::unordered_map<std::string, std::shared_ptr<graph_node>> global_node_map;
+
     std::map<std::string, std::shared_ptr<subgraph>> subgraphs;
-    for (const auto& [subgraph_name, nodes] : nodes_by_subgraph) {
+    for (const auto& [subgraph_name, sg_nodes] : nodes_by_subgraph) {
       subgraphs[subgraph_name] = std::make_shared<subgraph>();
     }
 
-    std::unordered_map<std::string, graph_node_ptr> built_node_map;
+    stargazer::build_graph_from_json(nodes, subgraphs, global_node_map);
+    node_map = global_node_map;
 
-    // Build graph using common function
-    stargazer::build_graph_from_json(nodes, subgraphs, built_node_map);
-    node_map = built_node_map;
+    const auto callbacks = std::make_shared<callback_list>();
 
-    // Extract specific nodes from the graph
+    callbacks->add([this](const callback_node* node, std::string, graph_message_ptr message) {
+      if (node->get_callback_name() == "markers") {
+        if (const auto markers_msg = std::dynamic_pointer_cast<float3_list_message>(message)) {
+          std::vector<glm::vec3> new_markers;
+          for (const auto& marker : markers_msg->get_data()) {
+            new_markers.push_back(glm::vec3(marker.x, marker.y, marker.z));
+          }
+          std::lock_guard lock(markers_mtx);
+          markers = std::move(new_markers);
+        }
+      }
+    });
+
+    std::map<std::string, std::pair<std::string, uint16_t>> remote_subgraph_deploy_info;
+    std::vector<std::string> local_subgraph_names;
+
+    for (const auto& [subgraph_name, subgraph_nodes] : nodes_by_subgraph) {
+      bool is_remote = false;
+      std::string deploy_address = "127.0.0.1";
+      uint16_t deploy_port = 0;
+
+      for (const auto& node : subgraph_nodes) {
+        if (node.contains_param("deploy_port")) {
+          is_remote = true;
+          deploy_port = static_cast<uint16_t>(node.get_param<std::int64_t>("deploy_port"));
+        }
+        if (node.contains_param("address")) {
+          deploy_address = node.get_param<std::string>("address");
+        }
+      }
+
+      if (is_remote) {
+        remote_subgraph_deploy_info[subgraph_name] = std::make_pair(deploy_address, deploy_port);
+      } else {
+        local_subgraph_names.push_back(subgraph_name);
+      }
+    }
+
+    if (!local_subgraph_names.empty()) {
+      local_subgraph = std::make_shared<subgraph>();
+      for (const auto& subgraph_name : local_subgraph_names) {
+        local_subgraph->merge(*subgraphs.at(subgraph_name));
+      }
+    }
+
+    std::map<std::pair<std::string, uint16_t>, std::vector<std::string>> address_groups;
+    for (const auto& [subgraph_name, deploy_key] : remote_subgraph_deploy_info) {
+      address_groups[deploy_key].push_back(subgraph_name);
+    }
+
+    std::map<std::string, std::shared_ptr<subgraph>> deploy_subgraphs;
+    std::map<std::string, std::string> original_to_merged;
+    std::map<std::string, std::pair<std::string, uint16_t>> merged_deploy_info;
+
+    for (const auto& [deploy_key, subgraph_names] : address_groups) {
+      if (subgraph_names.size() == 1) {
+        const auto& name = subgraph_names[0];
+        deploy_subgraphs[name] = subgraphs[name];
+        original_to_merged[name] = name;
+        merged_deploy_info[name] = deploy_key;
+      } else {
+        auto merged = std::make_shared<subgraph>();
+        std::string merged_name = "merged_" + std::to_string(deploy_key.second);
+        for (const auto& name : subgraph_names) {
+          merged->merge(*subgraphs[name]);
+          original_to_merged[name] = merged_name;
+        }
+        deploy_subgraphs[merged_name] = merged;
+        merged_deploy_info[merged_name] = deploy_key;
+      }
+    }
+
+    std::map<std::string, std::set<std::string>> merged_deps;
     for (const auto& node : nodes) {
-      if (node.get_type() == node_type::frame_number_numbering) {
-        if (input_node) {
-          spdlog::warn("Multiple frame_number_numbering nodes found, using the first one");
-        } else {
-          input_node =
-              std::dynamic_pointer_cast<frame_number_numbering_node>(built_node_map.at(node.name));
+      const auto& target_sg = node.subgraph_instance;
+      if (remote_subgraph_deploy_info.find(target_sg) == remote_subgraph_deploy_info.end()) {
+        continue;
+      }
+      const auto& target_merged = original_to_merged[target_sg];
+      for (const auto& [input_name, source_name] : node.inputs) {
+        size_t pos = source_name.find(':');
+        auto source_node_name =
+            (pos != std::string::npos) ? source_name.substr(0, pos) : source_name;
+        for (const auto& source_node : nodes) {
+          if (source_node.name == source_node_name) {
+            const auto& source_sg = source_node.subgraph_instance;
+            if (remote_subgraph_deploy_info.find(source_sg) == remote_subgraph_deploy_info.end()) {
+              break;
+            }
+            const auto& source_merged = original_to_merged[source_sg];
+            if (source_merged != target_merged) {
+              merged_deps[target_merged].insert(source_merged);
+            }
+            break;
+          }
         }
       }
     }
 
-    if (!input_node) {
-      spdlog::warn("frame_number_numbering node not found in image reconstruction pipeline");
+    std::vector<std::string> deploy_order;
+    std::set<std::string> deployed;
+    std::set<std::string> visiting;
+
+    std::function<void(const std::string&)> visit = [&](const std::string& merged_name) {
+      if (deployed.count(merged_name)) return;
+      if (visiting.count(merged_name)) {
+        throw std::runtime_error("Circular dependency in subgraph dependencies");
+      }
+      visiting.insert(merged_name);
+      if (merged_deps.count(merged_name)) {
+        for (const auto& dep : merged_deps[merged_name]) {
+          visit(dep);
+        }
+      }
+      visiting.erase(merged_name);
+      deployed.insert(merged_name);
+      deploy_order.push_back(merged_name);
+    };
+
+    for (const auto& [merged_name, _] : deploy_subgraphs) {
+      visit(merged_name);
     }
 
-    const auto callbacks = std::make_shared<callback_list>();
-
-    callbacks->add(
-        [this](const callback_node* node, std::string input_name, graph_message_ptr message) {
-          if (node->get_callback_name() == "markers") {
-            if (const auto markers_msg = std::dynamic_pointer_cast<float3_list_message>(message)) {
-              std::vector<glm::vec3> markers;
-              for (const auto& marker : markers_msg->get_data()) {
-                markers.push_back(glm::vec3(marker.x, marker.y, marker.z));
-              }
-
-              {
-                std::lock_guard lock(markers_mtx);
-                this->markers = markers;
-              }
-
-              for (const auto& f : markers_received) {
-                f(markers);
-              }
-            }
-          }
-        });
-
-    // Deploy all subgraphs
-    for (const auto& [subgraph_name, subgraph_ptr] : subgraphs) {
-      graph.deploy(subgraph_ptr);
-    }
-    graph.get_resources()->add(callbacks);
+    local_graph.get_resources()->add(callbacks);
     if (parameters_) {
-      graph.get_resources()->add(std::make_shared<parameter_resource>(parameters_));
+      local_graph.get_resources()->add(std::make_shared<parameter_resource>(parameters_));
     }
-    graph.initialize();
-    graph.run();
 
-    running = true;
+    if (local_subgraph && local_subgraph->get_node_count() > 0) {
+      local_graph.deploy(local_subgraph);
+      local_graph.initialize();
+    }
+
+    if (!deploy_order.empty()) {
+      has_remote_subgraphs = true;
+      for (const auto& merged_name : deploy_order) {
+        const auto& [deploy_address, deploy_port] = merged_deploy_info[merged_name];
+        client.deploy(io_context, deploy_address, deploy_port, deploy_subgraphs[merged_name]);
+      }
+      io_thread.reset(new std::thread([this] { io_context.run(); }));
+      client.initialize();
+    }
   }
 
-  void stop() {
-    running.store(false);
-    graph.stop();
-    graph.finalize();
+  void run() {
+    if (local_subgraph && local_subgraph->get_node_count() > 0) {
+      local_graph.run();
+    }
+    if (has_remote_subgraphs) {
+      client.run();
+    }
+  }
+
+  void stop_streaming() {
+    if (has_remote_subgraphs) {
+      client.stop();
+    }
+    if (local_subgraph && local_subgraph->get_node_count() > 0) {
+      local_graph.stop();
+    }
+  }
+
+  void finalize() {
+    if (has_remote_subgraphs) {
+      client.finalize();
+      has_remote_subgraphs = false;
+    }
+    if (local_subgraph && local_subgraph->get_node_count() > 0) {
+      local_graph.finalize();
+    }
+    io_context.stop();
+    if (io_thread && io_thread->joinable()) {
+      io_thread->join();
+    }
+    io_thread.reset();
+    local_subgraph.reset();
   }
 
   std::optional<property_value> get_node_property(const std::string& node_name,
@@ -186,24 +269,31 @@ class multiview_image_reconstruction_pipeline::impl {
     if (found == node_map.end() || !found->second) {
       return std::nullopt;
     }
+    if (!is_local_node(found->second.get())) {
+      return std::nullopt;
+    }
     return found->second->get_property(key);
   }
+
+  void set_parameters(std::shared_ptr<stargazer::parameters_t> p) { parameters_ = std::move(p); }
 };
 
 multiview_image_reconstruction_pipeline::multiview_image_reconstruction_pipeline(
     std::shared_ptr<stargazer::parameters_t> parameters)
-    : pimpl(new impl(std::move(parameters))) {}
+    : pimpl(std::make_unique<impl>()) {
+  pimpl->set_parameters(std::move(parameters));
+}
 multiview_image_reconstruction_pipeline::~multiview_image_reconstruction_pipeline() = default;
 
-void multiview_image_reconstruction_pipeline::push_frame(const frame_type& frame) {
-  pimpl->push_frame(frame);
-}
-
 void multiview_image_reconstruction_pipeline::run(const std::vector<node_def>& nodes) {
-  pimpl->run(nodes);
+  pimpl->deploy(nodes);
 }
 
-void multiview_image_reconstruction_pipeline::stop() { pimpl->stop(); }
+void multiview_image_reconstruction_pipeline::start() { pimpl->run(); }
+
+void multiview_image_reconstruction_pipeline::pause() { pimpl->stop_streaming(); }
+
+void multiview_image_reconstruction_pipeline::stop() { pimpl->finalize(); }
 
 std::optional<property_value> multiview_image_reconstruction_pipeline::get_node_property(
     const std::string& node_name, const std::string& key) const {
