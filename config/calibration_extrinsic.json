@@ -25,8 +25,19 @@
             "default": "decode_jpeg"
           },
           "properties": [
-            { "id": "received", "label": "Received", "source_key": "received", "format": "integer", "default_value": 0 },
-            { "id": "image", "label": "Image", "source_key": "image", "target": "image" }
+            {
+              "id": "received",
+              "label": "Received",
+              "source_key": "received",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "image",
+              "label": "Image",
+              "source_key": "image",
+              "target": "image"
+            }
           ]
         },
         {
@@ -73,8 +84,19 @@
             "default": "decode_jpeg"
           },
           "properties": [
-            { "id": "received", "label": "Received", "source_key": "received", "format": "integer", "default_value": 0 },
-            { "id": "image", "label": "Image", "source_key": "image", "target": "image" }
+            {
+              "id": "received",
+              "label": "Received",
+              "source_key": "received",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "image",
+              "label": "Image",
+              "source_key": "image",
+              "target": "image"
+            }
           ]
         },
         {
@@ -116,8 +138,19 @@
             "default": "decode_jpeg"
           },
           "properties": [
-            { "id": "received", "label": "Received", "source_key": "received", "format": "integer", "default_value": 0 },
-            { "id": "image", "label": "Image", "source_key": "image", "target": "image" }
+            {
+              "id": "received",
+              "label": "Received",
+              "source_key": "received",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "image",
+              "label": "Image",
+              "source_key": "image",
+              "target": "image"
+            }
           ]
         },
         {
@@ -454,9 +487,15 @@
           "camera_name": "camera1",
           "width": 820,
           "height": 616,
-          "inputs": { "default": "detector_camera1" },
+          "inputs": {
+            "default": "detector_camera1"
+          },
           "properties": [
-            { "id": "image", "source_key": "image", "target": "image" }
+            {
+              "id": "image",
+              "source_key": "image",
+              "target": "image"
+            }
           ]
         },
         {
@@ -465,9 +504,15 @@
           "camera_name": "camera2",
           "width": 820,
           "height": 616,
-          "inputs": { "default": "detector_camera2" },
+          "inputs": {
+            "default": "detector_camera2"
+          },
           "properties": [
-            { "id": "image", "source_key": "image", "target": "image" }
+            {
+              "id": "image",
+              "source_key": "image",
+              "target": "image"
+            }
           ]
         },
         {
@@ -476,9 +521,15 @@
           "camera_name": "camera3",
           "width": 820,
           "height": 616,
-          "inputs": { "default": "detector_camera3" },
+          "inputs": {
+            "default": "detector_camera3"
+          },
           "properties": [
-            { "id": "image", "source_key": "image", "target": "image" }
+            {
+              "id": "image",
+              "source_key": "image",
+              "target": "image"
+            }
           ]
         },
         {
@@ -487,9 +538,15 @@
           "camera_name": "camera4",
           "width": 820,
           "height": 616,
-          "inputs": { "default": "detector_camera4" },
+          "inputs": {
+            "default": "detector_camera4"
+          },
           "properties": [
-            { "id": "image", "source_key": "image", "target": "image" }
+            {
+              "id": "image",
+              "source_key": "image",
+              "target": "image"
+            }
           ]
         },
         {
@@ -498,9 +555,15 @@
           "camera_name": "camera5",
           "width": 820,
           "height": 616,
-          "inputs": { "default": "detector_camera5" },
+          "inputs": {
+            "default": "detector_camera5"
+          },
           "properties": [
-            { "id": "image", "source_key": "image", "target": "image" }
+            {
+              "id": "image",
+              "source_key": "image",
+              "target": "image"
+            }
           ]
         },
         {
@@ -509,9 +572,15 @@
           "camera_name": "camera6",
           "width": 820,
           "height": 616,
-          "inputs": { "default": "detector_camera6" },
+          "inputs": {
+            "default": "detector_camera6"
+          },
           "properties": [
-            { "id": "image", "source_key": "image", "target": "image" }
+            {
+              "id": "image",
+              "source_key": "image",
+              "target": "image"
+            }
           ]
         },
         {
@@ -520,9 +589,15 @@
           "camera_name": "camera7",
           "width": 820,
           "height": 616,
-          "inputs": { "default": "detector_camera7" },
+          "inputs": {
+            "default": "detector_camera7"
+          },
           "properties": [
-            { "id": "image", "source_key": "image", "target": "image" }
+            {
+              "id": "image",
+              "source_key": "image",
+              "target": "image"
+            }
           ]
         },
         {
@@ -531,9 +606,15 @@
           "camera_name": "camera8",
           "width": 820,
           "height": 616,
-          "inputs": { "default": "detector_camera8" },
+          "inputs": {
+            "default": "detector_camera8"
+          },
           "properties": [
-            { "id": "image", "source_key": "image", "target": "image" }
+            {
+              "id": "image",
+              "source_key": "image",
+              "target": "image"
+            }
           ]
         },
         {
@@ -542,9 +623,15 @@
           "camera_name": "camera9",
           "width": 820,
           "height": 616,
-          "inputs": { "default": "detector_camera9" },
+          "inputs": {
+            "default": "detector_camera9"
+          },
           "properties": [
-            { "id": "image", "source_key": "image", "target": "image" }
+            {
+              "id": "image",
+              "source_key": "image",
+              "target": "image"
+            }
           ]
         },
         {
@@ -553,9 +640,15 @@
           "camera_name": "camera10",
           "width": 820,
           "height": 616,
-          "inputs": { "default": "detector_camera10" },
+          "inputs": {
+            "default": "detector_camera10"
+          },
           "properties": [
-            { "id": "image", "source_key": "image", "target": "image" }
+            {
+              "id": "image",
+              "source_key": "image",
+              "target": "image"
+            }
           ]
         },
         {
@@ -564,9 +657,15 @@
           "camera_name": "camera11",
           "width": 820,
           "height": 616,
-          "inputs": { "default": "detector_camera11" },
+          "inputs": {
+            "default": "detector_camera11"
+          },
           "properties": [
-            { "id": "image", "source_key": "image", "target": "image" }
+            {
+              "id": "image",
+              "source_key": "image",
+              "target": "image"
+            }
           ]
         },
         {
@@ -575,9 +674,15 @@
           "camera_name": "camera12",
           "width": 820,
           "height": 616,
-          "inputs": { "default": "detector_camera12" },
+          "inputs": {
+            "default": "detector_camera12"
+          },
           "properties": [
-            { "id": "image", "source_key": "image", "target": "image" }
+            {
+              "id": "image",
+              "source_key": "image",
+              "target": "image"
+            }
           ]
         },
         {
@@ -586,9 +691,15 @@
           "camera_name": "camera13",
           "width": 820,
           "height": 616,
-          "inputs": { "default": "detector_camera13" },
+          "inputs": {
+            "default": "detector_camera13"
+          },
           "properties": [
-            { "id": "image", "source_key": "image", "target": "image" }
+            {
+              "id": "image",
+              "source_key": "image",
+              "target": "image"
+            }
           ]
         },
         {
@@ -597,9 +708,15 @@
           "camera_name": "camera14",
           "width": 820,
           "height": 616,
-          "inputs": { "default": "detector_camera14" },
+          "inputs": {
+            "default": "detector_camera14"
+          },
           "properties": [
-            { "id": "image", "source_key": "image", "target": "image" }
+            {
+              "id": "image",
+              "source_key": "image",
+              "target": "image"
+            }
           ]
         },
         {
@@ -608,9 +725,15 @@
           "camera_name": "camera15",
           "width": 820,
           "height": 616,
-          "inputs": { "default": "detector_camera15" },
+          "inputs": {
+            "default": "detector_camera15"
+          },
           "properties": [
-            { "id": "image", "source_key": "image", "target": "image" }
+            {
+              "id": "image",
+              "source_key": "image",
+              "target": "image"
+            }
           ]
         },
         {
@@ -619,9 +742,15 @@
           "camera_name": "camera16",
           "width": 820,
           "height": 616,
-          "inputs": { "default": "detector_camera16" },
+          "inputs": {
+            "default": "detector_camera16"
+          },
           "properties": [
-            { "id": "image", "source_key": "image", "target": "image" }
+            {
+              "id": "image",
+              "source_key": "image",
+              "target": "image"
+            }
           ]
         },
         {
@@ -630,9 +759,15 @@
           "camera_name": "camera17",
           "width": 820,
           "height": 616,
-          "inputs": { "default": "detector_camera17" },
+          "inputs": {
+            "default": "detector_camera17"
+          },
           "properties": [
-            { "id": "image", "source_key": "image", "target": "image" }
+            {
+              "id": "image",
+              "source_key": "image",
+              "target": "image"
+            }
           ]
         },
         {
@@ -641,9 +776,15 @@
           "camera_name": "camera18",
           "width": 820,
           "height": 616,
-          "inputs": { "default": "detector_camera18" },
+          "inputs": {
+            "default": "detector_camera18"
+          },
           "properties": [
-            { "id": "image", "source_key": "image", "target": "image" }
+            {
+              "id": "image",
+              "source_key": "image",
+              "target": "image"
+            }
           ]
         },
         {
@@ -652,9 +793,15 @@
           "camera_name": "camera19",
           "width": 820,
           "height": 616,
-          "inputs": { "default": "detector_camera19" },
+          "inputs": {
+            "default": "detector_camera19"
+          },
           "properties": [
-            { "id": "image", "source_key": "image", "target": "image" }
+            {
+              "id": "image",
+              "source_key": "image",
+              "target": "image"
+            }
           ]
         },
         {
@@ -663,9 +810,15 @@
           "camera_name": "camera20",
           "width": 820,
           "height": 616,
-          "inputs": { "default": "detector_camera20" },
+          "inputs": {
+            "default": "detector_camera20"
+          },
           "properties": [
-            { "id": "image", "source_key": "image", "target": "image" }
+            {
+              "id": "image",
+              "source_key": "image",
+              "target": "image"
+            }
           ]
         },
         {
@@ -681,26 +834,146 @@
           "only_extrinsic": false,
           "robust": true,
           "properties": [
-            { "id": "camera1_collected", "label": "Collected camera1", "source_key": "collected.camera1", "format": "integer", "default_value": 0 },
-            { "id": "camera2_collected", "label": "Collected camera2", "source_key": "collected.camera2", "format": "integer", "default_value": 0 },
-            { "id": "camera3_collected", "label": "Collected camera3", "source_key": "collected.camera3", "format": "integer", "default_value": 0 },
-            { "id": "camera4_collected", "label": "Collected camera4", "source_key": "collected.camera4", "format": "integer", "default_value": 0 },
-            { "id": "camera5_collected", "label": "Collected camera5", "source_key": "collected.camera5", "format": "integer", "default_value": 0 },
-            { "id": "camera6_collected", "label": "Collected camera6", "source_key": "collected.camera6", "format": "integer", "default_value": 0 },
-            { "id": "camera7_collected", "label": "Collected camera7", "source_key": "collected.camera7", "format": "integer", "default_value": 0 },
-            { "id": "camera8_collected", "label": "Collected camera8", "source_key": "collected.camera8", "format": "integer", "default_value": 0 },
-            { "id": "camera9_collected", "label": "Collected camera9", "source_key": "collected.camera9", "format": "integer", "default_value": 0 },
-            { "id": "camera10_collected", "label": "Collected camera10", "source_key": "collected.camera10", "format": "integer", "default_value": 0 },
-            { "id": "camera11_collected", "label": "Collected camera11", "source_key": "collected.camera11", "format": "integer", "default_value": 0 },
-            { "id": "camera12_collected", "label": "Collected camera12", "source_key": "collected.camera12", "format": "integer", "default_value": 0 },
-            { "id": "camera13_collected", "label": "Collected camera13", "source_key": "collected.camera13", "format": "integer", "default_value": 0 },
-            { "id": "camera14_collected", "label": "Collected camera14", "source_key": "collected.camera14", "format": "integer", "default_value": 0 },
-            { "id": "camera15_collected", "label": "Collected camera15", "source_key": "collected.camera15", "format": "integer", "default_value": 0 },
-            { "id": "camera16_collected", "label": "Collected camera16", "source_key": "collected.camera16", "format": "integer", "default_value": 0 },
-            { "id": "camera17_collected", "label": "Collected camera17", "source_key": "collected.camera17", "format": "integer", "default_value": 0 },
-            { "id": "camera18_collected", "label": "Collected camera18", "source_key": "collected.camera18", "format": "integer", "default_value": 0 },
-            { "id": "camera19_collected", "label": "Collected camera19", "source_key": "collected.camera19", "format": "integer", "default_value": 0 },
-            { "id": "camera20_collected", "label": "Collected camera20", "source_key": "collected.camera20", "format": "integer", "default_value": 0 }
+            {
+              "id": "camera1_collected",
+              "label": "Collected camera1",
+              "source_key": "collected.camera1",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "camera2_collected",
+              "label": "Collected camera2",
+              "source_key": "collected.camera2",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "camera3_collected",
+              "label": "Collected camera3",
+              "source_key": "collected.camera3",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "camera4_collected",
+              "label": "Collected camera4",
+              "source_key": "collected.camera4",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "camera5_collected",
+              "label": "Collected camera5",
+              "source_key": "collected.camera5",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "camera6_collected",
+              "label": "Collected camera6",
+              "source_key": "collected.camera6",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "camera7_collected",
+              "label": "Collected camera7",
+              "source_key": "collected.camera7",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "camera8_collected",
+              "label": "Collected camera8",
+              "source_key": "collected.camera8",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "camera9_collected",
+              "label": "Collected camera9",
+              "source_key": "collected.camera9",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "camera10_collected",
+              "label": "Collected camera10",
+              "source_key": "collected.camera10",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "camera11_collected",
+              "label": "Collected camera11",
+              "source_key": "collected.camera11",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "camera12_collected",
+              "label": "Collected camera12",
+              "source_key": "collected.camera12",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "camera13_collected",
+              "label": "Collected camera13",
+              "source_key": "collected.camera13",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "camera14_collected",
+              "label": "Collected camera14",
+              "source_key": "collected.camera14",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "camera15_collected",
+              "label": "Collected camera15",
+              "source_key": "collected.camera15",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "camera16_collected",
+              "label": "Collected camera16",
+              "source_key": "collected.camera16",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "camera17_collected",
+              "label": "Collected camera17",
+              "source_key": "collected.camera17",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "camera18_collected",
+              "label": "Collected camera18",
+              "source_key": "collected.camera18",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "camera19_collected",
+              "label": "Collected camera19",
+              "source_key": "collected.camera19",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "camera20_collected",
+              "label": "Collected camera20",
+              "source_key": "collected.camera20",
+              "format": "integer",
+              "default_value": 0
+            }
           ],
           "inputs": {
             "calibrate": "calibrate_action",
@@ -852,11 +1125,41 @@
           "only_extrinsic": true,
           "robust": false,
           "properties": [
-            { "id": "camera101_collected", "label": "Collected camera101", "source_key": "collected.camera101", "format": "integer", "default_value": 0 },
-            { "id": "camera102_collected", "label": "Collected camera102", "source_key": "collected.camera102", "format": "integer", "default_value": 0 },
-            { "id": "camera103_collected", "label": "Collected camera103", "source_key": "collected.camera103", "format": "integer", "default_value": 0 },
-            { "id": "camera104_collected", "label": "Collected camera104", "source_key": "collected.camera104", "format": "integer", "default_value": 0 },
-            { "id": "camera105_collected", "label": "Collected camera105", "source_key": "collected.camera105", "format": "integer", "default_value": 0 }
+            {
+              "id": "camera101_collected",
+              "label": "Collected camera101",
+              "source_key": "collected.camera101",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "camera102_collected",
+              "label": "Collected camera102",
+              "source_key": "collected.camera102",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "camera103_collected",
+              "label": "Collected camera103",
+              "source_key": "collected.camera103",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "camera104_collected",
+              "label": "Collected camera104",
+              "source_key": "collected.camera104",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "camera105_collected",
+              "label": "Collected camera105",
+              "source_key": "collected.camera105",
+              "format": "integer",
+              "default_value": 0
+            }
           ],
           "inputs": {
             "camera101": "detector_camera101",
@@ -956,7 +1259,11 @@
         {
           "name": "mask_generator",
           "type": "mask_generator",
-          "inputs": { "default": "gaussian_blur", "generate": "action_mask_generate", "clear": "action_mask_clear" },
+          "inputs": {
+            "default": "gaussian_blur",
+            "generate": "action_mask_generate",
+            "clear": "action_mask_clear"
+          },
           "path": "/tmp/mask.png"
         },
         {
@@ -1118,7 +1425,11 @@
         {
           "name": "mask_generator",
           "type": "mask_generator",
-          "inputs": { "default": "gaussian_blur", "generate": "action_mask_generate", "clear": "action_mask_clear" },
+          "inputs": {
+            "default": "gaussian_blur",
+            "generate": "action_mask_generate",
+            "clear": "action_mask_clear"
+          },
           "path": "/tmp/mask.png"
         },
         {
@@ -1209,8 +1520,19 @@
             "default": "decode_jpeg"
           },
           "properties": [
-            { "id": "received", "label": "Received", "source_key": "received", "format": "integer", "default_value": 0 },
-            { "id": "image", "label": "Image", "source_key": "image", "target": "image" }
+            {
+              "id": "received",
+              "label": "Received",
+              "source_key": "received",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "image",
+              "label": "Image",
+              "source_key": "image",
+              "target": "image"
+            }
           ]
         },
         {
@@ -1499,8 +1821,19 @@
             "default": "decode_jpeg"
           },
           "properties": [
-            { "id": "received", "label": "Received", "source_key": "received", "format": "integer", "default_value": 0 },
-            { "id": "image", "label": "Image", "source_key": "image", "target": "image" }
+            {
+              "id": "received",
+              "label": "Received",
+              "source_key": "received",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "image",
+              "label": "Image",
+              "source_key": "image",
+              "target": "image"
+            }
           ]
         },
         {
@@ -1521,10 +1854,1277 @@
         "callback_image",
         "p2p_tcp_listener_marker"
       ]
-    }
-  ],
-  "pipelines": {
-    "record_color": {
+    },
+    {
+      "name": "playback_ir_cameras_subgraph",
+      "subgraphs": [
+        {
+          "name": "camera1",
+          "extends": [
+            "playback_subgraph"
+          ],
+          "id": "000000000001",
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_1"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_1"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera1"
+            }
+          ]
+        },
+        {
+          "name": "camera2",
+          "extends": [
+            "playback_subgraph"
+          ],
+          "id": "000000000002",
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_2"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_2"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera2"
+            }
+          ]
+        },
+        {
+          "name": "camera3",
+          "extends": [
+            "playback_subgraph"
+          ],
+          "id": "000000000003",
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_3"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_3"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera3"
+            }
+          ]
+        },
+        {
+          "name": "camera4",
+          "extends": [
+            "playback_subgraph"
+          ],
+          "id": "000000000004",
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_4"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_4"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera4"
+            }
+          ]
+        },
+        {
+          "name": "camera5",
+          "extends": [
+            "playback_subgraph"
+          ],
+          "id": "000000000005",
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_5"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_5"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera5"
+            }
+          ]
+        },
+        {
+          "name": "camera6",
+          "extends": [
+            "playback_subgraph"
+          ],
+          "id": "000000000006",
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_6"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_6"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera6"
+            }
+          ]
+        },
+        {
+          "name": "camera7",
+          "extends": [
+            "playback_subgraph"
+          ],
+          "id": "000000000007",
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_7"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_7"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera7"
+            }
+          ]
+        },
+        {
+          "name": "camera8",
+          "extends": [
+            "playback_subgraph"
+          ],
+          "id": "000000000008",
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_8"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_8"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera8"
+            }
+          ]
+        },
+        {
+          "name": "camera9",
+          "extends": [
+            "playback_subgraph"
+          ],
+          "id": "000000000009",
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_9"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_9"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera9"
+            }
+          ]
+        },
+        {
+          "name": "camera10",
+          "extends": [
+            "playback_subgraph"
+          ],
+          "id": "000000000010",
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_10"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_10"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera10"
+            }
+          ]
+        },
+        {
+          "name": "camera11",
+          "extends": [
+            "playback_subgraph"
+          ],
+          "id": "000000000011",
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_11"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_11"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera11"
+            }
+          ]
+        },
+        {
+          "name": "camera12",
+          "extends": [
+            "playback_subgraph"
+          ],
+          "id": "000000000012",
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_12"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_12"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera12"
+            }
+          ]
+        },
+        {
+          "name": "camera13",
+          "extends": [
+            "playback_subgraph"
+          ],
+          "id": "000000000013",
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_13"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_13"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera13"
+            }
+          ]
+        },
+        {
+          "name": "camera14",
+          "extends": [
+            "playback_subgraph"
+          ],
+          "id": "000000000014",
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_14"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_14"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera14"
+            }
+          ]
+        },
+        {
+          "name": "camera15",
+          "extends": [
+            "playback_subgraph"
+          ],
+          "id": "000000000015",
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_15"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_15"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera15"
+            }
+          ]
+        },
+        {
+          "name": "camera16",
+          "extends": [
+            "playback_subgraph"
+          ],
+          "id": "000000000016",
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_16"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_16"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera16"
+            }
+          ]
+        },
+        {
+          "name": "camera17",
+          "extends": [
+            "playback_subgraph"
+          ],
+          "id": "000000000017",
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_17"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_17"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera17"
+            }
+          ]
+        },
+        {
+          "name": "camera18",
+          "extends": [
+            "playback_subgraph"
+          ],
+          "id": "000000000018",
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_18"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_18"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera18"
+            }
+          ]
+        },
+        {
+          "name": "camera19",
+          "extends": [
+            "playback_subgraph"
+          ],
+          "id": "000000000019",
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_19"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_19"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera19"
+            }
+          ]
+        },
+        {
+          "name": "camera20",
+          "extends": [
+            "playback_subgraph"
+          ],
+          "id": "000000000020",
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_20"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_20"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera20"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "playback_color_cameras_subgraph",
+      "subgraphs": [
+        {
+          "name": "camera101",
+          "extends": [
+            "playback_color_subgraph"
+          ],
+          "id": "000000000026",
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_101"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_101"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera101"
+            }
+          ]
+        },
+        {
+          "name": "camera102",
+          "extends": [
+            "playback_color_subgraph"
+          ],
+          "id": "000000000027",
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_102"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_102"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera102"
+            }
+          ]
+        },
+        {
+          "name": "camera103",
+          "extends": [
+            "playback_color_subgraph"
+          ],
+          "id": "000000000028",
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_103"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_103"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera103"
+            }
+          ]
+        },
+        {
+          "name": "camera104",
+          "extends": [
+            "playback_color_subgraph"
+          ],
+          "id": "000000000029",
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_104"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_104"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera104"
+            }
+          ]
+        },
+        {
+          "name": "camera105",
+          "extends": [
+            "playback_color_subgraph"
+          ],
+          "id": "000000000030",
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_105"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_105"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "camera105"
+            }
+          ]
+        },
+        {
+          "name": "sync",
+          "nodes": [
+            {
+              "name": "approximate_time_sync_images",
+              "type": "approximate_time_sync",
+              "interval": 33.833,
+              "inputs": {
+                "camera101": "camera101.decode_jpeg",
+                "camera102": "camera102.decode_jpeg",
+                "camera103": "camera103.decode_jpeg",
+                "camera104": "camera104.decode_jpeg",
+                "camera105": "camera105.decode_jpeg"
+              }
+            },
+            {
+              "name": "callback_images",
+              "type": "callback",
+              "callback_name": "images",
+              "callback_type": "object",
+              "inputs": {
+                "default": "approximate_time_sync_images"
+              }
+            },
+            {
+              "name": "approximate_time_sync_markers",
+              "type": "approximate_time_sync",
+              "interval": 33.833,
+              "inputs": {
+                "camera101": "camera101.load_marker",
+                "camera102": "camera102.load_marker",
+                "camera103": "camera103.load_marker",
+                "camera104": "camera104.load_marker",
+                "camera105": "camera105.load_marker"
+              }
+            },
+            {
+              "name": "callback_markers",
+              "type": "callback",
+              "callback_name": "markers",
+              "callback_type": "object",
+              "inputs": {
+                "default": "approximate_time_sync_markers"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "playback_panoptic_cameras_subgraph",
+      "subgraphs": [
+        {
+          "name": "00_03",
+          "extends": [
+            "playback_panoptic_subgraph"
+          ],
+          "id": "00_03",
+          "nodes": [
+            {
+              "name": "load_panoptic",
+              "topic_name": "00_03"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "00_03"
+            }
+          ]
+        },
+        {
+          "name": "00_06",
+          "extends": [
+            "playback_panoptic_subgraph"
+          ],
+          "id": "00_06",
+          "nodes": [
+            {
+              "name": "load_panoptic",
+              "topic_name": "00_06"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "00_06"
+            }
+          ]
+        },
+        {
+          "name": "00_12",
+          "extends": [
+            "playback_panoptic_subgraph"
+          ],
+          "id": "00_12",
+          "nodes": [
+            {
+              "name": "load_panoptic",
+              "topic_name": "00_12"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "00_12"
+            }
+          ]
+        },
+        {
+          "name": "00_13",
+          "extends": [
+            "playback_panoptic_subgraph"
+          ],
+          "id": "00_13",
+          "nodes": [
+            {
+              "name": "load_panoptic",
+              "topic_name": "00_13"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "00_13"
+            }
+          ]
+        },
+        {
+          "name": "00_23",
+          "extends": [
+            "playback_panoptic_subgraph"
+          ],
+          "id": "00_23",
+          "nodes": [
+            {
+              "name": "load_panoptic",
+              "topic_name": "00_23"
+            },
+            {
+              "name": "callback_image",
+              "camera_name": "00_23"
+            }
+          ]
+        },
+        {
+          "name": "sync",
+          "nodes": [
+            {
+              "name": "approximate_time_sync_images",
+              "type": "approximate_time_sync",
+              "interval": 33.833,
+              "inputs": {
+                "00_03": "00_03.decode_jpeg",
+                "00_06": "00_06.decode_jpeg",
+                "00_12": "00_12.decode_jpeg",
+                "00_13": "00_13.decode_jpeg",
+                "00_23": "00_23.decode_jpeg"
+              }
+            },
+            {
+              "name": "callback_images",
+              "type": "callback",
+              "callback_name": "images",
+              "callback_type": "object",
+              "inputs": {
+                "default": "approximate_time_sync_images"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "capture_ir_cameras_subgraph",
+      "subgraphs": [
+        {
+          "name": "camera1",
+          "extends": [
+            "raspi_ir_cluster_master"
+          ],
+          "address": "192.168.0.1",
+          "id": "000000000001"
+        },
+        {
+          "name": "camera1_receiver",
+          "extends": [
+            "raspi_ir_receiver"
+          ],
+          "nodes": [
+            {
+              "name": "callback_image",
+              "camera_name": "camera1"
+            }
+          ]
+        },
+        {
+          "name": "camera2",
+          "extends": [
+            "raspi_ir_cluster_slave"
+          ],
+          "address": "192.168.0.2",
+          "id": "000000000002"
+        },
+        {
+          "name": "camera2_receiver",
+          "extends": [
+            "raspi_ir_receiver"
+          ],
+          "nodes": [
+            {
+              "name": "callback_image",
+              "camera_name": "camera2"
+            }
+          ]
+        },
+        {
+          "name": "camera3",
+          "extends": [
+            "raspi_ir_cluster_slave"
+          ],
+          "address": "192.168.0.3",
+          "id": "000000000003"
+        },
+        {
+          "name": "camera3_receiver",
+          "extends": [
+            "raspi_ir_receiver"
+          ],
+          "nodes": [
+            {
+              "name": "callback_image",
+              "camera_name": "camera3"
+            }
+          ]
+        },
+        {
+          "name": "camera4",
+          "extends": [
+            "raspi_ir_cluster_slave"
+          ],
+          "address": "192.168.0.4",
+          "id": "000000000004"
+        },
+        {
+          "name": "camera4_receiver",
+          "extends": [
+            "raspi_ir_receiver"
+          ],
+          "nodes": [
+            {
+              "name": "callback_image",
+              "camera_name": "camera4"
+            }
+          ]
+        },
+        {
+          "name": "camera5",
+          "extends": [
+            "raspi_ir_cluster_slave"
+          ],
+          "address": "192.168.0.5",
+          "id": "000000000005"
+        },
+        {
+          "name": "camera5_receiver",
+          "extends": [
+            "raspi_ir_receiver"
+          ],
+          "nodes": [
+            {
+              "name": "callback_image",
+              "camera_name": "camera5"
+            }
+          ]
+        },
+        {
+          "name": "camera6",
+          "extends": [
+            "raspi_ir_cluster_slave"
+          ],
+          "address": "192.168.0.6",
+          "id": "000000000006"
+        },
+        {
+          "name": "camera6_receiver",
+          "extends": [
+            "raspi_ir_receiver"
+          ],
+          "nodes": [
+            {
+              "name": "callback_image",
+              "camera_name": "camera6"
+            }
+          ]
+        },
+        {
+          "name": "camera7",
+          "extends": [
+            "raspi_ir_cluster_slave"
+          ],
+          "address": "192.168.0.7",
+          "id": "000000000007"
+        },
+        {
+          "name": "camera7_receiver",
+          "extends": [
+            "raspi_ir_receiver"
+          ],
+          "nodes": [
+            {
+              "name": "callback_image",
+              "camera_name": "camera7"
+            }
+          ]
+        },
+        {
+          "name": "camera8",
+          "extends": [
+            "raspi_ir_cluster_slave"
+          ],
+          "address": "192.168.0.8",
+          "id": "000000000008"
+        },
+        {
+          "name": "camera8_receiver",
+          "extends": [
+            "raspi_ir_receiver"
+          ],
+          "nodes": [
+            {
+              "name": "callback_image",
+              "camera_name": "camera8"
+            }
+          ]
+        },
+        {
+          "name": "camera9",
+          "extends": [
+            "raspi_ir_cluster_slave"
+          ],
+          "address": "192.168.0.9",
+          "id": "000000000009"
+        },
+        {
+          "name": "camera9_receiver",
+          "extends": [
+            "raspi_ir_receiver"
+          ],
+          "nodes": [
+            {
+              "name": "callback_image",
+              "camera_name": "camera9"
+            }
+          ]
+        },
+        {
+          "name": "camera10",
+          "extends": [
+            "raspi_ir_cluster_slave"
+          ],
+          "address": "192.168.0.10",
+          "id": "000000000010"
+        },
+        {
+          "name": "camera10_receiver",
+          "extends": [
+            "raspi_ir_receiver"
+          ],
+          "nodes": [
+            {
+              "name": "callback_image",
+              "camera_name": "camera10"
+            }
+          ]
+        },
+        {
+          "name": "camera11",
+          "extends": [
+            "raspi_ir_cluster_slave"
+          ],
+          "address": "192.168.0.11",
+          "id": "000000000011"
+        },
+        {
+          "name": "camera11_receiver",
+          "extends": [
+            "raspi_ir_receiver"
+          ],
+          "nodes": [
+            {
+              "name": "callback_image",
+              "camera_name": "camera11"
+            }
+          ]
+        },
+        {
+          "name": "camera12",
+          "extends": [
+            "raspi_ir_cluster_slave"
+          ],
+          "address": "192.168.0.12",
+          "id": "000000000012"
+        },
+        {
+          "name": "camera12_receiver",
+          "extends": [
+            "raspi_ir_receiver"
+          ],
+          "nodes": [
+            {
+              "name": "callback_image",
+              "camera_name": "camera12"
+            }
+          ]
+        },
+        {
+          "name": "camera13",
+          "extends": [
+            "raspi_ir_cluster_slave"
+          ],
+          "address": "192.168.0.13",
+          "id": "000000000013"
+        },
+        {
+          "name": "camera13_receiver",
+          "extends": [
+            "raspi_ir_receiver"
+          ],
+          "nodes": [
+            {
+              "name": "callback_image",
+              "camera_name": "camera13"
+            }
+          ]
+        },
+        {
+          "name": "camera14",
+          "extends": [
+            "raspi_ir_cluster_slave"
+          ],
+          "address": "192.168.0.14",
+          "id": "000000000014"
+        },
+        {
+          "name": "camera14_receiver",
+          "extends": [
+            "raspi_ir_receiver"
+          ],
+          "nodes": [
+            {
+              "name": "callback_image",
+              "camera_name": "camera14"
+            }
+          ]
+        },
+        {
+          "name": "camera15",
+          "extends": [
+            "raspi_ir_cluster_slave"
+          ],
+          "address": "192.168.0.15",
+          "id": "000000000015"
+        },
+        {
+          "name": "camera15_receiver",
+          "extends": [
+            "raspi_ir_receiver"
+          ],
+          "nodes": [
+            {
+              "name": "callback_image",
+              "camera_name": "camera15"
+            }
+          ]
+        },
+        {
+          "name": "camera16",
+          "extends": [
+            "raspi_ir_cluster_slave"
+          ],
+          "address": "192.168.0.16",
+          "id": "000000000016"
+        },
+        {
+          "name": "camera16_receiver",
+          "extends": [
+            "raspi_ir_receiver"
+          ],
+          "nodes": [
+            {
+              "name": "callback_image",
+              "camera_name": "camera16"
+            }
+          ]
+        },
+        {
+          "name": "camera17",
+          "extends": [
+            "raspi_ir_cluster_slave"
+          ],
+          "address": "192.168.0.17",
+          "id": "000000000017"
+        },
+        {
+          "name": "camera17_receiver",
+          "extends": [
+            "raspi_ir_receiver"
+          ],
+          "nodes": [
+            {
+              "name": "callback_image",
+              "camera_name": "camera17"
+            }
+          ]
+        },
+        {
+          "name": "camera18",
+          "extends": [
+            "raspi_ir_cluster_slave"
+          ],
+          "address": "192.168.0.18",
+          "id": "000000000018"
+        },
+        {
+          "name": "camera18_receiver",
+          "extends": [
+            "raspi_ir_receiver"
+          ],
+          "nodes": [
+            {
+              "name": "callback_image",
+              "camera_name": "camera18"
+            }
+          ]
+        },
+        {
+          "name": "camera19",
+          "extends": [
+            "raspi_ir_cluster_slave"
+          ],
+          "address": "192.168.0.19",
+          "id": "000000000019"
+        },
+        {
+          "name": "camera19_receiver",
+          "extends": [
+            "raspi_ir_receiver"
+          ],
+          "nodes": [
+            {
+              "name": "callback_image",
+              "camera_name": "camera19"
+            }
+          ]
+        },
+        {
+          "name": "camera20",
+          "extends": [
+            "raspi_ir_cluster_slave"
+          ],
+          "address": "192.168.0.20",
+          "id": "000000000020"
+        },
+        {
+          "name": "camera20_receiver",
+          "extends": [
+            "raspi_ir_receiver"
+          ],
+          "nodes": [
+            {
+              "name": "callback_image",
+              "camera_name": "camera20"
+            }
+          ]
+        },
+        {
+          "name": "camera21",
+          "extends": [
+            "raspi_ir_cluster_slave"
+          ],
+          "address": "192.168.0.21",
+          "id": "000000000021"
+        },
+        {
+          "name": "camera21_receiver",
+          "extends": [
+            "raspi_ir_receiver"
+          ],
+          "nodes": [
+            {
+              "name": "callback_image",
+              "camera_name": "camera21"
+            }
+          ]
+        },
+        {
+          "name": "camera22",
+          "extends": [
+            "raspi_ir_cluster_slave"
+          ],
+          "address": "192.168.0.22",
+          "id": "000000000022"
+        },
+        {
+          "name": "camera22_receiver",
+          "extends": [
+            "raspi_ir_receiver"
+          ],
+          "nodes": [
+            {
+              "name": "callback_image",
+              "camera_name": "camera22"
+            }
+          ]
+        },
+        {
+          "name": "camera23",
+          "extends": [
+            "raspi_ir_cluster_slave"
+          ],
+          "address": "192.168.0.23",
+          "id": "000000000023"
+        },
+        {
+          "name": "camera23_receiver",
+          "extends": [
+            "raspi_ir_receiver"
+          ],
+          "nodes": [
+            {
+              "name": "callback_image",
+              "camera_name": "camera23"
+            }
+          ]
+        },
+        {
+          "name": "camera24",
+          "extends": [
+            "raspi_ir_cluster_slave"
+          ],
+          "address": "192.168.0.24",
+          "id": "000000000024"
+        },
+        {
+          "name": "camera24_receiver",
+          "extends": [
+            "raspi_ir_receiver"
+          ],
+          "nodes": [
+            {
+              "name": "callback_image",
+              "camera_name": "camera24"
+            }
+          ]
+        },
+        {
+          "name": "sync",
+          "nodes": [
+            {
+              "name": "approximate_time_sync_images",
+              "type": "approximate_time_sync",
+              "interval": 11.611,
+              "inputs": {
+                "camera1": "camera1_receiver.decode_jpeg",
+                "camera2": "camera2_receiver.decode_jpeg",
+                "camera3": "camera3_receiver.decode_jpeg",
+                "camera4": "camera4_receiver.decode_jpeg",
+                "camera5": "camera5_receiver.decode_jpeg",
+                "camera6": "camera6_receiver.decode_jpeg",
+                "camera7": "camera7_receiver.decode_jpeg",
+                "camera8": "camera8_receiver.decode_jpeg",
+                "camera9": "camera9_receiver.decode_jpeg",
+                "camera10": "camera10_receiver.decode_jpeg",
+                "camera11": "camera11_receiver.decode_jpeg",
+                "camera12": "camera12_receiver.decode_jpeg",
+                "camera13": "camera13_receiver.decode_jpeg",
+                "camera14": "camera14_receiver.decode_jpeg",
+                "camera15": "camera15_receiver.decode_jpeg",
+                "camera16": "camera16_receiver.decode_jpeg",
+                "camera17": "camera17_receiver.decode_jpeg",
+                "camera18": "camera18_receiver.decode_jpeg",
+                "camera19": "camera19_receiver.decode_jpeg",
+                "camera20": "camera20_receiver.decode_jpeg",
+                "camera21": "camera21_receiver.decode_jpeg",
+                "camera22": "camera22_receiver.decode_jpeg",
+                "camera23": "camera23_receiver.decode_jpeg",
+                "camera24": "camera24_receiver.decode_jpeg"
+              }
+            },
+            {
+              "name": "callback_images",
+              "type": "callback",
+              "callback_name": "images",
+              "callback_type": "object",
+              "inputs": {
+                "default": "approximate_time_sync_images"
+              }
+            },
+            {
+              "name": "approximate_time_sync_markers",
+              "type": "approximate_time_sync",
+              "interval": 11.611,
+              "inputs": {
+                "camera1": "camera1_receiver.p2p_tcp_listener_marker",
+                "camera2": "camera2_receiver.p2p_tcp_listener_marker",
+                "camera3": "camera3_receiver.p2p_tcp_listener_marker",
+                "camera4": "camera4_receiver.p2p_tcp_listener_marker",
+                "camera5": "camera5_receiver.p2p_tcp_listener_marker",
+                "camera6": "camera6_receiver.p2p_tcp_listener_marker",
+                "camera7": "camera7_receiver.p2p_tcp_listener_marker",
+                "camera8": "camera8_receiver.p2p_tcp_listener_marker",
+                "camera9": "camera9_receiver.p2p_tcp_listener_marker",
+                "camera10": "camera10_receiver.p2p_tcp_listener_marker",
+                "camera11": "camera11_receiver.p2p_tcp_listener_marker",
+                "camera12": "camera12_receiver.p2p_tcp_listener_marker",
+                "camera13": "camera13_receiver.p2p_tcp_listener_marker",
+                "camera14": "camera14_receiver.p2p_tcp_listener_marker",
+                "camera15": "camera15_receiver.p2p_tcp_listener_marker",
+                "camera16": "camera16_receiver.p2p_tcp_listener_marker",
+                "camera17": "camera17_receiver.p2p_tcp_listener_marker",
+                "camera18": "camera18_receiver.p2p_tcp_listener_marker",
+                "camera19": "camera19_receiver.p2p_tcp_listener_marker",
+                "camera20": "camera20_receiver.p2p_tcp_listener_marker",
+                "camera21": "camera21_receiver.p2p_tcp_listener_marker",
+                "camera22": "camera22_receiver.p2p_tcp_listener_marker",
+                "camera23": "camera23_receiver.p2p_tcp_listener_marker",
+                "camera24": "camera24_receiver.p2p_tcp_listener_marker"
+              }
+            },
+            {
+              "name": "callback_markers",
+              "type": "callback",
+              "callback_name": "markers",
+              "callback_type": "object",
+              "inputs": {
+                "default": "approximate_time_sync_markers"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "capture_color_cameras_subgraph",
       "subgraphs": [
         {
           "name": "camera101",
@@ -1554,20 +3154,6 @@
               "name": "p2p_tcp_listener_marker",
               "inputs": {
                 "default": "camera101.p2p_tcp_talker_marker"
-              }
-            }
-          ]
-        },
-        {
-          "name": "record101",
-          "extends": [
-            "record_subgraph"
-          ],
-          "nodes": [
-            {
-              "name": "record",
-              "inputs": {
-                "default": "camera101_receiver.callback_image"
               }
             }
           ]
@@ -1605,20 +3191,6 @@
           ]
         },
         {
-          "name": "record102",
-          "extends": [
-            "record_subgraph"
-          ],
-          "nodes": [
-            {
-              "name": "record",
-              "inputs": {
-                "default": "camera102_receiver.callback_image"
-              }
-            }
-          ]
-        },
-        {
           "name": "camera103",
           "extends": [
             "raspi_color_cluster_slave"
@@ -1646,20 +3218,6 @@
               "name": "p2p_tcp_listener_marker",
               "inputs": {
                 "default": "camera103.p2p_tcp_talker_marker"
-              }
-            }
-          ]
-        },
-        {
-          "name": "record103",
-          "extends": [
-            "record_subgraph"
-          ],
-          "nodes": [
-            {
-              "name": "record",
-              "inputs": {
-                "default": "camera103_receiver.callback_image"
               }
             }
           ]
@@ -1697,20 +3255,6 @@
           ]
         },
         {
-          "name": "record104",
-          "extends": [
-            "record_subgraph"
-          ],
-          "nodes": [
-            {
-              "name": "record",
-              "inputs": {
-                "default": "camera104_receiver.callback_image"
-              }
-            }
-          ]
-        },
-        {
           "name": "camera105",
           "extends": [
             "raspi_color_cluster_slave"
@@ -1738,20 +3282,6 @@
               "name": "p2p_tcp_listener_marker",
               "inputs": {
                 "default": "camera105.p2p_tcp_talker_marker"
-              }
-            }
-          ]
-        },
-        {
-          "name": "record105",
-          "extends": [
-            "record_subgraph"
-          ],
-          "nodes": [
-            {
-              "name": "record",
-              "inputs": {
-                "default": "camera105_receiver.callback_image"
               }
             }
           ]
@@ -1805,7 +3335,8 @@
         }
       ]
     },
-    "record_ir": {
+    {
+      "name": "record_ir_cameras_subgraph",
       "subgraphs": [
         {
           "name": "camera1",
@@ -2710,576 +4241,8 @@
         }
       ]
     },
-    "capture_ir": {
-      "subgraphs": [
-        {
-          "name": "camera1",
-          "extends": [
-            "raspi_ir_cluster_master"
-          ],
-          "address": "192.168.0.1",
-          "id": "000000000001"
-        },
-        {
-          "name": "camera1_receiver",
-          "extends": [
-            "raspi_ir_receiver"
-          ],
-          "nodes": [
-            {
-              "name": "callback_image",
-              "camera_name": "camera1"
-            }
-          ]
-        },
-        {
-          "name": "camera2",
-          "extends": [
-            "raspi_ir_cluster_slave"
-          ],
-          "address": "192.168.0.2",
-          "id": "000000000002"
-        },
-        {
-          "name": "camera2_receiver",
-          "extends": [
-            "raspi_ir_receiver"
-          ],
-          "nodes": [
-            {
-              "name": "callback_image",
-              "camera_name": "camera2"
-            }
-          ]
-        },
-        {
-          "name": "camera3",
-          "extends": [
-            "raspi_ir_cluster_slave"
-          ],
-          "address": "192.168.0.3",
-          "id": "000000000003"
-        },
-        {
-          "name": "camera3_receiver",
-          "extends": [
-            "raspi_ir_receiver"
-          ],
-          "nodes": [
-            {
-              "name": "callback_image",
-              "camera_name": "camera3"
-            }
-          ]
-        },
-        {
-          "name": "camera4",
-          "extends": [
-            "raspi_ir_cluster_slave"
-          ],
-          "address": "192.168.0.4",
-          "id": "000000000004"
-        },
-        {
-          "name": "camera4_receiver",
-          "extends": [
-            "raspi_ir_receiver"
-          ],
-          "nodes": [
-            {
-              "name": "callback_image",
-              "camera_name": "camera4"
-            }
-          ]
-        },
-        {
-          "name": "camera5",
-          "extends": [
-            "raspi_ir_cluster_slave"
-          ],
-          "address": "192.168.0.5",
-          "id": "000000000005"
-        },
-        {
-          "name": "camera5_receiver",
-          "extends": [
-            "raspi_ir_receiver"
-          ],
-          "nodes": [
-            {
-              "name": "callback_image",
-              "camera_name": "camera5"
-            }
-          ]
-        },
-        {
-          "name": "camera6",
-          "extends": [
-            "raspi_ir_cluster_slave"
-          ],
-          "address": "192.168.0.6",
-          "id": "000000000006"
-        },
-        {
-          "name": "camera6_receiver",
-          "extends": [
-            "raspi_ir_receiver"
-          ],
-          "nodes": [
-            {
-              "name": "callback_image",
-              "camera_name": "camera6"
-            }
-          ]
-        },
-        {
-          "name": "camera7",
-          "extends": [
-            "raspi_ir_cluster_slave"
-          ],
-          "address": "192.168.0.7",
-          "id": "000000000007"
-        },
-        {
-          "name": "camera7_receiver",
-          "extends": [
-            "raspi_ir_receiver"
-          ],
-          "nodes": [
-            {
-              "name": "callback_image",
-              "camera_name": "camera7"
-            }
-          ]
-        },
-        {
-          "name": "camera8",
-          "extends": [
-            "raspi_ir_cluster_slave"
-          ],
-          "address": "192.168.0.8",
-          "id": "000000000008"
-        },
-        {
-          "name": "camera8_receiver",
-          "extends": [
-            "raspi_ir_receiver"
-          ],
-          "nodes": [
-            {
-              "name": "callback_image",
-              "camera_name": "camera8"
-            }
-          ]
-        },
-        {
-          "name": "camera9",
-          "extends": [
-            "raspi_ir_cluster_slave"
-          ],
-          "address": "192.168.0.9",
-          "id": "000000000009"
-        },
-        {
-          "name": "camera9_receiver",
-          "extends": [
-            "raspi_ir_receiver"
-          ],
-          "nodes": [
-            {
-              "name": "callback_image",
-              "camera_name": "camera9"
-            }
-          ]
-        },
-        {
-          "name": "camera10",
-          "extends": [
-            "raspi_ir_cluster_slave"
-          ],
-          "address": "192.168.0.10",
-          "id": "000000000010"
-        },
-        {
-          "name": "camera10_receiver",
-          "extends": [
-            "raspi_ir_receiver"
-          ],
-          "nodes": [
-            {
-              "name": "callback_image",
-              "camera_name": "camera10"
-            }
-          ]
-        },
-        {
-          "name": "camera11",
-          "extends": [
-            "raspi_ir_cluster_slave"
-          ],
-          "address": "192.168.0.11",
-          "id": "000000000011"
-        },
-        {
-          "name": "camera11_receiver",
-          "extends": [
-            "raspi_ir_receiver"
-          ],
-          "nodes": [
-            {
-              "name": "callback_image",
-              "camera_name": "camera11"
-            }
-          ]
-        },
-        {
-          "name": "camera12",
-          "extends": [
-            "raspi_ir_cluster_slave"
-          ],
-          "address": "192.168.0.12",
-          "id": "000000000012"
-        },
-        {
-          "name": "camera12_receiver",
-          "extends": [
-            "raspi_ir_receiver"
-          ],
-          "nodes": [
-            {
-              "name": "callback_image",
-              "camera_name": "camera12"
-            }
-          ]
-        },
-        {
-          "name": "camera13",
-          "extends": [
-            "raspi_ir_cluster_slave"
-          ],
-          "address": "192.168.0.13",
-          "id": "000000000013"
-        },
-        {
-          "name": "camera13_receiver",
-          "extends": [
-            "raspi_ir_receiver"
-          ],
-          "nodes": [
-            {
-              "name": "callback_image",
-              "camera_name": "camera13"
-            }
-          ]
-        },
-        {
-          "name": "camera14",
-          "extends": [
-            "raspi_ir_cluster_slave"
-          ],
-          "address": "192.168.0.14",
-          "id": "000000000014"
-        },
-        {
-          "name": "camera14_receiver",
-          "extends": [
-            "raspi_ir_receiver"
-          ],
-          "nodes": [
-            {
-              "name": "callback_image",
-              "camera_name": "camera14"
-            }
-          ]
-        },
-        {
-          "name": "camera15",
-          "extends": [
-            "raspi_ir_cluster_slave"
-          ],
-          "address": "192.168.0.15",
-          "id": "000000000015"
-        },
-        {
-          "name": "camera15_receiver",
-          "extends": [
-            "raspi_ir_receiver"
-          ],
-          "nodes": [
-            {
-              "name": "callback_image",
-              "camera_name": "camera15"
-            }
-          ]
-        },
-        {
-          "name": "camera16",
-          "extends": [
-            "raspi_ir_cluster_slave"
-          ],
-          "address": "192.168.0.16",
-          "id": "000000000016"
-        },
-        {
-          "name": "camera16_receiver",
-          "extends": [
-            "raspi_ir_receiver"
-          ],
-          "nodes": [
-            {
-              "name": "callback_image",
-              "camera_name": "camera16"
-            }
-          ]
-        },
-        {
-          "name": "camera17",
-          "extends": [
-            "raspi_ir_cluster_slave"
-          ],
-          "address": "192.168.0.17",
-          "id": "000000000017"
-        },
-        {
-          "name": "camera17_receiver",
-          "extends": [
-            "raspi_ir_receiver"
-          ],
-          "nodes": [
-            {
-              "name": "callback_image",
-              "camera_name": "camera17"
-            }
-          ]
-        },
-        {
-          "name": "camera18",
-          "extends": [
-            "raspi_ir_cluster_slave"
-          ],
-          "address": "192.168.0.18",
-          "id": "000000000018"
-        },
-        {
-          "name": "camera18_receiver",
-          "extends": [
-            "raspi_ir_receiver"
-          ],
-          "nodes": [
-            {
-              "name": "callback_image",
-              "camera_name": "camera18"
-            }
-          ]
-        },
-        {
-          "name": "camera19",
-          "extends": [
-            "raspi_ir_cluster_slave"
-          ],
-          "address": "192.168.0.19",
-          "id": "000000000019"
-        },
-        {
-          "name": "camera19_receiver",
-          "extends": [
-            "raspi_ir_receiver"
-          ],
-          "nodes": [
-            {
-              "name": "callback_image",
-              "camera_name": "camera19"
-            }
-          ]
-        },
-        {
-          "name": "camera20",
-          "extends": [
-            "raspi_ir_cluster_slave"
-          ],
-          "address": "192.168.0.20",
-          "id": "000000000020"
-        },
-        {
-          "name": "camera20_receiver",
-          "extends": [
-            "raspi_ir_receiver"
-          ],
-          "nodes": [
-            {
-              "name": "callback_image",
-              "camera_name": "camera20"
-            }
-          ]
-        },
-        {
-          "name": "camera21",
-          "extends": [
-            "raspi_ir_cluster_slave"
-          ],
-          "address": "192.168.0.21",
-          "id": "000000000021"
-        },
-        {
-          "name": "camera21_receiver",
-          "extends": [
-            "raspi_ir_receiver"
-          ],
-          "nodes": [
-            {
-              "name": "callback_image",
-              "camera_name": "camera21"
-            }
-          ]
-        },
-        {
-          "name": "camera22",
-          "extends": [
-            "raspi_ir_cluster_slave"
-          ],
-          "address": "192.168.0.22",
-          "id": "000000000022"
-        },
-        {
-          "name": "camera22_receiver",
-          "extends": [
-            "raspi_ir_receiver"
-          ],
-          "nodes": [
-            {
-              "name": "callback_image",
-              "camera_name": "camera22"
-            }
-          ]
-        },
-        {
-          "name": "camera23",
-          "extends": [
-            "raspi_ir_cluster_slave"
-          ],
-          "address": "192.168.0.23",
-          "id": "000000000023"
-        },
-        {
-          "name": "camera23_receiver",
-          "extends": [
-            "raspi_ir_receiver"
-          ],
-          "nodes": [
-            {
-              "name": "callback_image",
-              "camera_name": "camera23"
-            }
-          ]
-        },
-        {
-          "name": "camera24",
-          "extends": [
-            "raspi_ir_cluster_slave"
-          ],
-          "address": "192.168.0.24",
-          "id": "000000000024"
-        },
-        {
-          "name": "camera24_receiver",
-          "extends": [
-            "raspi_ir_receiver"
-          ],
-          "nodes": [
-            {
-              "name": "callback_image",
-              "camera_name": "camera24"
-            }
-          ]
-        },
-        {
-          "name": "sync",
-          "nodes": [
-            {
-              "name": "approximate_time_sync_images",
-              "type": "approximate_time_sync",
-              "interval": 11.611,
-              "inputs": {
-                "camera1": "camera1_receiver.decode_jpeg",
-                "camera2": "camera2_receiver.decode_jpeg",
-                "camera3": "camera3_receiver.decode_jpeg",
-                "camera4": "camera4_receiver.decode_jpeg",
-                "camera5": "camera5_receiver.decode_jpeg",
-                "camera6": "camera6_receiver.decode_jpeg",
-                "camera7": "camera7_receiver.decode_jpeg",
-                "camera8": "camera8_receiver.decode_jpeg",
-                "camera9": "camera9_receiver.decode_jpeg",
-                "camera10": "camera10_receiver.decode_jpeg",
-                "camera11": "camera11_receiver.decode_jpeg",
-                "camera12": "camera12_receiver.decode_jpeg",
-                "camera13": "camera13_receiver.decode_jpeg",
-                "camera14": "camera14_receiver.decode_jpeg",
-                "camera15": "camera15_receiver.decode_jpeg",
-                "camera16": "camera16_receiver.decode_jpeg",
-                "camera17": "camera17_receiver.decode_jpeg",
-                "camera18": "camera18_receiver.decode_jpeg",
-                "camera19": "camera19_receiver.decode_jpeg",
-                "camera20": "camera20_receiver.decode_jpeg",
-                "camera21": "camera21_receiver.decode_jpeg",
-                "camera22": "camera22_receiver.decode_jpeg",
-                "camera23": "camera23_receiver.decode_jpeg",
-                "camera24": "camera24_receiver.decode_jpeg"
-              }
-            },
-            {
-              "name": "callback_images",
-              "type": "callback",
-              "callback_name": "images",
-              "callback_type": "object",
-              "inputs": {
-                "default": "approximate_time_sync_images"
-              }
-            },
-            {
-              "name": "approximate_time_sync_markers",
-              "type": "approximate_time_sync",
-              "interval": 11.611,
-              "inputs": {
-                "camera1": "camera1_receiver.p2p_tcp_listener_marker",
-                "camera2": "camera2_receiver.p2p_tcp_listener_marker",
-                "camera3": "camera3_receiver.p2p_tcp_listener_marker",
-                "camera4": "camera4_receiver.p2p_tcp_listener_marker",
-                "camera5": "camera5_receiver.p2p_tcp_listener_marker",
-                "camera6": "camera6_receiver.p2p_tcp_listener_marker",
-                "camera7": "camera7_receiver.p2p_tcp_listener_marker",
-                "camera8": "camera8_receiver.p2p_tcp_listener_marker",
-                "camera9": "camera9_receiver.p2p_tcp_listener_marker",
-                "camera10": "camera10_receiver.p2p_tcp_listener_marker",
-                "camera11": "camera11_receiver.p2p_tcp_listener_marker",
-                "camera12": "camera12_receiver.p2p_tcp_listener_marker",
-                "camera13": "camera13_receiver.p2p_tcp_listener_marker",
-                "camera14": "camera14_receiver.p2p_tcp_listener_marker",
-                "camera15": "camera15_receiver.p2p_tcp_listener_marker",
-                "camera16": "camera16_receiver.p2p_tcp_listener_marker",
-                "camera17": "camera17_receiver.p2p_tcp_listener_marker",
-                "camera18": "camera18_receiver.p2p_tcp_listener_marker",
-                "camera19": "camera19_receiver.p2p_tcp_listener_marker",
-                "camera20": "camera20_receiver.p2p_tcp_listener_marker",
-                "camera21": "camera21_receiver.p2p_tcp_listener_marker",
-                "camera22": "camera22_receiver.p2p_tcp_listener_marker",
-                "camera23": "camera23_receiver.p2p_tcp_listener_marker",
-                "camera24": "camera24_receiver.p2p_tcp_listener_marker"
-              }
-            },
-            {
-              "name": "callback_markers",
-              "type": "callback",
-              "callback_name": "markers",
-              "callback_type": "object",
-              "inputs": {
-                "default": "approximate_time_sync_markers"
-              }
-            }
-          ]
-        }
-      ]
-    },
-    "capture_color": {
+    {
+      "name": "record_color_cameras_subgraph",
       "subgraphs": [
         {
           "name": "camera101",
@@ -3309,6 +4272,20 @@
               "name": "p2p_tcp_listener_marker",
               "inputs": {
                 "default": "camera101.p2p_tcp_talker_marker"
+              }
+            }
+          ]
+        },
+        {
+          "name": "record101",
+          "extends": [
+            "record_subgraph"
+          ],
+          "nodes": [
+            {
+              "name": "record",
+              "inputs": {
+                "default": "camera101_receiver.callback_image"
               }
             }
           ]
@@ -3346,6 +4323,20 @@
           ]
         },
         {
+          "name": "record102",
+          "extends": [
+            "record_subgraph"
+          ],
+          "nodes": [
+            {
+              "name": "record",
+              "inputs": {
+                "default": "camera102_receiver.callback_image"
+              }
+            }
+          ]
+        },
+        {
           "name": "camera103",
           "extends": [
             "raspi_color_cluster_slave"
@@ -3373,6 +4364,20 @@
               "name": "p2p_tcp_listener_marker",
               "inputs": {
                 "default": "camera103.p2p_tcp_talker_marker"
+              }
+            }
+          ]
+        },
+        {
+          "name": "record103",
+          "extends": [
+            "record_subgraph"
+          ],
+          "nodes": [
+            {
+              "name": "record",
+              "inputs": {
+                "default": "camera103_receiver.callback_image"
               }
             }
           ]
@@ -3410,6 +4415,20 @@
           ]
         },
         {
+          "name": "record104",
+          "extends": [
+            "record_subgraph"
+          ],
+          "nodes": [
+            {
+              "name": "record",
+              "inputs": {
+                "default": "camera104_receiver.callback_image"
+              }
+            }
+          ]
+        },
+        {
           "name": "camera105",
           "extends": [
             "raspi_color_cluster_slave"
@@ -3437,6 +4456,20 @@
               "name": "p2p_tcp_listener_marker",
               "inputs": {
                 "default": "camera105.p2p_tcp_talker_marker"
+              }
+            }
+          ]
+        },
+        {
+          "name": "record105",
+          "extends": [
+            "record_subgraph"
+          ],
+          "nodes": [
+            {
+              "name": "record",
+              "inputs": {
+                "default": "camera105_receiver.callback_image"
               }
             }
           ]
@@ -3489,427 +4522,55 @@
           ]
         }
       ]
+    }
+  ],
+  "pipelines": {
+    "record_color": {
+      "subgraphs": [
+        {
+          "name": "cameras",
+          "extends": [
+            "record_color_cameras_subgraph"
+          ]
+        }
+      ]
+    },
+    "record_ir": {
+      "subgraphs": [
+        {
+          "name": "cameras",
+          "extends": [
+            "record_ir_cameras_subgraph"
+          ]
+        }
+      ]
+    },
+    "capture_ir": {
+      "subgraphs": [
+        {
+          "name": "cameras",
+          "extends": [
+            "capture_ir_cameras_subgraph"
+          ]
+        }
+      ]
+    },
+    "capture_color": {
+      "subgraphs": [
+        {
+          "name": "cameras",
+          "extends": [
+            "capture_color_cameras_subgraph"
+          ]
+        }
+      ]
     },
     "playback_ir": {
       "subgraphs": [
         {
-          "name": "camera1",
+          "name": "cameras",
           "extends": [
-            "playback_subgraph"
-          ],
-          "id": "000000000001",
-          "nodes": [
-            {
-              "name": "load_blob",
-              "topic_name": "image_1"
-            },
-            {
-              "name": "load_marker",
-              "topic_name": "marker_1"
-            },
-            {
-              "name": "callback_image",
-              "camera_name": "camera1"
-            }
-          ]
-        },
-        {
-          "name": "camera2",
-          "extends": [
-            "playback_subgraph"
-          ],
-          "id": "000000000002",
-          "nodes": [
-            {
-              "name": "load_blob",
-              "topic_name": "image_2"
-            },
-            {
-              "name": "load_marker",
-              "topic_name": "marker_2"
-            },
-            {
-              "name": "callback_image",
-              "camera_name": "camera2"
-            }
-          ]
-        },
-        {
-          "name": "camera3",
-          "extends": [
-            "playback_subgraph"
-          ],
-          "id": "000000000003",
-          "nodes": [
-            {
-              "name": "load_blob",
-              "topic_name": "image_3"
-            },
-            {
-              "name": "load_marker",
-              "topic_name": "marker_3"
-            },
-            {
-              "name": "callback_image",
-              "camera_name": "camera3"
-            }
-          ]
-        },
-        {
-          "name": "camera4",
-          "extends": [
-            "playback_subgraph"
-          ],
-          "id": "000000000004",
-          "nodes": [
-            {
-              "name": "load_blob",
-              "topic_name": "image_4"
-            },
-            {
-              "name": "load_marker",
-              "topic_name": "marker_4"
-            },
-            {
-              "name": "callback_image",
-              "camera_name": "camera4"
-            }
-          ]
-        },
-        {
-          "name": "camera5",
-          "extends": [
-            "playback_subgraph"
-          ],
-          "id": "000000000005",
-          "nodes": [
-            {
-              "name": "load_blob",
-              "topic_name": "image_5"
-            },
-            {
-              "name": "load_marker",
-              "topic_name": "marker_5"
-            },
-            {
-              "name": "callback_image",
-              "camera_name": "camera5"
-            }
-          ]
-        },
-        {
-          "name": "camera6",
-          "extends": [
-            "playback_subgraph"
-          ],
-          "id": "000000000006",
-          "nodes": [
-            {
-              "name": "load_blob",
-              "topic_name": "image_6"
-            },
-            {
-              "name": "load_marker",
-              "topic_name": "marker_6"
-            },
-            {
-              "name": "callback_image",
-              "camera_name": "camera6"
-            }
-          ]
-        },
-        {
-          "name": "camera7",
-          "extends": [
-            "playback_subgraph"
-          ],
-          "id": "000000000007",
-          "nodes": [
-            {
-              "name": "load_blob",
-              "topic_name": "image_7"
-            },
-            {
-              "name": "load_marker",
-              "topic_name": "marker_7"
-            },
-            {
-              "name": "callback_image",
-              "camera_name": "camera7"
-            }
-          ]
-        },
-        {
-          "name": "camera8",
-          "extends": [
-            "playback_subgraph"
-          ],
-          "id": "000000000008",
-          "nodes": [
-            {
-              "name": "load_blob",
-              "topic_name": "image_8"
-            },
-            {
-              "name": "load_marker",
-              "topic_name": "marker_8"
-            },
-            {
-              "name": "callback_image",
-              "camera_name": "camera8"
-            }
-          ]
-        },
-        {
-          "name": "camera9",
-          "extends": [
-            "playback_subgraph"
-          ],
-          "id": "000000000009",
-          "nodes": [
-            {
-              "name": "load_blob",
-              "topic_name": "image_9"
-            },
-            {
-              "name": "load_marker",
-              "topic_name": "marker_9"
-            },
-            {
-              "name": "callback_image",
-              "camera_name": "camera9"
-            }
-          ]
-        },
-        {
-          "name": "camera10",
-          "extends": [
-            "playback_subgraph"
-          ],
-          "id": "000000000010",
-          "nodes": [
-            {
-              "name": "load_blob",
-              "topic_name": "image_10"
-            },
-            {
-              "name": "load_marker",
-              "topic_name": "marker_10"
-            },
-            {
-              "name": "callback_image",
-              "camera_name": "camera10"
-            }
-          ]
-        },
-        {
-          "name": "camera11",
-          "extends": [
-            "playback_subgraph"
-          ],
-          "id": "000000000011",
-          "nodes": [
-            {
-              "name": "load_blob",
-              "topic_name": "image_11"
-            },
-            {
-              "name": "load_marker",
-              "topic_name": "marker_11"
-            },
-            {
-              "name": "callback_image",
-              "camera_name": "camera11"
-            }
-          ]
-        },
-        {
-          "name": "camera12",
-          "extends": [
-            "playback_subgraph"
-          ],
-          "id": "000000000012",
-          "nodes": [
-            {
-              "name": "load_blob",
-              "topic_name": "image_12"
-            },
-            {
-              "name": "load_marker",
-              "topic_name": "marker_12"
-            },
-            {
-              "name": "callback_image",
-              "camera_name": "camera12"
-            }
-          ]
-        },
-        {
-          "name": "camera13",
-          "extends": [
-            "playback_subgraph"
-          ],
-          "id": "000000000013",
-          "nodes": [
-            {
-              "name": "load_blob",
-              "topic_name": "image_13"
-            },
-            {
-              "name": "load_marker",
-              "topic_name": "marker_13"
-            },
-            {
-              "name": "callback_image",
-              "camera_name": "camera13"
-            }
-          ]
-        },
-        {
-          "name": "camera14",
-          "extends": [
-            "playback_subgraph"
-          ],
-          "id": "000000000014",
-          "nodes": [
-            {
-              "name": "load_blob",
-              "topic_name": "image_14"
-            },
-            {
-              "name": "load_marker",
-              "topic_name": "marker_14"
-            },
-            {
-              "name": "callback_image",
-              "camera_name": "camera14"
-            }
-          ]
-        },
-        {
-          "name": "camera15",
-          "extends": [
-            "playback_subgraph"
-          ],
-          "id": "000000000015",
-          "nodes": [
-            {
-              "name": "load_blob",
-              "topic_name": "image_15"
-            },
-            {
-              "name": "load_marker",
-              "topic_name": "marker_15"
-            },
-            {
-              "name": "callback_image",
-              "camera_name": "camera15"
-            }
-          ]
-        },
-        {
-          "name": "camera16",
-          "extends": [
-            "playback_subgraph"
-          ],
-          "id": "000000000016",
-          "nodes": [
-            {
-              "name": "load_blob",
-              "topic_name": "image_16"
-            },
-            {
-              "name": "load_marker",
-              "topic_name": "marker_16"
-            },
-            {
-              "name": "callback_image",
-              "camera_name": "camera16"
-            }
-          ]
-        },
-        {
-          "name": "camera17",
-          "extends": [
-            "playback_subgraph"
-          ],
-          "id": "000000000017",
-          "nodes": [
-            {
-              "name": "load_blob",
-              "topic_name": "image_17"
-            },
-            {
-              "name": "load_marker",
-              "topic_name": "marker_17"
-            },
-            {
-              "name": "callback_image",
-              "camera_name": "camera17"
-            }
-          ]
-        },
-        {
-          "name": "camera18",
-          "extends": [
-            "playback_subgraph"
-          ],
-          "id": "000000000018",
-          "nodes": [
-            {
-              "name": "load_blob",
-              "topic_name": "image_18"
-            },
-            {
-              "name": "load_marker",
-              "topic_name": "marker_18"
-            },
-            {
-              "name": "callback_image",
-              "camera_name": "camera18"
-            }
-          ]
-        },
-        {
-          "name": "camera19",
-          "extends": [
-            "playback_subgraph"
-          ],
-          "id": "000000000019",
-          "nodes": [
-            {
-              "name": "load_blob",
-              "topic_name": "image_19"
-            },
-            {
-              "name": "load_marker",
-              "topic_name": "marker_19"
-            },
-            {
-              "name": "callback_image",
-              "camera_name": "camera19"
-            }
-          ]
-        },
-        {
-          "name": "camera20",
-          "extends": [
-            "playback_subgraph"
-          ],
-          "id": "000000000020",
-          "nodes": [
-            {
-              "name": "load_blob",
-              "topic_name": "image_20"
-            },
-            {
-              "name": "load_marker",
-              "topic_name": "marker_20"
-            },
-            {
-              "name": "callback_image",
-              "camera_name": "camera20"
-            }
+            "playback_ir_cameras_subgraph"
           ]
         },
         {
@@ -3994,155 +4655,9 @@
     "playback_color": {
       "subgraphs": [
         {
-          "name": "camera101",
+          "name": "cameras",
           "extends": [
-            "playback_color_subgraph"
-          ],
-          "id": "000000000026",
-          "nodes": [
-            {
-              "name": "load_blob",
-              "topic_name": "image_101"
-            },
-            {
-              "name": "load_marker",
-              "topic_name": "marker_101"
-            },
-            {
-              "name": "callback_image",
-              "camera_name": "camera101"
-            }
-          ]
-        },
-        {
-          "name": "camera102",
-          "extends": [
-            "playback_color_subgraph"
-          ],
-          "id": "000000000027",
-          "nodes": [
-            {
-              "name": "load_blob",
-              "topic_name": "image_102"
-            },
-            {
-              "name": "load_marker",
-              "topic_name": "marker_102"
-            },
-            {
-              "name": "callback_image",
-              "camera_name": "camera102"
-            }
-          ]
-        },
-        {
-          "name": "camera103",
-          "extends": [
-            "playback_color_subgraph"
-          ],
-          "id": "000000000028",
-          "nodes": [
-            {
-              "name": "load_blob",
-              "topic_name": "image_103"
-            },
-            {
-              "name": "load_marker",
-              "topic_name": "marker_103"
-            },
-            {
-              "name": "callback_image",
-              "camera_name": "camera103"
-            }
-          ]
-        },
-        {
-          "name": "camera104",
-          "extends": [
-            "playback_color_subgraph"
-          ],
-          "id": "000000000029",
-          "nodes": [
-            {
-              "name": "load_blob",
-              "topic_name": "image_104"
-            },
-            {
-              "name": "load_marker",
-              "topic_name": "marker_104"
-            },
-            {
-              "name": "callback_image",
-              "camera_name": "camera104"
-            }
-          ]
-        },
-        {
-          "name": "camera105",
-          "extends": [
-            "playback_color_subgraph"
-          ],
-          "id": "000000000030",
-          "nodes": [
-            {
-              "name": "load_blob",
-              "topic_name": "image_105"
-            },
-            {
-              "name": "load_marker",
-              "topic_name": "marker_105"
-            },
-            {
-              "name": "callback_image",
-              "camera_name": "camera105"
-            }
-          ]
-        },
-        {
-          "name": "sync",
-          "nodes": [
-            {
-              "name": "approximate_time_sync_images",
-              "type": "approximate_time_sync",
-              "interval": 33.833,
-              "inputs": {
-                "camera101": "camera101.decode_jpeg",
-                "camera102": "camera102.decode_jpeg",
-                "camera103": "camera103.decode_jpeg",
-                "camera104": "camera104.decode_jpeg",
-                "camera105": "camera105.decode_jpeg"
-              }
-            },
-            {
-              "name": "callback_images",
-              "type": "callback",
-              "callback_name": "images",
-              "callback_type": "object",
-              "inputs": {
-                "default": "approximate_time_sync_images"
-              }
-            },
-            {
-              "name": "approximate_time_sync_markers",
-              "type": "approximate_time_sync",
-              "interval": 33.833,
-              "inputs": {
-                "camera101": "camera101.load_marker",
-                "camera102": "camera102.load_marker",
-                "camera103": "camera103.load_marker",
-                "camera104": "camera104.load_marker",
-                "camera105": "camera105.load_marker"
-              }
-            },
-            {
-              "name": "callback_markers",
-              "type": "callback",
-              "callback_name": "markers",
-              "callback_type": "object",
-              "inputs": {
-                "default": "approximate_time_sync_markers"
-              }
-            }
+            "playback_color_cameras_subgraph"
           ]
         }
       ]
@@ -4150,114 +4665,9 @@
     "playback_panoptic": {
       "subgraphs": [
         {
-          "name": "00_03",
+          "name": "cameras",
           "extends": [
-            "playback_panoptic_subgraph"
-          ],
-          "id": "00_03",
-          "nodes": [
-            {
-              "name": "load_panoptic",
-              "topic_name": "00_03"
-            },
-            {
-              "name": "callback_image",
-              "camera_name": "00_03"
-            }
-          ]
-        },
-        {
-          "name": "00_06",
-          "extends": [
-            "playback_panoptic_subgraph"
-          ],
-          "id": "00_06",
-          "nodes": [
-            {
-              "name": "load_panoptic",
-              "topic_name": "00_06"
-            },
-            {
-              "name": "callback_image",
-              "camera_name": "00_06"
-            }
-          ]
-        },
-        {
-          "name": "00_12",
-          "extends": [
-            "playback_panoptic_subgraph"
-          ],
-          "id": "00_12",
-          "nodes": [
-            {
-              "name": "load_panoptic",
-              "topic_name": "00_12"
-            },
-            {
-              "name": "callback_image",
-              "camera_name": "00_12"
-            }
-          ]
-        },
-        {
-          "name": "00_13",
-          "extends": [
-            "playback_panoptic_subgraph"
-          ],
-          "id": "00_13",
-          "nodes": [
-            {
-              "name": "load_panoptic",
-              "topic_name": "00_13"
-            },
-            {
-              "name": "callback_image",
-              "camera_name": "00_13"
-            }
-          ]
-        },
-        {
-          "name": "00_23",
-          "extends": [
-            "playback_panoptic_subgraph"
-          ],
-          "id": "00_23",
-          "nodes": [
-            {
-              "name": "load_panoptic",
-              "topic_name": "00_23"
-            },
-            {
-              "name": "callback_image",
-              "camera_name": "00_23"
-            }
-          ]
-        },
-        {
-          "name": "sync",
-          "nodes": [
-            {
-              "name": "approximate_time_sync_images",
-              "type": "approximate_time_sync",
-              "interval": 33.833,
-              "inputs": {
-                "00_03": "00_03.decode_jpeg",
-                "00_06": "00_06.decode_jpeg",
-                "00_12": "00_12.decode_jpeg",
-                "00_13": "00_13.decode_jpeg",
-                "00_23": "00_23.decode_jpeg"
-              }
-            },
-            {
-              "name": "callback_images",
-              "type": "callback",
-              "callback_name": "images",
-              "callback_type": "object",
-              "inputs": {
-                "default": "approximate_time_sync_images"
-              }
-            }
+            "playback_panoptic_cameras_subgraph"
           ]
         }
       ]
@@ -4265,423 +4675,9 @@
     "calibration_extrinsic_ir": {
       "subgraphs": [
         {
-          "name": "camera1",
+          "name": "cameras",
           "extends": [
-            "playback_subgraph"
-          ],
-          "id": "000000000001",
-          "nodes": [
-            {
-              "name": "load_blob",
-              "topic_name": "image_1"
-            },
-            {
-              "name": "load_marker",
-              "topic_name": "marker_1"
-            },
-            {
-              "name": "callback_image",
-              "camera_name": "camera1"
-            }
-          ]
-        },
-        {
-          "name": "camera2",
-          "extends": [
-            "playback_subgraph"
-          ],
-          "id": "000000000002",
-          "nodes": [
-            {
-              "name": "load_blob",
-              "topic_name": "image_2"
-            },
-            {
-              "name": "load_marker",
-              "topic_name": "marker_2"
-            },
-            {
-              "name": "callback_image",
-              "camera_name": "camera2"
-            }
-          ]
-        },
-        {
-          "name": "camera3",
-          "extends": [
-            "playback_subgraph"
-          ],
-          "id": "000000000003",
-          "nodes": [
-            {
-              "name": "load_blob",
-              "topic_name": "image_3"
-            },
-            {
-              "name": "load_marker",
-              "topic_name": "marker_3"
-            },
-            {
-              "name": "callback_image",
-              "camera_name": "camera3"
-            }
-          ]
-        },
-        {
-          "name": "camera4",
-          "extends": [
-            "playback_subgraph"
-          ],
-          "id": "000000000004",
-          "nodes": [
-            {
-              "name": "load_blob",
-              "topic_name": "image_4"
-            },
-            {
-              "name": "load_marker",
-              "topic_name": "marker_4"
-            },
-            {
-              "name": "callback_image",
-              "camera_name": "camera4"
-            }
-          ]
-        },
-        {
-          "name": "camera5",
-          "extends": [
-            "playback_subgraph"
-          ],
-          "id": "000000000005",
-          "nodes": [
-            {
-              "name": "load_blob",
-              "topic_name": "image_5"
-            },
-            {
-              "name": "load_marker",
-              "topic_name": "marker_5"
-            },
-            {
-              "name": "callback_image",
-              "camera_name": "camera5"
-            }
-          ]
-        },
-        {
-          "name": "camera6",
-          "extends": [
-            "playback_subgraph"
-          ],
-          "id": "000000000006",
-          "nodes": [
-            {
-              "name": "load_blob",
-              "topic_name": "image_6"
-            },
-            {
-              "name": "load_marker",
-              "topic_name": "marker_6"
-            },
-            {
-              "name": "callback_image",
-              "camera_name": "camera6"
-            }
-          ]
-        },
-        {
-          "name": "camera7",
-          "extends": [
-            "playback_subgraph"
-          ],
-          "id": "000000000007",
-          "nodes": [
-            {
-              "name": "load_blob",
-              "topic_name": "image_7"
-            },
-            {
-              "name": "load_marker",
-              "topic_name": "marker_7"
-            },
-            {
-              "name": "callback_image",
-              "camera_name": "camera7"
-            }
-          ]
-        },
-        {
-          "name": "camera8",
-          "extends": [
-            "playback_subgraph"
-          ],
-          "id": "000000000008",
-          "nodes": [
-            {
-              "name": "load_blob",
-              "topic_name": "image_8"
-            },
-            {
-              "name": "load_marker",
-              "topic_name": "marker_8"
-            },
-            {
-              "name": "callback_image",
-              "camera_name": "camera8"
-            }
-          ]
-        },
-        {
-          "name": "camera9",
-          "extends": [
-            "playback_subgraph"
-          ],
-          "id": "000000000009",
-          "nodes": [
-            {
-              "name": "load_blob",
-              "topic_name": "image_9"
-            },
-            {
-              "name": "load_marker",
-              "topic_name": "marker_9"
-            },
-            {
-              "name": "callback_image",
-              "camera_name": "camera9"
-            }
-          ]
-        },
-        {
-          "name": "camera10",
-          "extends": [
-            "playback_subgraph"
-          ],
-          "id": "000000000010",
-          "nodes": [
-            {
-              "name": "load_blob",
-              "topic_name": "image_10"
-            },
-            {
-              "name": "load_marker",
-              "topic_name": "marker_10"
-            },
-            {
-              "name": "callback_image",
-              "camera_name": "camera10"
-            }
-          ]
-        },
-        {
-          "name": "camera11",
-          "extends": [
-            "playback_subgraph"
-          ],
-          "id": "000000000011",
-          "nodes": [
-            {
-              "name": "load_blob",
-              "topic_name": "image_11"
-            },
-            {
-              "name": "load_marker",
-              "topic_name": "marker_11"
-            },
-            {
-              "name": "callback_image",
-              "camera_name": "camera11"
-            }
-          ]
-        },
-        {
-          "name": "camera12",
-          "extends": [
-            "playback_subgraph"
-          ],
-          "id": "000000000012",
-          "nodes": [
-            {
-              "name": "load_blob",
-              "topic_name": "image_12"
-            },
-            {
-              "name": "load_marker",
-              "topic_name": "marker_12"
-            },
-            {
-              "name": "callback_image",
-              "camera_name": "camera12"
-            }
-          ]
-        },
-        {
-          "name": "camera13",
-          "extends": [
-            "playback_subgraph"
-          ],
-          "id": "000000000013",
-          "nodes": [
-            {
-              "name": "load_blob",
-              "topic_name": "image_13"
-            },
-            {
-              "name": "load_marker",
-              "topic_name": "marker_13"
-            },
-            {
-              "name": "callback_image",
-              "camera_name": "camera13"
-            }
-          ]
-        },
-        {
-          "name": "camera14",
-          "extends": [
-            "playback_subgraph"
-          ],
-          "id": "000000000014",
-          "nodes": [
-            {
-              "name": "load_blob",
-              "topic_name": "image_14"
-            },
-            {
-              "name": "load_marker",
-              "topic_name": "marker_14"
-            },
-            {
-              "name": "callback_image",
-              "camera_name": "camera14"
-            }
-          ]
-        },
-        {
-          "name": "camera15",
-          "extends": [
-            "playback_subgraph"
-          ],
-          "id": "000000000015",
-          "nodes": [
-            {
-              "name": "load_blob",
-              "topic_name": "image_15"
-            },
-            {
-              "name": "load_marker",
-              "topic_name": "marker_15"
-            },
-            {
-              "name": "callback_image",
-              "camera_name": "camera15"
-            }
-          ]
-        },
-        {
-          "name": "camera16",
-          "extends": [
-            "playback_subgraph"
-          ],
-          "id": "000000000016",
-          "nodes": [
-            {
-              "name": "load_blob",
-              "topic_name": "image_16"
-            },
-            {
-              "name": "load_marker",
-              "topic_name": "marker_16"
-            },
-            {
-              "name": "callback_image",
-              "camera_name": "camera16"
-            }
-          ]
-        },
-        {
-          "name": "camera17",
-          "extends": [
-            "playback_subgraph"
-          ],
-          "id": "000000000017",
-          "nodes": [
-            {
-              "name": "load_blob",
-              "topic_name": "image_17"
-            },
-            {
-              "name": "load_marker",
-              "topic_name": "marker_17"
-            },
-            {
-              "name": "callback_image",
-              "camera_name": "camera17"
-            }
-          ]
-        },
-        {
-          "name": "camera18",
-          "extends": [
-            "playback_subgraph"
-          ],
-          "id": "000000000018",
-          "nodes": [
-            {
-              "name": "load_blob",
-              "topic_name": "image_18"
-            },
-            {
-              "name": "load_marker",
-              "topic_name": "marker_18"
-            },
-            {
-              "name": "callback_image",
-              "camera_name": "camera18"
-            }
-          ]
-        },
-        {
-          "name": "camera19",
-          "extends": [
-            "playback_subgraph"
-          ],
-          "id": "000000000019",
-          "nodes": [
-            {
-              "name": "load_blob",
-              "topic_name": "image_19"
-            },
-            {
-              "name": "load_marker",
-              "topic_name": "marker_19"
-            },
-            {
-              "name": "callback_image",
-              "camera_name": "camera19"
-            }
-          ]
-        },
-        {
-          "name": "camera20",
-          "extends": [
-            "playback_subgraph"
-          ],
-          "id": "000000000020",
-          "nodes": [
-            {
-              "name": "load_blob",
-              "topic_name": "image_20"
-            },
-            {
-              "name": "load_marker",
-              "topic_name": "marker_20"
-            },
-            {
-              "name": "callback_image",
-              "camera_name": "camera20"
-            }
+            "playback_ir_cameras_subgraph"
           ]
         },
         {

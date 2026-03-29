@@ -1,0 +1,41 @@
+{
+  "pipeline": "tc15_pipeline",
+  "subgraphs": [
+    {
+      "name": "loader_template",
+      "nodes": [
+        { "name": "blob", "type": "load_blob", "topic_name": "default_topic" },
+        { "name": "decode", "type": "decode_jpeg", "inputs": { "default": "blob" } }
+      ]
+    },
+    {
+      "name": "group_template",
+      "subgraphs": [
+        {
+          "name": "cam1",
+          "extends": ["loader_template"],
+          "nodes": [
+            { "name": "blob", "topic_name": "image_cam1" }
+          ]
+        },
+        {
+          "name": "cam2",
+          "extends": ["loader_template"],
+          "nodes": [
+            { "name": "blob", "topic_name": "image_cam2" }
+          ]
+        }
+      ]
+    }
+  ],
+  "pipelines": {
+    "tc15_pipeline": {
+      "subgraphs": [
+        {
+          "name": "cameras",
+          "extends": ["group_template"]
+        }
+      ]
+    }
+  }
+}

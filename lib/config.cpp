@@ -451,6 +451,25 @@ configuration::configuration(const std::string& path) : path(path) {
                 nested.params[key] = json_to_param(value);
               }
             }
+            if (j_nested.contains("nodes")) {
+              for (const auto& j_node : j_nested["nodes"]) {
+                node_def node;
+                for (const auto& [key, value] : j_node.items()) {
+                  if (key == "type") {
+                    node.type = get_node_type(value.get<std::string>());
+                  } else if (key == "name") {
+                    node.name = value.get<std::string>();
+                  } else if (key == "inputs") {
+                    node.inputs = value.get<std::unordered_map<std::string, std::string>>();
+                  } else if (key == "outputs") {
+                    node.outputs = value.get<std::vector<std::string>>();
+                  } else {
+                    node.params[key] = json_to_param(value);
+                  }
+                }
+                nested.nodes.push_back(node);
+              }
+            }
             subgraph.subgraphs.push_back(nested);
           }
         }
@@ -662,6 +681,19 @@ void configuration::update() {
           j_nested["name"] = nested.name;
           if (!nested.extends.empty()) j_nested["extends"] = nested.extends;
           for (const auto& [k, v] : nested.params) j_nested[k] = v;
+          if (!nested.nodes.empty()) {
+            std::vector<nlohmann::json> j_nodes;
+            for (const auto& node : nested.nodes) {
+              nlohmann::json j_node;
+              if (node.type != node_type::unknown) j_node["type"] = get_node_type_name(node.type);
+              j_node["name"] = node.name;
+              if (!node.inputs.empty()) j_node["inputs"] = node.inputs;
+              if (!node.outputs.empty()) j_node["outputs"] = node.outputs;
+              for (const auto& [k, v] : node.params) j_node[k] = v;
+              j_nodes.push_back(j_node);
+            }
+            j_nested["nodes"] = j_nodes;
+          }
           j_nested_sgs.push_back(j_nested);
         }
         j_subgraph["subgraphs"] = j_nested_sgs;

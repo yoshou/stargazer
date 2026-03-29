@@ -1,0 +1,49 @@
+{
+  "pipeline": "tc14_pipeline",
+  "subgraphs": [
+    {
+      "name": "leaf_template",
+      "nodes": [
+        { "name": "source", "type": "load_blob" }
+      ]
+    },
+    {
+      "name": "combo_template",
+      "subgraphs": [
+        {
+          "name": "part1",
+          "extends": ["leaf_template"]
+        },
+        {
+          "name": "aggregator",
+          "nodes": [
+            {
+              "name": "sync_node",
+              "type": "approximate_time_sync",
+              "inputs": {
+                "part1": "part1.source"
+              }
+            },
+            {
+              "name": "callback_node",
+              "type": "callback",
+              "inputs": {
+                "default": "sync_node"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "pipelines": {
+    "tc14_pipeline": {
+      "subgraphs": [
+        {
+          "name": "combo",
+          "extends": ["combo_template"]
+        }
+      ]
+    }
+  }
+}

@@ -294,6 +294,75 @@ TEST(ConfigGetNodes, TC12_DirectNodesDotConversion) {
 }
 
 // ---------------------------------------------------------------------------
+// TC14: Template nested subgraph with direct nodes (no extends)
+// Template "combo_template" has nested subgraphs:
+//   - part1: extends leaf_template (Case 1b → "part1_source")
+//   - aggregator: direct nodes with inputs using "part1.source"
+//     (Case 3 → dot→underscore → node names unchanged, input "part1_source")
+// Expected: 3 nodes: part1_source, sync_node (no prefix), callback_node (no prefix)
+// ---------------------------------------------------------------------------
+TEST(ConfigGetNodes, TC14_TemplateNestedDirectNodes) {
+  stargazer::configuration cfg(fixture("test_template_nested_direct.json"));
+  auto nodes = cfg.get_nodes("pipeline");
+
+  ASSERT_EQ(nodes.size(), 3u);
+
+  auto part1_source = std::find_if(nodes.begin(), nodes.end(),
+                                   [](const auto& n) { return n.name == "part1_source"; });
+  auto sync_node = std::find_if(nodes.begin(), nodes.end(),
+                                [](const auto& n) { return n.name == "sync_node"; });
+  auto callback_node = std::find_if(nodes.begin(), nodes.end(),
+                                    [](const auto& n) { return n.name == "callback_node"; });
+
+  ASSERT_NE(part1_source, nodes.end()) << "Expected 'part1_source' not found";
+  ASSERT_NE(sync_node, nodes.end()) << "Expected 'sync_node' not found";
+  ASSERT_NE(callback_node, nodes.end()) << "Expected 'callback_node' not found";
+
+  // aggregator is Case 3: inputs' dot→underscore applied
+  ASSERT_TRUE(sync_node->inputs.count("part1") > 0);
+  EXPECT_EQ(sync_node->inputs.at("part1"), "part1_source");
+
+  ASSERT_TRUE(callback_node->inputs.count("default") > 0);
+  EXPECT_EQ(callback_node->inputs.at("default"), "sync_node");
+}
+
+// ---------------------------------------------------------------------------
+// TC15: Template nested subgraph with extends + node param override
+// Template "group_template" has nested subgraphs cam1 and cam2, each
+// extending "loader_template" (blob + decode) with per-camera topic_name.
+// Expected: 4 nodes cam1_blob (topic=image_cam1), cam1_decode,
+//           cam2_blob (topic=image_cam2), cam2_decode.
+// ---------------------------------------------------------------------------
+TEST(ConfigGetNodes, TC15_TemplateNestedNodeOverride) {
+  stargazer::configuration cfg(fixture("test_template_nested_override.json"));
+  auto nodes = cfg.get_nodes("pipeline");
+
+  ASSERT_EQ(nodes.size(), 4u);
+
+  auto cam1_blob = std::find_if(nodes.begin(), nodes.end(),
+                                [](const auto& n) { return n.name == "cam1_blob"; });
+  auto cam1_decode = std::find_if(nodes.begin(), nodes.end(),
+                                  [](const auto& n) { return n.name == "cam1_decode"; });
+  auto cam2_blob = std::find_if(nodes.begin(), nodes.end(),
+                                [](const auto& n) { return n.name == "cam2_blob"; });
+  auto cam2_decode = std::find_if(nodes.begin(), nodes.end(),
+                                  [](const auto& n) { return n.name == "cam2_decode"; });
+
+  ASSERT_NE(cam1_blob, nodes.end()) << "Expected 'cam1_blob' not found";
+  ASSERT_NE(cam1_decode, nodes.end()) << "Expected 'cam1_decode' not found";
+  ASSERT_NE(cam2_blob, nodes.end()) << "Expected 'cam2_blob' not found";
+  ASSERT_NE(cam2_decode, nodes.end()) << "Expected 'cam2_decode' not found";
+
+  // Node override must apply per-camera topic_name
+  EXPECT_EQ(cam1_blob->get_param<std::string>("topic_name"), "image_cam1");
+  EXPECT_EQ(cam2_blob->get_param<std::string>("topic_name"), "image_cam2");
+
+  // Local input reference inside template must be prefixed
+  EXPECT_EQ(cam1_decode->inputs.at("default"), "cam1_blob");
+  EXPECT_EQ(cam2_decode->inputs.at("default"), "cam2_blob");
+}
+
+// ---------------------------------------------------------------------------
 // TC13: Real config files — load + get_nodes() without crash
 // Regression test: verifies all existing config files survive the
 // expand_sg Case 1a prefix fix (none of them use nested subgraphs in
