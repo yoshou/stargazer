@@ -41,21 +41,11 @@
           ]
         },
         {
-          "name": "callback_image",
-          "type": "callback",
-          "inputs": {
-            "default": "decode_jpeg"
-          },
-          "callback_name": "image",
-          "callback_type": "image"
-        },
-        {
           "name": "load_marker",
           "type": "load_marker"
         }
       ],
       "outputs": [
-        "callback_image",
         "load_marker"
       ]
     },
@@ -98,19 +88,7 @@
               "target": "image"
             }
           ]
-        },
-        {
-          "name": "callback_image",
-          "type": "callback",
-          "inputs": {
-            "default": "decode_jpeg"
-          },
-          "callback_name": "image",
-          "callback_type": "image"
         }
-      ],
-      "outputs": [
-        "callback_image"
       ]
     },
     {
@@ -154,21 +132,11 @@
           ]
         },
         {
-          "name": "callback_image",
-          "type": "callback",
-          "inputs": {
-            "default": "decode_jpeg"
-          },
-          "callback_name": "image",
-          "callback_type": "image"
-        },
-        {
           "name": "load_marker",
           "type": "load_marker"
         }
       ],
       "outputs": [
-        "callback_image",
         "load_marker"
       ]
     },
@@ -1536,21 +1504,11 @@
           ]
         },
         {
-          "name": "callback_image",
-          "type": "callback",
-          "inputs": {
-            "default": "decode_jpeg"
-          },
-          "callback_name": "image",
-          "callback_type": "image"
-        },
-        {
           "name": "p2p_tcp_listener_marker",
           "type": "p2p_tcp_listener"
         }
       ],
       "outputs": [
-        "callback_image",
         "p2p_tcp_listener_marker"
       ]
     },
@@ -1837,21 +1795,11 @@
           ]
         },
         {
-          "name": "callback_image",
-          "type": "callback",
-          "inputs": {
-            "default": "decode_jpeg"
-          },
-          "callback_name": "image",
-          "callback_type": "image"
-        },
-        {
           "name": "p2p_tcp_listener_marker",
           "type": "p2p_tcp_listener"
         }
       ],
       "outputs": [
-        "callback_image",
         "p2p_tcp_listener_marker"
       ]
     },
@@ -1874,7 +1822,7 @@
               "topic_name": "marker_1"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera1"
             }
           ]
@@ -1895,7 +1843,7 @@
               "topic_name": "marker_2"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera2"
             }
           ]
@@ -1916,7 +1864,7 @@
               "topic_name": "marker_3"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera3"
             }
           ]
@@ -1937,7 +1885,7 @@
               "topic_name": "marker_4"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera4"
             }
           ]
@@ -1958,7 +1906,7 @@
               "topic_name": "marker_5"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera5"
             }
           ]
@@ -1979,7 +1927,7 @@
               "topic_name": "marker_6"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera6"
             }
           ]
@@ -2000,7 +1948,7 @@
               "topic_name": "marker_7"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera7"
             }
           ]
@@ -2021,7 +1969,7 @@
               "topic_name": "marker_8"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera8"
             }
           ]
@@ -2042,7 +1990,7 @@
               "topic_name": "marker_9"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera9"
             }
           ]
@@ -2063,7 +2011,7 @@
               "topic_name": "marker_10"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera10"
             }
           ]
@@ -2084,7 +2032,7 @@
               "topic_name": "marker_11"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera11"
             }
           ]
@@ -2105,7 +2053,7 @@
               "topic_name": "marker_12"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera12"
             }
           ]
@@ -2126,7 +2074,7 @@
               "topic_name": "marker_13"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera13"
             }
           ]
@@ -2147,7 +2095,7 @@
               "topic_name": "marker_14"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera14"
             }
           ]
@@ -2168,7 +2116,7 @@
               "topic_name": "marker_15"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera15"
             }
           ]
@@ -2189,7 +2137,7 @@
               "topic_name": "marker_16"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera16"
             }
           ]
@@ -2210,7 +2158,7 @@
               "topic_name": "marker_17"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera17"
             }
           ]
@@ -2231,7 +2179,7 @@
               "topic_name": "marker_18"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera18"
             }
           ]
@@ -2252,7 +2200,7 @@
               "topic_name": "marker_19"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera19"
             }
           ]
@@ -2273,7 +2221,7 @@
               "topic_name": "marker_20"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera20"
             }
           ]
@@ -2306,15 +2254,6 @@
                 "camera18": "camera18.decode_jpeg",
                 "camera19": "camera19.decode_jpeg",
                 "camera20": "camera20.decode_jpeg"
-              }
-            },
-            {
-              "name": "callback_images",
-              "type": "callback",
-              "callback_name": "images",
-              "callback_type": "object",
-              "inputs": {
-                "default": "approximate_time_sync_images"
               }
             },
             {
@@ -2360,7 +2299,8 @@
             }
           ]
         }
-      ]
+      ],
+      "nodes": []
     },
     {
       "name": "playback_color_cameras_subgraph",
@@ -2381,7 +2321,7 @@
               "topic_name": "marker_101"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera101"
             }
           ]
@@ -2402,7 +2342,7 @@
               "topic_name": "marker_102"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera102"
             }
           ]
@@ -2423,7 +2363,7 @@
               "topic_name": "marker_103"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera103"
             }
           ]
@@ -2444,7 +2384,7 @@
               "topic_name": "marker_104"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera104"
             }
           ]
@@ -2465,7 +2405,7 @@
               "topic_name": "marker_105"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera105"
             }
           ]
@@ -2486,15 +2426,6 @@
               }
             },
             {
-              "name": "callback_images",
-              "type": "callback",
-              "callback_name": "images",
-              "callback_type": "object",
-              "inputs": {
-                "default": "approximate_time_sync_images"
-              }
-            },
-            {
               "name": "approximate_time_sync_markers",
               "type": "approximate_time_sync",
               "interval": 33.833,
@@ -2505,19 +2436,11 @@
                 "camera104": "camera104.load_marker",
                 "camera105": "camera105.load_marker"
               }
-            },
-            {
-              "name": "callback_markers",
-              "type": "callback",
-              "callback_name": "markers",
-              "callback_type": "object",
-              "inputs": {
-                "default": "approximate_time_sync_markers"
-              }
             }
           ]
         }
-      ]
+      ],
+      "nodes": []
     },
     {
       "name": "playback_panoptic_cameras_subgraph",
@@ -2534,7 +2457,7 @@
               "topic_name": "00_03"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "00_03"
             }
           ]
@@ -2551,7 +2474,7 @@
               "topic_name": "00_06"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "00_06"
             }
           ]
@@ -2568,7 +2491,7 @@
               "topic_name": "00_12"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "00_12"
             }
           ]
@@ -2585,7 +2508,7 @@
               "topic_name": "00_13"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "00_13"
             }
           ]
@@ -2602,7 +2525,7 @@
               "topic_name": "00_23"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "00_23"
             }
           ]
@@ -2621,19 +2544,11 @@
                 "00_13": "00_13.decode_jpeg",
                 "00_23": "00_23.decode_jpeg"
               }
-            },
-            {
-              "name": "callback_images",
-              "type": "callback",
-              "callback_name": "images",
-              "callback_type": "object",
-              "inputs": {
-                "default": "approximate_time_sync_images"
-              }
             }
           ]
         }
-      ]
+      ],
+      "nodes": []
     },
     {
       "name": "capture_ir_cameras_subgraph",
@@ -2644,7 +2559,8 @@
             "raspi_ir_cluster_master"
           ],
           "address": "192.168.0.1",
-          "id": "000000000001"
+          "id": "000000000001",
+          "nodes": []
         },
         {
           "name": "camera1_receiver",
@@ -2653,7 +2569,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera1"
             }
           ]
@@ -2664,7 +2580,8 @@
             "raspi_ir_cluster_slave"
           ],
           "address": "192.168.0.2",
-          "id": "000000000002"
+          "id": "000000000002",
+          "nodes": []
         },
         {
           "name": "camera2_receiver",
@@ -2673,7 +2590,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera2"
             }
           ]
@@ -2684,7 +2601,8 @@
             "raspi_ir_cluster_slave"
           ],
           "address": "192.168.0.3",
-          "id": "000000000003"
+          "id": "000000000003",
+          "nodes": []
         },
         {
           "name": "camera3_receiver",
@@ -2693,7 +2611,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera3"
             }
           ]
@@ -2704,7 +2622,8 @@
             "raspi_ir_cluster_slave"
           ],
           "address": "192.168.0.4",
-          "id": "000000000004"
+          "id": "000000000004",
+          "nodes": []
         },
         {
           "name": "camera4_receiver",
@@ -2713,7 +2632,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera4"
             }
           ]
@@ -2724,7 +2643,8 @@
             "raspi_ir_cluster_slave"
           ],
           "address": "192.168.0.5",
-          "id": "000000000005"
+          "id": "000000000005",
+          "nodes": []
         },
         {
           "name": "camera5_receiver",
@@ -2733,7 +2653,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera5"
             }
           ]
@@ -2744,7 +2664,8 @@
             "raspi_ir_cluster_slave"
           ],
           "address": "192.168.0.6",
-          "id": "000000000006"
+          "id": "000000000006",
+          "nodes": []
         },
         {
           "name": "camera6_receiver",
@@ -2753,7 +2674,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera6"
             }
           ]
@@ -2764,7 +2685,8 @@
             "raspi_ir_cluster_slave"
           ],
           "address": "192.168.0.7",
-          "id": "000000000007"
+          "id": "000000000007",
+          "nodes": []
         },
         {
           "name": "camera7_receiver",
@@ -2773,7 +2695,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera7"
             }
           ]
@@ -2784,7 +2706,8 @@
             "raspi_ir_cluster_slave"
           ],
           "address": "192.168.0.8",
-          "id": "000000000008"
+          "id": "000000000008",
+          "nodes": []
         },
         {
           "name": "camera8_receiver",
@@ -2793,7 +2716,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera8"
             }
           ]
@@ -2804,7 +2727,8 @@
             "raspi_ir_cluster_slave"
           ],
           "address": "192.168.0.9",
-          "id": "000000000009"
+          "id": "000000000009",
+          "nodes": []
         },
         {
           "name": "camera9_receiver",
@@ -2813,7 +2737,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera9"
             }
           ]
@@ -2824,7 +2748,8 @@
             "raspi_ir_cluster_slave"
           ],
           "address": "192.168.0.10",
-          "id": "000000000010"
+          "id": "000000000010",
+          "nodes": []
         },
         {
           "name": "camera10_receiver",
@@ -2833,7 +2758,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera10"
             }
           ]
@@ -2844,7 +2769,8 @@
             "raspi_ir_cluster_slave"
           ],
           "address": "192.168.0.11",
-          "id": "000000000011"
+          "id": "000000000011",
+          "nodes": []
         },
         {
           "name": "camera11_receiver",
@@ -2853,7 +2779,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera11"
             }
           ]
@@ -2864,7 +2790,8 @@
             "raspi_ir_cluster_slave"
           ],
           "address": "192.168.0.12",
-          "id": "000000000012"
+          "id": "000000000012",
+          "nodes": []
         },
         {
           "name": "camera12_receiver",
@@ -2873,7 +2800,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera12"
             }
           ]
@@ -2884,7 +2811,8 @@
             "raspi_ir_cluster_slave"
           ],
           "address": "192.168.0.13",
-          "id": "000000000013"
+          "id": "000000000013",
+          "nodes": []
         },
         {
           "name": "camera13_receiver",
@@ -2893,7 +2821,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera13"
             }
           ]
@@ -2904,7 +2832,8 @@
             "raspi_ir_cluster_slave"
           ],
           "address": "192.168.0.14",
-          "id": "000000000014"
+          "id": "000000000014",
+          "nodes": []
         },
         {
           "name": "camera14_receiver",
@@ -2913,7 +2842,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera14"
             }
           ]
@@ -2924,7 +2853,8 @@
             "raspi_ir_cluster_slave"
           ],
           "address": "192.168.0.15",
-          "id": "000000000015"
+          "id": "000000000015",
+          "nodes": []
         },
         {
           "name": "camera15_receiver",
@@ -2933,7 +2863,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera15"
             }
           ]
@@ -2944,7 +2874,8 @@
             "raspi_ir_cluster_slave"
           ],
           "address": "192.168.0.16",
-          "id": "000000000016"
+          "id": "000000000016",
+          "nodes": []
         },
         {
           "name": "camera16_receiver",
@@ -2953,7 +2884,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera16"
             }
           ]
@@ -2964,7 +2895,8 @@
             "raspi_ir_cluster_slave"
           ],
           "address": "192.168.0.17",
-          "id": "000000000017"
+          "id": "000000000017",
+          "nodes": []
         },
         {
           "name": "camera17_receiver",
@@ -2973,7 +2905,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera17"
             }
           ]
@@ -2984,7 +2916,8 @@
             "raspi_ir_cluster_slave"
           ],
           "address": "192.168.0.18",
-          "id": "000000000018"
+          "id": "000000000018",
+          "nodes": []
         },
         {
           "name": "camera18_receiver",
@@ -2993,7 +2926,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera18"
             }
           ]
@@ -3004,7 +2937,8 @@
             "raspi_ir_cluster_slave"
           ],
           "address": "192.168.0.19",
-          "id": "000000000019"
+          "id": "000000000019",
+          "nodes": []
         },
         {
           "name": "camera19_receiver",
@@ -3013,7 +2947,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera19"
             }
           ]
@@ -3024,7 +2958,8 @@
             "raspi_ir_cluster_slave"
           ],
           "address": "192.168.0.20",
-          "id": "000000000020"
+          "id": "000000000020",
+          "nodes": []
         },
         {
           "name": "camera20_receiver",
@@ -3033,7 +2968,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera20"
             }
           ]
@@ -3044,7 +2979,8 @@
             "raspi_ir_cluster_slave"
           ],
           "address": "192.168.0.21",
-          "id": "000000000021"
+          "id": "000000000021",
+          "nodes": []
         },
         {
           "name": "camera21_receiver",
@@ -3053,7 +2989,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera21"
             }
           ]
@@ -3064,7 +3000,8 @@
             "raspi_ir_cluster_slave"
           ],
           "address": "192.168.0.22",
-          "id": "000000000022"
+          "id": "000000000022",
+          "nodes": []
         },
         {
           "name": "camera22_receiver",
@@ -3073,7 +3010,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera22"
             }
           ]
@@ -3084,7 +3021,8 @@
             "raspi_ir_cluster_slave"
           ],
           "address": "192.168.0.23",
-          "id": "000000000023"
+          "id": "000000000023",
+          "nodes": []
         },
         {
           "name": "camera23_receiver",
@@ -3093,7 +3031,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera23"
             }
           ]
@@ -3104,7 +3042,8 @@
             "raspi_ir_cluster_slave"
           ],
           "address": "192.168.0.24",
-          "id": "000000000024"
+          "id": "000000000024",
+          "nodes": []
         },
         {
           "name": "camera24_receiver",
@@ -3113,7 +3052,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera24"
             }
           ]
@@ -3153,15 +3092,6 @@
               }
             },
             {
-              "name": "callback_images",
-              "type": "callback",
-              "callback_name": "images",
-              "callback_type": "object",
-              "inputs": {
-                "default": "approximate_time_sync_images"
-              }
-            },
-            {
               "name": "approximate_time_sync_markers",
               "type": "approximate_time_sync",
               "interval": 11.611,
@@ -3191,19 +3121,11 @@
                 "camera23": "camera23_receiver.p2p_tcp_listener_marker",
                 "camera24": "camera24_receiver.p2p_tcp_listener_marker"
               }
-            },
-            {
-              "name": "callback_markers",
-              "type": "callback",
-              "callback_name": "markers",
-              "callback_type": "object",
-              "inputs": {
-                "default": "approximate_time_sync_markers"
-              }
             }
           ]
         }
-      ]
+      ],
+      "nodes": []
     },
     {
       "name": "capture_color_cameras_subgraph",
@@ -3214,7 +3136,8 @@
             "raspi_color_cluster_master"
           ],
           "address": "192.168.0.26",
-          "id": "000000000026"
+          "id": "000000000026",
+          "nodes": []
         },
         {
           "name": "camera101_receiver",
@@ -3229,7 +3152,7 @@
               }
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera101"
             },
             {
@@ -3246,7 +3169,8 @@
             "raspi_color_cluster_slave"
           ],
           "address": "192.168.0.27",
-          "id": "000000000027"
+          "id": "000000000027",
+          "nodes": []
         },
         {
           "name": "camera102_receiver",
@@ -3261,7 +3185,7 @@
               }
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera102"
             },
             {
@@ -3278,7 +3202,8 @@
             "raspi_color_cluster_slave"
           ],
           "address": "192.168.0.28",
-          "id": "000000000028"
+          "id": "000000000028",
+          "nodes": []
         },
         {
           "name": "camera103_receiver",
@@ -3293,7 +3218,7 @@
               }
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera103"
             },
             {
@@ -3310,7 +3235,8 @@
             "raspi_color_cluster_slave"
           ],
           "address": "192.168.0.29",
-          "id": "000000000029"
+          "id": "000000000029",
+          "nodes": []
         },
         {
           "name": "camera104_receiver",
@@ -3325,7 +3251,7 @@
               }
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera104"
             },
             {
@@ -3342,7 +3268,8 @@
             "raspi_color_cluster_slave"
           ],
           "address": "192.168.0.30",
-          "id": "000000000030"
+          "id": "000000000030",
+          "nodes": []
         },
         {
           "name": "camera105_receiver",
@@ -3357,7 +3284,7 @@
               }
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera105"
             },
             {
@@ -3384,15 +3311,6 @@
               }
             },
             {
-              "name": "callback_images",
-              "type": "callback",
-              "callback_name": "images",
-              "callback_type": "object",
-              "inputs": {
-                "default": "approximate_time_sync_images"
-              }
-            },
-            {
               "name": "approximate_time_sync_markers",
               "type": "approximate_time_sync",
               "interval": 11.6,
@@ -3403,19 +3321,11 @@
                 "camera104": "camera104_receiver.p2p_tcp_listener_marker",
                 "camera105": "camera105_receiver.p2p_tcp_listener_marker"
               }
-            },
-            {
-              "name": "callback_markers",
-              "type": "callback",
-              "callback_name": "markers",
-              "callback_type": "object",
-              "inputs": {
-                "default": "approximate_time_sync_markers"
-              }
             }
           ]
         }
-      ]
+      ],
+      "nodes": []
     },
     {
       "name": "record_ir_cameras_subgraph",
@@ -3426,7 +3336,8 @@
             "raspi_ir_cluster_master"
           ],
           "address": "192.168.0.1",
-          "id": "000000000001"
+          "id": "000000000001",
+          "nodes": []
         },
         {
           "name": "camera1_receiver",
@@ -3435,7 +3346,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera1"
             }
           ]
@@ -3460,7 +3371,8 @@
             "raspi_ir_cluster_slave"
           ],
           "address": "192.168.0.2",
-          "id": "000000000002"
+          "id": "000000000002",
+          "nodes": []
         },
         {
           "name": "camera2_receiver",
@@ -3469,7 +3381,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera2"
             }
           ]
@@ -3494,7 +3406,8 @@
             "raspi_ir_cluster_slave"
           ],
           "address": "192.168.0.3",
-          "id": "000000000003"
+          "id": "000000000003",
+          "nodes": []
         },
         {
           "name": "camera3_receiver",
@@ -3503,7 +3416,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera3"
             }
           ]
@@ -3528,7 +3441,8 @@
             "raspi_ir_cluster_slave"
           ],
           "address": "192.168.0.4",
-          "id": "000000000004"
+          "id": "000000000004",
+          "nodes": []
         },
         {
           "name": "camera4_receiver",
@@ -3537,7 +3451,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera4"
             }
           ]
@@ -3562,7 +3476,8 @@
             "raspi_ir_cluster_slave"
           ],
           "address": "192.168.0.5",
-          "id": "000000000005"
+          "id": "000000000005",
+          "nodes": []
         },
         {
           "name": "camera5_receiver",
@@ -3571,7 +3486,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera5"
             }
           ]
@@ -3596,7 +3511,8 @@
             "raspi_ir_cluster_slave"
           ],
           "address": "192.168.0.6",
-          "id": "000000000006"
+          "id": "000000000006",
+          "nodes": []
         },
         {
           "name": "camera6_receiver",
@@ -3605,7 +3521,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera6"
             }
           ]
@@ -3630,7 +3546,8 @@
             "raspi_ir_cluster_slave"
           ],
           "address": "192.168.0.7",
-          "id": "000000000007"
+          "id": "000000000007",
+          "nodes": []
         },
         {
           "name": "camera7_receiver",
@@ -3639,7 +3556,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera7"
             }
           ]
@@ -3664,7 +3581,8 @@
             "raspi_ir_cluster_slave"
           ],
           "address": "192.168.0.8",
-          "id": "000000000008"
+          "id": "000000000008",
+          "nodes": []
         },
         {
           "name": "camera8_receiver",
@@ -3673,7 +3591,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera8"
             }
           ]
@@ -3698,7 +3616,8 @@
             "raspi_ir_cluster_slave"
           ],
           "address": "192.168.0.9",
-          "id": "000000000009"
+          "id": "000000000009",
+          "nodes": []
         },
         {
           "name": "camera9_receiver",
@@ -3707,7 +3626,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera9"
             }
           ]
@@ -3732,7 +3651,8 @@
             "raspi_ir_cluster_slave"
           ],
           "address": "192.168.0.10",
-          "id": "000000000010"
+          "id": "000000000010",
+          "nodes": []
         },
         {
           "name": "camera10_receiver",
@@ -3741,7 +3661,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera10"
             }
           ]
@@ -3766,7 +3686,8 @@
             "raspi_ir_cluster_slave"
           ],
           "address": "192.168.0.11",
-          "id": "000000000011"
+          "id": "000000000011",
+          "nodes": []
         },
         {
           "name": "camera11_receiver",
@@ -3775,7 +3696,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera11"
             }
           ]
@@ -3800,7 +3721,8 @@
             "raspi_ir_cluster_slave"
           ],
           "address": "192.168.0.12",
-          "id": "000000000012"
+          "id": "000000000012",
+          "nodes": []
         },
         {
           "name": "camera12_receiver",
@@ -3809,7 +3731,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera12"
             }
           ]
@@ -3834,7 +3756,8 @@
             "raspi_ir_cluster_slave"
           ],
           "address": "192.168.0.13",
-          "id": "000000000013"
+          "id": "000000000013",
+          "nodes": []
         },
         {
           "name": "camera13_receiver",
@@ -3843,7 +3766,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera13"
             }
           ]
@@ -3868,7 +3791,8 @@
             "raspi_ir_cluster_slave"
           ],
           "address": "192.168.0.14",
-          "id": "000000000014"
+          "id": "000000000014",
+          "nodes": []
         },
         {
           "name": "camera14_receiver",
@@ -3877,7 +3801,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera14"
             }
           ]
@@ -3902,7 +3826,8 @@
             "raspi_ir_cluster_slave"
           ],
           "address": "192.168.0.15",
-          "id": "000000000015"
+          "id": "000000000015",
+          "nodes": []
         },
         {
           "name": "camera15_receiver",
@@ -3911,7 +3836,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera15"
             }
           ]
@@ -3936,7 +3861,8 @@
             "raspi_ir_cluster_slave"
           ],
           "address": "192.168.0.16",
-          "id": "000000000016"
+          "id": "000000000016",
+          "nodes": []
         },
         {
           "name": "camera16_receiver",
@@ -3945,7 +3871,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera16"
             }
           ]
@@ -3970,7 +3896,8 @@
             "raspi_ir_cluster_slave"
           ],
           "address": "192.168.0.17",
-          "id": "000000000017"
+          "id": "000000000017",
+          "nodes": []
         },
         {
           "name": "camera17_receiver",
@@ -3979,7 +3906,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera17"
             }
           ]
@@ -4004,7 +3931,8 @@
             "raspi_ir_cluster_slave"
           ],
           "address": "192.168.0.18",
-          "id": "000000000018"
+          "id": "000000000018",
+          "nodes": []
         },
         {
           "name": "camera18_receiver",
@@ -4013,7 +3941,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera18"
             }
           ]
@@ -4038,7 +3966,8 @@
             "raspi_ir_cluster_slave"
           ],
           "address": "192.168.0.19",
-          "id": "000000000019"
+          "id": "000000000019",
+          "nodes": []
         },
         {
           "name": "camera19_receiver",
@@ -4047,7 +3976,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera19"
             }
           ]
@@ -4072,7 +4001,8 @@
             "raspi_ir_cluster_slave"
           ],
           "address": "192.168.0.20",
-          "id": "000000000020"
+          "id": "000000000020",
+          "nodes": []
         },
         {
           "name": "camera20_receiver",
@@ -4081,7 +4011,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera20"
             }
           ]
@@ -4106,7 +4036,8 @@
             "raspi_ir_cluster_slave"
           ],
           "address": "192.168.0.21",
-          "id": "000000000021"
+          "id": "000000000021",
+          "nodes": []
         },
         {
           "name": "camera21_receiver",
@@ -4115,7 +4046,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera21"
             }
           ]
@@ -4140,7 +4071,8 @@
             "raspi_ir_cluster_slave"
           ],
           "address": "192.168.0.22",
-          "id": "000000000022"
+          "id": "000000000022",
+          "nodes": []
         },
         {
           "name": "camera22_receiver",
@@ -4149,7 +4081,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera22"
             }
           ]
@@ -4174,7 +4106,8 @@
             "raspi_ir_cluster_slave"
           ],
           "address": "192.168.0.23",
-          "id": "000000000023"
+          "id": "000000000023",
+          "nodes": []
         },
         {
           "name": "camera23_receiver",
@@ -4183,7 +4116,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera23"
             }
           ]
@@ -4208,7 +4141,8 @@
             "raspi_ir_cluster_slave"
           ],
           "address": "192.168.0.24",
-          "id": "000000000024"
+          "id": "000000000024",
+          "nodes": []
         },
         {
           "name": "camera24_receiver",
@@ -4217,7 +4151,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera24"
             }
           ]
@@ -4271,15 +4205,6 @@
               }
             },
             {
-              "name": "callback_images",
-              "type": "callback",
-              "callback_name": "images",
-              "callback_type": "object",
-              "inputs": {
-                "default": "approximate_time_sync_images"
-              }
-            },
-            {
               "name": "approximate_time_sync_markers",
               "type": "approximate_time_sync",
               "interval": 11.611,
@@ -4309,19 +4234,11 @@
                 "camera23": "camera23_receiver.p2p_tcp_listener_marker",
                 "camera24": "camera24_receiver.p2p_tcp_listener_marker"
               }
-            },
-            {
-              "name": "callback_markers",
-              "type": "callback",
-              "callback_name": "markers",
-              "callback_type": "object",
-              "inputs": {
-                "default": "approximate_time_sync_markers"
-              }
             }
           ]
         }
-      ]
+      ],
+      "nodes": []
     },
     {
       "name": "record_color_cameras_subgraph",
@@ -4332,7 +4249,8 @@
             "raspi_color_cluster_master"
           ],
           "address": "192.168.0.26",
-          "id": "000000000026"
+          "id": "000000000026",
+          "nodes": []
         },
         {
           "name": "camera101_receiver",
@@ -4347,7 +4265,7 @@
               }
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera101"
             },
             {
@@ -4378,7 +4296,8 @@
             "raspi_color_cluster_slave"
           ],
           "address": "192.168.0.27",
-          "id": "000000000027"
+          "id": "000000000027",
+          "nodes": []
         },
         {
           "name": "camera102_receiver",
@@ -4393,7 +4312,7 @@
               }
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera102"
             },
             {
@@ -4424,7 +4343,8 @@
             "raspi_color_cluster_slave"
           ],
           "address": "192.168.0.28",
-          "id": "000000000028"
+          "id": "000000000028",
+          "nodes": []
         },
         {
           "name": "camera103_receiver",
@@ -4439,7 +4359,7 @@
               }
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera103"
             },
             {
@@ -4470,7 +4390,8 @@
             "raspi_color_cluster_slave"
           ],
           "address": "192.168.0.29",
-          "id": "000000000029"
+          "id": "000000000029",
+          "nodes": []
         },
         {
           "name": "camera104_receiver",
@@ -4485,7 +4406,7 @@
               }
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera104"
             },
             {
@@ -4516,7 +4437,8 @@
             "raspi_color_cluster_slave"
           ],
           "address": "192.168.0.30",
-          "id": "000000000030"
+          "id": "000000000030",
+          "nodes": []
         },
         {
           "name": "camera105_receiver",
@@ -4531,7 +4453,7 @@
               }
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera105"
             },
             {
@@ -4572,15 +4494,6 @@
               }
             },
             {
-              "name": "callback_images",
-              "type": "callback",
-              "callback_name": "images",
-              "callback_type": "object",
-              "inputs": {
-                "default": "approximate_time_sync_images"
-              }
-            },
-            {
               "name": "approximate_time_sync_markers",
               "type": "approximate_time_sync",
               "interval": 11.6,
@@ -4591,19 +4504,11 @@
                 "camera104": "camera104_receiver.p2p_tcp_listener_marker",
                 "camera105": "camera105_receiver.p2p_tcp_listener_marker"
               }
-            },
-            {
-              "name": "callback_markers",
-              "type": "callback",
-              "callback_name": "markers",
-              "callback_type": "object",
-              "inputs": {
-                "default": "approximate_time_sync_markers"
-              }
             }
           ]
         }
-      ]
+      ],
+      "nodes": []
     }
   ],
   "pipelines": {

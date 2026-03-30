@@ -38,20 +38,14 @@
             "default": "decode_jpeg"
           },
           "properties": [
-            { "id": "image", "label": "Image", "source_key": "image", "target": "image", "resource_kind": "raw" }
+            {
+              "id": "image",
+              "label": "Image",
+              "source_key": "image",
+              "target": "image",
+              "resource_kind": "raw"
+            }
           ]
-        },
-        {
-          "name": "callback_image",
-          "type": "callback",
-          "inputs": {
-            "default": "decode_jpeg"
-          },
-          "properties": [
-            { "id": "received", "label": "Received", "source_key": "received", "format": "integer", "default_value": 0 }
-          ],
-          "callback_name": "image",
-          "callback_type": "image"
         },
         {
           "name": "load_marker",
@@ -59,7 +53,6 @@
         }
       ],
       "outputs": [
-        "callback_image",
         "load_marker"
       ]
     },
@@ -88,21 +81,15 @@
             "default": "decode_jpeg"
           },
           "properties": [
-            { "id": "image", "label": "Image", "source_key": "image", "target": "image", "resource_kind": "raw" }
+            {
+              "id": "image",
+              "label": "Image",
+              "source_key": "image",
+              "target": "image",
+              "resource_kind": "raw"
+            }
           ]
-        },
-        {
-          "name": "callback_image",
-          "type": "callback",
-          "inputs": {
-            "default": "decode_jpeg"
-          },
-          "callback_name": "image",
-          "callback_type": "image"
         }
-      ],
-      "outputs": [
-        "callback_image"
       ]
     },
     {
@@ -187,8 +174,20 @@
             "default": "reconstruct"
           },
           "properties": [
-            { "id": "received", "label": "Received", "source_key": "received", "format": "integer", "default_value": 0 },
-            { "id": "image", "label": "Feature", "source_key": "image", "target": "point", "resource_kind": "feature" }
+            {
+              "id": "received",
+              "label": "Received",
+              "source_key": "received",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "image",
+              "label": "Feature",
+              "source_key": "image",
+              "target": "point",
+              "resource_kind": "feature"
+            }
           ]
         },
         {
@@ -201,8 +200,20 @@
             "default": "reconstruct"
           },
           "properties": [
-            { "id": "received", "label": "Received", "source_key": "received", "format": "integer", "default_value": 0 },
-            { "id": "image", "label": "Feature", "source_key": "image", "target": "point", "resource_kind": "feature" }
+            {
+              "id": "received",
+              "label": "Received",
+              "source_key": "received",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "image",
+              "label": "Feature",
+              "source_key": "image",
+              "target": "point",
+              "resource_kind": "feature"
+            }
           ]
         },
         {
@@ -215,8 +226,20 @@
             "default": "reconstruct"
           },
           "properties": [
-            { "id": "received", "label": "Received", "source_key": "received", "format": "integer", "default_value": 0 },
-            { "id": "image", "label": "Feature", "source_key": "image", "target": "point", "resource_kind": "feature" }
+            {
+              "id": "received",
+              "label": "Received",
+              "source_key": "received",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "image",
+              "label": "Feature",
+              "source_key": "image",
+              "target": "point",
+              "resource_kind": "feature"
+            }
           ]
         },
         {
@@ -229,8 +252,20 @@
             "default": "reconstruct"
           },
           "properties": [
-            { "id": "received", "label": "Received", "source_key": "received", "format": "integer", "default_value": 0 },
-            { "id": "image", "label": "Feature", "source_key": "image", "target": "point", "resource_kind": "feature" }
+            {
+              "id": "received",
+              "label": "Received",
+              "source_key": "received",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "image",
+              "label": "Feature",
+              "source_key": "image",
+              "target": "point",
+              "resource_kind": "feature"
+            }
           ]
         },
         {
@@ -243,8 +278,20 @@
             "default": "reconstruct"
           },
           "properties": [
-            { "id": "received", "label": "Received", "source_key": "received", "format": "integer", "default_value": 0 },
-            { "id": "image", "label": "Feature", "source_key": "image", "target": "point", "resource_kind": "feature" }
+            {
+              "id": "received",
+              "label": "Received",
+              "source_key": "received",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "image",
+              "label": "Feature",
+              "source_key": "image",
+              "target": "point",
+              "resource_kind": "feature"
+            }
           ]
         },
         {
@@ -264,14 +311,6 @@
         {
           "name": "marker_property",
           "type": "marker_property",
-          "inputs": {
-            "default": "ordering"
-          }
-        },
-        {
-          "name": "callback",
-          "type": "callback",
-          "callback_name": "markers",
           "inputs": {
             "default": "ordering"
           }
@@ -361,14 +400,6 @@
           }
         },
         {
-          "name": "callback",
-          "type": "callback",
-          "callback_name": "markers",
-          "inputs": {
-            "default": "reconstruct"
-          }
-        },
-        {
           "name": "feature_camera101",
           "type": "feature_render",
           "camera_name": "camera101",
@@ -378,8 +409,20 @@
             "default": "reconstruct"
           },
           "properties": [
-            { "id": "received", "label": "Received", "source_key": "received", "format": "integer", "default_value": 0 },
-            { "id": "image", "label": "Feature", "source_key": "image", "target": "point", "resource_kind": "feature" }
+            {
+              "id": "received",
+              "label": "Received",
+              "source_key": "received",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "image",
+              "label": "Feature",
+              "source_key": "image",
+              "target": "point",
+              "resource_kind": "feature"
+            }
           ]
         },
         {
@@ -392,8 +435,20 @@
             "default": "reconstruct"
           },
           "properties": [
-            { "id": "received", "label": "Received", "source_key": "received", "format": "integer", "default_value": 0 },
-            { "id": "image", "label": "Feature", "source_key": "image", "target": "point", "resource_kind": "feature" }
+            {
+              "id": "received",
+              "label": "Received",
+              "source_key": "received",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "image",
+              "label": "Feature",
+              "source_key": "image",
+              "target": "point",
+              "resource_kind": "feature"
+            }
           ]
         },
         {
@@ -406,8 +461,20 @@
             "default": "reconstruct"
           },
           "properties": [
-            { "id": "received", "label": "Received", "source_key": "received", "format": "integer", "default_value": 0 },
-            { "id": "image", "label": "Feature", "source_key": "image", "target": "point", "resource_kind": "feature" }
+            {
+              "id": "received",
+              "label": "Received",
+              "source_key": "received",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "image",
+              "label": "Feature",
+              "source_key": "image",
+              "target": "point",
+              "resource_kind": "feature"
+            }
           ]
         },
         {
@@ -420,8 +487,20 @@
             "default": "reconstruct"
           },
           "properties": [
-            { "id": "received", "label": "Received", "source_key": "received", "format": "integer", "default_value": 0 },
-            { "id": "image", "label": "Feature", "source_key": "image", "target": "point", "resource_kind": "feature" }
+            {
+              "id": "received",
+              "label": "Received",
+              "source_key": "received",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "image",
+              "label": "Feature",
+              "source_key": "image",
+              "target": "point",
+              "resource_kind": "feature"
+            }
           ]
         },
         {
@@ -434,8 +513,20 @@
             "default": "reconstruct"
           },
           "properties": [
-            { "id": "received", "label": "Received", "source_key": "received", "format": "integer", "default_value": 0 },
-            { "id": "image", "label": "Feature", "source_key": "image", "target": "point", "resource_kind": "feature" }
+            {
+              "id": "received",
+              "label": "Received",
+              "source_key": "received",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "image",
+              "label": "Feature",
+              "source_key": "image",
+              "target": "point",
+              "resource_kind": "feature"
+            }
           ]
         },
         {
@@ -448,8 +539,20 @@
             "default": "reconstruct"
           },
           "properties": [
-            { "id": "received", "label": "Received", "source_key": "received", "format": "integer", "default_value": 0 },
-            { "id": "image", "label": "Feature", "source_key": "image", "target": "point", "resource_kind": "feature" }
+            {
+              "id": "received",
+              "label": "Received",
+              "source_key": "received",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "image",
+              "label": "Feature",
+              "source_key": "image",
+              "target": "point",
+              "resource_kind": "feature"
+            }
           ]
         },
         {
@@ -462,8 +565,20 @@
             "default": "reconstruct"
           },
           "properties": [
-            { "id": "received", "label": "Received", "source_key": "received", "format": "integer", "default_value": 0 },
-            { "id": "image", "label": "Feature", "source_key": "image", "target": "point", "resource_kind": "feature" }
+            {
+              "id": "received",
+              "label": "Received",
+              "source_key": "received",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "image",
+              "label": "Feature",
+              "source_key": "image",
+              "target": "point",
+              "resource_kind": "feature"
+            }
           ]
         },
         {
@@ -476,8 +591,20 @@
             "default": "reconstruct"
           },
           "properties": [
-            { "id": "received", "label": "Received", "source_key": "received", "format": "integer", "default_value": 0 },
-            { "id": "image", "label": "Feature", "source_key": "image", "target": "point", "resource_kind": "feature" }
+            {
+              "id": "received",
+              "label": "Received",
+              "source_key": "received",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "image",
+              "label": "Feature",
+              "source_key": "image",
+              "target": "point",
+              "resource_kind": "feature"
+            }
           ]
         },
         {
@@ -490,8 +617,20 @@
             "default": "reconstruct"
           },
           "properties": [
-            { "id": "received", "label": "Received", "source_key": "received", "format": "integer", "default_value": 0 },
-            { "id": "image", "label": "Feature", "source_key": "image", "target": "point", "resource_kind": "feature" }
+            {
+              "id": "received",
+              "label": "Received",
+              "source_key": "received",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "image",
+              "label": "Feature",
+              "source_key": "image",
+              "target": "point",
+              "resource_kind": "feature"
+            }
           ]
         },
         {
@@ -504,8 +643,20 @@
             "default": "reconstruct"
           },
           "properties": [
-            { "id": "received", "label": "Received", "source_key": "received", "format": "integer", "default_value": 0 },
-            { "id": "image", "label": "Feature", "source_key": "image", "target": "point", "resource_kind": "feature" }
+            {
+              "id": "received",
+              "label": "Received",
+              "source_key": "received",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "image",
+              "label": "Feature",
+              "source_key": "image",
+              "target": "point",
+              "resource_kind": "feature"
+            }
           ]
         }
       ]
@@ -571,14 +722,6 @@
         {
           "name": "marker_property",
           "type": "marker_property",
-          "inputs": {
-            "default": "reconstruct"
-          }
-        },
-        {
-          "name": "callback",
-          "type": "callback",
-          "callback_name": "markers",
           "inputs": {
             "default": "reconstruct"
           }
@@ -852,20 +995,14 @@
             "default": "decode_jpeg"
           },
           "properties": [
-            { "id": "image", "label": "Image", "source_key": "image", "target": "image", "resource_kind": "raw" }
+            {
+              "id": "image",
+              "label": "Image",
+              "source_key": "image",
+              "target": "image",
+              "resource_kind": "raw"
+            }
           ]
-        },
-        {
-          "name": "callback_image",
-          "type": "callback",
-          "inputs": {
-            "default": "decode_jpeg"
-          },
-          "properties": [
-            { "id": "received", "label": "Received", "source_key": "received", "format": "integer", "default_value": 0 }
-          ],
-          "callback_name": "image",
-          "callback_type": "image"
         },
         {
           "name": "p2p_tcp_listener_marker",
@@ -873,7 +1010,6 @@
         }
       ],
       "outputs": [
-        "callback_image",
         "p2p_tcp_listener_marker"
       ]
     }
@@ -902,7 +1038,7 @@
               }
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera101"
             },
             {
@@ -948,7 +1084,7 @@
               }
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera102"
             },
             {
@@ -994,7 +1130,7 @@
               }
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera103"
             },
             {
@@ -1040,7 +1176,7 @@
               }
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera104"
             },
             {
@@ -1086,7 +1222,7 @@
               }
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera105"
             },
             {
@@ -1127,15 +1263,6 @@
               }
             },
             {
-              "name": "callback_images",
-              "type": "callback",
-              "callback_name": "images",
-              "callback_type": "object",
-              "inputs": {
-                "default": "approximate_time_sync_images"
-              }
-            },
-            {
               "name": "approximate_time_sync_markers",
               "type": "approximate_time_sync",
               "interval": 11.6,
@@ -1145,18 +1272,6 @@
                 "camera103": "camera103_receiver.p2p_tcp_listener_marker",
                 "camera104": "camera104_receiver.p2p_tcp_listener_marker",
                 "camera105": "camera105_receiver.p2p_tcp_listener_marker"
-              }
-            },
-            {
-              "name": "callback_markers",
-              "type": "callback",
-              "properties": [
-                { "id": "received", "label": "Received", "source_key": "received", "format": "integer", "default_value": 0 }
-              ],
-              "callback_name": "markers",
-              "callback_type": "object",
-              "inputs": {
-                "default": "approximate_time_sync_markers"
               }
             }
           ]
@@ -1186,7 +1301,7 @@
               }
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera101"
             },
             {
@@ -1218,7 +1333,7 @@
               }
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera102"
             },
             {
@@ -1250,7 +1365,7 @@
               }
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera103"
             },
             {
@@ -1282,7 +1397,7 @@
               }
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera104"
             },
             {
@@ -1314,7 +1429,7 @@
               }
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera105"
             },
             {
@@ -1341,15 +1456,6 @@
               }
             },
             {
-              "name": "callback_images",
-              "type": "callback",
-              "callback_name": "images",
-              "callback_type": "object",
-              "inputs": {
-                "default": "approximate_time_sync_images"
-              }
-            },
-            {
               "name": "approximate_time_sync_markers",
               "type": "approximate_time_sync",
               "interval": 11.6,
@@ -1359,18 +1465,6 @@
                 "camera103": "camera103_receiver.p2p_tcp_listener_marker",
                 "camera104": "camera104_receiver.p2p_tcp_listener_marker",
                 "camera105": "camera105_receiver.p2p_tcp_listener_marker"
-              }
-            },
-            {
-              "name": "callback_markers",
-              "type": "callback",
-              "properties": [
-                { "id": "received", "label": "Received", "source_key": "received", "format": "integer", "default_value": 0 }
-              ],
-              "callback_name": "markers",
-              "callback_type": "object",
-              "inputs": {
-                "default": "approximate_time_sync_markers"
               }
             }
           ]
@@ -1395,7 +1489,7 @@
               "topic_name": "marker_101"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera101"
             }
           ]
@@ -1416,7 +1510,7 @@
               "topic_name": "marker_102"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera102"
             }
           ]
@@ -1437,7 +1531,7 @@
               "topic_name": "marker_103"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera103"
             }
           ]
@@ -1458,7 +1552,7 @@
               "topic_name": "marker_104"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera104"
             }
           ]
@@ -1479,7 +1573,7 @@
               "topic_name": "marker_105"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera105"
             }
           ]
@@ -1500,15 +1594,6 @@
               }
             },
             {
-              "name": "callback_images",
-              "type": "callback",
-              "callback_name": "images",
-              "callback_type": "object",
-              "inputs": {
-                "default": "approximate_time_sync_images"
-              }
-            },
-            {
               "name": "approximate_time_sync_markers",
               "type": "approximate_time_sync",
               "interval": 33.833,
@@ -1518,18 +1603,6 @@
                 "camera103": "camera103.load_marker",
                 "camera104": "camera104.load_marker",
                 "camera105": "camera105.load_marker"
-              }
-            },
-            {
-              "name": "callback_markers",
-              "type": "callback",
-              "properties": [
-                { "id": "received", "label": "Received", "source_key": "received", "format": "integer", "default_value": 0 }
-              ],
-              "callback_name": "markers",
-              "callback_type": "object",
-              "inputs": {
-                "default": "approximate_time_sync_markers"
               }
             }
           ]
@@ -1551,7 +1624,7 @@
               "topic_name": "00_03"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "00_03"
             }
           ]
@@ -1569,7 +1642,7 @@
               "topic_name": "00_06"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "00_06"
             }
           ]
@@ -1587,7 +1660,7 @@
               "topic_name": "00_12"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "00_12"
             }
           ]
@@ -1605,7 +1678,7 @@
               "topic_name": "00_13"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "00_13"
             }
           ]
@@ -1623,7 +1696,7 @@
               "topic_name": "00_23"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "00_23"
             }
           ]
@@ -1641,15 +1714,6 @@
                 "00_12": "00_12.decode_jpeg",
                 "00_13": "00_13.decode_jpeg",
                 "00_23": "00_23.decode_jpeg"
-              }
-            },
-            {
-              "name": "callback_images",
-              "type": "callback",
-              "callback_name": "images",
-              "callback_type": "object",
-              "inputs": {
-                "default": "approximate_time_sync_images"
               }
             }
           ]
@@ -1674,7 +1738,7 @@
               "topic_name": "marker_101"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera101"
             }
           ]
@@ -1695,7 +1759,7 @@
               "topic_name": "marker_102"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera102"
             }
           ]
@@ -1716,7 +1780,7 @@
               "topic_name": "marker_103"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera103"
             }
           ]
@@ -1737,7 +1801,7 @@
               "topic_name": "marker_104"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera104"
             }
           ]
@@ -1758,7 +1822,7 @@
               "topic_name": "marker_105"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera105"
             }
           ]

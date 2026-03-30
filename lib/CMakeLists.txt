@@ -217,6 +217,7 @@ add_library(stargazer
     ${CMAKE_CURRENT_LIST_DIR}/parameters.cpp
     ${CMAKE_CURRENT_LIST_DIR}/config.cpp
     ${CMAKE_CURRENT_LIST_DIR}/graph_builder.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/pipeline.cpp
     ${CMAKE_CURRENT_LIST_DIR}/reconstruction/triangulation.cpp
     ${CMAKE_CURRENT_LIST_DIR}/reconstruction/correspondance.cpp
     ${CMAKE_CURRENT_LIST_DIR}/reconstruction/reconstruction.cpp

@@ -44,12 +44,6 @@ add_executable(stargazer_viewer
     ${CMAKE_CURRENT_LIST_DIR}/views.cpp
     ${CMAKE_CURRENT_LIST_DIR}/gui.cpp
     ${CMAKE_CURRENT_LIST_DIR}/render3d.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/capture_pipeline.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/extrinsic_calibration_pipeline.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/scene_calibration_pipeline.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/intrinsic_calibration_pipeline.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/point_reconstruction_pipeline.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/image_reconstruction_pipeline.cpp
     ${CMAKE_CURRENT_LIST_DIR}/viewer_app.cpp
 )
 

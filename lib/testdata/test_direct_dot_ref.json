@@ -16,7 +16,7 @@
             },
             {
               "name": "callback",
-              "type": "callback",
+              "type": "load_blob",
               "inputs": { "default": "approximate_time_sync" }
             }
           ]

@@ -52,8 +52,6 @@ static node_type get_node_type(const std::string& type) {
     return node_type::parallel_queue;
   } else if (type == "frame_number_ordering") {
     return node_type::frame_number_ordering;
-  } else if (type == "callback") {
-    return node_type::callback;
   } else if (type == "grpc_server") {
     return node_type::grpc_server;
   } else if (type == "frame_demux") {
@@ -172,8 +170,6 @@ static std::string get_node_type_name(node_type type) {
       return "parallel_queue";
     case node_type::frame_number_ordering:
       return "frame_number_ordering";
-    case node_type::callback:
-      return "callback";
     case node_type::grpc_server:
       return "grpc_server";
     case node_type::frame_demux:

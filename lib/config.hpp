@@ -26,7 +26,6 @@ enum class node_type {
   frame_number_numbering,
   parallel_queue,
   frame_number_ordering,
-  callback,
   grpc_server,
   frame_demux,
   dump_se3,
@@ -188,13 +187,6 @@ class node_def {
 
   bool is_camera() const {
     const auto type = get_type();
-    // For callback nodes, check if it's an image callback with camera_name set
-    if (type == node_type::callback) {
-      // Check callback_type parameter ("image")
-      return contains_param("callback_type") &&
-             get_param<std::string>("callback_type") == "image" && contains_param("camera_name") &&
-             !get_param<std::string>("camera_name").empty();
-    }
     if (type == node_type::image_property) {
       return contains_param("camera_name") && !get_param<std::string>("camera_name").empty();
     }
@@ -206,8 +198,7 @@ class node_def {
 
   std::string get_camera_name() const {
     const auto type = get_type();
-    // For callback nodes, use camera_name parameter
-    if ((type == node_type::callback || type == node_type::image_property ||
+    if ((type == node_type::image_property ||
          type == node_type::contrail_render) &&
         contains_param("camera_name")) {
       return get_param<std::string>("camera_name");

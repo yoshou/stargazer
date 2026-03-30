@@ -15,19 +15,14 @@
 #include <sstream>
 #include <vulkan/vulkan.hpp>
 
-#include "capture_pipeline.hpp"
 #include "coalsack_math_conv.hpp"
 #include "config.hpp"
-#include "extrinsic_calibration_pipeline.hpp"
 #include "gui.hpp"
-#include "image_reconstruction_pipeline.hpp"
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
-#include "intrinsic_calibration_pipeline.hpp"
 #include "parameters.hpp"
-#include "point_reconstruction_pipeline.hpp"
+#include "pipeline.hpp"
 #include "render3d.hpp"
-#include "scene_calibration_pipeline.hpp"
 #include "viewer.hpp"
 #include "views.hpp"
 
@@ -111,7 +106,7 @@ class viewer_app : public window_base {
 
   std::shared_ptr<parameters_t> parameters;
 
-  std::unique_ptr<capture_pipeline> capture_for_capture_;
+  std::unique_ptr<stargazer::pipeline> capture_for_capture_;
 
   std::set<std::string> active_individual_captures_;
   bool all_capture_running_ = false;
@@ -119,12 +114,12 @@ class viewer_app : public window_base {
   bool intrinsic_running_ = false;
   bool scene_capture_running_ = false;
 
-  std::unique_ptr<extrinsic_calibration_pipeline> extrinsic_calib;
-  std::unique_ptr<intrinsic_calibration_pipeline> intrinsic_calib;
-  std::unique_ptr<scene_calibration_pipeline> scene_calib;
+  std::unique_ptr<stargazer::pipeline> extrinsic_calib;
+  std::unique_ptr<stargazer::pipeline> intrinsic_calib;
+  std::unique_ptr<stargazer::pipeline> scene_calib;
 
-  std::unique_ptr<multiview_point_reconstruction_pipeline> multiview_point_reconstruction_pipeline_;
-  std::unique_ptr<multiview_image_reconstruction_pipeline> multiview_image_reconstruction_pipeline_;
+  std::unique_ptr<stargazer::pipeline> multiview_point_reconstruction_pipeline_;
+  std::unique_ptr<stargazer::pipeline> multiview_image_reconstruction_pipeline_;
 
   std::unique_ptr<configuration> capture_config;
   std::unique_ptr<configuration> point_reconstruction_config;
@@ -145,7 +140,7 @@ class viewer_app : public window_base {
 
   std::optional<coalsack::property_value> query_capture_node_property(
       const std::string& node_name, const std::string& key) const {
-    capture_pipeline* pipeline = nullptr;
+    stargazer::pipeline* pipeline = nullptr;
     if (top_bar_view_->view_mode == top_bar_view::Mode::Capture) {
       pipeline = capture_for_capture_.get();
     } else if (top_bar_view_->view_mode == top_bar_view::Mode::Calibration) {
@@ -829,18 +824,16 @@ class viewer_app : public window_base {
                 }
               }
               for (const auto& node : nodes) {
-                if (node.get_type() == node_type::callback && node.is_camera()) {
+                if (node.get_type() == node_type::image_property && node.is_camera()) {
                   const auto camera_name = node.get_camera_name();
-                  int width, height;
+                  int width = 820;
+                  int height = 616;
                   if (node.contains_param("width")) {
                     try {
                       width = static_cast<int>(node.get_param<std::int64_t>("width"));
                     } catch (...) {
                       width = static_cast<int>(std::round(node.get_param<float>("width")));
                     }
-                  } else {
-                    throw std::runtime_error("width parameter not found for camera: " +
-                                             camera_name);
                   }
                   if (node.contains_param("height")) {
                     try {
@@ -848,9 +841,6 @@ class viewer_app : public window_base {
                     } catch (...) {
                       height = static_cast<int>(std::round(node.get_param<float>("height")));
                     }
-                  } else {
-                    throw std::runtime_error("height parameter not found for camera: " +
-                                             camera_name);
                   }
                   const auto stream = std::make_shared<image_tile_view::stream_info>(
                       camera_name, float2{(float)width, (float)height}, gfx_ctx);
@@ -975,16 +965,6 @@ class viewer_app : public window_base {
                   extrinsic_calibration_config->get_nodes("extrinsic_calibration_pipeline");
 
               for (const auto& node : nodes) {
-                if (node.get_type() == node_type::callback && node.is_camera()) {
-                  const auto camera_name = node.get_camera_name();
-                  const auto stream_it = std::find_if(
-                      image_tile_view_->streams.begin(), image_tile_view_->streams.end(),
-                      [&](const auto& x) { return x->name == camera_name; });
-
-                  if (stream_it != image_tile_view_->streams.end()) {
-                    image_tile_view_->streams.erase(stream_it);
-                  }
-                }
                 if (node.get_type() == node_type::contrail_render &&
                     node.contains_param("camera_name")) {
                   const auto camera_name = node.get_param<std::string>("camera_name");
@@ -993,6 +973,17 @@ class viewer_app : public window_base {
                       [&](const auto& x) { return x->name == camera_name; });
                   if (stream_it != contrail_tile_view_->streams.end()) {
                     contrail_tile_view_->streams.erase(stream_it);
+                  }
+                }
+              }
+              for (const auto& node : nodes) {
+                if (node.get_type() == node_type::image_property && node.is_camera()) {
+                  const auto camera_name = node.get_camera_name();
+                  const auto stream_it = std::find_if(
+                      image_tile_view_->streams.begin(), image_tile_view_->streams.end(),
+                      [&](const auto& x) { return x->name == camera_name; });
+                  if (stream_it != image_tile_view_->streams.end()) {
+                    image_tile_view_->streams.erase(stream_it);
                   }
                 }
               }
@@ -1430,31 +1421,31 @@ class viewer_app : public window_base {
     }
 
     multiview_point_reconstruction_pipeline_ =
-        std::make_unique<multiview_point_reconstruction_pipeline>(parameters);
+        std::make_unique<stargazer::pipeline>(parameters);
 
     multiview_point_reconstruction_pipeline_->run(
         point_reconstruction_config->get_nodes("point_reconstruction_pipeline"));
 
     multiview_image_reconstruction_pipeline_ =
-        std::make_unique<multiview_image_reconstruction_pipeline>(parameters);
+        std::make_unique<stargazer::pipeline>(parameters);
     multiview_image_reconstruction_pipeline_->run(
         image_reconstruction_config->get_nodes("image_reconstruction_pipeline"));
 
-    extrinsic_calib = std::make_unique<extrinsic_calibration_pipeline>(parameters);
+    extrinsic_calib = std::make_unique<stargazer::pipeline>(parameters);
 
     extrinsic_calib->run(extrinsic_calibration_config->get_nodes("extrinsic_calibration_pipeline"));
 
-    scene_calib = std::make_unique<scene_calibration_pipeline>(parameters);
+    scene_calib = std::make_unique<stargazer::pipeline>(parameters);
 
     scene_calib->run(scene_calibration_config->get_nodes("scene_calibration_pipeline"));
 
-    intrinsic_calib = std::make_unique<intrinsic_calibration_pipeline>(parameters);
+    intrinsic_calib = std::make_unique<stargazer::pipeline>(parameters);
 
     intrinsic_calib->run(
         calibration_intrinsic_single_camera_config->get_nodes("intrinsic_calibration_pipeline"));
 
     // Run all capture pipelines at startup
-    capture_for_capture_ = std::make_unique<capture_pipeline>();
+    capture_for_capture_ = std::make_unique<stargazer::pipeline>();
     capture_for_capture_->run(capture_config->get_nodes());
 
     bind_pose_property();

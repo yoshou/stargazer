@@ -1,37 +1,27 @@
-#include "image_reconstruction_pipeline.hpp"
+#include "pipeline.hpp"
 
-#include <spdlog/spdlog.h>
-
+#include <functional>
+#include <map>
+#include <mutex>
 #include <set>
+#include <thread>
 #include <unordered_map>
+#include <unordered_set>
 
-#include "callback_node.hpp"
 #include "coalsack/core/graph_proc.h"
 #include "coalsack/core/graph_proc_client.h"
-#include "coalsack/image/graph_proc_cv.h"
-#include "coalsack/image/image_nodes.h"
-#include "coalsack/tensor/graph_proc_tensor.h"
-#include "glm_serialize.hpp"
+#include "coalsack/core/graph_proc_server.h"
+#include "coalsack/ext/graph_proc_action.h"
+#include "gate_node.hpp"
 #include "graph_builder.hpp"
-#include "grpc_server_node.hpp"
-#include "image_reconstruct_node.hpp"
-#include "messages.hpp"
-#include "mvp.hpp"
-#include "mvp_reconstruct_node.hpp"
-#include "mvpose.hpp"
-#include "mvpose_reconstruct_node.hpp"
 #include "parameter_resource.hpp"
 #include "parameters.hpp"
-#include "utils.hpp"
-#include "voxelpose.hpp"
-#include "voxelpose_reconstruct_node.hpp"
 
 using namespace coalsack;
 using namespace stargazer;
 
-class multiview_image_reconstruction_pipeline::impl {
+class pipeline::impl {
   std::unordered_map<std::string, std::shared_ptr<graph_node>> node_map;
-
   graph_proc local_graph;
   std::shared_ptr<subgraph> local_subgraph;
   asio::io_context io_context;
@@ -40,13 +30,26 @@ class multiview_image_reconstruction_pipeline::impl {
 
   bool has_remote_subgraphs = false;
 
-  mutable std::mutex markers_mtx;
-  std::vector<glm::vec3> markers;
+  std::shared_ptr<stargazer::gate_node> marker_gate_node;
+  mutable std::mutex marker_collecting_mtx;
+  std::unordered_set<std::string> marker_collecting_cameras;
 
   std::shared_ptr<stargazer::parameters_t> parameters_;
 
   bool is_local_node(const graph_node* node) const {
     return node && local_subgraph && node->get_parent() == local_subgraph.get();
+  }
+
+  void process_node(const graph_node* node, const std::string& input_name,
+                    const graph_message_ptr& message) {
+    if (!node) {
+      return;
+    }
+    if (is_local_node(node)) {
+      local_graph.process(node, input_name, message);
+      return;
+    }
+    client.process(node, input_name, message);
   }
 
  public:
@@ -58,7 +61,12 @@ class multiview_image_reconstruction_pipeline::impl {
         client(),
         io_thread(),
         has_remote_subgraphs(false),
+        marker_gate_node(),
+        marker_collecting_mtx(),
+        marker_collecting_cameras(),
         parameters_() {}
+
+  void set_parameters(std::shared_ptr<stargazer::parameters_t> p) { parameters_ = std::move(p); }
 
   void deploy(const std::vector<node_def>& nodes) {
     node_map.clear();
@@ -67,6 +75,7 @@ class multiview_image_reconstruction_pipeline::impl {
     client = graph_proc_client();
     io_context.restart();
     has_remote_subgraphs = false;
+    marker_gate_node.reset();
 
     std::map<std::string, std::vector<node_def>> nodes_by_subgraph;
     for (const auto& node : nodes) {
@@ -83,20 +92,13 @@ class multiview_image_reconstruction_pipeline::impl {
     stargazer::build_graph_from_json(nodes, subgraphs, global_node_map);
     node_map = global_node_map;
 
-    const auto callbacks = std::make_shared<callback_list>();
-
-    callbacks->add([this](const callback_node* node, std::string, graph_message_ptr message) {
-      if (node->get_callback_name() == "markers") {
-        if (const auto markers_msg = std::dynamic_pointer_cast<float3_list_message>(message)) {
-          std::vector<glm::vec3> new_markers;
-          for (const auto& marker : markers_msg->get_data()) {
-            new_markers.push_back(glm::vec3(marker.x, marker.y, marker.z));
-          }
-          std::lock_guard lock(markers_mtx);
-          markers = std::move(new_markers);
+    for (const auto& [name, node_ptr] : node_map) {
+      if (!marker_gate_node) {
+        if (auto gate = std::dynamic_pointer_cast<stargazer::gate_node>(node_ptr)) {
+          marker_gate_node = gate;
         }
       }
-    });
+    }
 
     std::map<std::string, std::pair<std::string, uint16_t>> remote_subgraph_deploy_info;
     std::vector<std::string> local_subgraph_names;
@@ -204,11 +206,10 @@ class multiview_image_reconstruction_pipeline::impl {
       deploy_order.push_back(merged_name);
     };
 
-    for (const auto& [merged_name, _] : deploy_subgraphs) {
+    for (const auto& [merged_name, sg] : deploy_subgraphs) {
       visit(merged_name);
     }
 
-    local_graph.get_resources()->add(callbacks);
     if (parameters_) {
       local_graph.get_resources()->add(std::make_shared<parameter_resource>(parameters_));
     }
@@ -224,6 +225,7 @@ class multiview_image_reconstruction_pipeline::impl {
         const auto& [deploy_address, deploy_port] = merged_deploy_info[merged_name];
         client.deploy(io_context, deploy_address, deploy_port, deploy_subgraphs[merged_name]);
       }
+
       io_thread.reset(new std::thread([this] { io_context.run(); }));
       client.initialize();
     }
@@ -238,7 +240,7 @@ class multiview_image_reconstruction_pipeline::impl {
     }
   }
 
-  void stop_streaming() {
+  void stop() {
     if (has_remote_subgraphs) {
       client.stop();
     }
@@ -263,39 +265,69 @@ class multiview_image_reconstruction_pipeline::impl {
     local_subgraph.reset();
   }
 
+  void dispatch_action(const std::string& action_id) {
+    for (const auto& [name, node] : node_map) {
+      if (auto action = std::dynamic_pointer_cast<coalsack::action_node>(node)) {
+        if (action->get_action_id() == action_id) {
+          process_node(action.get(), "default", nullptr);
+        }
+      }
+    }
+  }
+
+  void enable_marker_collecting(const std::string& name) {
+    std::lock_guard lock(marker_collecting_mtx);
+    marker_collecting_cameras.insert(name);
+    if (marker_gate_node) {
+      marker_gate_node->set_enabled(!marker_collecting_cameras.empty());
+    }
+  }
+
+  void disable_marker_collecting(const std::string& name) {
+    std::lock_guard lock(marker_collecting_mtx);
+    marker_collecting_cameras.erase(name);
+    if (marker_gate_node) {
+      marker_gate_node->set_enabled(!marker_collecting_cameras.empty());
+    }
+  }
+
   std::optional<property_value> get_node_property(const std::string& node_name,
                                                   const std::string& key) const {
     const auto found = node_map.find(node_name);
-    if (found == node_map.end() || !found->second) {
-      return std::nullopt;
-    }
-    if (!is_local_node(found->second.get())) {
+    if (found == node_map.end() || !found->second || !is_local_node(found->second.get())) {
       return std::nullopt;
     }
     return found->second->get_property(key);
   }
-
-  void set_parameters(std::shared_ptr<stargazer::parameters_t> p) { parameters_ = std::move(p); }
 };
 
-multiview_image_reconstruction_pipeline::multiview_image_reconstruction_pipeline(
-    std::shared_ptr<stargazer::parameters_t> parameters)
+pipeline::pipeline() : pimpl(std::make_unique<impl>()) {}
+
+pipeline::pipeline(std::shared_ptr<parameters_t> parameters)
     : pimpl(std::make_unique<impl>()) {
   pimpl->set_parameters(std::move(parameters));
 }
-multiview_image_reconstruction_pipeline::~multiview_image_reconstruction_pipeline() = default;
 
-void multiview_image_reconstruction_pipeline::run(const std::vector<node_def>& nodes) {
-  pimpl->deploy(nodes);
-}
+pipeline::~pipeline() = default;
 
-void multiview_image_reconstruction_pipeline::start() { pimpl->run(); }
+void pipeline::run(const std::vector<node_def>& nodes) { pimpl->deploy(nodes); }
+void pipeline::start() { pimpl->run(); }
+void pipeline::pause() { pimpl->stop(); }
+void pipeline::stop() { pimpl->finalize(); }
 
-void multiview_image_reconstruction_pipeline::pause() { pimpl->stop_streaming(); }
-
-void multiview_image_reconstruction_pipeline::stop() { pimpl->finalize(); }
-
-std::optional<property_value> multiview_image_reconstruction_pipeline::get_node_property(
+std::optional<coalsack::property_value> pipeline::get_node_property(
     const std::string& node_name, const std::string& key) const {
   return pimpl->get_node_property(node_name, key);
+}
+
+void pipeline::dispatch_action(const std::string& action_id) {
+  pimpl->dispatch_action(action_id);
+}
+
+void pipeline::enable_marker_collecting(const std::string& name) {
+  pimpl->enable_marker_collecting(name);
+}
+
+void pipeline::disable_marker_collecting(const std::string& name) {
+  pimpl->disable_marker_collecting(name);
 }

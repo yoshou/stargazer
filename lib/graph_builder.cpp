@@ -2,7 +2,6 @@
 
 #include <iostream>
 
-#include "callback_node.hpp"
 #include "coalsack/core/graph_proc.h"
 #include "coalsack/ext/graph_proc_action.h"
 #include "coalsack/ext/graph_proc_cv_ext.h"
@@ -395,36 +394,6 @@ void build_graph_from_json(const std::vector<node_def>& nodes,
       }
       case node_type::frame_number_ordering: {
         auto n = std::make_shared<frame_number_ordering_node>();
-        graph_node = n;
-        break;
-      }
-      case node_type::callback: {
-        auto n = std::make_shared<callback_node>();
-
-        if (!node.contains_param("callback_name")) {
-          throw std::runtime_error("callback_name parameter is required for callback node: " +
-                                   node.name);
-        }
-        n->set_callback_name(node.get_param<std::string>("callback_name"));
-
-        if (node.contains_param("camera_name")) {
-          n->set_camera_name(node.get_param<std::string>("camera_name"));
-        }
-
-        if (node.contains_param("callback_type")) {
-          const auto type_str = node.get_param<std::string>("callback_type");
-          callback_node::callback_type cb_type = callback_node::callback_type::unknown;
-          if (type_str == "image") {
-            cb_type = callback_node::callback_type::image;
-          } else if (type_str == "marker") {
-            cb_type = callback_node::callback_type::marker;
-          } else if (type_str == "object") {
-            cb_type = callback_node::callback_type::object;
-          } else {
-            throw std::runtime_error("Unknown callback_type: " + type_str);
-          }
-          n->set_callback_type(cb_type);
-        }
         graph_node = n;
         break;
       }

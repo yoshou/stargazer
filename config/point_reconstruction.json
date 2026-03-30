@@ -35,30 +35,11 @@
           ]
         },
         {
-          "name": "callback_image",
-          "type": "callback",
-          "inputs": {
-            "default": "decode_jpeg"
-          },
-          "properties": [
-            {
-              "id": "received",
-              "label": "Received",
-              "source_key": "received",
-              "format": "integer",
-              "default_value": 0
-            }
-          ],
-          "callback_name": "image",
-          "callback_type": "image"
-        },
-        {
           "name": "load_marker",
           "type": "load_marker"
         }
       ],
       "outputs": [
-        "callback_image",
         "load_marker"
       ]
     },
@@ -239,23 +220,6 @@
         {
           "name": "marker_property",
           "type": "marker_property",
-          "inputs": {
-            "default": "frame_number_ordering"
-          }
-        },
-        {
-          "name": "callback_markers",
-          "type": "callback",
-          "properties": [
-            {
-              "id": "received",
-              "label": "Received",
-              "source_key": "received",
-              "format": "integer",
-              "default_value": 0
-            }
-          ],
-          "callback_name": "markers",
           "inputs": {
             "default": "frame_number_ordering"
           }
@@ -679,21 +643,11 @@
           }
         },
         {
-          "name": "callback_image",
-          "type": "callback",
-          "inputs": {
-            "default": "decode_jpeg"
-          },
-          "callback_name": "image",
-          "callback_type": "image"
-        },
-        {
           "name": "p2p_tcp_listener_marker",
           "type": "p2p_tcp_listener"
         }
       ],
       "outputs": [
-        "callback_image",
         "p2p_tcp_listener_marker"
       ]
     }
@@ -716,7 +670,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera1"
             }
           ]
@@ -750,7 +704,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera2"
             }
           ]
@@ -784,7 +738,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera3"
             }
           ]
@@ -818,7 +772,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera4"
             }
           ]
@@ -852,7 +806,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera5"
             }
           ]
@@ -886,7 +840,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera6"
             }
           ]
@@ -920,7 +874,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera7"
             }
           ]
@@ -954,7 +908,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera8"
             }
           ]
@@ -988,7 +942,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera9"
             }
           ]
@@ -1022,7 +976,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera10"
             }
           ]
@@ -1056,7 +1010,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera11"
             }
           ]
@@ -1090,7 +1044,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera12"
             }
           ]
@@ -1124,7 +1078,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera13"
             }
           ]
@@ -1158,7 +1112,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera14"
             }
           ]
@@ -1192,7 +1146,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera15"
             }
           ]
@@ -1226,7 +1180,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera16"
             }
           ]
@@ -1260,7 +1214,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera17"
             }
           ]
@@ -1294,7 +1248,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera18"
             }
           ]
@@ -1328,7 +1282,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera19"
             }
           ]
@@ -1362,7 +1316,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera20"
             }
           ]
@@ -1396,7 +1350,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera21"
             }
           ]
@@ -1430,7 +1384,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera22"
             }
           ]
@@ -1464,7 +1418,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera23"
             }
           ]
@@ -1498,7 +1452,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera24"
             }
           ]
@@ -1552,15 +1506,6 @@
               }
             },
             {
-              "name": "callback_images",
-              "type": "callback",
-              "callback_name": "images",
-              "callback_type": "object",
-              "inputs": {
-                "default": "approximate_time_sync_images"
-              }
-            },
-            {
               "name": "approximate_time_sync_markers",
               "type": "approximate_time_sync",
               "interval": 11.611,
@@ -1590,15 +1535,6 @@
                 "camera23": "camera23_receiver.p2p_tcp_listener_marker",
                 "camera24": "camera24_receiver.p2p_tcp_listener_marker"
               }
-            },
-            {
-              "name": "callback_markers",
-              "type": "callback",
-              "callback_name": "markers",
-              "callback_type": "object",
-              "inputs": {
-                "default": "approximate_time_sync_markers"
-              }
             }
           ]
         }
@@ -1621,7 +1557,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera1"
             }
           ]
@@ -1641,7 +1577,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera2"
             }
           ]
@@ -1661,7 +1597,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera3"
             }
           ]
@@ -1681,7 +1617,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera4"
             }
           ]
@@ -1701,7 +1637,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera5"
             }
           ]
@@ -1721,7 +1657,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera6"
             }
           ]
@@ -1741,7 +1677,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera7"
             }
           ]
@@ -1761,7 +1697,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera8"
             }
           ]
@@ -1781,7 +1717,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera9"
             }
           ]
@@ -1801,7 +1737,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera10"
             }
           ]
@@ -1821,7 +1757,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera11"
             }
           ]
@@ -1841,7 +1777,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera12"
             }
           ]
@@ -1861,7 +1797,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera13"
             }
           ]
@@ -1881,7 +1817,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera14"
             }
           ]
@@ -1901,7 +1837,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera15"
             }
           ]
@@ -1921,7 +1857,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera16"
             }
           ]
@@ -1941,7 +1877,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera17"
             }
           ]
@@ -1961,7 +1897,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera18"
             }
           ]
@@ -1981,7 +1917,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera19"
             }
           ]
@@ -2001,7 +1937,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera20"
             }
           ]
@@ -2021,7 +1957,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera21"
             }
           ]
@@ -2041,7 +1977,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera22"
             }
           ]
@@ -2061,7 +1997,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera23"
             }
           ]
@@ -2081,7 +2017,7 @@
           ],
           "nodes": [
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera24"
             }
           ]
@@ -2121,15 +2057,6 @@
               }
             },
             {
-              "name": "callback_images",
-              "type": "callback",
-              "callback_name": "images",
-              "callback_type": "object",
-              "inputs": {
-                "default": "approximate_time_sync_images"
-              }
-            },
-            {
               "name": "approximate_time_sync_markers",
               "type": "approximate_time_sync",
               "interval": 11.611,
@@ -2159,15 +2086,6 @@
                 "camera23": "camera23_receiver.p2p_tcp_listener_marker",
                 "camera24": "camera24_receiver.p2p_tcp_listener_marker"
               }
-            },
-            {
-              "name": "callback_markers",
-              "type": "callback",
-              "callback_name": "markers",
-              "callback_type": "object",
-              "inputs": {
-                "default": "approximate_time_sync_markers"
-              }
             }
           ]
         }
@@ -2191,7 +2109,7 @@
               "topic_name": "marker_1"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera1"
             }
           ]
@@ -2212,7 +2130,7 @@
               "topic_name": "marker_2"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera2"
             }
           ]
@@ -2233,7 +2151,7 @@
               "topic_name": "marker_3"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera3"
             }
           ]
@@ -2254,7 +2172,7 @@
               "topic_name": "marker_4"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera4"
             }
           ]
@@ -2275,7 +2193,7 @@
               "topic_name": "marker_5"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera5"
             }
           ]
@@ -2296,7 +2214,7 @@
               "topic_name": "marker_6"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera6"
             }
           ]
@@ -2317,7 +2235,7 @@
               "topic_name": "marker_7"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera7"
             }
           ]
@@ -2338,7 +2256,7 @@
               "topic_name": "marker_8"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera8"
             }
           ]
@@ -2359,7 +2277,7 @@
               "topic_name": "marker_9"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera9"
             }
           ]
@@ -2380,7 +2298,7 @@
               "topic_name": "marker_10"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera10"
             }
           ]
@@ -2401,7 +2319,7 @@
               "topic_name": "marker_11"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera11"
             }
           ]
@@ -2422,7 +2340,7 @@
               "topic_name": "marker_12"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera12"
             }
           ]
@@ -2443,7 +2361,7 @@
               "topic_name": "marker_13"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera13"
             }
           ]
@@ -2464,7 +2382,7 @@
               "topic_name": "marker_14"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera14"
             }
           ]
@@ -2485,7 +2403,7 @@
               "topic_name": "marker_15"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera15"
             }
           ]
@@ -2506,7 +2424,7 @@
               "topic_name": "marker_16"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera16"
             }
           ]
@@ -2527,7 +2445,7 @@
               "topic_name": "marker_17"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera17"
             }
           ]
@@ -2548,7 +2466,7 @@
               "topic_name": "marker_18"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera18"
             }
           ]
@@ -2569,7 +2487,7 @@
               "topic_name": "marker_19"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera19"
             }
           ]
@@ -2590,7 +2508,7 @@
               "topic_name": "marker_20"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera20"
             }
           ]
@@ -2626,15 +2544,6 @@
               }
             },
             {
-              "name": "callback_images",
-              "type": "callback",
-              "callback_name": "images",
-              "callback_type": "object",
-              "inputs": {
-                "default": "approximate_time_sync_images"
-              }
-            },
-            {
               "name": "approximate_time_sync_markers",
               "type": "approximate_time_sync",
               "interval": 11.611,
@@ -2660,15 +2569,6 @@
                 "camera19": "camera19.load_marker",
                 "camera20": "camera20.load_marker"
               }
-            },
-            {
-              "name": "callback_markers",
-              "type": "callback",
-              "callback_name": "markers",
-              "callback_type": "object",
-              "inputs": {
-                "default": "approximate_time_sync_markers"
-              }
             }
           ]
         }
@@ -2692,7 +2592,7 @@
               "topic_name": "marker_1"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera1"
             }
           ]
@@ -2713,7 +2613,7 @@
               "topic_name": "marker_2"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera2"
             }
           ]
@@ -2734,7 +2634,7 @@
               "topic_name": "marker_3"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera3"
             }
           ]
@@ -2755,7 +2655,7 @@
               "topic_name": "marker_4"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera4"
             }
           ]
@@ -2776,7 +2676,7 @@
               "topic_name": "marker_5"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera5"
             }
           ]
@@ -2797,7 +2697,7 @@
               "topic_name": "marker_6"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera6"
             }
           ]
@@ -2818,7 +2718,7 @@
               "topic_name": "marker_7"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera7"
             }
           ]
@@ -2839,7 +2739,7 @@
               "topic_name": "marker_8"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera8"
             }
           ]
@@ -2860,7 +2760,7 @@
               "topic_name": "marker_9"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera9"
             }
           ]
@@ -2881,7 +2781,7 @@
               "topic_name": "marker_10"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera10"
             }
           ]
@@ -2902,7 +2802,7 @@
               "topic_name": "marker_11"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera11"
             }
           ]
@@ -2923,7 +2823,7 @@
               "topic_name": "marker_12"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera12"
             }
           ]
@@ -2944,7 +2844,7 @@
               "topic_name": "marker_13"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera13"
             }
           ]
@@ -2965,7 +2865,7 @@
               "topic_name": "marker_14"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera14"
             }
           ]
@@ -2986,7 +2886,7 @@
               "topic_name": "marker_15"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera15"
             }
           ]
@@ -3007,7 +2907,7 @@
               "topic_name": "marker_16"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera16"
             }
           ]
@@ -3028,7 +2928,7 @@
               "topic_name": "marker_17"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera17"
             }
           ]
@@ -3049,7 +2949,7 @@
               "topic_name": "marker_18"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera18"
             }
           ]
@@ -3070,7 +2970,7 @@
               "topic_name": "marker_19"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera19"
             }
           ]
@@ -3091,7 +2991,7 @@
               "topic_name": "marker_20"
             },
             {
-              "name": "callback_image",
+              "name": "display_image",
               "camera_name": "camera20"
             }
           ]
