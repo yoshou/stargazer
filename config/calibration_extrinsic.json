@@ -997,6 +997,1009 @@
       ]
     },
     {
+      "name": "calibration_extrinsic_ir_capture_subgraph",
+      "nodes": [
+        {
+          "name": "load_camera1",
+          "type": "load_parameter",
+          "id": "000000000001"
+        },
+        {
+          "name": "load_camera2",
+          "type": "load_parameter",
+          "id": "000000000002"
+        },
+        {
+          "name": "load_camera3",
+          "type": "load_parameter",
+          "id": "000000000003"
+        },
+        {
+          "name": "load_camera4",
+          "type": "load_parameter",
+          "id": "000000000004"
+        },
+        {
+          "name": "load_camera5",
+          "type": "load_parameter",
+          "id": "000000000005"
+        },
+        {
+          "name": "load_camera6",
+          "type": "load_parameter",
+          "id": "000000000006"
+        },
+        {
+          "name": "load_camera7",
+          "type": "load_parameter",
+          "id": "000000000007"
+        },
+        {
+          "name": "load_camera8",
+          "type": "load_parameter",
+          "id": "000000000008"
+        },
+        {
+          "name": "load_camera9",
+          "type": "load_parameter",
+          "id": "000000000009"
+        },
+        {
+          "name": "load_camera10",
+          "type": "load_parameter",
+          "id": "000000000010"
+        },
+        {
+          "name": "load_camera11",
+          "type": "load_parameter",
+          "id": "000000000011"
+        },
+        {
+          "name": "load_camera12",
+          "type": "load_parameter",
+          "id": "000000000012"
+        },
+        {
+          "name": "load_camera13",
+          "type": "load_parameter",
+          "id": "000000000013"
+        },
+        {
+          "name": "load_camera14",
+          "type": "load_parameter",
+          "id": "000000000014"
+        },
+        {
+          "name": "load_camera15",
+          "type": "load_parameter",
+          "id": "000000000015"
+        },
+        {
+          "name": "load_camera16",
+          "type": "load_parameter",
+          "id": "000000000016"
+        },
+        {
+          "name": "load_camera17",
+          "type": "load_parameter",
+          "id": "000000000017"
+        },
+        {
+          "name": "load_camera18",
+          "type": "load_parameter",
+          "id": "000000000018"
+        },
+        {
+          "name": "load_camera19",
+          "type": "load_parameter",
+          "id": "000000000019"
+        },
+        {
+          "name": "load_camera20",
+          "type": "load_parameter",
+          "id": "000000000020"
+        },
+        {
+          "name": "frame_number_numbering",
+          "type": "frame_number_numbering"
+        },
+        {
+          "name": "object_map",
+          "type": "object_map",
+          "inputs": {
+            "default": "frame_number_numbering"
+          },
+          "outputs": [
+            "camera1",
+            "camera2",
+            "camera3",
+            "camera4",
+            "camera5",
+            "camera6",
+            "camera7",
+            "camera8",
+            "camera9",
+            "camera10",
+            "camera11",
+            "camera12",
+            "camera13",
+            "camera14",
+            "camera15",
+            "camera16",
+            "camera17",
+            "camera18",
+            "camera19",
+            "camera20",
+            "camera21",
+            "camera22",
+            "camera23",
+            "camera24"
+          ]
+        },
+        {
+          "name": "detector_camera1",
+          "type": "three_point_bar_calibration_target_detector",
+          "inputs": {
+            "default": "object_map:camera1"
+          },
+          "camera_name": "camera1"
+        },
+        {
+          "name": "detector_camera2",
+          "type": "three_point_bar_calibration_target_detector",
+          "inputs": {
+            "default": "object_map:camera2"
+          },
+          "camera_name": "camera2"
+        },
+        {
+          "name": "detector_camera3",
+          "type": "three_point_bar_calibration_target_detector",
+          "inputs": {
+            "default": "object_map:camera3"
+          },
+          "camera_name": "camera3"
+        },
+        {
+          "name": "detector_camera4",
+          "type": "three_point_bar_calibration_target_detector",
+          "inputs": {
+            "default": "object_map:camera4"
+          },
+          "camera_name": "camera4"
+        },
+        {
+          "name": "detector_camera5",
+          "type": "three_point_bar_calibration_target_detector",
+          "inputs": {
+            "default": "object_map:camera5"
+          },
+          "camera_name": "camera5"
+        },
+        {
+          "name": "detector_camera6",
+          "type": "three_point_bar_calibration_target_detector",
+          "inputs": {
+            "default": "object_map:camera6"
+          },
+          "camera_name": "camera6"
+        },
+        {
+          "name": "detector_camera7",
+          "type": "three_point_bar_calibration_target_detector",
+          "inputs": {
+            "default": "object_map:camera7"
+          },
+          "camera_name": "camera7"
+        },
+        {
+          "name": "detector_camera8",
+          "type": "three_point_bar_calibration_target_detector",
+          "inputs": {
+            "default": "object_map:camera8"
+          },
+          "camera_name": "camera8"
+        },
+        {
+          "name": "detector_camera9",
+          "type": "three_point_bar_calibration_target_detector",
+          "inputs": {
+            "default": "object_map:camera9"
+          },
+          "camera_name": "camera9"
+        },
+        {
+          "name": "detector_camera10",
+          "type": "three_point_bar_calibration_target_detector",
+          "inputs": {
+            "default": "object_map:camera10"
+          },
+          "camera_name": "camera10"
+        },
+        {
+          "name": "detector_camera11",
+          "type": "three_point_bar_calibration_target_detector",
+          "inputs": {
+            "default": "object_map:camera11"
+          },
+          "camera_name": "camera11"
+        },
+        {
+          "name": "detector_camera12",
+          "type": "three_point_bar_calibration_target_detector",
+          "inputs": {
+            "default": "object_map:camera12"
+          },
+          "camera_name": "camera12"
+        },
+        {
+          "name": "detector_camera13",
+          "type": "three_point_bar_calibration_target_detector",
+          "inputs": {
+            "default": "object_map:camera13"
+          },
+          "camera_name": "camera13"
+        },
+        {
+          "name": "detector_camera14",
+          "type": "three_point_bar_calibration_target_detector",
+          "inputs": {
+            "default": "object_map:camera14"
+          },
+          "camera_name": "camera14"
+        },
+        {
+          "name": "detector_camera15",
+          "type": "three_point_bar_calibration_target_detector",
+          "inputs": {
+            "default": "object_map:camera15"
+          },
+          "camera_name": "camera15"
+        },
+        {
+          "name": "detector_camera16",
+          "type": "three_point_bar_calibration_target_detector",
+          "inputs": {
+            "default": "object_map:camera16"
+          },
+          "camera_name": "camera16"
+        },
+        {
+          "name": "detector_camera17",
+          "type": "three_point_bar_calibration_target_detector",
+          "inputs": {
+            "default": "object_map:camera17"
+          },
+          "camera_name": "camera17"
+        },
+        {
+          "name": "detector_camera18",
+          "type": "three_point_bar_calibration_target_detector",
+          "inputs": {
+            "default": "object_map:camera18"
+          },
+          "camera_name": "camera18"
+        },
+        {
+          "name": "detector_camera19",
+          "type": "three_point_bar_calibration_target_detector",
+          "inputs": {
+            "default": "object_map:camera19"
+          },
+          "camera_name": "camera19"
+        },
+        {
+          "name": "detector_camera20",
+          "type": "three_point_bar_calibration_target_detector",
+          "inputs": {
+            "default": "object_map:camera20"
+          },
+          "camera_name": "camera20"
+        },
+        {
+          "name": "contrail_render_camera1",
+          "type": "contrail_render",
+          "camera_name": "camera1",
+          "width": 820,
+          "height": 616,
+          "inputs": {
+            "default": "detector_camera1"
+          },
+          "properties": [
+            {
+              "id": "image",
+              "source_key": "image",
+              "target": "image"
+            }
+          ]
+        },
+        {
+          "name": "contrail_render_camera2",
+          "type": "contrail_render",
+          "camera_name": "camera2",
+          "width": 820,
+          "height": 616,
+          "inputs": {
+            "default": "detector_camera2"
+          },
+          "properties": [
+            {
+              "id": "image",
+              "source_key": "image",
+              "target": "image"
+            }
+          ]
+        },
+        {
+          "name": "contrail_render_camera3",
+          "type": "contrail_render",
+          "camera_name": "camera3",
+          "width": 820,
+          "height": 616,
+          "inputs": {
+            "default": "detector_camera3"
+          },
+          "properties": [
+            {
+              "id": "image",
+              "source_key": "image",
+              "target": "image"
+            }
+          ]
+        },
+        {
+          "name": "contrail_render_camera4",
+          "type": "contrail_render",
+          "camera_name": "camera4",
+          "width": 820,
+          "height": 616,
+          "inputs": {
+            "default": "detector_camera4"
+          },
+          "properties": [
+            {
+              "id": "image",
+              "source_key": "image",
+              "target": "image"
+            }
+          ]
+        },
+        {
+          "name": "contrail_render_camera5",
+          "type": "contrail_render",
+          "camera_name": "camera5",
+          "width": 820,
+          "height": 616,
+          "inputs": {
+            "default": "detector_camera5"
+          },
+          "properties": [
+            {
+              "id": "image",
+              "source_key": "image",
+              "target": "image"
+            }
+          ]
+        },
+        {
+          "name": "contrail_render_camera6",
+          "type": "contrail_render",
+          "camera_name": "camera6",
+          "width": 820,
+          "height": 616,
+          "inputs": {
+            "default": "detector_camera6"
+          },
+          "properties": [
+            {
+              "id": "image",
+              "source_key": "image",
+              "target": "image"
+            }
+          ]
+        },
+        {
+          "name": "contrail_render_camera7",
+          "type": "contrail_render",
+          "camera_name": "camera7",
+          "width": 820,
+          "height": 616,
+          "inputs": {
+            "default": "detector_camera7"
+          },
+          "properties": [
+            {
+              "id": "image",
+              "source_key": "image",
+              "target": "image"
+            }
+          ]
+        },
+        {
+          "name": "contrail_render_camera8",
+          "type": "contrail_render",
+          "camera_name": "camera8",
+          "width": 820,
+          "height": 616,
+          "inputs": {
+            "default": "detector_camera8"
+          },
+          "properties": [
+            {
+              "id": "image",
+              "source_key": "image",
+              "target": "image"
+            }
+          ]
+        },
+        {
+          "name": "contrail_render_camera9",
+          "type": "contrail_render",
+          "camera_name": "camera9",
+          "width": 820,
+          "height": 616,
+          "inputs": {
+            "default": "detector_camera9"
+          },
+          "properties": [
+            {
+              "id": "image",
+              "source_key": "image",
+              "target": "image"
+            }
+          ]
+        },
+        {
+          "name": "contrail_render_camera10",
+          "type": "contrail_render",
+          "camera_name": "camera10",
+          "width": 820,
+          "height": 616,
+          "inputs": {
+            "default": "detector_camera10"
+          },
+          "properties": [
+            {
+              "id": "image",
+              "source_key": "image",
+              "target": "image"
+            }
+          ]
+        },
+        {
+          "name": "contrail_render_camera11",
+          "type": "contrail_render",
+          "camera_name": "camera11",
+          "width": 820,
+          "height": 616,
+          "inputs": {
+            "default": "detector_camera11"
+          },
+          "properties": [
+            {
+              "id": "image",
+              "source_key": "image",
+              "target": "image"
+            }
+          ]
+        },
+        {
+          "name": "contrail_render_camera12",
+          "type": "contrail_render",
+          "camera_name": "camera12",
+          "width": 820,
+          "height": 616,
+          "inputs": {
+            "default": "detector_camera12"
+          },
+          "properties": [
+            {
+              "id": "image",
+              "source_key": "image",
+              "target": "image"
+            }
+          ]
+        },
+        {
+          "name": "contrail_render_camera13",
+          "type": "contrail_render",
+          "camera_name": "camera13",
+          "width": 820,
+          "height": 616,
+          "inputs": {
+            "default": "detector_camera13"
+          },
+          "properties": [
+            {
+              "id": "image",
+              "source_key": "image",
+              "target": "image"
+            }
+          ]
+        },
+        {
+          "name": "contrail_render_camera14",
+          "type": "contrail_render",
+          "camera_name": "camera14",
+          "width": 820,
+          "height": 616,
+          "inputs": {
+            "default": "detector_camera14"
+          },
+          "properties": [
+            {
+              "id": "image",
+              "source_key": "image",
+              "target": "image"
+            }
+          ]
+        },
+        {
+          "name": "contrail_render_camera15",
+          "type": "contrail_render",
+          "camera_name": "camera15",
+          "width": 820,
+          "height": 616,
+          "inputs": {
+            "default": "detector_camera15"
+          },
+          "properties": [
+            {
+              "id": "image",
+              "source_key": "image",
+              "target": "image"
+            }
+          ]
+        },
+        {
+          "name": "contrail_render_camera16",
+          "type": "contrail_render",
+          "camera_name": "camera16",
+          "width": 820,
+          "height": 616,
+          "inputs": {
+            "default": "detector_camera16"
+          },
+          "properties": [
+            {
+              "id": "image",
+              "source_key": "image",
+              "target": "image"
+            }
+          ]
+        },
+        {
+          "name": "contrail_render_camera17",
+          "type": "contrail_render",
+          "camera_name": "camera17",
+          "width": 820,
+          "height": 616,
+          "inputs": {
+            "default": "detector_camera17"
+          },
+          "properties": [
+            {
+              "id": "image",
+              "source_key": "image",
+              "target": "image"
+            }
+          ]
+        },
+        {
+          "name": "contrail_render_camera18",
+          "type": "contrail_render",
+          "camera_name": "camera18",
+          "width": 820,
+          "height": 616,
+          "inputs": {
+            "default": "detector_camera18"
+          },
+          "properties": [
+            {
+              "id": "image",
+              "source_key": "image",
+              "target": "image"
+            }
+          ]
+        },
+        {
+          "name": "contrail_render_camera19",
+          "type": "contrail_render",
+          "camera_name": "camera19",
+          "width": 820,
+          "height": 616,
+          "inputs": {
+            "default": "detector_camera19"
+          },
+          "properties": [
+            {
+              "id": "image",
+              "source_key": "image",
+              "target": "image"
+            }
+          ]
+        },
+        {
+          "name": "contrail_render_camera20",
+          "type": "contrail_render",
+          "camera_name": "camera20",
+          "width": 820,
+          "height": 616,
+          "inputs": {
+            "default": "detector_camera20"
+          },
+          "properties": [
+            {
+              "id": "image",
+              "source_key": "image",
+              "target": "image"
+            }
+          ]
+        },
+        {
+          "name": "load_camera21",
+          "type": "load_parameter",
+          "id": "000000000021"
+        },
+        {
+          "name": "load_camera22",
+          "type": "load_parameter",
+          "id": "000000000022"
+        },
+        {
+          "name": "load_camera23",
+          "type": "load_parameter",
+          "id": "000000000023"
+        },
+        {
+          "name": "load_camera24",
+          "type": "load_parameter",
+          "id": "000000000024"
+        },
+        {
+          "name": "detector_camera21",
+          "type": "three_point_bar_calibration_target_detector",
+          "inputs": {
+            "default": "object_map:camera21"
+          },
+          "camera_name": "camera21"
+        },
+        {
+          "name": "detector_camera22",
+          "type": "three_point_bar_calibration_target_detector",
+          "inputs": {
+            "default": "object_map:camera22"
+          },
+          "camera_name": "camera22"
+        },
+        {
+          "name": "detector_camera23",
+          "type": "three_point_bar_calibration_target_detector",
+          "inputs": {
+            "default": "object_map:camera23"
+          },
+          "camera_name": "camera23"
+        },
+        {
+          "name": "detector_camera24",
+          "type": "three_point_bar_calibration_target_detector",
+          "inputs": {
+            "default": "object_map:camera24"
+          },
+          "camera_name": "camera24"
+        },
+        {
+          "name": "contrail_render_camera21",
+          "type": "contrail_render",
+          "camera_name": "camera21",
+          "width": 820,
+          "height": 616,
+          "inputs": {
+            "default": "detector_camera21"
+          },
+          "properties": [
+            {
+              "id": "image",
+              "source_key": "image",
+              "target": "image"
+            }
+          ]
+        },
+        {
+          "name": "contrail_render_camera22",
+          "type": "contrail_render",
+          "camera_name": "camera22",
+          "width": 820,
+          "height": 616,
+          "inputs": {
+            "default": "detector_camera22"
+          },
+          "properties": [
+            {
+              "id": "image",
+              "source_key": "image",
+              "target": "image"
+            }
+          ]
+        },
+        {
+          "name": "contrail_render_camera23",
+          "type": "contrail_render",
+          "camera_name": "camera23",
+          "width": 820,
+          "height": 616,
+          "inputs": {
+            "default": "detector_camera23"
+          },
+          "properties": [
+            {
+              "id": "image",
+              "source_key": "image",
+              "target": "image"
+            }
+          ]
+        },
+        {
+          "name": "contrail_render_camera24",
+          "type": "contrail_render",
+          "camera_name": "camera24",
+          "width": 820,
+          "height": 616,
+          "inputs": {
+            "default": "detector_camera24"
+          },
+          "properties": [
+            {
+              "id": "image",
+              "source_key": "image",
+              "target": "image"
+            }
+          ]
+        },
+        {
+          "name": "calibrate_action",
+          "type": "action",
+          "action_id": "calibrate",
+          "label": "Calibrate",
+          "icon": "refresh"
+        },
+        {
+          "name": "extrinsic_calibration",
+          "type": "extrinsic_calibration",
+          "only_extrinsic": false,
+          "robust": true,
+          "properties": [
+            {
+              "id": "camera1_collected",
+              "label": "Collected camera1",
+              "source_key": "collected.camera1",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "camera2_collected",
+              "label": "Collected camera2",
+              "source_key": "collected.camera2",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "camera3_collected",
+              "label": "Collected camera3",
+              "source_key": "collected.camera3",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "camera4_collected",
+              "label": "Collected camera4",
+              "source_key": "collected.camera4",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "camera5_collected",
+              "label": "Collected camera5",
+              "source_key": "collected.camera5",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "camera6_collected",
+              "label": "Collected camera6",
+              "source_key": "collected.camera6",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "camera7_collected",
+              "label": "Collected camera7",
+              "source_key": "collected.camera7",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "camera8_collected",
+              "label": "Collected camera8",
+              "source_key": "collected.camera8",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "camera9_collected",
+              "label": "Collected camera9",
+              "source_key": "collected.camera9",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "camera10_collected",
+              "label": "Collected camera10",
+              "source_key": "collected.camera10",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "camera11_collected",
+              "label": "Collected camera11",
+              "source_key": "collected.camera11",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "camera12_collected",
+              "label": "Collected camera12",
+              "source_key": "collected.camera12",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "camera13_collected",
+              "label": "Collected camera13",
+              "source_key": "collected.camera13",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "camera14_collected",
+              "label": "Collected camera14",
+              "source_key": "collected.camera14",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "camera15_collected",
+              "label": "Collected camera15",
+              "source_key": "collected.camera15",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "camera16_collected",
+              "label": "Collected camera16",
+              "source_key": "collected.camera16",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "camera17_collected",
+              "label": "Collected camera17",
+              "source_key": "collected.camera17",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "camera18_collected",
+              "label": "Collected camera18",
+              "source_key": "collected.camera18",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "camera19_collected",
+              "label": "Collected camera19",
+              "source_key": "collected.camera19",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "camera20_collected",
+              "label": "Collected camera20",
+              "source_key": "collected.camera20",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "camera21_collected",
+              "label": "Collected camera21",
+              "source_key": "collected.camera21",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "camera22_collected",
+              "label": "Collected camera22",
+              "source_key": "collected.camera22",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "camera23_collected",
+              "label": "Collected camera23",
+              "source_key": "collected.camera23",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "camera24_collected",
+              "label": "Collected camera24",
+              "source_key": "collected.camera24",
+              "format": "integer",
+              "default_value": 0
+            }
+          ],
+          "inputs": {
+            "calibrate": "calibrate_action",
+            "camera1": "detector_camera1",
+            "camera2": "detector_camera2",
+            "camera3": "detector_camera3",
+            "camera4": "detector_camera4",
+            "camera5": "detector_camera5",
+            "camera6": "detector_camera6",
+            "camera7": "detector_camera7",
+            "camera8": "detector_camera8",
+            "camera9": "detector_camera9",
+            "camera10": "detector_camera10",
+            "camera11": "detector_camera11",
+            "camera12": "detector_camera12",
+            "camera13": "detector_camera13",
+            "camera14": "detector_camera14",
+            "camera15": "detector_camera15",
+            "camera16": "detector_camera16",
+            "camera17": "detector_camera17",
+            "camera18": "detector_camera18",
+            "camera19": "detector_camera19",
+            "camera20": "detector_camera20",
+            "camera.camera1": "load_camera1",
+            "camera.camera2": "load_camera2",
+            "camera.camera3": "load_camera3",
+            "camera.camera4": "load_camera4",
+            "camera.camera5": "load_camera5",
+            "camera.camera6": "load_camera6",
+            "camera.camera7": "load_camera7",
+            "camera.camera8": "load_camera8",
+            "camera.camera9": "load_camera9",
+            "camera.camera10": "load_camera10",
+            "camera.camera11": "load_camera11",
+            "camera.camera12": "load_camera12",
+            "camera.camera13": "load_camera13",
+            "camera.camera14": "load_camera14",
+            "camera.camera15": "load_camera15",
+            "camera.camera16": "load_camera16",
+            "camera.camera17": "load_camera17",
+            "camera.camera18": "load_camera18",
+            "camera.camera19": "load_camera19",
+            "camera.camera20": "load_camera20",
+            "camera21": "detector_camera21",
+            "camera.camera21": "load_camera21",
+            "camera22": "detector_camera22",
+            "camera.camera22": "load_camera22",
+            "camera23": "detector_camera23",
+            "camera.camera23": "load_camera23",
+            "camera24": "detector_camera24",
+            "camera.camera24": "load_camera24"
+          }
+        },
+        {
+          "name": "store_cameras",
+          "type": "store_parameter",
+          "inputs": {
+            "default": "extrinsic_calibration"
+          }
+        }
+      ]
+    },
+    {
       "name": "calibration_extrinsic_color_subgraph",
       "nodes": [
         {
@@ -2569,6 +3572,18 @@
           ],
           "nodes": [
             {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera1.p2p_tcp_talker_image"
+              }
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera1.p2p_tcp_talker_marker"
+              }
+            },
+            {
               "name": "display_image",
               "camera_name": "camera1"
             }
@@ -2589,6 +3604,18 @@
             "raspi_ir_receiver"
           ],
           "nodes": [
+            {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera2.p2p_tcp_talker_image"
+              }
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera2.p2p_tcp_talker_marker"
+              }
+            },
             {
               "name": "display_image",
               "camera_name": "camera2"
@@ -2611,6 +3638,18 @@
           ],
           "nodes": [
             {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera3.p2p_tcp_talker_image"
+              }
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera3.p2p_tcp_talker_marker"
+              }
+            },
+            {
               "name": "display_image",
               "camera_name": "camera3"
             }
@@ -2631,6 +3670,18 @@
             "raspi_ir_receiver"
           ],
           "nodes": [
+            {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera4.p2p_tcp_talker_image"
+              }
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera4.p2p_tcp_talker_marker"
+              }
+            },
             {
               "name": "display_image",
               "camera_name": "camera4"
@@ -2653,6 +3704,18 @@
           ],
           "nodes": [
             {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera5.p2p_tcp_talker_image"
+              }
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera5.p2p_tcp_talker_marker"
+              }
+            },
+            {
               "name": "display_image",
               "camera_name": "camera5"
             }
@@ -2673,6 +3736,18 @@
             "raspi_ir_receiver"
           ],
           "nodes": [
+            {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera6.p2p_tcp_talker_image"
+              }
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera6.p2p_tcp_talker_marker"
+              }
+            },
             {
               "name": "display_image",
               "camera_name": "camera6"
@@ -2695,6 +3770,18 @@
           ],
           "nodes": [
             {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera7.p2p_tcp_talker_image"
+              }
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera7.p2p_tcp_talker_marker"
+              }
+            },
+            {
               "name": "display_image",
               "camera_name": "camera7"
             }
@@ -2715,6 +3802,18 @@
             "raspi_ir_receiver"
           ],
           "nodes": [
+            {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera8.p2p_tcp_talker_image"
+              }
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera8.p2p_tcp_talker_marker"
+              }
+            },
             {
               "name": "display_image",
               "camera_name": "camera8"
@@ -2737,6 +3836,18 @@
           ],
           "nodes": [
             {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera9.p2p_tcp_talker_image"
+              }
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera9.p2p_tcp_talker_marker"
+              }
+            },
+            {
               "name": "display_image",
               "camera_name": "camera9"
             }
@@ -2757,6 +3868,18 @@
             "raspi_ir_receiver"
           ],
           "nodes": [
+            {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera10.p2p_tcp_talker_image"
+              }
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera10.p2p_tcp_talker_marker"
+              }
+            },
             {
               "name": "display_image",
               "camera_name": "camera10"
@@ -2779,6 +3902,18 @@
           ],
           "nodes": [
             {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera11.p2p_tcp_talker_image"
+              }
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera11.p2p_tcp_talker_marker"
+              }
+            },
+            {
               "name": "display_image",
               "camera_name": "camera11"
             }
@@ -2799,6 +3934,18 @@
             "raspi_ir_receiver"
           ],
           "nodes": [
+            {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera12.p2p_tcp_talker_image"
+              }
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera12.p2p_tcp_talker_marker"
+              }
+            },
             {
               "name": "display_image",
               "camera_name": "camera12"
@@ -2821,6 +3968,18 @@
           ],
           "nodes": [
             {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera13.p2p_tcp_talker_image"
+              }
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera13.p2p_tcp_talker_marker"
+              }
+            },
+            {
               "name": "display_image",
               "camera_name": "camera13"
             }
@@ -2841,6 +4000,18 @@
             "raspi_ir_receiver"
           ],
           "nodes": [
+            {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera14.p2p_tcp_talker_image"
+              }
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera14.p2p_tcp_talker_marker"
+              }
+            },
             {
               "name": "display_image",
               "camera_name": "camera14"
@@ -2863,6 +4034,18 @@
           ],
           "nodes": [
             {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera15.p2p_tcp_talker_image"
+              }
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera15.p2p_tcp_talker_marker"
+              }
+            },
+            {
               "name": "display_image",
               "camera_name": "camera15"
             }
@@ -2883,6 +4066,18 @@
             "raspi_ir_receiver"
           ],
           "nodes": [
+            {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera16.p2p_tcp_talker_image"
+              }
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera16.p2p_tcp_talker_marker"
+              }
+            },
             {
               "name": "display_image",
               "camera_name": "camera16"
@@ -2905,6 +4100,18 @@
           ],
           "nodes": [
             {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera17.p2p_tcp_talker_image"
+              }
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera17.p2p_tcp_talker_marker"
+              }
+            },
+            {
               "name": "display_image",
               "camera_name": "camera17"
             }
@@ -2925,6 +4132,18 @@
             "raspi_ir_receiver"
           ],
           "nodes": [
+            {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera18.p2p_tcp_talker_image"
+              }
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera18.p2p_tcp_talker_marker"
+              }
+            },
             {
               "name": "display_image",
               "camera_name": "camera18"
@@ -2947,6 +4166,18 @@
           ],
           "nodes": [
             {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera19.p2p_tcp_talker_image"
+              }
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera19.p2p_tcp_talker_marker"
+              }
+            },
+            {
               "name": "display_image",
               "camera_name": "camera19"
             }
@@ -2967,6 +4198,18 @@
             "raspi_ir_receiver"
           ],
           "nodes": [
+            {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera20.p2p_tcp_talker_image"
+              }
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera20.p2p_tcp_talker_marker"
+              }
+            },
             {
               "name": "display_image",
               "camera_name": "camera20"
@@ -2989,6 +4232,18 @@
           ],
           "nodes": [
             {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera21.p2p_tcp_talker_image"
+              }
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera21.p2p_tcp_talker_marker"
+              }
+            },
+            {
               "name": "display_image",
               "camera_name": "camera21"
             }
@@ -3009,6 +4264,18 @@
             "raspi_ir_receiver"
           ],
           "nodes": [
+            {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera22.p2p_tcp_talker_image"
+              }
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera22.p2p_tcp_talker_marker"
+              }
+            },
             {
               "name": "display_image",
               "camera_name": "camera22"
@@ -3031,6 +4298,18 @@
           ],
           "nodes": [
             {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera23.p2p_tcp_talker_image"
+              }
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera23.p2p_tcp_talker_marker"
+              }
+            },
+            {
               "name": "display_image",
               "camera_name": "camera23"
             }
@@ -3051,6 +4330,18 @@
             "raspi_ir_receiver"
           ],
           "nodes": [
+            {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera24.p2p_tcp_talker_image"
+              }
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera24.p2p_tcp_talker_marker"
+              }
+            },
             {
               "name": "display_image",
               "camera_name": "camera24"
@@ -3120,6 +4411,20 @@
                 "camera22": "camera22_receiver.p2p_tcp_listener_marker",
                 "camera23": "camera23_receiver.p2p_tcp_listener_marker",
                 "camera24": "camera24_receiver.p2p_tcp_listener_marker"
+              }
+            },
+            {
+              "name": "marker_gate",
+              "type": "gate",
+              "inputs": {
+                "default": "approximate_time_sync_markers"
+              }
+            },
+            {
+              "name": "keypoint_to_float2",
+              "type": "keypoint_to_float2_map",
+              "inputs": {
+                "default": "marker_gate"
               }
             }
           ]
@@ -4594,6 +5899,30 @@
           "name": "calibration_ir",
           "extends": [
             "calibration_extrinsic_ir_subgraph"
+          ],
+          "nodes": [
+            {
+              "name": "frame_number_numbering",
+              "inputs": {
+                "default": "keypoint_to_float2"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "calibration_extrinsic_ir_capture": {
+      "subgraphs": [
+        {
+          "name": "cameras",
+          "extends": [
+            "capture_ir_cameras_subgraph"
+          ]
+        },
+        {
+          "name": "calibration_ir",
+          "extends": [
+            "calibration_extrinsic_ir_capture_subgraph"
           ],
           "nodes": [
             {
