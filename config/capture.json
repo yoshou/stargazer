@@ -1986,8 +1986,20 @@
           ],
           "nodes": [
             {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera1.p2p_tcp_talker_image"
+              }
+            },
+            {
               "name": "callback_image",
               "camera_name": "camera1"
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera1.p2p_tcp_talker_marker"
+              }
             }
           ]
         },
@@ -2006,8 +2018,20 @@
           ],
           "nodes": [
             {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera2.p2p_tcp_talker_image"
+              }
+            },
+            {
               "name": "callback_image",
               "camera_name": "camera2"
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera2.p2p_tcp_talker_marker"
+              }
             }
           ]
         },
@@ -2026,8 +2050,20 @@
           ],
           "nodes": [
             {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera3.p2p_tcp_talker_image"
+              }
+            },
+            {
               "name": "callback_image",
               "camera_name": "camera3"
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera3.p2p_tcp_talker_marker"
+              }
             }
           ]
         },
@@ -2046,8 +2082,20 @@
           ],
           "nodes": [
             {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera4.p2p_tcp_talker_image"
+              }
+            },
+            {
               "name": "callback_image",
               "camera_name": "camera4"
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera4.p2p_tcp_talker_marker"
+              }
             }
           ]
         },
@@ -2066,8 +2114,20 @@
           ],
           "nodes": [
             {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera5.p2p_tcp_talker_image"
+              }
+            },
+            {
               "name": "callback_image",
               "camera_name": "camera5"
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera5.p2p_tcp_talker_marker"
+              }
             }
           ]
         },
@@ -2086,8 +2146,20 @@
           ],
           "nodes": [
             {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera6.p2p_tcp_talker_image"
+              }
+            },
+            {
               "name": "callback_image",
               "camera_name": "camera6"
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera6.p2p_tcp_talker_marker"
+              }
             }
           ]
         },
@@ -2106,8 +2178,20 @@
           ],
           "nodes": [
             {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera7.p2p_tcp_talker_image"
+              }
+            },
+            {
               "name": "callback_image",
               "camera_name": "camera7"
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera7.p2p_tcp_talker_marker"
+              }
             }
           ]
         },
@@ -2126,8 +2210,20 @@
           ],
           "nodes": [
             {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera8.p2p_tcp_talker_image"
+              }
+            },
+            {
               "name": "callback_image",
               "camera_name": "camera8"
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera8.p2p_tcp_talker_marker"
+              }
             }
           ]
         },
@@ -2146,8 +2242,20 @@
           ],
           "nodes": [
             {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera9.p2p_tcp_talker_image"
+              }
+            },
+            {
               "name": "callback_image",
               "camera_name": "camera9"
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera9.p2p_tcp_talker_marker"
+              }
             }
           ]
         },
@@ -2166,8 +2274,20 @@
           ],
           "nodes": [
             {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera10.p2p_tcp_talker_image"
+              }
+            },
+            {
               "name": "callback_image",
               "camera_name": "camera10"
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera10.p2p_tcp_talker_marker"
+              }
             }
           ]
         },
@@ -2186,8 +2306,20 @@
           ],
           "nodes": [
             {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera11.p2p_tcp_talker_image"
+              }
+            },
+            {
               "name": "callback_image",
               "camera_name": "camera11"
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera11.p2p_tcp_talker_marker"
+              }
             }
           ]
         },
@@ -2206,8 +2338,20 @@
           ],
           "nodes": [
             {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera12.p2p_tcp_talker_image"
+              }
+            },
+            {
               "name": "callback_image",
               "camera_name": "camera12"
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera12.p2p_tcp_talker_marker"
+              }
             }
           ]
         },
@@ -2226,8 +2370,20 @@
           ],
           "nodes": [
             {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera13.p2p_tcp_talker_image"
+              }
+            },
+            {
               "name": "callback_image",
               "camera_name": "camera13"
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera13.p2p_tcp_talker_marker"
+              }
             }
           ]
         },
@@ -2246,8 +2402,20 @@
           ],
           "nodes": [
             {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera14.p2p_tcp_talker_image"
+              }
+            },
+            {
               "name": "callback_image",
               "camera_name": "camera14"
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera14.p2p_tcp_talker_marker"
+              }
             }
           ]
         },
@@ -2266,8 +2434,20 @@
           ],
           "nodes": [
             {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera15.p2p_tcp_talker_image"
+              }
+            },
+            {
               "name": "callback_image",
               "camera_name": "camera15"
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera15.p2p_tcp_talker_marker"
+              }
             }
           ]
         },
@@ -2286,8 +2466,20 @@
           ],
           "nodes": [
             {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera16.p2p_tcp_talker_image"
+              }
+            },
+            {
               "name": "callback_image",
               "camera_name": "camera16"
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera16.p2p_tcp_talker_marker"
+              }
             }
           ]
         },
@@ -2306,8 +2498,20 @@
           ],
           "nodes": [
             {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera17.p2p_tcp_talker_image"
+              }
+            },
+            {
               "name": "callback_image",
               "camera_name": "camera17"
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera17.p2p_tcp_talker_marker"
+              }
             }
           ]
         },
@@ -2326,8 +2530,20 @@
           ],
           "nodes": [
             {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera18.p2p_tcp_talker_image"
+              }
+            },
+            {
               "name": "callback_image",
               "camera_name": "camera18"
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera18.p2p_tcp_talker_marker"
+              }
             }
           ]
         },
@@ -2346,8 +2562,20 @@
           ],
           "nodes": [
             {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera19.p2p_tcp_talker_image"
+              }
+            },
+            {
               "name": "callback_image",
               "camera_name": "camera19"
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera19.p2p_tcp_talker_marker"
+              }
             }
           ]
         },
@@ -2366,8 +2594,20 @@
           ],
           "nodes": [
             {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera20.p2p_tcp_talker_image"
+              }
+            },
+            {
               "name": "callback_image",
               "camera_name": "camera20"
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera20.p2p_tcp_talker_marker"
+              }
             }
           ]
         },
@@ -2386,8 +2626,20 @@
           ],
           "nodes": [
             {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera21.p2p_tcp_talker_image"
+              }
+            },
+            {
               "name": "callback_image",
               "camera_name": "camera21"
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera21.p2p_tcp_talker_marker"
+              }
             }
           ]
         },
@@ -2406,8 +2658,20 @@
           ],
           "nodes": [
             {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera22.p2p_tcp_talker_image"
+              }
+            },
+            {
               "name": "callback_image",
               "camera_name": "camera22"
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera22.p2p_tcp_talker_marker"
+              }
             }
           ]
         },
@@ -2426,8 +2690,20 @@
           ],
           "nodes": [
             {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera23.p2p_tcp_talker_image"
+              }
+            },
+            {
               "name": "callback_image",
               "camera_name": "camera23"
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera23.p2p_tcp_talker_marker"
+              }
             }
           ]
         },
@@ -2446,8 +2722,20 @@
           ],
           "nodes": [
             {
+              "name": "p2p_tcp_listener_image",
+              "inputs": {
+                "default": "camera24.p2p_tcp_talker_image"
+              }
+            },
+            {
               "name": "callback_image",
               "camera_name": "camera24"
+            },
+            {
+              "name": "p2p_tcp_listener_marker",
+              "inputs": {
+                "default": "camera24.p2p_tcp_talker_marker"
+              }
             }
           ]
         },
@@ -3441,5 +3729,5 @@
       ]
     }
   },
-  "pipeline": "capture_color"
+  "pipeline": "capture_ir"
 }
