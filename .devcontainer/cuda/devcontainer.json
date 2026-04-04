@@ -11,7 +11,6 @@
 	],
 
 	"runArgs": [
-		"--privileged",
 		"--runtime=nvidia",
 		"--ipc=host",
 		"--network=host"
