@@ -80,7 +80,7 @@ fi
 # Launch viewer (foreground; server runs in background)
 echo 'Starting stargazer_viewer ...'
 cd ${REPO_DIR}/build
-./stargazer_viewer || true
+"${VIEWER_BIN}" "${CAPTURE_JSON}" || true
 
 # Viewer exited — stop the server
 echo 'Viewer closed. Stopping graph_proc_server ...'
