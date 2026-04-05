@@ -95,9 +95,9 @@ class viewer_app : public window_base {
 
   std::unique_ptr<view_context> context;
   std::unique_ptr<top_bar_view> top_bar_view_;
-  std::unique_ptr<capture_panel_view> capture_panel_view_;
-  std::unique_ptr<calibration_panel_view> calibration_panel_view_;
-  std::unique_ptr<reconstruction_panel_view> reconstruction_panel_view_;
+  std::unique_ptr<pipeline_panel_view> capture_pipeline_panel_view_;
+  std::unique_ptr<pipeline_panel_view> calib_pipeline_panel_view_;
+  std::unique_ptr<pipeline_panel_view> recon_pipeline_panel_view_;
   std::unique_ptr<image_tile_view> image_tile_view_;
   std::unique_ptr<image_tile_view> point_tile_view_;
   std::unique_ptr<image_tile_view> contrail_tile_view_;
@@ -182,11 +182,11 @@ class viewer_app : public window_base {
 
   void rebuild_calibration_panel_nodes(const configuration& config,
                                        const std::string& pipeline_key = "pipeline") {
-    if (!calibration_panel_view_) {
+    if (!calib_pipeline_panel_view_) {
       return;
     }
 
-    calibration_panel_view_->nodes.clear();
+    calib_pipeline_panel_view_->nodes.clear();
     for (const auto& node : config.get_nodes(pipeline_key)) {
       if (!node.is_camera()) {
         continue;
@@ -200,8 +200,8 @@ class viewer_app : public window_base {
         path = node.get_param<std::string>("db_path");
       }
 
-      calibration_panel_view_->nodes.push_back(
-          calibration_panel_view::node_def{node.get_camera_name(), path, node.params});
+      calib_pipeline_panel_view_->nodes.push_back(
+          pipeline_panel_view::node_def{node.get_camera_name(), path, node.params});
     }
   }
 
@@ -559,7 +559,7 @@ class viewer_app : public window_base {
   }
 
   void sync_calibration_panel_state() {
-    if (!calibration_panel_view_ || !top_bar_view_) {
+    if (!calib_pipeline_panel_view_ || !top_bar_view_) {
       return;
     }
 
@@ -568,12 +568,13 @@ class viewer_app : public window_base {
         calibration_pipeline == top_bar_view::CalibrationPipeline::Extrinsic   ? 0
         : calibration_pipeline == top_bar_view::CalibrationPipeline::Intrinsic ? 1
                                                                                : 2;
-    calibration_panel_view_->calibration_target_index = next_target_index;
+
+    calib_pipeline_panel_view_->has_gate = (next_target_index == 0 || next_target_index == 2);
 
     if (next_target_index == 0) {
       rebuild_calibration_panel_nodes(*extrinsic_calibration_config,
                                       "extrinsic_calibration_pipeline");
-      calibration_panel_view_->tree =
+      calib_pipeline_panel_view_->tree =
           build_config_tree(*extrinsic_calibration_config,
                             std::vector<std::string>{"extrinsic_calibration_pipeline"});
       return;
@@ -582,22 +583,22 @@ class viewer_app : public window_base {
     if (next_target_index == 1) {
       rebuild_calibration_panel_nodes(*calibration_intrinsic_single_camera_config,
                                       "intrinsic_calibration_pipeline");
-      calibration_panel_view_->tree =
+      calib_pipeline_panel_view_->tree =
           build_config_tree(*calibration_intrinsic_single_camera_config,
                             std::vector<std::string>{"intrinsic_calibration_pipeline"});
 
       const auto target_camera_name = get_intrinsic_target_camera_name();
-      calibration_panel_view_->intrinsic_target_camera_name = target_camera_name;
+      calib_pipeline_panel_view_->intrinsic_target_camera_name = target_camera_name;
       return;
     }
 
     rebuild_calibration_panel_nodes(*scene_calibration_config, "scene_calibration_pipeline");
-    calibration_panel_view_->tree = build_config_tree(
+    calib_pipeline_panel_view_->tree = build_config_tree(
         *scene_calibration_config, std::vector<std::string>{"scene_calibration_pipeline"});
   }
 
   void sync_reconstruction_panel_state() {
-    if (!reconstruction_panel_view_ || !top_bar_view_) {
+    if (!recon_pipeline_panel_view_ || !top_bar_view_) {
       return;
     }
 
@@ -612,7 +613,7 @@ class viewer_app : public window_base {
             ? *point_reconstruction_config
             : *image_reconstruction_config;
 
-    reconstruction_panel_view_->tree =
+    recon_pipeline_panel_view_->tree =
         build_config_tree(selected_recon_config, std::vector<std::string>{pipeline_name});
   }
 
@@ -631,17 +632,19 @@ class viewer_app : public window_base {
   }
 
   void init_capture_panel() {
-    capture_panel_view_ = std::make_unique<capture_panel_view>();
-    capture_panel_view_->resolve_detail_value =
+    capture_pipeline_panel_view_ = std::make_unique<pipeline_panel_view>();
+    capture_pipeline_panel_view_->has_per_camera_control = true;
+    capture_pipeline_panel_view_->has_gate = false;
+    capture_pipeline_panel_view_->resolve_detail_value =
         [this](const stargazer::config_tree_item& item) -> std::optional<std::string> {
-      return resolve_panel_detail_value(capture_panel_view_.get(), item);
+      return resolve_panel_detail_value(capture_pipeline_panel_view_.get(), item);
     };
-    capture_panel_view_->tree = build_config_tree(*capture_config);
+    capture_pipeline_panel_view_->tree = build_config_tree(*capture_config);
 
-    capture_panel_view_->is_streaming_changed.push_back(
+    capture_pipeline_panel_view_->is_streaming_changed.push_back(
         [this](const std::string& runtime_node_id, bool is_streaming) {
-          auto runtime_it = capture_panel_view_->tree.runtime_nodes.find(runtime_node_id);
-          if (runtime_it == capture_panel_view_->tree.runtime_nodes.end()) {
+          auto runtime_it = capture_pipeline_panel_view_->tree.runtime_nodes.find(runtime_node_id);
+          if (runtime_it == capture_pipeline_panel_view_->tree.runtime_nodes.end()) {
             spdlog::error("Runtime node {} not found in capture tree", runtime_node_id);
             return false;
           }
@@ -709,7 +712,7 @@ class viewer_app : public window_base {
           return true;
         });
 
-    capture_panel_view_->is_all_streaming_changed.push_back([this](bool is_streaming) {
+    capture_pipeline_panel_view_->is_all_streaming_changed.push_back([this](bool is_streaming) {
       if (is_streaming) {
         if (all_capture_running_) {
           return false;
@@ -748,8 +751,8 @@ class viewer_app : public window_base {
             const auto stream = std::make_shared<image_tile_view::stream_info>(
                 camera_name, float2{(float)width, (float)height}, gfx_ctx);
             const auto runtime_id = std::string{"node:pipeline:"} + node.name;
-            if (const auto runtime_it = capture_panel_view_->tree.runtime_nodes.find(runtime_id);
-                runtime_it != capture_panel_view_->tree.runtime_nodes.end()) {
+            if (const auto runtime_it = capture_pipeline_panel_view_->tree.runtime_nodes.find(runtime_id);
+                runtime_it != capture_pipeline_panel_view_->tree.runtime_nodes.end()) {
               bind_capture_stream_property(runtime_it->second, *stream);
             }
             image_tile_view_->streams.push_back(stream);
@@ -783,18 +786,18 @@ class viewer_app : public window_base {
   }
 
   void init_calibration_panel() {
-    calibration_panel_view_ = std::make_unique<calibration_panel_view>();
-    calibration_panel_view_->resolve_detail_value =
+    calib_pipeline_panel_view_ = std::make_unique<pipeline_panel_view>();
+    calib_pipeline_panel_view_->has_per_camera_control = false;
+    calib_pipeline_panel_view_->resolve_detail_value =
         [this](const stargazer::config_tree_item& item) -> std::optional<std::string> {
-      return resolve_panel_detail_value(calibration_panel_view_.get(), item);
+      return resolve_panel_detail_value(calib_pipeline_panel_view_.get(), item);
     };
     sync_calibration_panel_state();
 
-    calibration_panel_view_->is_streaming_changed.push_back(
-        [this](const std::vector<calibration_panel_view::node_def>& panel_nodes,
-               bool is_streaming) {
+    calib_pipeline_panel_view_->is_all_streaming_changed.push_back(
+        [this](bool is_streaming) {
           if (is_streaming) {
-            if (calibration_panel_view_->calibration_target_index == 0) {
+            if (top_bar_view_->calibration_pipeline == top_bar_view::CalibrationPipeline::Extrinsic) {
               // Extrinsic calibration
               if (extrinsic_capture_running_) {
                 return false;
@@ -847,14 +850,14 @@ class viewer_app : public window_base {
                   const auto runtime_id =
                       std::string{"node:extrinsic_calibration_pipeline:"} + node.name;
                   if (const auto runtime_it =
-                          calibration_panel_view_->tree.runtime_nodes.find(runtime_id);
-                      runtime_it != calibration_panel_view_->tree.runtime_nodes.end()) {
+                          calib_pipeline_panel_view_->tree.runtime_nodes.find(runtime_id);
+                      runtime_it != calib_pipeline_panel_view_->tree.runtime_nodes.end()) {
                     bind_capture_stream_property(runtime_it->second, *stream);
                   }
                   image_tile_view_->streams.push_back(stream);
                 }
               }
-            } else if (calibration_panel_view_->calibration_target_index == 1) {
+            } else if (top_bar_view_->calibration_pipeline == top_bar_view::CalibrationPipeline::Intrinsic) {
               // Intrinsic calibration
               if (intrinsic_running_) {
                 return false;
@@ -869,9 +872,9 @@ class viewer_app : public window_base {
               const auto& node = *found;
               const auto& target_camera_name = node.get_camera_name();
               auto panel_node_it = std::find_if(
-                  panel_nodes.begin(), panel_nodes.end(),
+                  calib_pipeline_panel_view_->nodes.begin(), calib_pipeline_panel_view_->nodes.end(),
                   [&](const auto& panel_node) { return panel_node.name == target_camera_name; });
-              if (panel_node_it == panel_nodes.end()) {
+              if (panel_node_it == calib_pipeline_panel_view_->nodes.end()) {
                 return false;
               }
               const auto& panel_node = *panel_node_it;
@@ -904,12 +907,12 @@ class viewer_app : public window_base {
               const auto runtime_id =
                   std::string{"node:intrinsic_calibration_pipeline:"} + node.name;
               if (const auto runtime_it =
-                      calibration_panel_view_->tree.runtime_nodes.find(runtime_id);
-                  runtime_it != calibration_panel_view_->tree.runtime_nodes.end()) {
+                      calib_pipeline_panel_view_->tree.runtime_nodes.find(runtime_id);
+                  runtime_it != calib_pipeline_panel_view_->tree.runtime_nodes.end()) {
                 bind_capture_stream_property(runtime_it->second, *stream);
               }
               image_tile_view_->streams.push_back(stream);
-            } else if (calibration_panel_view_->calibration_target_index == 2) {
+            } else if (top_bar_view_->calibration_pipeline == top_bar_view::CalibrationPipeline::Scene) {
               // Scene calibration
               if (scene_capture_running_) {
                 return false;
@@ -947,8 +950,8 @@ class viewer_app : public window_base {
                   const auto runtime_id =
                       std::string{"node:scene_calibration_pipeline:"} + node.name;
                   if (const auto runtime_it =
-                          calibration_panel_view_->tree.runtime_nodes.find(runtime_id);
-                      runtime_it != calibration_panel_view_->tree.runtime_nodes.end()) {
+                          calib_pipeline_panel_view_->tree.runtime_nodes.find(runtime_id);
+                      runtime_it != calib_pipeline_panel_view_->tree.runtime_nodes.end()) {
                     bind_capture_stream_property(runtime_it->second, *stream);
                   }
                   image_tile_view_->streams.push_back(stream);
@@ -956,7 +959,7 @@ class viewer_app : public window_base {
               }
             }
           } else {
-            if (calibration_panel_view_->calibration_target_index == 0) {
+            if (top_bar_view_->calibration_pipeline == top_bar_view::CalibrationPipeline::Extrinsic) {
               if (!extrinsic_capture_running_) return true;
               extrinsic_capture_running_ = false;
               extrinsic_calib->pause();
@@ -987,12 +990,12 @@ class viewer_app : public window_base {
                   }
                 }
               }
-            } else if (calibration_panel_view_->calibration_target_index == 1) {
+            } else if (top_bar_view_->calibration_pipeline == top_bar_view::CalibrationPipeline::Intrinsic) {
               const auto target_camera_name = get_intrinsic_target_camera_name();
               auto panel_node_it = std::find_if(
-                  panel_nodes.begin(), panel_nodes.end(),
+                  calib_pipeline_panel_view_->nodes.begin(), calib_pipeline_panel_view_->nodes.end(),
                   [&](const auto& panel_node) { return panel_node.name == target_camera_name; });
-              if (panel_node_it == panel_nodes.end()) {
+              if (panel_node_it == calib_pipeline_panel_view_->nodes.end()) {
                 return false;
               }
               const auto& panel_node = *panel_node_it;
@@ -1008,7 +1011,7 @@ class viewer_app : public window_base {
               if (stream_it != image_tile_view_->streams.end()) {
                 image_tile_view_->streams.erase(stream_it);
               }
-            } else if (calibration_panel_view_->calibration_target_index == 2) {
+            } else if (top_bar_view_->calibration_pipeline == top_bar_view::CalibrationPipeline::Scene) {
               if (!scene_capture_running_) return true;
               scene_capture_running_ = false;
               scene_calib->pause();
@@ -1029,24 +1032,23 @@ class viewer_app : public window_base {
               }
             }
 
-            calibration_panel_view_->is_marker_collecting = false;
+            calib_pipeline_panel_view_->is_marker_collecting = false;
           }
           return true;
         });
 
-    calibration_panel_view_->is_marker_collecting_changed.push_back(
-        [this](const std::vector<calibration_panel_view::node_def>& panel_nodes,
-               bool is_marker_collecting) {
-          if (calibration_panel_view_->calibration_target_index == 1) {
+    calib_pipeline_panel_view_->is_marker_collecting_changed.push_back(
+        [this](bool is_marker_collecting) {
+          if (top_bar_view_->calibration_pipeline == top_bar_view::CalibrationPipeline::Intrinsic) {
             return true;
           }
-          const bool is_extrinsic = (calibration_panel_view_->calibration_target_index == 0);
+          const bool is_extrinsic = (top_bar_view_->calibration_pipeline == top_bar_view::CalibrationPipeline::Extrinsic);
           const auto& config_nodes =
               is_extrinsic
                   ? extrinsic_calibration_config->get_nodes("extrinsic_calibration_pipeline")
                   : scene_calibration_config->get_nodes("scene_calibration_pipeline");
           if (is_marker_collecting) {
-            for (const auto& panel_node : panel_nodes) {
+            for (const auto& panel_node : calib_pipeline_panel_view_->nodes) {
               auto found =
                   std::find_if(config_nodes.begin(), config_nodes.end(), [&](const auto& x) {
                     return x.is_camera() && x.get_camera_name() == panel_node.name;
@@ -1060,7 +1062,7 @@ class viewer_app : public window_base {
               }
             }
           } else {
-            for (const auto& panel_node : panel_nodes) {
+            for (const auto& panel_node : calib_pipeline_panel_view_->nodes) {
               auto found =
                   std::find_if(config_nodes.begin(), config_nodes.end(), [&](const auto& x) {
                     return x.is_camera() && x.get_camera_name() == panel_node.name;
@@ -1077,21 +1079,21 @@ class viewer_app : public window_base {
           return true;
         });
 
-    if (!calibration_panel_view_->nodes.empty()) {
+    if (!calib_pipeline_panel_view_->nodes.empty()) {
       sync_calibration_panel_state();
     }
 
-    calibration_panel_view_->on_action.push_back(
+    calib_pipeline_panel_view_->on_action.push_back(
         [this](const std::string& node_id, const std::string& action_id) {
-          if (calibration_panel_view_->calibration_target_index == 0) {
+          if (top_bar_view_->calibration_pipeline == top_bar_view::CalibrationPipeline::Extrinsic) {
             spdlog::info("Start calibration");
             extrinsic_calib->dispatch_action(action_id);
             spdlog::info("End calibration");
             return true;
-          } else if (calibration_panel_view_->calibration_target_index == 1) {
+          } else if (top_bar_view_->calibration_pipeline == top_bar_view::CalibrationPipeline::Intrinsic) {
             intrinsic_calib->dispatch_action(action_id);
             return true;
-          } else if (calibration_panel_view_->calibration_target_index == 2) {
+          } else if (top_bar_view_->calibration_pipeline == top_bar_view::CalibrationPipeline::Scene) {
             spdlog::info("Start calibration");
             scene_calib->dispatch_action(action_id);
             spdlog::info("End calibration");
@@ -1102,10 +1104,12 @@ class viewer_app : public window_base {
   }
 
   void init_reconstruction_panel() {
-    reconstruction_panel_view_ = std::make_unique<reconstruction_panel_view>();
-    reconstruction_panel_view_->resolve_detail_value =
+    recon_pipeline_panel_view_ = std::make_unique<pipeline_panel_view>();
+    recon_pipeline_panel_view_->has_per_camera_control = false;
+    recon_pipeline_panel_view_->has_gate = false;
+    recon_pipeline_panel_view_->resolve_detail_value =
         [this](const stargazer::config_tree_item& item) -> std::optional<std::string> {
-      return resolve_panel_detail_value(reconstruction_panel_view_.get(), item);
+      return resolve_panel_detail_value(recon_pipeline_panel_view_.get(), item);
     };
     auto add_nodes_from_config = [&](const configuration& cfg,
                                      const std::string& pipeline_key = "pipeline") {
@@ -1117,17 +1121,16 @@ class viewer_app : public window_base {
         if (node.contains_param("db_path")) {
           path = node.get_param<std::string>("db_path");
         }
-        reconstruction_panel_view_->nodes.push_back(
-            reconstruction_panel_view::node_def{node.name, path});
+        recon_pipeline_panel_view_->nodes.push_back(
+            pipeline_panel_view::node_def{node.name, path, {}});
       }
     };
     add_nodes_from_config(*point_reconstruction_config, "point_reconstruction_pipeline");
     add_nodes_from_config(*image_reconstruction_config, "image_reconstruction_pipeline");
     sync_reconstruction_panel_state();
 
-    reconstruction_panel_view_->is_streaming_changed.push_back(
-        [this](const std::vector<reconstruction_panel_view::node_def>& panel_nodes,
-               bool is_streaming) {
+    recon_pipeline_panel_view_->is_all_streaming_changed.push_back(
+        [this](bool is_streaming) {
           if (is_streaming) {
             if (top_bar_view_->reconstruction_pipeline ==
                 top_bar_view::ReconstructionPipeline::Marker) {
@@ -1165,8 +1168,8 @@ class viewer_app : public window_base {
                   const auto runtime_id =
                       std::string{"node:point_reconstruction_pipeline:"} + node.name;
                   if (const auto runtime_it =
-                          reconstruction_panel_view_->tree.runtime_nodes.find(runtime_id);
-                      runtime_it != reconstruction_panel_view_->tree.runtime_nodes.end()) {
+                          recon_pipeline_panel_view_->tree.runtime_nodes.find(runtime_id);
+                      runtime_it != recon_pipeline_panel_view_->tree.runtime_nodes.end()) {
                     bind_capture_stream_property(runtime_it->second, *stream);
                   }
                   image_tile_view_->streams.push_back(stream);
@@ -1208,8 +1211,8 @@ class viewer_app : public window_base {
                   const auto runtime_id =
                       std::string{"node:image_reconstruction_pipeline:"} + node.name;
                   if (const auto runtime_it =
-                          reconstruction_panel_view_->tree.runtime_nodes.find(runtime_id);
-                      runtime_it != reconstruction_panel_view_->tree.runtime_nodes.end()) {
+                          recon_pipeline_panel_view_->tree.runtime_nodes.find(runtime_id);
+                      runtime_it != recon_pipeline_panel_view_->tree.runtime_nodes.end()) {
                     bind_capture_stream_property(runtime_it->second, *stream);
                   }
                   image_tile_view_->streams.push_back(stream);
@@ -1516,11 +1519,11 @@ class viewer_app : public window_base {
     }
 
     if (top_bar_view_->view_mode == top_bar_view::Mode::Capture) {
-      capture_panel_view_->render(context.get());
+      capture_pipeline_panel_view_->render(context.get());
     } else if (top_bar_view_->view_mode == top_bar_view::Mode::Calibration) {
-      calibration_panel_view_->render(context.get());
+      calib_pipeline_panel_view_->render(context.get());
     } else if (top_bar_view_->view_mode == top_bar_view::Mode::Reconstruction) {
-      reconstruction_panel_view_->render(context.get());
+      recon_pipeline_panel_view_->render(context.get());
     }
 
     if (top_bar_view_->view_mode == top_bar_view::Mode::Calibration) {

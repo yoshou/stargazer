@@ -571,6 +571,81 @@ void draw_capture_tree_item(capture_panel_view* panel, const stargazer::config_t
   }
 }
 
+void draw_pipeline_tree_item(pipeline_panel_view* panel, const stargazer::config_tree_item& item,
+                             view_context* context) {
+  (void)context;
+  if (item.kind == stargazer::config_tree_item_kind::detail) {
+    if (item.detail_kind == stargazer::config_tree_detail_kind::property &&
+        panel->resolve_detail_value) {
+      draw_detail_row(item, panel->resolve_detail_value(item));
+    } else {
+      draw_detail_row(item);
+    }
+    return;
+  }
+
+  ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_FramePadding;
+  if (item.children.empty()) {
+    flags |= ImGuiTreeNodeFlags_Leaf;
+  }
+
+  ImGui::PushStyleColor(ImGuiCol_Text, get_tree_text_color(item.kind));
+  const bool open = ImGui::TreeNodeEx((item.label + "##" + item.stable_id).c_str(), flags);
+  ImGui::PopStyleColor();
+
+  if (!item.runtime_node_id.empty()) {
+    auto runtime_it = panel->tree.runtime_nodes.find(item.runtime_node_id);
+    if (runtime_it != panel->tree.runtime_nodes.end()) {
+      auto& runtime_node = runtime_it->second;
+      draw_badges(runtime_node.badges);
+      if (panel->has_per_camera_control && runtime_node.is_camera) {
+        if (!runtime_node.summary.empty()) {
+          ImGui::Indent(22.0f);
+          ImGui::PushStyleColor(ImGuiCol_Text, grey);
+          ImGui::TextUnformatted(runtime_node.summary.c_str());
+          ImGui::PopStyleColor();
+          ImGui::Unindent(22.0f);
+        }
+        const auto cursor = ImGui::GetCursorPos();
+        const float button_width = 52.0f;
+        ImGui::SetCursorPosX(
+            std::max(cursor.x, ImGui::GetContentRegionMax().x - button_width - 10.0f));
+        const bool next_state = !runtime_node.status.is_streaming;
+        std::string button_label = next_state ? "Start" : "Stop";
+        ImGui::PushStyleColor(ImGuiCol_Text,
+                              runtime_node.status.is_streaming ? light_blue : light_grey);
+        ImGui::PushStyleColor(ImGuiCol_TextSelectedBg,
+                              runtime_node.status.is_streaming ? light_blue : light_grey);
+        if (ImGui::Button((button_label + "##" + runtime_node.stable_id).c_str(),
+                          {button_width, 22.0f})) {
+          const bool previous_state = runtime_node.status.is_streaming;
+          runtime_node.status.is_streaming = next_state;
+          if (!runtime_node.actions.empty()) {
+            runtime_node.actions[0].label = next_state ? "Stop" : "Start";
+          }
+          for (const auto& callback : panel->is_streaming_changed) {
+            if (!callback(runtime_node.stable_id, next_state)) {
+              runtime_node.status.is_streaming = previous_state;
+              if (!runtime_node.actions.empty()) {
+                runtime_node.actions[0].label = previous_state ? "Stop" : "Start";
+              }
+              break;
+            }
+          }
+        }
+        ImGui::PopStyleColor(2);
+      }
+    }
+  }
+
+  if (open) {
+    for (const auto& child : item.children) {
+      draw_pipeline_tree_item(panel, child, context);
+    }
+    ImGui::TreePop();
+  }
+}
+
 }  // namespace
 
 void azimuth_elevation::update(mouse_state mouse) {
@@ -1218,6 +1293,197 @@ void reconstruction_panel_view::draw_controls(view_context* context, float panel
 void reconstruction_panel_view::render(view_context* context) {
   const auto window_size = context->get_window_size();
 
+  const auto top_bar_height = 50;
+
+  ImGui::SetNextWindowPos({0, top_bar_height});
+  ImGui::SetNextWindowSize({350, window_size.y - top_bar_height});
+
+  auto flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse |
+               ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings |
+               ImGuiWindowFlags_NoBringToFrontOnFocus;
+
+  ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+  ImGui::PushStyleColor(ImGuiCol_WindowBg, sensor_bg);
+  ImGui::Begin("Control Panel", nullptr, flags | ImGuiWindowFlags_AlwaysVerticalScrollbar);
+
+  draw_controls(context, 50);
+
+  ImGui::End();
+  ImGui::PopStyleVar();
+  ImGui::PopStyleColor();
+}
+
+float pipeline_panel_view::draw_control_panel(view_context* context) {
+  auto panel_pos = ImGui::GetCursorPos();
+
+  // Collect unique action buttons
+  std::vector<std::pair<std::string, runtime_node_action>> unique_actions;
+  {
+    std::unordered_set<std::string> seen;
+    for (const auto& [node_id, runtime_node] : tree.runtime_nodes) {
+      if (runtime_node.is_camera || runtime_node.actions.empty()) continue;
+      for (const auto& action : runtime_node.actions) {
+        if (seen.insert(action.id).second) {
+          unique_actions.emplace_back(node_id, action);
+        }
+      }
+    }
+  }
+
+  ImGui::PushFont(context->large_font);
+  ImGui::PushStyleColor(ImGuiCol_Button, sensor_bg);
+  ImGui::PushStyleColor(ImGuiCol_ButtonHovered, sensor_bg);
+  ImGui::PushStyleColor(ImGuiCol_ButtonActive, sensor_bg);
+  ImGui::PushStyleColor(ImGuiCol_Text, light_grey);
+  ImGui::PushStyleColor(ImGuiCol_PopupBg, almost_white_bg);
+  ImGui::PushStyleColor(ImGuiCol_HeaderHovered, light_blue);
+  ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, light_grey);
+  ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(5, 5));
+
+  const float icons_width = 78.0f;
+  const ImVec2 node_panel_icons_size{icons_width, 25};
+
+  const float panel_width = ImGui::GetContentRegionAvail().x;
+  const int buttons_per_row = std::max(1, static_cast<int>(panel_width / icons_width));
+  const int fixed_count = has_gate ? 2 : 1;
+  struct ButtonSlot { int row; int col; };
+  std::vector<ButtonSlot> action_slots;
+  for (int i = 0; i < (int)unique_actions.size(); ++i) {
+    int global_idx = fixed_count + i;
+    action_slots.push_back({global_idx / buttons_per_row, global_idx % buttons_per_row});
+  }
+  int total_rows = unique_actions.empty() ? 1 : action_slots.back().row + 1;
+  const float node_panel_height = total_rows * 60.0f;
+
+  const auto draw_icon_button = [&](const std::string& button_name, textual_icon icon,
+                                    const ImVec4& text_color,
+                                    const std::function<void()>& on_click) {
+    ImGui::PushStyleColor(ImGuiCol_Text, text_color);
+    ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, text_color);
+    const std::string icon_button_name = to_string() << icon << button_name;
+    if (ImGui::Button(icon_button_name.c_str(), node_panel_icons_size)) {
+      on_click();
+    }
+    ImGui::PopStyleColor(2);
+  };
+
+  const auto draw_label_button = [&](const char* label, const ImVec4& text_color) {
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0, 0, 0, 0));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0, 0, 0, 0));
+    ImGui::PushStyleColor(ImGuiCol_Text, text_color);
+    ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, text_color);
+    ImGui::Button(label, node_panel_icons_size);
+    ImGui::PopStyleColor(5);
+  };
+
+  const auto toggle_collect = [&]() {
+    const bool next_state = !is_marker_collecting;
+    bool accepted = true;
+    for (const auto& f : is_marker_collecting_changed) {
+      if (!f(next_state)) {
+        accepted = false;
+        break;
+      }
+    }
+    if (accepted) is_marker_collecting = next_state;
+  };
+
+  const auto toggle_streaming = [&]() {
+    if (is_streaming) {
+      is_streaming = false;
+      for (const auto& f : is_all_streaming_changed) {
+        if (!f(is_streaming)) {
+          is_streaming = true;
+          break;
+        }
+      }
+    } else {
+      is_streaming = true;
+      for (const auto& f : is_all_streaming_changed) {
+        if (!f(is_streaming)) {
+          is_streaming = false;
+          break;
+        }
+      }
+    }
+  };
+
+  const auto collect_button_color = is_marker_collecting ? light_blue : light_grey;
+  const auto streaming_button_color = is_streaming ? light_blue : light_grey;
+
+  if (has_gate) {
+    draw_icon_button("##collect", is_marker_collecting ? textual_icons::stop : textual_icons::play,
+                     collect_button_color, toggle_collect);
+    ImGui::SameLine();
+  }
+  draw_icon_button("##streaming", is_streaming ? textual_icons::stop : textual_icons::play,
+                   streaming_button_color, toggle_streaming);
+  for (size_t i = 0; i < unique_actions.size(); ++i) {
+    const auto& [action_node_id, action] = unique_actions[i];
+    const auto& slot = action_slots[i];
+    if (slot.col == 0) {
+      ImGui::SetCursorPos({panel_pos.x, panel_pos.y + slot.row * 60.0f});
+    } else {
+      ImGui::SameLine();
+    }
+    draw_icon_button("##" + action.id, get_textual_icon(action.icon), light_grey, [&]() {
+      for (const auto& f : on_action) {
+        f(action_node_id, action.id);
+      }
+    });
+  }
+
+  ImGui::SetCursorPos({panel_pos.x, panel_pos.y + 30.0f});
+  if (has_gate) {
+    draw_label_button(is_marker_collecting ? "Stop Collect" : "Collect", collect_button_color);
+    ImGui::SameLine();
+  }
+  draw_label_button(is_streaming ? "Stop" : "Start", streaming_button_color);
+  for (size_t i = 0; i < unique_actions.size(); ++i) {
+    const auto& slot = action_slots[i];
+    if (slot.col == 0) {
+      ImGui::SetCursorPos({panel_pos.x, panel_pos.y + slot.row * 60.0f + 30.0f});
+    } else {
+      ImGui::SameLine();
+    }
+    draw_label_button(unique_actions[i].second.label.c_str(), light_grey);
+  }
+
+  ImGui::SetCursorPos({panel_pos.x, panel_pos.y + node_panel_height});
+
+  ImGui::PopStyleVar();
+  ImGui::PopStyleColor(7);
+  ImGui::PopFont();
+
+  return node_panel_height;
+}
+
+void pipeline_panel_view::draw_controls(view_context* context, float panel_height) {
+  {
+    const auto pos = ImGui::GetCursorPos();
+    const float vertical_space_before_node_control = 10.0f;
+    const float horizontal_space_before_node_control = 3.0f;
+    auto node_panel_pos = ImVec2{pos.x + horizontal_space_before_node_control,
+                                 pos.y + vertical_space_before_node_control};
+    ImGui::SetCursorPos(node_panel_pos);
+    const float node_panel_height = draw_control_panel(context);
+    ImGui::SetCursorPos({node_panel_pos.x, node_panel_pos.y + node_panel_height});
+  }
+
+  const float content_left_inset = 10.0f;
+  ImGui::Separator();
+  ImGui::Indent(content_left_inset - 2.0f);
+  ImGui::PushFont(context->large_font);
+  for (const auto& root : tree.roots) {
+    draw_pipeline_tree_item(this, root, context);
+  }
+  ImGui::PopFont();
+  ImGui::Unindent(content_left_inset - 2.0f);
+}
+
+void pipeline_panel_view::render(view_context* context) {
+  const auto window_size = context->get_window_size();
   const auto top_bar_height = 50;
 
   ImGui::SetNextWindowPos({0, top_bar_height});
