@@ -352,8 +352,8 @@ class configuration {
 
   void update();
 
-  std::vector<node_def> get_nodes(const std::string& pipeline_key = "pipeline") const {
-    const auto& pipeline_name = pipeline_names.at(pipeline_key);
+  std::vector<node_def> get_nodes() const {
+    const auto& pipeline_name = pipeline_names.at("pipeline");
     const auto& pipeline = pipelines.at(pipeline_name);
     std::vector<node_def> result;
     for (const auto& sg_instance : pipeline.subgraphs) {
@@ -371,13 +371,8 @@ class configuration {
     return subgraph_templates.at(name);
   }
 
-  bool has_pipeline(const std::string& pipeline_key) const {
-    return pipeline_names.find(pipeline_key) != pipeline_names.end() &&
-           pipelines.find(pipeline_names.at(pipeline_key)) != pipelines.end();
-  }
-
-  const pipeline_def& get_pipeline(const std::string& pipeline_key) const {
-    return pipelines.at(pipeline_names.at(pipeline_key));
+  const pipeline_def& get_pipeline() const {
+    return pipelines.at(pipeline_names.at("pipeline"));
   }
 };
 }  // namespace stargazer

@@ -125,7 +125,7 @@ class viewer_app : public window_base {
     const auto nodes = config_->get_nodes();
     for (const auto& node : nodes) {
       if (node.get_type() == stargazer::node_type::epipolar_reconstruction) {
-        const stargazer::config_tree_ref ref{"pipeline", "", node.name, ""};
+        const stargazer::config_tree_ref ref{node.name};
         pose_view_->axis_source = {ref, "axis"};
         for (const auto& camera_node : nodes) {
           const auto camera_name = try_get_node_camera_name(camera_node);
@@ -137,7 +137,7 @@ class viewer_app : public window_base {
       }
 
       if (node.get_type() == stargazer::node_type::extrinsic_calibration) {
-        const stargazer::config_tree_ref ref{"pipeline", "", node.name, ""};
+        const stargazer::config_tree_ref ref{node.name};
         for (const auto& [input_name, _input] : node.inputs) {
           const std::string prefix{"camera."};
           if (input_name.rfind(prefix, 0) != 0) {
@@ -149,7 +149,7 @@ class viewer_app : public window_base {
       }
 
       if (node.get_type() == stargazer::node_type::marker_property) {
-        const stargazer::config_tree_ref ref{"pipeline", "", node.name, ""};
+        const stargazer::config_tree_ref ref{node.name};
         pose_view_->point_sources.push_back({ref, "markers"});
       }
     }

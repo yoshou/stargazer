@@ -18,7 +18,7 @@ static std::string fixture(const std::string& name) {
 // ---------------------------------------------------------------------------
 TEST(ConfigGetNodes, TC1_SimpleExtends) {
   stargazer::configuration cfg(fixture("test_simple_extends.json"));
-  auto nodes = cfg.get_nodes("pipeline");
+  auto nodes = cfg.get_nodes();
 
   ASSERT_EQ(nodes.size(), 2u);
 
@@ -44,7 +44,7 @@ TEST(ConfigGetNodes, TC1_SimpleExtends) {
 // ---------------------------------------------------------------------------
 TEST(ConfigGetNodes, TC2_DirectNodes) {
   stargazer::configuration cfg(fixture("test_direct_nodes.json"));
-  auto nodes = cfg.get_nodes("pipeline");
+  auto nodes = cfg.get_nodes();
 
   ASSERT_EQ(nodes.size(), 2u);
 
@@ -71,7 +71,7 @@ TEST(ConfigGetNodes, TC2_DirectNodes) {
 // ---------------------------------------------------------------------------
 TEST(ConfigGetNodes, TC3_ParamHierarchy) {
   stargazer::configuration cfg(fixture("test_param_hierarchy.json"));
-  auto nodes = cfg.get_nodes("pipeline");
+  auto nodes = cfg.get_nodes();
 
   ASSERT_EQ(nodes.size(), 1u);
   EXPECT_EQ(nodes[0].name, "cam0_loader");
@@ -90,7 +90,7 @@ TEST(ConfigGetNodes, TC3_ParamHierarchy) {
 // ---------------------------------------------------------------------------
 TEST(ConfigGetNodes, TC4_NodeOverride) {
   stargazer::configuration cfg(fixture("test_node_override.json"));
-  auto nodes = cfg.get_nodes("pipeline");
+  auto nodes = cfg.get_nodes();
 
   ASSERT_EQ(nodes.size(), 1u);
   EXPECT_EQ(nodes[0].name, "cam0_loader");
@@ -106,7 +106,7 @@ TEST(ConfigGetNodes, TC4_NodeOverride) {
 // ---------------------------------------------------------------------------
 TEST(ConfigGetNodes, TC5_CrossRefDotToUnderscore) {
   stargazer::configuration cfg(fixture("test_cross_ref.json"));
-  auto nodes = cfg.get_nodes("pipeline");
+  auto nodes = cfg.get_nodes();
 
   // Find sg1_processor (prefixed because it extends consumer_template)
   auto proc = std::find_if(nodes.begin(), nodes.end(),
@@ -129,7 +129,7 @@ TEST(ConfigGetNodes, TC5_CrossRefDotToUnderscore) {
 // ---------------------------------------------------------------------------
 TEST(ConfigGetNodes, TC6_MultipleSubgraphs) {
   stargazer::configuration cfg(fixture("test_multiple_subgraphs.json"));
-  auto nodes = cfg.get_nodes("pipeline");
+  auto nodes = cfg.get_nodes();
 
   ASSERT_EQ(nodes.size(), 3u);
 
@@ -162,11 +162,11 @@ TEST(ConfigGetNodes, TC7_Roundtrip) {
                              std::filesystem::copy_options::overwrite_existing);
 
   stargazer::configuration cfg1(temp_path);
-  auto nodes_before = cfg1.get_nodes("pipeline");
+  auto nodes_before = cfg1.get_nodes();
   cfg1.update();  // Serialize back to temp_path
 
   stargazer::configuration cfg2(temp_path);
-  auto nodes_after = cfg2.get_nodes("pipeline");
+  auto nodes_after = cfg2.get_nodes();
 
   std::filesystem::remove(temp_path);
 
@@ -187,7 +187,7 @@ TEST(ConfigGetNodes, TC7_Roundtrip) {
 // ---------------------------------------------------------------------------
 TEST(ConfigGetNodes, TC8_NestedExpansion) {
   stargazer::configuration cfg(fixture("test_nested_expansion.json"));
-  auto nodes = cfg.get_nodes("pipeline");
+  auto nodes = cfg.get_nodes();
 
   ASSERT_EQ(nodes.size(), 2u);
 
@@ -208,7 +208,7 @@ TEST(ConfigGetNodes, TC8_NestedExpansion) {
 // ---------------------------------------------------------------------------
 TEST(ConfigGetNodes, TC9_NestedParamPropagation) {
   stargazer::configuration cfg(fixture("test_nested_params.json"));
-  auto nodes = cfg.get_nodes("pipeline");
+  auto nodes = cfg.get_nodes();
 
   ASSERT_EQ(nodes.size(), 1u);
   EXPECT_EQ(nodes[0].name, "src_loader");
@@ -222,7 +222,7 @@ TEST(ConfigGetNodes, TC9_NestedParamPropagation) {
 // ---------------------------------------------------------------------------
 TEST(ConfigGetNodes, TC10_InlineNestedSubgraphs) {
   stargazer::configuration cfg(fixture("test_inline_nested.json"));
-  auto nodes = cfg.get_nodes("pipeline");
+  auto nodes = cfg.get_nodes();
 
   ASSERT_EQ(nodes.size(), 2u);
 
@@ -248,11 +248,11 @@ TEST(ConfigGetNodes, TC11_NestedRoundtrip) {
                              std::filesystem::copy_options::overwrite_existing);
 
   stargazer::configuration cfg1(temp_path);
-  auto nodes_before = cfg1.get_nodes("pipeline");
+  auto nodes_before = cfg1.get_nodes();
   cfg1.update();
 
   stargazer::configuration cfg2(temp_path);
-  auto nodes_after = cfg2.get_nodes("pipeline");
+  auto nodes_after = cfg2.get_nodes();
 
   std::filesystem::remove(temp_path);
 
@@ -271,7 +271,7 @@ TEST(ConfigGetNodes, TC11_NestedRoundtrip) {
 // ---------------------------------------------------------------------------
 TEST(ConfigGetNodes, TC12_DirectNodesDotConversion) {
   stargazer::configuration cfg(fixture("test_direct_dot_ref.json"));
-  auto nodes = cfg.get_nodes("pipeline");
+  auto nodes = cfg.get_nodes();
 
   ASSERT_EQ(nodes.size(), 2u);
 
@@ -303,7 +303,7 @@ TEST(ConfigGetNodes, TC12_DirectNodesDotConversion) {
 // ---------------------------------------------------------------------------
 TEST(ConfigGetNodes, TC14_TemplateNestedDirectNodes) {
   stargazer::configuration cfg(fixture("test_template_nested_direct.json"));
-  auto nodes = cfg.get_nodes("pipeline");
+  auto nodes = cfg.get_nodes();
 
   ASSERT_EQ(nodes.size(), 3u);
 
@@ -335,7 +335,7 @@ TEST(ConfigGetNodes, TC14_TemplateNestedDirectNodes) {
 // ---------------------------------------------------------------------------
 TEST(ConfigGetNodes, TC15_TemplateNestedNodeOverride) {
   stargazer::configuration cfg(fixture("test_template_nested_override.json"));
-  auto nodes = cfg.get_nodes("pipeline");
+  auto nodes = cfg.get_nodes();
 
   ASSERT_EQ(nodes.size(), 4u);
 
@@ -372,38 +372,38 @@ TEST(ConfigRealFiles, TC13_RealConfigFilesLoad) {
   // calibration_extrinsic.json
   {
     stargazer::configuration cfg(std::string(REAL_CONFIG_DIR) + "/calibration_extrinsic.json");
-    auto nodes = cfg.get_nodes("pipeline");
+    auto nodes = cfg.get_nodes();
     EXPECT_GT(nodes.size(), 0u) << "calibration_extrinsic_ir pipeline empty";
   }
   // image_reconstruction.json
   {
     stargazer::configuration cfg(std::string(REAL_CONFIG_DIR) + "/image_reconstruction.json");
-    auto nodes = cfg.get_nodes("pipeline");
+    auto nodes = cfg.get_nodes();
     EXPECT_GT(nodes.size(), 0u) << "image_reconstruction pipeline empty";
   }
   // capture.json
   {
     stargazer::configuration cfg(std::string(REAL_CONFIG_DIR) + "/capture.json");
-    auto nodes = cfg.get_nodes("pipeline");
+    auto nodes = cfg.get_nodes();
     EXPECT_GT(nodes.size(), 0u) << "capture pipeline empty";
   }
   // calibration_intrinsic_single_camera.json
   {
     stargazer::configuration cfg(std::string(REAL_CONFIG_DIR) +
                                  "/calibration_intrinsic_single_camera.json");
-    auto nodes = cfg.get_nodes("pipeline");
+    auto nodes = cfg.get_nodes();
     EXPECT_GT(nodes.size(), 0u) << "intrinsic_calibration pipeline empty";
   }
   // calibration_scene.json
   {
     stargazer::configuration cfg(std::string(REAL_CONFIG_DIR) + "/calibration_scene.json");
-    auto nodes = cfg.get_nodes("pipeline");
+    auto nodes = cfg.get_nodes();
     EXPECT_GT(nodes.size(), 0u) << "scene_calibration pipeline empty";
   }
   // point_reconstruction.json
   {
     stargazer::configuration cfg(std::string(REAL_CONFIG_DIR) + "/point_reconstruction.json");
-    auto nodes = cfg.get_nodes("pipeline");
+    auto nodes = cfg.get_nodes();
     EXPECT_GT(nodes.size(), 0u) << "point_reconstruction pipeline empty";
   }
 }

@@ -103,16 +103,15 @@ std::vector<config_tree_item> build_detail_items(const node_def& node,
   return children;
 }
 
-void append_pipeline_tree(config_tree_model& model, const configuration& config,
-                          const std::string& pipeline_key) {
+void append_pipeline_tree(config_tree_model& model, const configuration& config) {
   config_tree_item pipeline_item;
-  pipeline_item.stable_id = "pipeline:" + pipeline_key;
+  pipeline_item.stable_id = "pipeline:pipeline";
   pipeline_item.kind = config_tree_item_kind::pipeline;
-  pipeline_item.label = pipeline_key;
-  pipeline_item.summary = config.get_pipeline(pipeline_key).name;
+  pipeline_item.label = "pipeline";
+  pipeline_item.summary = config.get_pipeline().name;
 
   std::unordered_map<std::string, size_t> subgraph_indices;
-  const auto nodes = config.get_nodes(pipeline_key);
+  const auto nodes = config.get_nodes();
 
   for (const auto& node : nodes) {
     const auto subgraph_name =
@@ -131,16 +130,11 @@ void append_pipeline_tree(config_tree_model& model, const configuration& config,
       subgraph_index = subgraph_indices[subgraph_name];
     }
 
-    const auto runtime_id = "node:" + pipeline_key + ":" + node.name;
+    const auto runtime_id = "node:pipeline:" + node.name;
 
     runtime_node_handle runtime_node;
     runtime_node.stable_id = runtime_id;
-    runtime_node.ref = config_tree_ref{
-        pipeline_key,
-        subgraph_name,
-        node.name,
-        node.is_camera() ? node.get_camera_name() : std::string{},
-    };
+    runtime_node.ref = config_tree_ref{node.name};
     runtime_node.label = node.name;
     runtime_node.summary = get_node_summary(node);
     runtime_node.is_camera = node.is_camera();
@@ -182,21 +176,9 @@ void append_pipeline_tree(config_tree_model& model, const configuration& config,
 
 }  // namespace
 
-config_tree_model build_config_tree(const configuration& config, const std::string& pipeline_key) {
+config_tree_model build_config_tree(const configuration& config) {
   config_tree_model model;
-  append_pipeline_tree(model, config, pipeline_key);
-  return model;
-}
-
-config_tree_model build_config_tree(const configuration& config,
-                                    const std::vector<std::string>& pipeline_keys) {
-  config_tree_model model;
-  for (const auto& pipeline_key : pipeline_keys) {
-    if (!config.has_pipeline(pipeline_key)) {
-      continue;
-    }
-    append_pipeline_tree(model, config, pipeline_key);
-  }
+  append_pipeline_tree(model, config);
   return model;
 }
 

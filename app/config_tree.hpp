@@ -23,10 +23,7 @@ enum class config_tree_detail_kind {
 };
 
 struct config_tree_ref {
-  std::string pipeline_key;
-  std::string subgraph_instance;
   std::string node_name;
-  std::string camera_name;
 };
 
 struct config_tree_runtime_status {
@@ -85,10 +82,6 @@ struct config_tree_model {
   std::vector<std::string> camera_node_ids;
 };
 
-config_tree_model build_config_tree(const configuration& config,
-                                    const std::string& pipeline_key = "pipeline");
-
-config_tree_model build_config_tree(const configuration& config,
-                                    const std::vector<std::string>& pipeline_keys);
+config_tree_model build_config_tree(const configuration& config);
 
 }  // namespace stargazer
