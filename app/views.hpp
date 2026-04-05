@@ -177,11 +177,8 @@ class pipeline_panel_view {
   bool is_streaming = false;
   bool is_marker_collecting = false;
   bool has_gate = false;
-  bool has_per_camera_control = false;
-  std::string intrinsic_target_camera_name;
 
   std::vector<std::function<bool(bool)>> is_all_streaming_changed;
-  std::vector<std::function<bool(const std::string&, bool)>> is_streaming_changed;
   std::vector<std::function<bool(bool)>> is_marker_collecting_changed;
   std::vector<std::function<bool(const std::string&, const std::string&)>> on_action;
   std::function<std::optional<std::string>(const stargazer::config_tree_item&)>

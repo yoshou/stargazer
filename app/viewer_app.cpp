@@ -377,7 +377,6 @@ class viewer_app : public window_base {
 
   void init_panel() {
     panel_view_ = std::make_unique<pipeline_panel_view>();
-    panel_view_->has_per_camera_control = false;
     panel_view_->resolve_detail_value =
         [this](const stargazer::config_tree_item& item) -> std::optional<std::string> {
       return resolve_panel_detail_value(panel_view_.get(), item);

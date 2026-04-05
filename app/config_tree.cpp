@@ -137,17 +137,11 @@ void append_pipeline_tree(config_tree_model& model, const configuration& config)
     runtime_node.ref = config_tree_ref{node.name};
     runtime_node.label = node.name;
     runtime_node.summary = get_node_summary(node);
-    runtime_node.is_camera = node.is_camera();
     runtime_node.badges = get_node_badges(node);
     runtime_node.display_properties = node.properties;
     for (const auto& [key, value] : node.params) {
       runtime_node.properties.push_back(
           runtime_node_property{key, node_param_to_string(value), true});
-    }
-    if (runtime_node.is_camera) {
-      runtime_node.actions.push_back(
-          runtime_node_action{"capture.toggle_stream", "Start", "", true});
-      model.camera_node_ids.push_back(runtime_id);
     }
     if (node.get_type() == node_type::action) {
       const auto action_id =

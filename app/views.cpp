@@ -447,43 +447,6 @@ void draw_pipeline_tree_item(pipeline_panel_view* panel, const stargazer::config
     if (runtime_it != panel->tree.runtime_nodes.end()) {
       auto& runtime_node = runtime_it->second;
       draw_badges(runtime_node.badges);
-      if (panel->has_per_camera_control && runtime_node.is_camera) {
-        if (!runtime_node.summary.empty()) {
-          ImGui::Indent(22.0f);
-          ImGui::PushStyleColor(ImGuiCol_Text, grey);
-          ImGui::TextUnformatted(runtime_node.summary.c_str());
-          ImGui::PopStyleColor();
-          ImGui::Unindent(22.0f);
-        }
-        const auto cursor = ImGui::GetCursorPos();
-        const float button_width = 52.0f;
-        ImGui::SetCursorPosX(
-            std::max(cursor.x, ImGui::GetContentRegionMax().x - button_width - 10.0f));
-        const bool next_state = !runtime_node.status.is_streaming;
-        std::string button_label = next_state ? "Start" : "Stop";
-        ImGui::PushStyleColor(ImGuiCol_Text,
-                              runtime_node.status.is_streaming ? light_blue : light_grey);
-        ImGui::PushStyleColor(ImGuiCol_TextSelectedBg,
-                              runtime_node.status.is_streaming ? light_blue : light_grey);
-        if (ImGui::Button((button_label + "##" + runtime_node.stable_id).c_str(),
-                          {button_width, 22.0f})) {
-          const bool previous_state = runtime_node.status.is_streaming;
-          runtime_node.status.is_streaming = next_state;
-          if (!runtime_node.actions.empty()) {
-            runtime_node.actions[0].label = next_state ? "Stop" : "Start";
-          }
-          for (const auto& callback : panel->is_streaming_changed) {
-            if (!callback(runtime_node.stable_id, next_state)) {
-              runtime_node.status.is_streaming = previous_state;
-              if (!runtime_node.actions.empty()) {
-                runtime_node.actions[0].label = previous_state ? "Stop" : "Start";
-              }
-              break;
-            }
-          }
-        }
-        ImGui::PopStyleColor(2);
-      }
     }
   }
 
@@ -546,7 +509,7 @@ void top_bar_view::render(view_context* context) {
   const auto item_spacing = ImGui::GetStyle().ItemSpacing.x;
   const float viewport_button_width = 80.0f;
   const float viewport_buttons_width = viewport_button_width * 4.0f + item_spacing * 3.0f;
-    const float right_button_start_x = std::max(0.0f, window_size.x - viewport_buttons_width);
+  const float right_button_start_x = std::max(0.0f, window_size.x - viewport_buttons_width);
 
   ImGui::SetNextWindowPos({0, 0});
   ImGui::SetNextWindowSize({window_size.x, top_bar_height});
@@ -586,7 +549,6 @@ void top_bar_view::render(view_context* context) {
   ImGui::PopStyleVar();
 }
 
-
 float pipeline_panel_view::draw_control_panel(view_context* context) {
   auto panel_pos = ImGui::GetCursorPos();
 
@@ -595,7 +557,7 @@ float pipeline_panel_view::draw_control_panel(view_context* context) {
   {
     std::unordered_set<std::string> seen;
     for (const auto& [node_id, runtime_node] : tree.runtime_nodes) {
-      if (runtime_node.is_camera || runtime_node.actions.empty()) continue;
+      if (runtime_node.actions.empty()) continue;
       for (const auto& action : runtime_node.actions) {
         if (seen.insert(action.id).second) {
           unique_actions.emplace_back(node_id, action);
@@ -620,7 +582,10 @@ float pipeline_panel_view::draw_control_panel(view_context* context) {
   const float panel_width = ImGui::GetContentRegionAvail().x;
   const int buttons_per_row = std::max(1, static_cast<int>(panel_width / icons_width));
   const int fixed_count = has_gate ? 2 : 1;
-  struct ButtonSlot { int row; int col; };
+  struct ButtonSlot {
+    int row;
+    int col;
+  };
   std::vector<ButtonSlot> action_slots;
   for (int i = 0; i < (int)unique_actions.size(); ++i) {
     int global_idx = fixed_count + i;

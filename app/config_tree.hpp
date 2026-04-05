@@ -26,11 +26,6 @@ struct config_tree_ref {
   std::string node_name;
 };
 
-struct config_tree_runtime_status {
-  bool is_streaming = false;
-  size_t metric_value = 0;
-};
-
 struct runtime_node_property {
   std::string key;
   std::string value;
@@ -49,8 +44,6 @@ struct runtime_node_handle {
   config_tree_ref ref;
   std::string label;
   std::string summary;
-  bool is_camera = false;
-  config_tree_runtime_status status;
   std::vector<std::string> badges;
   std::vector<node_display_property> display_properties;
   std::vector<runtime_node_property> properties;
@@ -79,7 +72,6 @@ struct config_tree_render_options {
 struct config_tree_model {
   std::vector<config_tree_item> roots;
   std::unordered_map<std::string, runtime_node_handle> runtime_nodes;
-  std::vector<std::string> camera_node_ids;
 };
 
 config_tree_model build_config_tree(const configuration& config);
