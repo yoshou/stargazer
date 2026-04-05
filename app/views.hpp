@@ -226,7 +226,8 @@ class image_tile_view {
 
   std::map<int, rect> calc_layout(const rect& r);
 
-  void draw_stream_header(view_context* context, const rect& stream_rect);
+  void draw_stream_header(view_context* context, const rect& stream_rect,
+                          const stream_info& stream);
 
  public:
   void render(view_context* context);

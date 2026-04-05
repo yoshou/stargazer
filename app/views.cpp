@@ -914,7 +914,8 @@ std::map<int, rect> image_tile_view::calc_layout(const rect& r) {
   return results;
 }
 
-void image_tile_view::draw_stream_header(view_context* context, const rect& stream_rect) {
+void image_tile_view::draw_stream_header(view_context* context, const rect& stream_rect,
+                                         const stream_info& stream) {
   const auto top_bar_height = 32.f;
 
   ImGui_ScopePushFont(context->large_font);
@@ -928,6 +929,19 @@ void image_tile_view::draw_stream_header(view_context* context, const rect& stre
   ImGui::GetWindowDrawList()->AddRectFilled({stream_rect.x, stream_rect.y - top_bar_height},
                                             {stream_rect.x + stream_rect.w, stream_rect.y},
                                             ImColor(sensor_bg));
+
+  if (!stream.name.empty()) {
+    const ImVec2 text_min{stream_rect.x + 10.0f, stream_rect.y - top_bar_height};
+    const ImVec2 text_max{stream_rect.x + stream_rect.w - 10.0f, stream_rect.y};
+    const float font_size =
+        context->large_font ? context->large_font->FontSize : ImGui::GetFontSize();
+    const float text_y = text_min.y + std::max(0.0f, (top_bar_height - font_size) * 0.5f - 1.0f);
+    auto* draw_list = ImGui::GetWindowDrawList();
+    draw_list->PushClipRect(text_min, text_max, true);
+    draw_list->AddText(context->large_font, font_size, ImVec2{text_min.x, text_y},
+                       ImGui::ColorConvertFloat4ToU32(light_grey), stream.name.c_str());
+    draw_list->PopClipRect();
+  }
 
   ImGui::PopStyleColor(5);
 }
@@ -972,7 +986,7 @@ void image_tile_view::render(view_context* context) {
     auto stream = kvp.first;
     auto&& stream_mv = streams[stream];
 
-    draw_stream_header(context, view_rect);
+    draw_stream_header(context, view_rect, *stream_mv);
 
     ImGui::SetCursorPos(ImVec2{view_rect.x - r.x, view_rect.y - r.y});
 

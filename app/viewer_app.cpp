@@ -210,8 +210,7 @@ class viewer_app : public window_base {
   }
 
   static std::string get_stream_name(const stargazer::node_def& node) {
-    const auto camera_name = try_get_node_camera_name(node);
-    return camera_name.has_value() ? *camera_name : node.name;
+    return try_get_node_camera_name(node).value_or("");
   }
 
   void rebuild_panel_state() {
@@ -256,13 +255,13 @@ class viewer_app : public window_base {
 
       const int width = get_node_dimension(node, "width");
       const int height = get_node_dimension(node, "height");
-      const auto stream_name = get_stream_name(node);
-
       for (const auto& property : node.properties) {
         auto* tile_view = target_tile_view(property.target);
         if (!tile_view) {
           continue;
         }
+
+        const auto stream_name = get_stream_name(node);
 
         const auto stream = std::make_shared<image_tile_view::stream_info>(
             stream_name, float2{(float)width, (float)height}, gfx_ctx);
@@ -277,13 +276,13 @@ class viewer_app : public window_base {
 
   void remove_streams_from_properties(const std::vector<stargazer::node_def>& nodes) {
     for (const auto& node : nodes) {
-      const auto stream_name = get_stream_name(node);
-
       for (const auto& property : node.properties) {
         auto* tile_view = target_tile_view(property.target);
         if (!tile_view) {
           continue;
         }
+
+        const auto stream_name = get_stream_name(node);
 
         const auto stream_it = std::find_if(
             tile_view->streams.begin(), tile_view->streams.end(), [&](const auto& stream) {
