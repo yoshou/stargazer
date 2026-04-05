@@ -5946,5 +5946,5 @@
       ]
     }
   },
-  "extrinsic_calibration_pipeline": "calibration_extrinsic_ir"
+  "pipeline": "calibration_extrinsic_ir"
 }

@@ -3052,5 +3052,5 @@
       ]
     }
   },
-  "point_reconstruction_pipeline": "epipolar_reconstruction"
+  "pipeline": "epipolar_reconstruction"
 }

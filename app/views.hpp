@@ -160,14 +160,6 @@ struct view_context {
 
 class top_bar_view {
  public:
-  enum class Mode {
-    Capture,
-    Calibration,
-    Reconstruction,
-  };
-
-  Mode view_mode = Mode::Capture;
-
   enum class ViewType {
     Image,
     Point,
@@ -175,19 +167,6 @@ class top_bar_view {
     Pose,
   };
   ViewType view_type = ViewType::Image;
-
-  enum class CalibrationPipeline {
-    Extrinsic,
-    Intrinsic,
-    Scene,
-  };
-  CalibrationPipeline calibration_pipeline = CalibrationPipeline::Extrinsic;
-
-  enum class ReconstructionPipeline {
-    Marker,
-    Image,
-  };
-  ReconstructionPipeline reconstruction_pipeline = ReconstructionPipeline::Marker;
 
   void render(view_context* context);
 };

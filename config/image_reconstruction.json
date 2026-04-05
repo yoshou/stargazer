@@ -1881,5 +1881,5 @@
       ]
     }
   },
-  "image_reconstruction_pipeline": "voxelpose_reconstruction"
+  "pipeline": "voxelpose_reconstruction"
 }

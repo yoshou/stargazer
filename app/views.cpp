@@ -546,15 +546,7 @@ void top_bar_view::render(view_context* context) {
   const auto item_spacing = ImGui::GetStyle().ItemSpacing.x;
   const float viewport_button_width = 80.0f;
   const float viewport_buttons_width = viewport_button_width * 4.0f + item_spacing * 3.0f;
-  const float left_region_width =
-      std::max(0.0f, window_size.x - viewport_buttons_width - item_spacing);
-  constexpr float mode_button_count = 6.0f;
-  const float mode_button_width = std::max(
-      90.0f, std::min(150.0f, (left_region_width - item_spacing * (mode_button_count - 1.0f)) /
-                                  mode_button_count));
-  const float right_button_start_x =
-      std::max(mode_button_width * mode_button_count + item_spacing * (mode_button_count - 1.0f),
-               window_size.x - viewport_buttons_width);
+    const float right_button_start_x = std::max(0.0f, window_size.x - viewport_buttons_width);
 
   ImGui::SetNextWindowPos({0, 0});
   ImGui::SetNextWindowSize({window_size.x, top_bar_height});
@@ -565,58 +557,6 @@ void top_bar_view::render(view_context* context) {
 
   ImGui::PushFont(context->large_font);
   ImGui::PushStyleColor(ImGuiCol_Border, black);
-
-  const auto draw_mode_button = [&](float x, const char* label, bool selected, auto&& on_click) {
-    ImGui::SetCursorPos({x, 0.0f});
-    ImGui::PushStyleColor(ImGuiCol_Text, selected ? light_blue : light_grey);
-    ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, selected ? light_blue : light_grey);
-    if (ImGui::Button(label, {mode_button_width, top_bar_height})) {
-      on_click();
-    }
-    ImGui::PopStyleColor(2);
-  };
-
-  draw_mode_button(0.0f, "Capture##mode_capture", view_mode == Mode::Capture,
-                   [&]() { view_mode = Mode::Capture; });
-
-  draw_mode_button(
-      mode_button_width + item_spacing, "Extrinsic##mode_extrinsic",
-      view_mode == Mode::Calibration && calibration_pipeline == CalibrationPipeline::Extrinsic,
-      [&]() {
-        view_mode = Mode::Calibration;
-        calibration_pipeline = CalibrationPipeline::Extrinsic;
-      });
-
-  draw_mode_button(
-      (mode_button_width + item_spacing) * 2.0f, "Intrinsic##mode_intrinsic",
-      view_mode == Mode::Calibration && calibration_pipeline == CalibrationPipeline::Intrinsic,
-      [&]() {
-        view_mode = Mode::Calibration;
-        calibration_pipeline = CalibrationPipeline::Intrinsic;
-      });
-
-  draw_mode_button(
-      (mode_button_width + item_spacing) * 3.0f, "Scene##mode_scene",
-      view_mode == Mode::Calibration && calibration_pipeline == CalibrationPipeline::Scene, [&]() {
-        view_mode = Mode::Calibration;
-        calibration_pipeline = CalibrationPipeline::Scene;
-      });
-
-  draw_mode_button((mode_button_width + item_spacing) * 4.0f, "Marker##mode_reconstruction_marker",
-                   view_mode == Mode::Reconstruction &&
-                       reconstruction_pipeline == ReconstructionPipeline::Marker,
-                   [&]() {
-                     view_mode = Mode::Reconstruction;
-                     reconstruction_pipeline = ReconstructionPipeline::Marker;
-                   });
-
-  draw_mode_button(
-      (mode_button_width + item_spacing) * 5.0f, "Image##mode_reconstruction_image",
-      view_mode == Mode::Reconstruction && reconstruction_pipeline == ReconstructionPipeline::Image,
-      [&]() {
-        view_mode = Mode::Reconstruction;
-        reconstruction_pipeline = ReconstructionPipeline::Image;
-      });
 
   {
     const auto draw_view_button = [&](float x, const char* label, ViewType type) {

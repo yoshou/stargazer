@@ -4152,5 +4152,5 @@
       ]
     }
   },
-  "scene_calibration_pipeline": "calibration_scene"
+  "pipeline": "calibration_scene"
 }

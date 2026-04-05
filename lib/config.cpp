@@ -481,34 +481,13 @@ configuration::configuration(const std::string& path) : path(path) {
       }
     }
 
-    if (j.contains("pipeline")) {
-      pipeline_names.insert(std::make_pair("pipeline", j["pipeline"].get<std::string>()));
-    }
-    if (j.contains("static_pipeline")) {
-      pipeline_names.insert(
-          std::make_pair("static_pipeline", j["static_pipeline"].get<std::string>()));
-    }
-
-    // Load additional pipeline references (e.g., calibration pipelines)
-    if (j.contains("extrinsic_calibration_pipeline")) {
-      pipeline_names.insert(std::make_pair("extrinsic_calibration_pipeline",
-                                           j["extrinsic_calibration_pipeline"].get<std::string>()));
-    }
-    if (j.contains("intrinsic_calibration_pipeline")) {
-      pipeline_names.insert(std::make_pair("intrinsic_calibration_pipeline",
-                                           j["intrinsic_calibration_pipeline"].get<std::string>()));
-    }
-    if (j.contains("scene_calibration_pipeline")) {
-      pipeline_names.insert(std::make_pair("scene_calibration_pipeline",
-                                           j["scene_calibration_pipeline"].get<std::string>()));
-    }
-    if (j.contains("image_reconstruction_pipeline")) {
-      pipeline_names.insert(std::make_pair("image_reconstruction_pipeline",
-                                           j["image_reconstruction_pipeline"].get<std::string>()));
-    }
-    if (j.contains("point_reconstruction_pipeline")) {
-      pipeline_names.insert(std::make_pair("point_reconstruction_pipeline",
-                                           j["point_reconstruction_pipeline"].get<std::string>()));
+    for (const auto& [key, value] : j.items()) {
+      if (!value.is_string()) {
+        continue;
+      }
+      if (key == "pipeline") {
+        pipeline_names.insert(std::make_pair(key, value.get<std::string>()));
+      }
     }
 
     for (const auto& [pipeline_name, pipeline_json] : j["pipelines"].items()) {
