@@ -2,10 +2,6 @@
   "subgraphs": [
     {
       "name": "playback_subgraph",
-      "db_path": "../data/data_20221004_1/capture.db",
-      "height": 616,
-      "width": 820,
-      "fps": 90,
       "nodes": [
         {
           "name": "load_blob",
@@ -41,11 +37,14 @@
       ],
       "outputs": [
         "load_marker"
-      ]
+      ],
+      "db_path": "../data/data_20221004_1/capture.db",
+      "width": 820,
+      "height": 616,
+      "fps": 90
     },
     {
       "name": "record_subgraph",
-      "db_path": "../data/data_20250506_1/capture.db",
       "nodes": [
         {
           "name": "record",
@@ -54,7 +53,8 @@
       ],
       "outputs": [
         "record"
-      ]
+      ],
+      "db_path": "../data/data_20250506_1/capture.db"
     },
     {
       "name": "epipolar_reconstruction_subgraph",
@@ -244,6 +244,9 @@
         {
           "name": "demux",
           "type": "frame_demux",
+          "inputs": {
+            "default": "imu_server"
+          },
           "outputs": [
             "imu1",
             "imu2",
@@ -251,78 +254,66 @@
             "imu4",
             "imu5",
             "imu6"
-          ],
-          "inputs": {
-            "default": "imu_server"
-          }
+          ]
         },
         {
           "name": "dump_imu_1",
           "type": "dump_se3",
-          "db_path": "../data/imu.db",
-          "topic_name": "imu1",
           "inputs": {
             "imu1": "demux:imu1"
-          }
+          },
+          "db_path": "../data/imu.db",
+          "topic_name": "imu1"
         },
         {
           "name": "dump_imu_2",
           "type": "dump_se3",
-          "db_path": "../data/imu.db",
-          "topic_name": "imu2",
           "inputs": {
             "imu2": "demux:imu2"
-          }
+          },
+          "db_path": "../data/imu.db",
+          "topic_name": "imu2"
         },
         {
           "name": "dump_imu_3",
           "type": "dump_se3",
-          "db_path": "../data/imu.db",
-          "topic_name": "imu3",
           "inputs": {
             "imu3": "demux:imu3"
-          }
+          },
+          "db_path": "../data/imu.db",
+          "topic_name": "imu3"
         },
         {
           "name": "dump_imu_4",
           "type": "dump_se3",
-          "db_path": "../data/imu.db",
-          "topic_name": "imu4",
           "inputs": {
             "imu4": "demux:imu4"
-          }
+          },
+          "db_path": "../data/imu.db",
+          "topic_name": "imu4"
         },
         {
           "name": "dump_imu_5",
           "type": "dump_se3",
-          "db_path": "../data/imu.db",
-          "topic_name": "imu5",
           "inputs": {
             "imu5": "demux:imu5"
-          }
+          },
+          "db_path": "../data/imu.db",
+          "topic_name": "imu5"
         },
         {
           "name": "dump_imu_6",
           "type": "dump_se3",
-          "db_path": "../data/imu.db",
-          "topic_name": "imu6",
           "inputs": {
             "imu6": "demux:imu6"
-          }
+          },
+          "db_path": "../data/imu.db",
+          "topic_name": "imu6"
         }
       ]
     },
     {
       "name": "raspi_ir_cluster_master",
-      "height": 616,
-      "width": 820,
-      "fps": 90,
-      "stream": "infrared",
-      "format": "Y8_UINT",
-      "exposure": 5000,
-      "gain": 10,
-      "emitter_enabled": true,
-      "deploy_port": 31400,
       "nodes": [
         {
           "name": "libcamera_capture",
@@ -456,10 +447,7 @@
       "outputs": [
         "p2p_tcp_talker_image",
         "p2p_tcp_talker_marker"
-      ]
-    },
-    {
-      "name": "raspi_ir_cluster_slave",
+      ],
       "height": 616,
       "width": 820,
       "fps": 90,
@@ -468,7 +456,10 @@
       "exposure": 5000,
       "gain": 10,
       "emitter_enabled": true,
-      "deploy_port": 31400,
+      "deploy_port": 31400
+    },
+    {
+      "name": "raspi_ir_cluster_slave",
       "nodes": [
         {
           "name": "video_time_sync_control",
@@ -622,14 +613,19 @@
       "outputs": [
         "p2p_tcp_talker_image",
         "p2p_tcp_talker_marker"
-      ]
+      ],
+      "height": 616,
+      "width": 820,
+      "fps": 90,
+      "stream": "infrared",
+      "format": "Y8_UINT",
+      "exposure": 5000,
+      "gain": 10,
+      "emitter_enabled": true,
+      "deploy_port": 31400
     },
     {
       "name": "raspi_ir_receiver",
-      "endpoint_address": "192.168.0.254",
-      "fps": 90,
-      "width": 820,
-      "height": 616,
       "nodes": [
         {
           "name": "p2p_tcp_listener_image",
@@ -649,7 +645,11 @@
       ],
       "outputs": [
         "p2p_tcp_listener_marker"
-      ]
+      ],
+      "endpoint_address": "192.168.0.254",
+      "fps": 90,
+      "width": 820,
+      "height": 616
     }
   ],
   "pipelines": {
@@ -1477,7 +1477,6 @@
             {
               "name": "approximate_time_sync_images",
               "type": "approximate_time_sync",
-              "interval": 11.611,
               "inputs": {
                 "camera1": "camera1_receiver.decode_jpeg",
                 "camera2": "camera2_receiver.decode_jpeg",
@@ -1503,12 +1502,12 @@
                 "camera22": "camera22_receiver.decode_jpeg",
                 "camera23": "camera23_receiver.decode_jpeg",
                 "camera24": "camera24_receiver.decode_jpeg"
-              }
+              },
+              "interval": 11.611
             },
             {
               "name": "approximate_time_sync_markers",
               "type": "approximate_time_sync",
-              "interval": 11.611,
               "inputs": {
                 "camera1": "camera1_receiver.p2p_tcp_listener_marker",
                 "camera2": "camera2_receiver.p2p_tcp_listener_marker",
@@ -1534,7 +1533,8 @@
                 "camera22": "camera22_receiver.p2p_tcp_listener_marker",
                 "camera23": "camera23_receiver.p2p_tcp_listener_marker",
                 "camera24": "camera24_receiver.p2p_tcp_listener_marker"
-              }
+              },
+              "interval": 11.611
             }
           ]
         }
@@ -2028,7 +2028,6 @@
             {
               "name": "approximate_time_sync_images",
               "type": "approximate_time_sync",
-              "interval": 11.611,
               "inputs": {
                 "camera1": "camera1_receiver.decode_jpeg",
                 "camera2": "camera2_receiver.decode_jpeg",
@@ -2054,12 +2053,12 @@
                 "camera22": "camera22_receiver.decode_jpeg",
                 "camera23": "camera23_receiver.decode_jpeg",
                 "camera24": "camera24_receiver.decode_jpeg"
-              }
+              },
+              "interval": 11.611
             },
             {
               "name": "approximate_time_sync_markers",
               "type": "approximate_time_sync",
-              "interval": 11.611,
               "inputs": {
                 "camera1": "camera1_receiver.p2p_tcp_listener_marker",
                 "camera2": "camera2_receiver.p2p_tcp_listener_marker",
@@ -2085,7 +2084,8 @@
                 "camera22": "camera22_receiver.p2p_tcp_listener_marker",
                 "camera23": "camera23_receiver.p2p_tcp_listener_marker",
                 "camera24": "camera24_receiver.p2p_tcp_listener_marker"
-              }
+              },
+              "interval": 11.611
             }
           ]
         }
@@ -2098,7 +2098,6 @@
           "extends": [
             "playback_subgraph"
           ],
-          "id": "000000000001",
           "nodes": [
             {
               "name": "load_blob",
@@ -2112,14 +2111,14 @@
               "name": "display_image",
               "camera_name": "camera1"
             }
-          ]
+          ],
+          "id": "000000000001"
         },
         {
           "name": "camera2",
           "extends": [
             "playback_subgraph"
           ],
-          "id": "000000000002",
           "nodes": [
             {
               "name": "load_blob",
@@ -2133,14 +2132,14 @@
               "name": "display_image",
               "camera_name": "camera2"
             }
-          ]
+          ],
+          "id": "000000000002"
         },
         {
           "name": "camera3",
           "extends": [
             "playback_subgraph"
           ],
-          "id": "000000000003",
           "nodes": [
             {
               "name": "load_blob",
@@ -2154,14 +2153,14 @@
               "name": "display_image",
               "camera_name": "camera3"
             }
-          ]
+          ],
+          "id": "000000000003"
         },
         {
           "name": "camera4",
           "extends": [
             "playback_subgraph"
           ],
-          "id": "000000000004",
           "nodes": [
             {
               "name": "load_blob",
@@ -2175,14 +2174,14 @@
               "name": "display_image",
               "camera_name": "camera4"
             }
-          ]
+          ],
+          "id": "000000000004"
         },
         {
           "name": "camera5",
           "extends": [
             "playback_subgraph"
           ],
-          "id": "000000000005",
           "nodes": [
             {
               "name": "load_blob",
@@ -2196,14 +2195,14 @@
               "name": "display_image",
               "camera_name": "camera5"
             }
-          ]
+          ],
+          "id": "000000000005"
         },
         {
           "name": "camera6",
           "extends": [
             "playback_subgraph"
           ],
-          "id": "000000000006",
           "nodes": [
             {
               "name": "load_blob",
@@ -2217,14 +2216,14 @@
               "name": "display_image",
               "camera_name": "camera6"
             }
-          ]
+          ],
+          "id": "000000000006"
         },
         {
           "name": "camera7",
           "extends": [
             "playback_subgraph"
           ],
-          "id": "000000000007",
           "nodes": [
             {
               "name": "load_blob",
@@ -2238,14 +2237,14 @@
               "name": "display_image",
               "camera_name": "camera7"
             }
-          ]
+          ],
+          "id": "000000000007"
         },
         {
           "name": "camera8",
           "extends": [
             "playback_subgraph"
           ],
-          "id": "000000000008",
           "nodes": [
             {
               "name": "load_blob",
@@ -2259,14 +2258,14 @@
               "name": "display_image",
               "camera_name": "camera8"
             }
-          ]
+          ],
+          "id": "000000000008"
         },
         {
           "name": "camera9",
           "extends": [
             "playback_subgraph"
           ],
-          "id": "000000000009",
           "nodes": [
             {
               "name": "load_blob",
@@ -2280,14 +2279,14 @@
               "name": "display_image",
               "camera_name": "camera9"
             }
-          ]
+          ],
+          "id": "000000000009"
         },
         {
           "name": "camera10",
           "extends": [
             "playback_subgraph"
           ],
-          "id": "000000000010",
           "nodes": [
             {
               "name": "load_blob",
@@ -2301,14 +2300,14 @@
               "name": "display_image",
               "camera_name": "camera10"
             }
-          ]
+          ],
+          "id": "000000000010"
         },
         {
           "name": "camera11",
           "extends": [
             "playback_subgraph"
           ],
-          "id": "000000000011",
           "nodes": [
             {
               "name": "load_blob",
@@ -2322,14 +2321,14 @@
               "name": "display_image",
               "camera_name": "camera11"
             }
-          ]
+          ],
+          "id": "000000000011"
         },
         {
           "name": "camera12",
           "extends": [
             "playback_subgraph"
           ],
-          "id": "000000000012",
           "nodes": [
             {
               "name": "load_blob",
@@ -2343,14 +2342,14 @@
               "name": "display_image",
               "camera_name": "camera12"
             }
-          ]
+          ],
+          "id": "000000000012"
         },
         {
           "name": "camera13",
           "extends": [
             "playback_subgraph"
           ],
-          "id": "000000000013",
           "nodes": [
             {
               "name": "load_blob",
@@ -2364,14 +2363,14 @@
               "name": "display_image",
               "camera_name": "camera13"
             }
-          ]
+          ],
+          "id": "000000000013"
         },
         {
           "name": "camera14",
           "extends": [
             "playback_subgraph"
           ],
-          "id": "000000000014",
           "nodes": [
             {
               "name": "load_blob",
@@ -2385,14 +2384,14 @@
               "name": "display_image",
               "camera_name": "camera14"
             }
-          ]
+          ],
+          "id": "000000000014"
         },
         {
           "name": "camera15",
           "extends": [
             "playback_subgraph"
           ],
-          "id": "000000000015",
           "nodes": [
             {
               "name": "load_blob",
@@ -2406,14 +2405,14 @@
               "name": "display_image",
               "camera_name": "camera15"
             }
-          ]
+          ],
+          "id": "000000000015"
         },
         {
           "name": "camera16",
           "extends": [
             "playback_subgraph"
           ],
-          "id": "000000000016",
           "nodes": [
             {
               "name": "load_blob",
@@ -2427,14 +2426,14 @@
               "name": "display_image",
               "camera_name": "camera16"
             }
-          ]
+          ],
+          "id": "000000000016"
         },
         {
           "name": "camera17",
           "extends": [
             "playback_subgraph"
           ],
-          "id": "000000000017",
           "nodes": [
             {
               "name": "load_blob",
@@ -2448,14 +2447,14 @@
               "name": "display_image",
               "camera_name": "camera17"
             }
-          ]
+          ],
+          "id": "000000000017"
         },
         {
           "name": "camera18",
           "extends": [
             "playback_subgraph"
           ],
-          "id": "000000000018",
           "nodes": [
             {
               "name": "load_blob",
@@ -2469,14 +2468,14 @@
               "name": "display_image",
               "camera_name": "camera18"
             }
-          ]
+          ],
+          "id": "000000000018"
         },
         {
           "name": "camera19",
           "extends": [
             "playback_subgraph"
           ],
-          "id": "000000000019",
           "nodes": [
             {
               "name": "load_blob",
@@ -2490,14 +2489,14 @@
               "name": "display_image",
               "camera_name": "camera19"
             }
-          ]
+          ],
+          "id": "000000000019"
         },
         {
           "name": "camera20",
           "extends": [
             "playback_subgraph"
           ],
-          "id": "000000000020",
           "nodes": [
             {
               "name": "load_blob",
@@ -2511,7 +2510,8 @@
               "name": "display_image",
               "camera_name": "camera20"
             }
-          ]
+          ],
+          "id": "000000000020"
         },
         {
           "name": "sync",
@@ -2519,7 +2519,6 @@
             {
               "name": "approximate_time_sync_images",
               "type": "approximate_time_sync",
-              "interval": 11.611,
               "inputs": {
                 "camera1": "camera1.decode_jpeg",
                 "camera2": "camera2.decode_jpeg",
@@ -2541,12 +2540,12 @@
                 "camera18": "camera18.decode_jpeg",
                 "camera19": "camera19.decode_jpeg",
                 "camera20": "camera20.decode_jpeg"
-              }
+              },
+              "interval": 11.611
             },
             {
               "name": "approximate_time_sync_markers",
               "type": "approximate_time_sync",
-              "interval": 11.611,
               "inputs": {
                 "camera1": "camera1.load_marker",
                 "camera2": "camera2.load_marker",
@@ -2568,7 +2567,8 @@
                 "camera18": "camera18.load_marker",
                 "camera19": "camera19.load_marker",
                 "camera20": "camera20.load_marker"
-              }
+              },
+              "interval": 11.611
             }
           ]
         }
@@ -2581,7 +2581,6 @@
           "extends": [
             "playback_subgraph"
           ],
-          "id": "000000000001",
           "nodes": [
             {
               "name": "load_blob",
@@ -2595,14 +2594,14 @@
               "name": "display_image",
               "camera_name": "camera1"
             }
-          ]
+          ],
+          "id": "000000000001"
         },
         {
           "name": "camera2",
           "extends": [
             "playback_subgraph"
           ],
-          "id": "000000000002",
           "nodes": [
             {
               "name": "load_blob",
@@ -2616,14 +2615,14 @@
               "name": "display_image",
               "camera_name": "camera2"
             }
-          ]
+          ],
+          "id": "000000000002"
         },
         {
           "name": "camera3",
           "extends": [
             "playback_subgraph"
           ],
-          "id": "000000000003",
           "nodes": [
             {
               "name": "load_blob",
@@ -2637,14 +2636,14 @@
               "name": "display_image",
               "camera_name": "camera3"
             }
-          ]
+          ],
+          "id": "000000000003"
         },
         {
           "name": "camera4",
           "extends": [
             "playback_subgraph"
           ],
-          "id": "000000000004",
           "nodes": [
             {
               "name": "load_blob",
@@ -2658,14 +2657,14 @@
               "name": "display_image",
               "camera_name": "camera4"
             }
-          ]
+          ],
+          "id": "000000000004"
         },
         {
           "name": "camera5",
           "extends": [
             "playback_subgraph"
           ],
-          "id": "000000000005",
           "nodes": [
             {
               "name": "load_blob",
@@ -2679,14 +2678,14 @@
               "name": "display_image",
               "camera_name": "camera5"
             }
-          ]
+          ],
+          "id": "000000000005"
         },
         {
           "name": "camera6",
           "extends": [
             "playback_subgraph"
           ],
-          "id": "000000000006",
           "nodes": [
             {
               "name": "load_blob",
@@ -2700,14 +2699,14 @@
               "name": "display_image",
               "camera_name": "camera6"
             }
-          ]
+          ],
+          "id": "000000000006"
         },
         {
           "name": "camera7",
           "extends": [
             "playback_subgraph"
           ],
-          "id": "000000000007",
           "nodes": [
             {
               "name": "load_blob",
@@ -2721,14 +2720,14 @@
               "name": "display_image",
               "camera_name": "camera7"
             }
-          ]
+          ],
+          "id": "000000000007"
         },
         {
           "name": "camera8",
           "extends": [
             "playback_subgraph"
           ],
-          "id": "000000000008",
           "nodes": [
             {
               "name": "load_blob",
@@ -2742,14 +2741,14 @@
               "name": "display_image",
               "camera_name": "camera8"
             }
-          ]
+          ],
+          "id": "000000000008"
         },
         {
           "name": "camera9",
           "extends": [
             "playback_subgraph"
           ],
-          "id": "000000000009",
           "nodes": [
             {
               "name": "load_blob",
@@ -2763,14 +2762,14 @@
               "name": "display_image",
               "camera_name": "camera9"
             }
-          ]
+          ],
+          "id": "000000000009"
         },
         {
           "name": "camera10",
           "extends": [
             "playback_subgraph"
           ],
-          "id": "000000000010",
           "nodes": [
             {
               "name": "load_blob",
@@ -2784,14 +2783,14 @@
               "name": "display_image",
               "camera_name": "camera10"
             }
-          ]
+          ],
+          "id": "000000000010"
         },
         {
           "name": "camera11",
           "extends": [
             "playback_subgraph"
           ],
-          "id": "000000000011",
           "nodes": [
             {
               "name": "load_blob",
@@ -2805,14 +2804,14 @@
               "name": "display_image",
               "camera_name": "camera11"
             }
-          ]
+          ],
+          "id": "000000000011"
         },
         {
           "name": "camera12",
           "extends": [
             "playback_subgraph"
           ],
-          "id": "000000000012",
           "nodes": [
             {
               "name": "load_blob",
@@ -2826,14 +2825,14 @@
               "name": "display_image",
               "camera_name": "camera12"
             }
-          ]
+          ],
+          "id": "000000000012"
         },
         {
           "name": "camera13",
           "extends": [
             "playback_subgraph"
           ],
-          "id": "000000000013",
           "nodes": [
             {
               "name": "load_blob",
@@ -2847,14 +2846,14 @@
               "name": "display_image",
               "camera_name": "camera13"
             }
-          ]
+          ],
+          "id": "000000000013"
         },
         {
           "name": "camera14",
           "extends": [
             "playback_subgraph"
           ],
-          "id": "000000000014",
           "nodes": [
             {
               "name": "load_blob",
@@ -2868,14 +2867,14 @@
               "name": "display_image",
               "camera_name": "camera14"
             }
-          ]
+          ],
+          "id": "000000000014"
         },
         {
           "name": "camera15",
           "extends": [
             "playback_subgraph"
           ],
-          "id": "000000000015",
           "nodes": [
             {
               "name": "load_blob",
@@ -2889,14 +2888,14 @@
               "name": "display_image",
               "camera_name": "camera15"
             }
-          ]
+          ],
+          "id": "000000000015"
         },
         {
           "name": "camera16",
           "extends": [
             "playback_subgraph"
           ],
-          "id": "000000000016",
           "nodes": [
             {
               "name": "load_blob",
@@ -2910,14 +2909,14 @@
               "name": "display_image",
               "camera_name": "camera16"
             }
-          ]
+          ],
+          "id": "000000000016"
         },
         {
           "name": "camera17",
           "extends": [
             "playback_subgraph"
           ],
-          "id": "000000000017",
           "nodes": [
             {
               "name": "load_blob",
@@ -2931,14 +2930,14 @@
               "name": "display_image",
               "camera_name": "camera17"
             }
-          ]
+          ],
+          "id": "000000000017"
         },
         {
           "name": "camera18",
           "extends": [
             "playback_subgraph"
           ],
-          "id": "000000000018",
           "nodes": [
             {
               "name": "load_blob",
@@ -2952,14 +2951,14 @@
               "name": "display_image",
               "camera_name": "camera18"
             }
-          ]
+          ],
+          "id": "000000000018"
         },
         {
           "name": "camera19",
           "extends": [
             "playback_subgraph"
           ],
-          "id": "000000000019",
           "nodes": [
             {
               "name": "load_blob",
@@ -2973,14 +2972,14 @@
               "name": "display_image",
               "camera_name": "camera19"
             }
-          ]
+          ],
+          "id": "000000000019"
         },
         {
           "name": "camera20",
           "extends": [
             "playback_subgraph"
           ],
-          "id": "000000000020",
           "nodes": [
             {
               "name": "load_blob",
@@ -2994,7 +2993,8 @@
               "name": "display_image",
               "camera_name": "camera20"
             }
-          ]
+          ],
+          "id": "000000000020"
         },
         {
           "name": "sync",
@@ -3002,7 +3002,6 @@
             {
               "name": "approximate_time_sync_markers",
               "type": "approximate_time_sync",
-              "interval": 11.611,
               "inputs": {
                 "camera1": "camera1.load_marker",
                 "camera2": "camera2.load_marker",
@@ -3024,7 +3023,8 @@
                 "camera18": "camera18.load_marker",
                 "camera19": "camera19.load_marker",
                 "camera20": "camera20.load_marker"
-              }
+              },
+              "interval": 11.611
             },
             {
               "name": "keypoint_to_float2",

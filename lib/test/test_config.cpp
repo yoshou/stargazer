@@ -375,9 +375,9 @@ TEST(ConfigRealFiles, TC13_RealConfigFilesLoad) {
     auto nodes = cfg.get_nodes();
     EXPECT_GT(nodes.size(), 0u) << "calibration_extrinsic_ir pipeline empty";
   }
-  // image_reconstruction.json
+  // reconstruction_image.json
   {
-    stargazer::configuration cfg(std::string(REAL_CONFIG_DIR) + "/image_reconstruction.json");
+    stargazer::configuration cfg(std::string(REAL_CONFIG_DIR) + "/reconstruction_image.json");
     auto nodes = cfg.get_nodes();
     EXPECT_GT(nodes.size(), 0u) << "image_reconstruction pipeline empty";
   }
@@ -387,10 +387,10 @@ TEST(ConfigRealFiles, TC13_RealConfigFilesLoad) {
     auto nodes = cfg.get_nodes();
     EXPECT_GT(nodes.size(), 0u) << "capture pipeline empty";
   }
-  // calibration_intrinsic_single_camera.json
+  // calibration_intrinsic.json
   {
     stargazer::configuration cfg(std::string(REAL_CONFIG_DIR) +
-                                 "/calibration_intrinsic_single_camera.json");
+                                 "/calibration_intrinsic.json");
     auto nodes = cfg.get_nodes();
     EXPECT_GT(nodes.size(), 0u) << "intrinsic_calibration pipeline empty";
   }
@@ -400,9 +400,9 @@ TEST(ConfigRealFiles, TC13_RealConfigFilesLoad) {
     auto nodes = cfg.get_nodes();
     EXPECT_GT(nodes.size(), 0u) << "scene_calibration pipeline empty";
   }
-  // point_reconstruction.json
+  // reconstruction_point.json
   {
-    stargazer::configuration cfg(std::string(REAL_CONFIG_DIR) + "/point_reconstruction.json");
+    stargazer::configuration cfg(std::string(REAL_CONFIG_DIR) + "/reconstruction_point.json");
     auto nodes = cfg.get_nodes();
     EXPECT_GT(nodes.size(), 0u) << "point_reconstruction pipeline empty";
   }
