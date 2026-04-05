@@ -219,25 +219,10 @@ class viewer_app : public window_base {
       return;
     }
 
-    panel_view_->nodes.clear();
     panel_view_->has_gate = false;
-    std::unordered_set<std::string> seen_camera_names;
     for (const auto& node : config_->get_nodes()) {
-      panel_view_->has_gate = panel_view_->has_gate || node.get_type() == stargazer::node_type::gate;
-      const auto camera_name = try_get_node_camera_name(node);
-      if (!camera_name.has_value() || !seen_camera_names.insert(*camera_name).second) {
-        continue;
-      }
-
-      std::string path;
-      if (node.contains_param("address")) {
-        path = node.get_param<std::string>("address");
-      }
-      if (node.contains_param("db_path")) {
-        path = node.get_param<std::string>("db_path");
-      }
-
-      panel_view_->nodes.push_back(pipeline_panel_view::node_def{*camera_name, path, node.params});
+      panel_view_->has_gate =
+          panel_view_->has_gate || node.get_type() == stargazer::node_type::gate;
     }
 
     panel_view_->tree = build_config_tree(*config_);
@@ -280,7 +265,7 @@ class viewer_app : public window_base {
         }
 
         const auto stream = std::make_shared<image_tile_view::stream_info>(
-      stream_name, float2{(float)width, (float)height}, gfx_ctx);
+            stream_name, float2{(float)width, (float)height}, gfx_ctx);
         stream->property_node_name = node.name;
         stream->property_key = property.source_key;
         stream->property_resource_kind = property.resource_kind;
@@ -301,8 +286,7 @@ class viewer_app : public window_base {
         }
 
         const auto stream_it = std::find_if(
-            tile_view->streams.begin(), tile_view->streams.end(),
-            [&](const auto& stream) {
+            tile_view->streams.begin(), tile_view->streams.end(), [&](const auto& stream) {
               return stream->name == stream_name && stream->property_node_name == node.name &&
                      stream->property_key == property.source_key;
             });
@@ -313,8 +297,7 @@ class viewer_app : public window_base {
     }
   }
 
-  bool upload_property_stream(
-      const std::shared_ptr<image_tile_view::stream_info>& stream) const {
+  bool upload_property_stream(const std::shared_ptr<image_tile_view::stream_info>& stream) const {
     if (!stream || stream->property_node_name.empty() || stream->property_key.empty()) {
       return false;
     }
@@ -323,11 +306,13 @@ class viewer_app : public window_base {
       return false;
     }
 
-    if (!pipeline_ || !stream || stream->property_node_name.empty() || stream->property_key.empty()) {
+    if (!pipeline_ || !stream || stream->property_node_name.empty() ||
+        stream->property_key.empty()) {
       return false;
     }
 
-    const auto value = pipeline_->get_node_property(stream->property_node_name, stream->property_key);
+    const auto value =
+        pipeline_->get_node_property(stream->property_node_name, stream->property_key);
     if (!value.has_value()) {
       return false;
     }
@@ -421,11 +406,16 @@ class viewer_app : public window_base {
     });
 
     panel_view_->is_marker_collecting_changed.push_back([this](bool is_marker_collecting) {
-      for (const auto& panel_node : panel_view_->nodes) {
+      std::unordered_set<std::string> seen_camera_names;
+      for (const auto& node : config_->get_nodes()) {
+        const auto camera_name = try_get_node_camera_name(node);
+        if (!camera_name.has_value() || !seen_camera_names.insert(*camera_name).second) {
+          continue;
+        }
         if (is_marker_collecting) {
-          pipeline_->enable_marker_collecting(panel_node.name);
+          pipeline_->enable_marker_collecting(*camera_name);
         } else {
-          pipeline_->disable_marker_collecting(panel_node.name);
+          pipeline_->disable_marker_collecting(*camera_name);
         }
       }
       return true;

@@ -173,18 +173,6 @@ class top_bar_view {
 
 class pipeline_panel_view {
  public:
-  struct node_def {
-    std::string name;
-    std::string address;
-    std::unordered_map<std::string, stargazer::node_param_t> params;
-    bool is_streaming = true;
-
-    node_def(const std::string& name, const std::string& address,
-             const std::unordered_map<std::string, stargazer::node_param_t>& params)
-        : name(name), address(address), params(params) {}
-  };
-
-  std::vector<node_def> nodes;
   stargazer::config_tree_model tree;
   bool is_streaming = false;
   bool is_marker_collecting = false;
