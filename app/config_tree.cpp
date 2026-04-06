@@ -1,5 +1,6 @@
 #include "config_tree.hpp"
 
+#include <cmath>
 #include <sstream>
 
 namespace stargazer {
@@ -173,6 +174,108 @@ void append_pipeline_tree(config_tree_model& model, const configuration& config)
 config_tree_model build_config_tree(const configuration& config) {
   config_tree_model model;
   append_pipeline_tree(model, config);
+  return model;
+}
+
+namespace {
+
+static int get_node_dimension(const node_def& node, const std::string& key) {
+  if (!node.contains_param(key)) {
+    return 0;
+  }
+  try {
+    return static_cast<int>(node.get_param<std::int64_t>(key));
+  } catch (...) {
+    return static_cast<int>(std::round(node.get_param<float>(key)));
+  }
+}
+
+static std::optional<std::string> try_get_node_camera_name(const node_def& node) {
+  if (!node.contains_param("camera_name")) {
+    return std::nullopt;
+  }
+  const auto camera_name = node.get_param<std::string>("camera_name");
+  if (camera_name.empty()) {
+    return std::nullopt;
+  }
+  return camera_name;
+}
+
+}  // namespace
+
+stream_source_model build_stream_source_model(const configuration& config) {
+  stream_source_model model;
+  const auto nodes = config.get_nodes();
+  for (const auto& node : nodes) {
+    bool has_stream_target = false;
+    for (const auto& property : node.properties) {
+      const auto& target = property.target;
+      if (target == "image" || target == "point" || target == "contrail") {
+        has_stream_target = true;
+        break;
+      }
+    }
+    if (!has_stream_target) {
+      continue;
+    }
+
+    const float width = static_cast<float>(get_node_dimension(node, "width"));
+    const float height = static_cast<float>(get_node_dimension(node, "height"));
+    const auto stream_name = try_get_node_camera_name(node).value_or(std::string{});
+
+    for (const auto& property : node.properties) {
+      const auto& target = property.target;
+      if (target != "image" && target != "point" && target != "contrail") {
+        continue;
+      }
+      stream_source src;
+      src.name = stream_name;
+      src.width = width;
+      src.height = height;
+      src.target = target;
+      src.property_node_name = node.name;
+      src.property_key = property.source_key;
+      src.property_resource_kind = property.resource_kind;
+      src.property_selector = property.selector;
+      model.sources.push_back(std::move(src));
+    }
+  }
+  return model;
+}
+
+pose_source_model build_pose_source_model(const configuration& config) {
+  pose_source_model model;
+  const auto nodes = config.get_nodes();
+  for (const auto& node : nodes) {
+    if (node.get_type() == node_type::epipolar_reconstruction) {
+      const config_tree_ref ref{node.name};
+      model.axis_source = {ref, "axis"};
+      for (const auto& camera_node : nodes) {
+        const auto camera_name = try_get_node_camera_name(camera_node);
+        if (!camera_name.has_value()) {
+          continue;
+        }
+        model.camera_sources.push_back({*camera_name, ref, "camera." + *camera_name});
+      }
+    }
+
+    if (node.get_type() == node_type::extrinsic_calibration) {
+      const config_tree_ref ref{node.name};
+      for (const auto& [input_name, _input] : node.inputs) {
+        const std::string prefix{"camera."};
+        if (input_name.rfind(prefix, 0) != 0) {
+          continue;
+        }
+        const auto camera_name = input_name.substr(prefix.size());
+        model.camera_sources.push_back({camera_name, ref, "calibrated." + camera_name});
+      }
+    }
+
+    if (node.get_type() == node_type::marker_property) {
+      const config_tree_ref ref{node.name};
+      model.point_sources.push_back({ref, "markers"});
+    }
+  }
   return model;
 }
 

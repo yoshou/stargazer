@@ -110,6 +110,7 @@ class viewer_app : public window_base {
   std::unique_ptr<stargazer::pipeline> pipeline_;
   std::unique_ptr<configuration> config_;
   bool pipeline_running_ = false;
+  stargazer::stream_source_model stream_sources_;
 
   // gRPC pipeline control
   std::string grpc_address_;
@@ -128,58 +129,25 @@ class viewer_app : public window_base {
 
   void bind_pose_property() {
     if (!pose_view_ || !config_) return;
-    pose_view_->camera_sources.clear();
-    pose_view_->point_sources.clear();
-    pose_view_->axis_source = {};
-
-    const auto nodes = config_->get_nodes();
-    for (const auto& node : nodes) {
-      if (node.get_type() == stargazer::node_type::epipolar_reconstruction) {
-        const stargazer::config_tree_ref ref{node.name};
-        pose_view_->axis_source = {ref, "axis"};
-        for (const auto& camera_node : nodes) {
-          const auto camera_name = try_get_node_camera_name(camera_node);
-          if (!camera_name.has_value()) {
-            continue;
-          }
-          pose_view_->camera_sources[*camera_name] = {ref, "camera." + *camera_name};
-        }
-      }
-
-      if (node.get_type() == stargazer::node_type::extrinsic_calibration) {
-        const stargazer::config_tree_ref ref{node.name};
-        for (const auto& [input_name, _input] : node.inputs) {
-          const std::string prefix{"camera."};
-          if (input_name.rfind(prefix, 0) != 0) {
-            continue;
-          }
-          const auto camera_name = input_name.substr(prefix.size());
-          pose_view_->camera_sources[camera_name] = {ref, "calibrated." + camera_name};
-        }
-      }
-
-      if (node.get_type() == stargazer::node_type::marker_property) {
-        const stargazer::config_tree_ref ref{node.name};
-        pose_view_->point_sources.push_back({ref, "markers"});
-      }
-    }
+    pose_view_->sources = stargazer::build_pose_source_model(*config_);
   }
 
   void update_pose_from_properties() {
     if (!pose_view_) return;
+    const auto& sources = pose_view_->sources;
 
     // Update cameras
-    for (const auto& [cam_name, source] : pose_view_->camera_sources) {
-      const auto value = query_runtime_node_property(source.ref, source.property_key);
+    for (const auto& cam_src : sources.camera_sources) {
+      const auto value = query_runtime_node_property(cam_src.ref, cam_src.property_key);
       if (value && std::holds_alternative<coalsack::camera_t>(value.value())) {
-        pose_view_->cameras[cam_name] = std::get<coalsack::camera_t>(value.value());
+        pose_view_->cameras[cam_src.camera_name] = std::get<coalsack::camera_t>(value.value());
       }
     }
 
     // Update axis
-    if (!pose_view_->axis_source.property_key.empty()) {
-      const auto value = query_runtime_node_property(pose_view_->axis_source.ref,
-                                                     pose_view_->axis_source.property_key);
+    if (!sources.axis_source.property_key.empty()) {
+      const auto value =
+          query_runtime_node_property(sources.axis_source.ref, sources.axis_source.property_key);
       if (value && std::holds_alternative<coalsack::mat4>(value.value())) {
         pose_view_->axis = stargazer::to_glm(std::get<coalsack::mat4>(value.value()));
       }
@@ -187,8 +155,8 @@ class viewer_app : public window_base {
 
     // Update points
     pose_view_->points.clear();
-    for (const auto& source : pose_view_->point_sources) {
-      const auto value = query_runtime_node_property(source.ref, source.property_key);
+    for (const auto& src : sources.point_sources) {
+      const auto value = query_runtime_node_property(src.ref, src.property_key);
       if (value && std::holds_alternative<std::vector<coalsack::vec3>>(value.value())) {
         for (const auto& p : std::get<std::vector<coalsack::vec3>>(value.value())) {
           pose_view_->points.push_back(stargazer::to_glm(p));
@@ -250,37 +218,18 @@ class viewer_app : public window_base {
     return nullptr;
   }
 
-  void add_streams_from_properties(const std::vector<stargazer::node_def>& nodes) {
-    for (const auto& node : nodes) {
-      bool has_stream_target = false;
-      for (const auto& property : node.properties) {
-        if (target_tile_view(property.target)) {
-          has_stream_target = true;
-          break;
-        }
-      }
-      if (!has_stream_target) {
+  void add_streams_from_properties(const std::vector<stargazer::node_def>& /*nodes*/) {
+    stream_sources_ = stargazer::build_stream_source_model(*config_);
+
+    for (const auto& src : stream_sources_.sources) {
+      auto* tile_view = target_tile_view(src.target);
+      if (!tile_view) {
         continue;
       }
-
-      const int width = get_node_dimension(node, "width");
-      const int height = get_node_dimension(node, "height");
-      for (const auto& property : node.properties) {
-        auto* tile_view = target_tile_view(property.target);
-        if (!tile_view) {
-          continue;
-        }
-
-        const auto stream_name = get_stream_name(node);
-
-        const auto stream = std::make_shared<image_tile_view::stream_info>(
-            stream_name, float2{(float)width, (float)height}, gfx_ctx);
-        stream->property_node_name = node.name;
-        stream->property_key = property.source_key;
-        stream->property_resource_kind = property.resource_kind;
-        stream->property_selector = property.selector;
-        tile_view->streams.push_back(stream);
-      }
+      const auto stream = std::make_shared<image_tile_view::stream_info>(
+          src.name, float2{src.width, src.height}, gfx_ctx);
+      stream->source = &src;
+      tile_view->streams.push_back(stream);
     }
   }
 
@@ -296,8 +245,10 @@ class viewer_app : public window_base {
 
         const auto stream_it = std::find_if(
             tile_view->streams.begin(), tile_view->streams.end(), [&](const auto& stream) {
-              return stream->name == stream_name && stream->property_node_name == node.name &&
-                     stream->property_key == property.source_key;
+              return stream->source &&
+                     stream->source->property_node_name == node.name &&
+                     stream->source->property_key == property.source_key &&
+                     stream->name == stream_name;
             });
         if (stream_it != tile_view->streams.end()) {
           tile_view->streams.erase(stream_it);
@@ -307,21 +258,24 @@ class viewer_app : public window_base {
   }
 
   bool upload_property_stream(const std::shared_ptr<image_tile_view::stream_info>& stream) const {
-    if (!stream || stream->property_node_name.empty() || stream->property_key.empty()) {
+    if (!stream || !stream->source) {
       return false;
     }
-    if (!stream->property_resource_kind.empty() && stream->property_resource_kind != "raw" &&
-        stream->property_resource_kind != "feature") {
+    const auto& src = *stream->source;
+    if (src.property_node_name.empty() || src.property_key.empty()) {
+      return false;
+    }
+    if (!src.property_resource_kind.empty() && src.property_resource_kind != "raw" &&
+        src.property_resource_kind != "feature") {
       return false;
     }
 
-    if (!pipeline_ || !stream || stream->property_node_name.empty() ||
-        stream->property_key.empty()) {
+    if (!pipeline_) {
       return false;
     }
 
     const auto value =
-        pipeline_->get_node_property(stream->property_node_name, stream->property_key);
+        pipeline_->get_node_property(src.property_node_name, src.property_key);
     if (!value.has_value()) {
       return false;
     }

@@ -197,19 +197,12 @@ class image_tile_view {
   struct stream_info {
     std::string name;
     float2 size;
-    std::string property_node_name;
-    std::string property_key;
-    std::string property_resource_kind;
-    std::string property_selector;
+    const stargazer::stream_source* source = nullptr;
     texture_buffer texture;
 
     stream_info(std::string name, float2 size, graphics_context* gfx_ctx = nullptr)
         : name(std::move(name)),
-          size(size),
-          property_node_name(),
-          property_key(),
-          property_resource_kind(),
-          property_selector() {
+          size(size) {
       texture.set_context(gfx_ctx);
     }
   };
@@ -240,18 +233,11 @@ class pose_view {
  public:
   using camera_t = coalsack::camera_t;
 
-  struct pose_property_source {
-    stargazer::config_tree_ref ref;
-    std::string property_key;
-  };
-
   std::map<std::string, camera_t> cameras;
   std::vector<glm::vec3> points;
   glm::mat4 axis;
 
-  std::map<std::string, pose_property_source> camera_sources;
-  pose_property_source axis_source;
-  std::vector<pose_property_source> point_sources;
+  stargazer::pose_source_model sources;
 
   void initialize(vk::Device device, vk::PhysicalDevice physical_device,
                   vk::RenderPass render_pass);

@@ -76,4 +76,40 @@ struct config_tree_model {
 
 config_tree_model build_config_tree(const configuration& config);
 
+struct stream_source {
+  std::string name;
+  float width;
+  float height;
+  std::string target;
+  std::string property_node_name;
+  std::string property_key;
+  std::string property_resource_kind;
+  std::string property_selector;
+};
+
+struct stream_source_model {
+  std::vector<stream_source> sources;
+};
+
+stream_source_model build_stream_source_model(const configuration& config);
+
+struct pose_camera_source {
+  std::string camera_name;
+  config_tree_ref ref;
+  std::string property_key;
+};
+
+struct pose_generic_source {
+  config_tree_ref ref;
+  std::string property_key;
+};
+
+struct pose_source_model {
+  std::vector<pose_camera_source> camera_sources;
+  pose_generic_source axis_source;
+  std::vector<pose_generic_source> point_sources;
+};
+
+pose_source_model build_pose_source_model(const configuration& config);
+
 }  // namespace stargazer
