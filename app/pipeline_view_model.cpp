@@ -1,4 +1,4 @@
-#include "config_tree.hpp"
+#include "pipeline_view_model.hpp"
 
 #include <cmath>
 #include <sstream>
@@ -43,14 +43,15 @@ std::vector<std::string> get_node_badges(const node_def& node) {
   return badges;
 }
 
-config_tree_item make_detail_item(
-    const std::string& stable_id, const std::string& label, const std::string& summary,
-    config_tree_detail_kind detail_kind = config_tree_detail_kind::param,
-    const std::string& runtime_node_id = {}, const std::string& property_source_key = {},
-    const std::string& property_format = {}) {
-  config_tree_item item;
+pipeline_item make_detail_item(const std::string& stable_id, const std::string& label,
+                               const std::string& summary,
+                               pipeline_detail_kind detail_kind = pipeline_detail_kind::param,
+                               const std::string& runtime_node_id = {},
+                               const std::string& property_source_key = {},
+                               const std::string& property_format = {}) {
+  pipeline_item item;
   item.stable_id = stable_id;
-  item.kind = config_tree_item_kind::detail;
+  item.kind = pipeline_item_kind::detail;
   item.detail_kind = detail_kind;
   item.label = label;
   item.summary = summary;
@@ -60,24 +61,23 @@ config_tree_item make_detail_item(
   return item;
 }
 
-std::vector<config_tree_item> build_detail_items(const node_def& node,
-                                                 const std::string& runtime_id) {
-  std::vector<config_tree_item> children;
+std::vector<pipeline_item> build_detail_items(const node_def& node, const std::string& runtime_id) {
+  std::vector<pipeline_item> children;
 
   for (const auto& [key, value] : node.params) {
     children.push_back(make_detail_item(runtime_id + ".param." + key, key,
-                                        node_param_to_string(value), config_tree_detail_kind::param,
+                                        node_param_to_string(value), pipeline_detail_kind::param,
                                         runtime_id));
   }
 
   for (const auto& [key, value] : node.inputs) {
     children.push_back(make_detail_item(runtime_id + ".input." + key, "input." + key, value,
-                                        config_tree_detail_kind::input, runtime_id));
+                                        pipeline_detail_kind::input, runtime_id));
   }
 
   for (size_t index = 0; index < node.outputs.size(); ++index) {
     children.push_back(make_detail_item(runtime_id + ".output." + std::to_string(index), "output",
-                                        node.outputs[index], config_tree_detail_kind::output,
+                                        node.outputs[index], pipeline_detail_kind::output,
                                         runtime_id));
   }
 
@@ -97,19 +97,19 @@ std::vector<config_tree_item> build_detail_items(const node_def& node,
       summary = node_param_to_string(property.default_value.value());
     }
     children.push_back(make_detail_item(runtime_id + ".property." + property.id, property.label,
-                                        summary, config_tree_detail_kind::property, runtime_id,
+                                        summary, pipeline_detail_kind::property, runtime_id,
                                         property.source_key, property.format));
   }
 
   return children;
 }
 
-void append_pipeline_tree(config_tree_model& model, const configuration& config) {
-  config_tree_item pipeline_item;
-  pipeline_item.stable_id = "pipeline:pipeline";
-  pipeline_item.kind = config_tree_item_kind::pipeline;
-  pipeline_item.label = "pipeline";
-  pipeline_item.summary = config.get_pipeline().name;
+void append_pipeline_tree(pipeline_model& model, const configuration& config) {
+  pipeline_item root_item;
+  root_item.stable_id = "pipeline:pipeline";
+  root_item.kind = pipeline_item_kind::pipeline;
+  root_item.label = "pipeline";
+  root_item.summary = config.get_pipeline().name;
 
   std::unordered_map<std::string, size_t> subgraph_indices;
   const auto nodes = config.get_nodes();
@@ -119,13 +119,13 @@ void append_pipeline_tree(config_tree_model& model, const configuration& config)
         node.subgraph_instance.empty() ? std::string("pipeline") : node.subgraph_instance;
     size_t subgraph_index = 0;
     if (subgraph_indices.find(subgraph_name) == subgraph_indices.end()) {
-      config_tree_item subgraph_item;
-      subgraph_item.stable_id = pipeline_item.stable_id + ".subgraph." + subgraph_name;
-      subgraph_item.kind = config_tree_item_kind::subgraph;
+      pipeline_item subgraph_item;
+      subgraph_item.stable_id = root_item.stable_id + ".subgraph." + subgraph_name;
+      subgraph_item.kind = pipeline_item_kind::subgraph;
       subgraph_item.label = subgraph_name;
       subgraph_item.summary = "subgraph";
-      pipeline_item.children.push_back(subgraph_item);
-      subgraph_index = pipeline_item.children.size() - 1;
+      root_item.children.push_back(subgraph_item);
+      subgraph_index = root_item.children.size() - 1;
       subgraph_indices[subgraph_name] = subgraph_index;
     } else {
       subgraph_index = subgraph_indices[subgraph_name];
@@ -135,7 +135,7 @@ void append_pipeline_tree(config_tree_model& model, const configuration& config)
 
     runtime_node_handle runtime_node;
     runtime_node.stable_id = runtime_id;
-    runtime_node.ref = config_tree_ref{node.name};
+    runtime_node.ref = node_ref{node.name};
     runtime_node.label = node.name;
     runtime_node.summary = get_node_summary(node);
     runtime_node.badges = get_node_badges(node);
@@ -155,24 +155,24 @@ void append_pipeline_tree(config_tree_model& model, const configuration& config)
     }
     model.runtime_nodes.insert_or_assign(runtime_id, runtime_node);
 
-    config_tree_item node_item;
+    pipeline_item node_item;
     node_item.stable_id = runtime_id;
-    node_item.kind = config_tree_item_kind::node;
+    node_item.kind = pipeline_item_kind::node;
     node_item.label = node.name;
     node_item.summary = runtime_node.summary;
     node_item.runtime_node_id = runtime_id;
     node_item.badges = runtime_node.badges;
     node_item.children = build_detail_items(node, runtime_id);
-    pipeline_item.children[subgraph_index].children.push_back(std::move(node_item));
+    root_item.children[subgraph_index].children.push_back(std::move(node_item));
   }
 
-  model.roots.push_back(std::move(pipeline_item));
+  model.roots.push_back(std::move(root_item));
 }
 
 }  // namespace
 
-config_tree_model build_config_tree(const configuration& config) {
-  config_tree_model model;
+pipeline_model build_pipeline_model(const configuration& config) {
+  pipeline_model model;
   append_pipeline_tree(model, config);
   return model;
 }
@@ -248,7 +248,7 @@ pose_source_model build_pose_source_model(const configuration& config) {
   const auto nodes = config.get_nodes();
   for (const auto& node : nodes) {
     if (node.get_type() == node_type::epipolar_reconstruction) {
-      const config_tree_ref ref{node.name};
+      const node_ref ref{node.name};
       model.axis_source = {ref, "axis"};
       for (const auto& camera_node : nodes) {
         const auto camera_name = try_get_node_camera_name(camera_node);
@@ -260,7 +260,7 @@ pose_source_model build_pose_source_model(const configuration& config) {
     }
 
     if (node.get_type() == node_type::extrinsic_calibration) {
-      const config_tree_ref ref{node.name};
+      const node_ref ref{node.name};
       for (const auto& [input_name, _input] : node.inputs) {
         const std::string prefix{"camera."};
         if (input_name.rfind(prefix, 0) != 0) {
@@ -272,7 +272,7 @@ pose_source_model build_pose_source_model(const configuration& config) {
     }
 
     if (node.get_type() == node_type::marker_property) {
-      const config_tree_ref ref{node.name};
+      const node_ref ref{node.name};
       model.point_sources.push_back({ref, "markers"});
     }
   }

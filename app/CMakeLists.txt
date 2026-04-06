@@ -39,7 +39,7 @@ add_custom_target(stargazer_shaders ALL
 )
 
 add_executable(stargazer_viewer
-    ${CMAKE_CURRENT_LIST_DIR}/config_tree.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/pipeline_view_model.cpp
     ${CMAKE_CURRENT_LIST_DIR}/viewer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/views.cpp
     ${CMAKE_CURRENT_LIST_DIR}/gui.cpp

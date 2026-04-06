@@ -17,11 +17,11 @@
 
 #include "coalsack/camera/camera.h"
 #include "config.hpp"
-#include "config_tree.hpp"
 #include "imgui-fonts-fontawesome.hpp"
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_vulkan.h"
+#include "pipeline_view_model.hpp"
 #include "viewer.hpp"
 
 // Scene scale factor for pose view
@@ -173,7 +173,7 @@ class top_bar_view {
 
 class pipeline_panel_view {
  public:
-  stargazer::config_tree_model tree;
+  stargazer::pipeline_model tree;
   bool is_streaming = false;
   bool is_marker_collecting = false;
   bool has_gate = false;
@@ -181,8 +181,7 @@ class pipeline_panel_view {
   std::vector<std::function<bool(bool)>> is_all_streaming_changed;
   std::vector<std::function<bool(bool)>> is_marker_collecting_changed;
   std::vector<std::function<bool(const std::string&, const std::string&)>> on_action;
-  std::function<std::optional<std::string>(const stargazer::config_tree_item&)>
-      resolve_detail_value;
+  std::function<std::optional<std::string>(const stargazer::pipeline_item&)> resolve_detail_value;
 
  private:
   float draw_control_panel(view_context* context);
@@ -201,8 +200,7 @@ class image_tile_view {
     texture_buffer texture;
 
     stream_info(std::string name, float2 size, graphics_context* gfx_ctx = nullptr)
-        : name(std::move(name)),
-          size(size) {
+        : name(std::move(name)), size(size) {
       texture.set_context(gfx_ctx);
     }
   };

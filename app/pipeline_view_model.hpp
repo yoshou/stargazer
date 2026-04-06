@@ -8,21 +8,21 @@
 
 namespace stargazer {
 
-enum class config_tree_item_kind {
+enum class pipeline_item_kind {
   pipeline,
   subgraph,
   node,
   detail,
 };
 
-enum class config_tree_detail_kind {
+enum class pipeline_detail_kind {
   param,
   input,
   output,
   property,
 };
 
-struct config_tree_ref {
+struct node_ref {
   std::string node_name;
 };
 
@@ -41,7 +41,7 @@ struct runtime_node_action {
 
 struct runtime_node_handle {
   std::string stable_id;
-  config_tree_ref ref;
+  node_ref ref;
   std::string label;
   std::string summary;
   std::vector<std::string> badges;
@@ -50,31 +50,25 @@ struct runtime_node_handle {
   std::vector<runtime_node_action> actions;
 };
 
-struct config_tree_item {
+struct pipeline_item {
   std::string stable_id;
-  config_tree_item_kind kind = config_tree_item_kind::detail;
-  config_tree_detail_kind detail_kind = config_tree_detail_kind::param;
+  pipeline_item_kind kind = pipeline_item_kind::detail;
+  pipeline_detail_kind detail_kind = pipeline_detail_kind::param;
   std::string label;
   std::string summary;
   std::string runtime_node_id;
   std::string property_source_key;
   std::string property_format;
   std::vector<std::string> badges;
-  std::vector<config_tree_item> children;
+  std::vector<pipeline_item> children;
 };
 
-struct config_tree_render_options {
-  bool allow_node_selection = true;
-  bool show_runtime_summary = true;
-  bool show_detail_rows = true;
-};
-
-struct config_tree_model {
-  std::vector<config_tree_item> roots;
+struct pipeline_model {
+  std::vector<pipeline_item> roots;
   std::unordered_map<std::string, runtime_node_handle> runtime_nodes;
 };
 
-config_tree_model build_config_tree(const configuration& config);
+pipeline_model build_pipeline_model(const configuration& config);
 
 struct stream_source {
   std::string name;
@@ -95,12 +89,12 @@ stream_source_model build_stream_source_model(const configuration& config);
 
 struct pose_camera_source {
   std::string camera_name;
-  config_tree_ref ref;
+  node_ref ref;
   std::string property_key;
 };
 
 struct pose_generic_source {
-  config_tree_ref ref;
+  node_ref ref;
   std::string property_key;
 };
 

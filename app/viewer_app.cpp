@@ -12,8 +12,8 @@
 #include <opencv2/core.hpp>
 #include <opencv2/imgproc.hpp>
 #include <set>
-#include <unordered_set>
 #include <sstream>
+#include <unordered_set>
 #include <vulkan/vulkan.hpp>
 
 #include "coalsack_math_conv.hpp"
@@ -120,7 +120,7 @@ class viewer_app : public window_base {
   std::atomic<bool> api_collecting_{false};
 
   std::optional<coalsack::property_value> query_runtime_node_property(
-      const stargazer::config_tree_ref& ref, const std::string& key) const {
+      const stargazer::node_ref& ref, const std::string& key) const {
     if (pipeline_) {
       return pipeline_->get_node_property(ref.node_name, key);
     }
@@ -202,7 +202,7 @@ class viewer_app : public window_base {
           panel_view_->has_gate || node.get_type() == stargazer::node_type::gate;
     }
 
-    panel_view_->tree = build_config_tree(*config_);
+    panel_view_->tree = build_pipeline_model(*config_);
   }
 
   image_tile_view* target_tile_view(const std::string& target) const {
@@ -245,8 +245,7 @@ class viewer_app : public window_base {
 
         const auto stream_it = std::find_if(
             tile_view->streams.begin(), tile_view->streams.end(), [&](const auto& stream) {
-              return stream->source &&
-                     stream->source->property_node_name == node.name &&
+              return stream->source && stream->source->property_node_name == node.name &&
                      stream->source->property_key == property.source_key &&
                      stream->name == stream_name;
             });
@@ -274,8 +273,7 @@ class viewer_app : public window_base {
       return false;
     }
 
-    const auto value =
-        pipeline_->get_node_property(src.property_node_name, src.property_key);
+    const auto value = pipeline_->get_node_property(src.property_node_name, src.property_key);
     if (!value.has_value()) {
       return false;
     }
@@ -319,8 +317,8 @@ class viewer_app : public window_base {
 
   template <typename PanelT>
   std::optional<std::string> resolve_panel_detail_value(
-      const PanelT* panel, const stargazer::config_tree_item& item) const {
-    if (!panel || item.detail_kind != stargazer::config_tree_detail_kind::property ||
+      const PanelT* panel, const stargazer::pipeline_item& item) const {
+    if (!panel || item.detail_kind != stargazer::pipeline_detail_kind::property ||
         item.runtime_node_id.empty()) {
       return std::nullopt;
     }
@@ -341,7 +339,7 @@ class viewer_app : public window_base {
   void init_panel() {
     panel_view_ = std::make_unique<pipeline_panel_view>();
     panel_view_->resolve_detail_value =
-        [this](const stargazer::config_tree_item& item) -> std::optional<std::string> {
+        [this](const stargazer::pipeline_item& item) -> std::optional<std::string> {
       return resolve_panel_detail_value(panel_view_.get(), item);
     };
     rebuild_panel_state();
@@ -552,11 +550,9 @@ class viewer_app : public window_base {
     if (!grpc_address_.empty()) {
       grpc_server_ = std::make_unique<pipeline_control_server>(grpc_address_);
       grpc_server_->service()->setup(
-          &cmd_queue_,
-          &api_running_,
-          &api_collecting_,
-          [this](const std::string& node_name, const std::string& key)
-              -> std::optional<coalsack::property_value> {
+          &cmd_queue_, &api_running_, &api_collecting_,
+          [this](const std::string& node_name,
+                 const std::string& key) -> std::optional<coalsack::property_value> {
             return pipeline_ ? pipeline_->get_node_property(node_name, key) : std::nullopt;
           },
           config_->get_nodes());

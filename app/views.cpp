@@ -379,7 +379,7 @@ void draw_badges(const std::vector<std::string>& badges) {
   }
 }
 
-void draw_detail_row(const stargazer::config_tree_item& item,
+void draw_detail_row(const stargazer::pipeline_item& item,
                      const std::optional<std::string>& value_override = std::nullopt) {
   const float panel_width = ImGui::GetContentRegionAvail().x;
   const float row_height = 24.0f;
@@ -406,25 +406,25 @@ void draw_detail_row(const stargazer::config_tree_item& item,
   ImGui::Dummy({0.0f, row_height - ImGui::GetTextLineHeight()});
 }
 
-ImVec4 get_tree_text_color(stargazer::config_tree_item_kind kind) {
+ImVec4 get_tree_text_color(stargazer::pipeline_item_kind kind) {
   switch (kind) {
-    case stargazer::config_tree_item_kind::pipeline:
+    case stargazer::pipeline_item_kind::pipeline:
       return light_blue;
-    case stargazer::config_tree_item_kind::subgraph:
+    case stargazer::pipeline_item_kind::subgraph:
       return light_grey;
-    case stargazer::config_tree_item_kind::node:
+    case stargazer::pipeline_item_kind::node:
       return white;
-    case stargazer::config_tree_item_kind::detail:
+    case stargazer::pipeline_item_kind::detail:
       return light_grey;
   }
   return light_grey;
 }
 
-void draw_pipeline_tree_item(pipeline_panel_view* panel, const stargazer::config_tree_item& item,
+void draw_pipeline_tree_item(pipeline_panel_view* panel, const stargazer::pipeline_item& item,
                              view_context* context) {
   (void)context;
-  if (item.kind == stargazer::config_tree_item_kind::detail) {
-    if (item.detail_kind == stargazer::config_tree_detail_kind::property &&
+  if (item.kind == stargazer::pipeline_item_kind::detail) {
+    if (item.detail_kind == stargazer::pipeline_detail_kind::property &&
         panel->resolve_detail_value) {
       draw_detail_row(item, panel->resolve_detail_value(item));
     } else {
