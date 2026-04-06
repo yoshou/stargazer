@@ -137,6 +137,10 @@ def camera_id(index: int) -> str:
     return f"{index:012d}"
 
 
+def node_ref(subgraph_name: str, node_name: str) -> str:
+    return f"{subgraph_name}/{node_name}"
+
+
 def image_properties(
     *,
     include_received: bool = False,

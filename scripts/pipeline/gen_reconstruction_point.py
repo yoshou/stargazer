@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sys
 
-from pipeline import Config, camera_id, config_dict, image_properties, node, pipeline_def, require_output_path, subgraph
+from pipeline import Config, camera_id, config_dict, image_properties, node, node_ref, pipeline_def, require_output_path, subgraph
 
 
 IR_CAPTURE_CAMERAS = list(range(1, 25))
@@ -226,7 +226,7 @@ def make_record(camera_name: str, index: int) -> dict:
     return subgraph(
         f"record{index}",
         extends=["record_subgraph"],
-        nodes=[node("record", inputs={"default": f"{camera_name}_receiver/callback_image"})],
+        nodes=[node("record", inputs={"default": node_ref(f"{camera_name}_receiver", "callback_image")})],
     )
 
 
@@ -268,14 +268,14 @@ def record_ir_pipeline() -> tuple[str, dict]:
                     "approximate_time_sync_images",
                     "approximate_time_sync",
                     interval=11.611,
-                    inputs={f"camera{index}": f"camera{index}_receiver/decode_jpeg" for index in IR_CAPTURE_CAMERAS},
+                    inputs={f"camera{index}": node_ref(f"camera{index}_receiver", "decode_jpeg") for index in IR_CAPTURE_CAMERAS},
                 ),
                 node(
                     "approximate_time_sync_markers",
                     "approximate_time_sync",
                     interval=11.611,
                     inputs={
-                        f"camera{index}": f"camera{index}_receiver/p2p_tcp_listener_marker"
+                        f"camera{index}": node_ref(f"camera{index}_receiver", "p2p_tcp_listener_marker")
                         for index in IR_CAPTURE_CAMERAS
                     },
                 ),
@@ -308,14 +308,14 @@ def capture_ir_pipeline() -> tuple[str, dict]:
                     "approximate_time_sync_images",
                     "approximate_time_sync",
                     interval=11.611,
-                    inputs={f"camera{index}": f"camera{index}_receiver/decode_jpeg" for index in IR_CAPTURE_CAMERAS},
+                    inputs={f"camera{index}": node_ref(f"camera{index}_receiver", "decode_jpeg") for index in IR_CAPTURE_CAMERAS},
                 ),
                 node(
                     "approximate_time_sync_markers",
                     "approximate_time_sync",
                     interval=11.611,
                     inputs={
-                        f"camera{index}": f"camera{index}_receiver/p2p_tcp_listener_marker"
+                        f"camera{index}": node_ref(f"camera{index}_receiver", "p2p_tcp_listener_marker")
                         for index in IR_CAPTURE_CAMERAS
                     },
                 ),
@@ -335,13 +335,13 @@ def playback_ir_pipeline() -> tuple[str, dict]:
                     "approximate_time_sync_images",
                     "approximate_time_sync",
                     interval=11.611,
-                    inputs={f"camera{index}": f"camera{index}/decode_jpeg" for index in IR_PLAYBACK_CAMERAS},
+                    inputs={f"camera{index}": node_ref(f"camera{index}", "decode_jpeg") for index in IR_PLAYBACK_CAMERAS},
                 ),
                 node(
                     "approximate_time_sync_markers",
                     "approximate_time_sync",
                     interval=11.611,
-                    inputs={f"camera{index}": f"camera{index}/load_marker" for index in IR_PLAYBACK_CAMERAS},
+                    inputs={f"camera{index}": node_ref(f"camera{index}", "load_marker") for index in IR_PLAYBACK_CAMERAS},
                 ),
             ],
         )
@@ -359,7 +359,7 @@ def epipolar_pipeline() -> tuple[str, dict]:
                     "approximate_time_sync_markers",
                     "approximate_time_sync",
                     interval=11.611,
-                    inputs={f"camera{index}": f"camera{index}/load_marker" for index in IR_PLAYBACK_CAMERAS},
+                    inputs={f"camera{index}": node_ref(f"camera{index}", "load_marker") for index in IR_PLAYBACK_CAMERAS},
                 ),
                 node("keypoint_to_float2", "keypoint_to_float2_map", inputs={"default": "approximate_time_sync_markers"}),
             ],

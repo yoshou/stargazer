@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sys
 
-from pipeline import Config, camera_id, collected_properties, config_dict, image_properties, node, pipeline_def, require_output_path, subgraph
+from pipeline import Config, camera_id, collected_properties, config_dict, image_properties, node, node_ref, pipeline_def, require_output_path, subgraph
 
 
 IR_CAPTURE_CAMERAS = list(range(1, 25))
@@ -239,9 +239,9 @@ def make_color_receiver(camera_name: str) -> dict:
         f"{camera_name}_receiver",
         extends=["raspi_color_receiver"],
         nodes=[
-            node("p2p_tcp_listener_image", inputs={"default": f"{camera_name}.p2p_tcp_talker_image"}),
+            node("p2p_tcp_listener_image", inputs={"default": node_ref(camera_name, "p2p_tcp_talker_image")}),
             node("display_image", camera_name=camera_name),
-            node("p2p_tcp_listener_marker", inputs={"default": f"{camera_name}.p2p_tcp_talker_marker"}),
+            node("p2p_tcp_listener_marker", inputs={"default": node_ref(camera_name, "p2p_tcp_talker_marker")}),
         ],
     )
 
@@ -258,15 +258,15 @@ def record_ir_pipeline() -> tuple[str, dict]:
             [
                 subgraph(camera_name, extends=["raspi_ir_cluster_master" if index == 1 else "raspi_ir_cluster_slave"], address=f"192.168.0.{index}", id=camera_id(index)),
                 make_ir_receiver(camera_name),
-                make_record(f"record{index}", f"{camera_name}_receiver.callback_image"),
+                make_record(f"record{index}", node_ref(f"{camera_name}_receiver", "callback_image")),
             ]
         )
     subgraphs.append(
         subgraph(
             "sync",
             nodes=[
-                node("approximate_time_sync_images", "approximate_time_sync", interval=11.611, inputs={f"camera{index}": f"camera{index}_receiver.decode_jpeg" for index in IR_CAPTURE_CAMERAS}),
-                node("approximate_time_sync_markers", "approximate_time_sync", interval=11.611, inputs={f"camera{index}": f"camera{index}_receiver.p2p_tcp_listener_marker" for index in IR_CAPTURE_CAMERAS}),
+                node("approximate_time_sync_images", "approximate_time_sync", interval=11.611, inputs={f"camera{index}": node_ref(f"camera{index}_receiver", "decode_jpeg") for index in IR_CAPTURE_CAMERAS}),
+                node("approximate_time_sync_markers", "approximate_time_sync", interval=11.611, inputs={f"camera{index}": node_ref(f"camera{index}_receiver", "p2p_tcp_listener_marker") for index in IR_CAPTURE_CAMERAS}),
             ],
         )
     )
@@ -287,8 +287,8 @@ def capture_ir_pipeline() -> tuple[str, dict]:
         subgraph(
             "sync",
             nodes=[
-                node("approximate_time_sync_images", "approximate_time_sync", interval=11.611, inputs={f"camera{index}": f"camera{index}_receiver.decode_jpeg" for index in IR_CAPTURE_CAMERAS}),
-                node("approximate_time_sync_markers", "approximate_time_sync", interval=11.611, inputs={f"camera{index}": f"camera{index}_receiver.p2p_tcp_listener_marker" for index in IR_CAPTURE_CAMERAS}),
+                node("approximate_time_sync_images", "approximate_time_sync", interval=11.611, inputs={f"camera{index}": node_ref(f"camera{index}_receiver", "decode_jpeg") for index in IR_CAPTURE_CAMERAS}),
+                node("approximate_time_sync_markers", "approximate_time_sync", interval=11.611, inputs={f"camera{index}": node_ref(f"camera{index}_receiver", "p2p_tcp_listener_marker") for index in IR_CAPTURE_CAMERAS}),
             ],
         )
     )
@@ -301,8 +301,8 @@ def playback_ir_pipeline() -> tuple[str, dict]:
         subgraph(
             "sync",
             nodes=[
-                node("approximate_time_sync_images", "approximate_time_sync", interval=11.611, inputs={f"camera{index}": f"camera{index}.decode_jpeg" for index in IR_PLAYBACK_CAMERAS}),
-                node("approximate_time_sync_markers", "approximate_time_sync", interval=11.611, inputs={f"camera{index}": f"camera{index}.load_marker" for index in IR_PLAYBACK_CAMERAS}),
+                node("approximate_time_sync_images", "approximate_time_sync", interval=11.611, inputs={f"camera{index}": node_ref(f"camera{index}", "decode_jpeg") for index in IR_PLAYBACK_CAMERAS}),
+                node("approximate_time_sync_markers", "approximate_time_sync", interval=11.611, inputs={f"camera{index}": node_ref(f"camera{index}", "load_marker") for index in IR_PLAYBACK_CAMERAS}),
             ],
         )
     )
@@ -317,15 +317,15 @@ def record_color_pipeline() -> tuple[str, dict]:
             [
                 subgraph(camera_name, extends=["raspi_color_cluster_master" if camera["master"] else "raspi_color_cluster_slave"], address=camera["address"], id=camera_id(camera["id"])),
                 make_color_receiver(camera_name),
-                make_record(f"record{camera['suffix']}", f"{camera_name}_receiver.callback_image"),
+                make_record(f"record{camera['suffix']}", node_ref(f"{camera_name}_receiver", "callback_image")),
             ]
         )
     subgraphs.append(
         subgraph(
             "sync",
             nodes=[
-                node("approximate_time_sync_images", "approximate_time_sync", interval=11.6, inputs={f"camera{camera['suffix']}": f"camera{camera['suffix']}_receiver.decode_jpeg" for camera in COLOR_CAMERAS}),
-                node("approximate_time_sync_markers", "approximate_time_sync", interval=11.6, inputs={f"camera{camera['suffix']}": f"camera{camera['suffix']}_receiver.p2p_tcp_listener_marker" for camera in COLOR_CAMERAS}),
+                node("approximate_time_sync_images", "approximate_time_sync", interval=11.6, inputs={f"camera{camera['suffix']}": node_ref(f"camera{camera['suffix']}_receiver", "decode_jpeg") for camera in COLOR_CAMERAS}),
+                node("approximate_time_sync_markers", "approximate_time_sync", interval=11.6, inputs={f"camera{camera['suffix']}": node_ref(f"camera{camera['suffix']}_receiver", "p2p_tcp_listener_marker") for camera in COLOR_CAMERAS}),
             ],
         )
     )
@@ -346,8 +346,8 @@ def capture_color_pipeline() -> tuple[str, dict]:
         subgraph(
             "sync",
             nodes=[
-                node("approximate_time_sync_images", "approximate_time_sync", interval=11.6, inputs={f"camera{camera['suffix']}": f"camera{camera['suffix']}_receiver.decode_jpeg" for camera in COLOR_CAMERAS}),
-                node("approximate_time_sync_markers", "approximate_time_sync", interval=11.6, inputs={f"camera{camera['suffix']}": f"camera{camera['suffix']}_receiver.p2p_tcp_listener_marker" for camera in COLOR_CAMERAS}),
+                node("approximate_time_sync_images", "approximate_time_sync", interval=11.6, inputs={f"camera{camera['suffix']}": node_ref(f"camera{camera['suffix']}_receiver", "decode_jpeg") for camera in COLOR_CAMERAS}),
+                node("approximate_time_sync_markers", "approximate_time_sync", interval=11.6, inputs={f"camera{camera['suffix']}": node_ref(f"camera{camera['suffix']}_receiver", "p2p_tcp_listener_marker") for camera in COLOR_CAMERAS}),
             ],
         )
     )
@@ -356,13 +356,13 @@ def capture_color_pipeline() -> tuple[str, dict]:
 
 def playback_color_pipeline() -> tuple[str, dict]:
     subgraphs = [make_color_playback_camera(camera) for camera in COLOR_CAMERAS]
-    subgraphs.append(subgraph("sync", nodes=[node("approximate_time_sync_images", "approximate_time_sync", interval=33.833, inputs={f"camera{camera['suffix']}": f"camera{camera['suffix']}.decode_jpeg" for camera in COLOR_CAMERAS}), node("approximate_time_sync_markers", "approximate_time_sync", interval=33.833, inputs={f"camera{camera['suffix']}": f"camera{camera['suffix']}.load_marker" for camera in COLOR_CAMERAS})]))
+    subgraphs.append(subgraph("sync", nodes=[node("approximate_time_sync_images", "approximate_time_sync", interval=33.833, inputs={f"camera{camera['suffix']}": node_ref(f"camera{camera['suffix']}", "decode_jpeg") for camera in COLOR_CAMERAS}), node("approximate_time_sync_markers", "approximate_time_sync", interval=33.833, inputs={f"camera{camera['suffix']}": node_ref(f"camera{camera['suffix']}", "load_marker") for camera in COLOR_CAMERAS})]))
     return pipeline_def("playback_color", subgraphs=subgraphs)
 
 
 def playback_panoptic_pipeline() -> tuple[str, dict]:
     subgraphs = [make_panoptic_camera(name) for name in PANOPTIC_CAMERAS]
-    subgraphs.append(subgraph("sync", nodes=[node("approximate_time_sync_images", "approximate_time_sync", interval=33.833, inputs={name: f"{name}.decode_jpeg" for name in PANOPTIC_CAMERAS})]))
+    subgraphs.append(subgraph("sync", nodes=[node("approximate_time_sync_images", "approximate_time_sync", interval=33.833, inputs={name: node_ref(name, "decode_jpeg") for name in PANOPTIC_CAMERAS})]))
     return pipeline_def("playback_panoptic", subgraphs=subgraphs)
 
 
@@ -372,8 +372,8 @@ def calibration_scene_pipeline() -> tuple[str, dict]:
         subgraph(
             "sync",
             nodes=[
-                node("approximate_time_sync_images", "approximate_time_sync", interval=11.611, inputs={f"camera{index}": f"camera{index}.decode_jpeg" for index in IR_PLAYBACK_CAMERAS}),
-                node("approximate_time_sync_markers", "approximate_time_sync", interval=11.611, inputs={f"camera{index}": f"camera{index}.load_marker" for index in IR_PLAYBACK_CAMERAS}),
+                node("approximate_time_sync_images", "approximate_time_sync", interval=11.611, inputs={f"camera{index}": node_ref(f"camera{index}", "decode_jpeg") for index in IR_PLAYBACK_CAMERAS}),
+                node("approximate_time_sync_markers", "approximate_time_sync", interval=11.611, inputs={f"camera{index}": node_ref(f"camera{index}", "load_marker") for index in IR_PLAYBACK_CAMERAS}),
                 node("marker_gate", "gate", inputs={"default": "approximate_time_sync_markers"}),
                 node("keypoint_to_float2", "keypoint_to_float2_map", inputs={"default": "marker_gate"}),
             ],

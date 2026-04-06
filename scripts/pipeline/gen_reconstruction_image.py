@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sys
 
-from pipeline import Config, camera_id, config_dict, image_properties, node, pipeline_def, require_output_path, subgraph
+from pipeline import Config, camera_id, config_dict, image_properties, node, node_ref, pipeline_def, require_output_path, subgraph
 
 
 COLOR_CAMERAS = [
@@ -193,9 +193,9 @@ def make_receiver(camera_name: str) -> dict:
         f"{camera_name}_receiver",
         extends=["raspi_color_receiver"],
         nodes=[
-            node("p2p_tcp_listener_image", inputs={"default": f"{camera_name}.p2p_tcp_talker_image"}),
+            node("p2p_tcp_listener_image", inputs={"default": node_ref(camera_name, "p2p_tcp_talker_image")}),
             node("display_image", camera_name=camera_name),
-            node("p2p_tcp_listener_marker", inputs={"default": f"{camera_name}.p2p_tcp_talker_marker"}),
+            node("p2p_tcp_listener_marker", inputs={"default": node_ref(camera_name, "p2p_tcp_talker_marker")}),
         ],
     )
 
@@ -205,7 +205,7 @@ def make_record(camera_suffix: int) -> dict:
     return subgraph(
         f"record{camera_suffix}",
         extends=["record_subgraph"],
-        nodes=[node("record", inputs={"default": f"{camera_name}_receiver/callback_image"})],
+        nodes=[node("record", inputs={"default": node_ref(f"{camera_name}_receiver", "callback_image")})],
     )
 
 
@@ -369,9 +369,9 @@ def record_color_pipeline() -> tuple[str, dict]:
         sync_subgraph(
             "sync",
             interval=11.6,
-            image_inputs={f"camera{camera['suffix']}": f"camera{camera['suffix']}_receiver/decode_jpeg" for camera in COLOR_CAMERAS},
+            image_inputs={f"camera{camera['suffix']}": node_ref(f"camera{camera['suffix']}_receiver", "decode_jpeg") for camera in COLOR_CAMERAS},
             marker_inputs={
-                f"camera{camera['suffix']}": f"camera{camera['suffix']}_receiver/p2p_tcp_listener_marker"
+                f"camera{camera['suffix']}": node_ref(f"camera{camera['suffix']}_receiver", "p2p_tcp_listener_marker")
                 for camera in COLOR_CAMERAS
             },
         )
@@ -398,9 +398,9 @@ def capture_color_pipeline() -> tuple[str, dict]:
         sync_subgraph(
             "sync",
             interval=11.6,
-            image_inputs={f"camera{camera['suffix']}": f"camera{camera['suffix']}_receiver/decode_jpeg" for camera in COLOR_CAMERAS},
+            image_inputs={f"camera{camera['suffix']}": node_ref(f"camera{camera['suffix']}_receiver", "decode_jpeg") for camera in COLOR_CAMERAS},
             marker_inputs={
-                f"camera{camera['suffix']}": f"camera{camera['suffix']}_receiver/p2p_tcp_listener_marker"
+                f"camera{camera['suffix']}": node_ref(f"camera{camera['suffix']}_receiver", "p2p_tcp_listener_marker")
                 for camera in COLOR_CAMERAS
             },
         )
@@ -414,8 +414,8 @@ def playback_color_pipeline() -> tuple[str, dict]:
         sync_subgraph(
             "sync",
             interval=33.833,
-            image_inputs={f"camera{camera['suffix']}": f"camera{camera['suffix']}/decode_jpeg" for camera in COLOR_CAMERAS},
-            marker_inputs={f"camera{camera['suffix']}": f"camera{camera['suffix']}/load_marker" for camera in COLOR_CAMERAS},
+            image_inputs={f"camera{camera['suffix']}": node_ref(f"camera{camera['suffix']}", "decode_jpeg") for camera in COLOR_CAMERAS},
+            marker_inputs={f"camera{camera['suffix']}": node_ref(f"camera{camera['suffix']}", "load_marker") for camera in COLOR_CAMERAS},
         )
     )
     return pipeline_def("playback_color", subgraphs=subgraphs)
@@ -427,7 +427,7 @@ def playback_panoptic_pipeline() -> tuple[str, dict]:
         sync_subgraph(
             "sync",
             interval=33.833,
-            image_inputs={name: f"{name}.decode_jpeg" for name in PANOPTIC_CAMERAS},
+            image_inputs={name: node_ref(name, "decode_jpeg") for name in PANOPTIC_CAMERAS},
         )
     )
     return pipeline_def("playback_panoptic", subgraphs=subgraphs)
@@ -439,7 +439,7 @@ def voxelpose_pipeline() -> tuple[str, dict]:
         sync_subgraph(
             "sync",
             interval=33.833,
-            image_inputs={f"camera{camera['suffix']}": f"camera{camera['suffix']}/decode_jpeg" for camera in COLOR_CAMERAS},
+            image_inputs={f"camera{camera['suffix']}": node_ref(f"camera{camera['suffix']}", "decode_jpeg") for camera in COLOR_CAMERAS},
         )
     )
     subgraphs.append(
