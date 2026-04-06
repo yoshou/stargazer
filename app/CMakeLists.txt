@@ -39,9 +39,9 @@ add_custom_target(stargazer_shaders ALL
 )
 
 # Font Awesome 6 Free Solid: convert TTF to C header at build time
-set(FA6_TTF "${CMAKE_SOURCE_DIR}/fonts/fontawesome/fa-solid-900.ttf")
+set(FA6_TTF "${CMAKE_CURRENT_LIST_DIR}/fonts/fontawesome/fa-solid-900.ttf")
 set(FA6_HEADER "${CMAKE_CURRENT_BINARY_DIR}/imgui-fonts-fontawesome.hpp")
-set(FA6_CONVERT_SCRIPT "${CMAKE_SOURCE_DIR}/fonts/convert_font.py")
+set(FA6_CONVERT_SCRIPT "${CMAKE_CURRENT_LIST_DIR}/fonts/convert_font.py")
 
 add_custom_command(
     OUTPUT "${FA6_HEADER}"

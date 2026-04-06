@@ -34,7 +34,7 @@ endif()
 
 include(third-party/CMakeLists.txt)
 include(protos/CMakeLists.txt)
-include(fonts/CMakeLists.txt)
+include(app/fonts/CMakeLists.txt)
 include(lib/CMakeLists.txt)
 include(app/CMakeLists.txt)
 include(lib/test/CMakeLists.txt)
