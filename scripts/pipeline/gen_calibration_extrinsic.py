@@ -299,8 +299,8 @@ def ir_capture_receiver(index: int) -> dict:
         f"camera{index}_receiver",
         extends=["raspi_ir_receiver"],
         nodes=[
-            node("p2p_tcp_listener_image", inputs={"default": f"camera{index}.p2p_tcp_talker_image"}),
-            node("p2p_tcp_listener_marker", inputs={"default": f"camera{index}.p2p_tcp_talker_marker"}),
+            node("p2p_tcp_listener_image", inputs={"default": f"camera{index}/p2p_tcp_talker_image"}),
+            node("p2p_tcp_listener_marker", inputs={"default": f"camera{index}/p2p_tcp_talker_marker"}),
             node("display_image", camera_name=f"camera{index}"),
         ],
     )
@@ -312,9 +312,9 @@ def color_receiver(camera: dict) -> dict:
         f"camera{suffix}_receiver",
         extends=["raspi_color_receiver"],
         nodes=[
-            node("p2p_tcp_listener_image", inputs={"default": f"camera{suffix}.p2p_tcp_talker_image"}),
+            node("p2p_tcp_listener_image", inputs={"default": f"camera{suffix}/p2p_tcp_talker_image"}),
             node("display_image", camera_name=f"camera{suffix}"),
-            node("p2p_tcp_listener_marker", inputs={"default": f"camera{suffix}.p2p_tcp_talker_marker"}),
+            node("p2p_tcp_listener_marker", inputs={"default": f"camera{suffix}/p2p_tcp_talker_marker"}),
         ],
     )
 
@@ -329,8 +329,8 @@ def playback_ir_cameras_subgraph() -> dict:
         subgraph(
             "sync",
             nodes=[
-                node("approximate_time_sync_images", "approximate_time_sync", interval=11.611, inputs={f"camera{index}": f"camera{index}.decode_jpeg" for index in IR_PLAYBACK_CAMERAS}),
-                node("approximate_time_sync_markers", "approximate_time_sync", interval=11.611, inputs={f"camera{index}": f"camera{index}.load_marker" for index in IR_PLAYBACK_CAMERAS}),
+                node("approximate_time_sync_images", "approximate_time_sync", interval=11.611, inputs={f"camera{index}": f"camera{index}/decode_jpeg" for index in IR_PLAYBACK_CAMERAS}),
+                node("approximate_time_sync_markers", "approximate_time_sync", interval=11.611, inputs={f"camera{index}": f"camera{index}/load_marker" for index in IR_PLAYBACK_CAMERAS}),
                 node("marker_gate", "gate", inputs={"default": "approximate_time_sync_markers"}),
                 node("keypoint_to_float2", "keypoint_to_float2_map", inputs={"default": "marker_gate"}),
             ],
@@ -347,8 +347,8 @@ def capture_ir_cameras_subgraph() -> dict:
         subgraph(
             "sync",
             nodes=[
-                node("approximate_time_sync_images", "approximate_time_sync", interval=11.611, inputs={f"camera{index}": f"camera{index}_receiver.decode_jpeg" for index in IR_CAPTURE_CAMERAS}),
-                node("approximate_time_sync_markers", "approximate_time_sync", interval=11.611, inputs={f"camera{index}": f"camera{index}_receiver.p2p_tcp_listener_marker" for index in IR_CAPTURE_CAMERAS}),
+                node("approximate_time_sync_images", "approximate_time_sync", interval=11.611, inputs={f"camera{index}": f"camera{index}_receiver/decode_jpeg" for index in IR_CAPTURE_CAMERAS}),
+                node("approximate_time_sync_markers", "approximate_time_sync", interval=11.611, inputs={f"camera{index}": f"camera{index}_receiver/p2p_tcp_listener_marker" for index in IR_CAPTURE_CAMERAS}),
                 node("marker_gate", "gate", inputs={"default": "approximate_time_sync_markers"}),
                 node("keypoint_to_float2", "keypoint_to_float2_map", inputs={"default": "marker_gate"}),
             ],
@@ -360,13 +360,13 @@ def capture_ir_cameras_subgraph() -> dict:
 def record_ir_cameras_subgraph() -> dict:
     items: list[dict] = []
     for index in IR_CAPTURE_CAMERAS:
-        items.extend([ir_camera_instance(index), ir_record_receiver(index), record_instance(f"record{index}", f"camera{index}_receiver.callback_image")])
+        items.extend([ir_camera_instance(index), ir_record_receiver(index), record_instance(f"record{index}", f"camera{index}_receiver/callback_image")])
     items.append(
         subgraph(
             "sync",
             nodes=[
-                node("approximate_time_sync_images", "approximate_time_sync", interval=11.611, inputs={f"camera{index}": f"camera{index}_receiver.decode_jpeg" for index in IR_CAPTURE_CAMERAS}),
-                node("approximate_time_sync_markers", "approximate_time_sync", interval=11.611, inputs={f"camera{index}": f"camera{index}_receiver.p2p_tcp_listener_marker" for index in IR_CAPTURE_CAMERAS}),
+                node("approximate_time_sync_images", "approximate_time_sync", interval=11.611, inputs={f"camera{index}": f"camera{index}_receiver/decode_jpeg" for index in IR_CAPTURE_CAMERAS}),
+                node("approximate_time_sync_markers", "approximate_time_sync", interval=11.611, inputs={f"camera{index}": f"camera{index}_receiver/p2p_tcp_listener_marker" for index in IR_CAPTURE_CAMERAS}),
             ],
         )
     )
@@ -379,8 +379,8 @@ def playback_color_cameras_subgraph() -> dict:
         subgraph(
             "sync",
             nodes=[
-                node("approximate_time_sync_images", "approximate_time_sync", interval=33.833, inputs={f"camera{camera['suffix']}": f"camera{camera['suffix']}.decode_jpeg" for camera in COLOR_CAMERAS}),
-                node("approximate_time_sync_markers", "approximate_time_sync", interval=33.833, inputs={f"camera{camera['suffix']}": f"camera{camera['suffix']}.load_marker" for camera in COLOR_CAMERAS}),
+                node("approximate_time_sync_images", "approximate_time_sync", interval=33.833, inputs={f"camera{camera['suffix']}": f"camera{camera['suffix']}/decode_jpeg" for camera in COLOR_CAMERAS}),
+                node("approximate_time_sync_markers", "approximate_time_sync", interval=33.833, inputs={f"camera{camera['suffix']}": f"camera{camera['suffix']}/load_marker" for camera in COLOR_CAMERAS}),
             ],
         )
     )
@@ -395,8 +395,8 @@ def capture_color_cameras_subgraph() -> dict:
         subgraph(
             "sync",
             nodes=[
-                node("approximate_time_sync_images", "approximate_time_sync", interval=11.6, inputs={f"camera{camera['suffix']}": f"camera{camera['suffix']}_receiver.decode_jpeg" for camera in COLOR_CAMERAS}),
-                node("approximate_time_sync_markers", "approximate_time_sync", interval=11.6, inputs={f"camera{camera['suffix']}": f"camera{camera['suffix']}_receiver.p2p_tcp_listener_marker" for camera in COLOR_CAMERAS}),
+                node("approximate_time_sync_images", "approximate_time_sync", interval=11.6, inputs={f"camera{camera['suffix']}": f"camera{camera['suffix']}_receiver/decode_jpeg" for camera in COLOR_CAMERAS}),
+                node("approximate_time_sync_markers", "approximate_time_sync", interval=11.6, inputs={f"camera{camera['suffix']}": f"camera{camera['suffix']}_receiver/p2p_tcp_listener_marker" for camera in COLOR_CAMERAS}),
             ],
         )
     )
@@ -407,13 +407,13 @@ def record_color_cameras_subgraph() -> dict:
     items: list[dict] = []
     for camera in COLOR_CAMERAS:
         suffix = camera["suffix"]
-        items.extend([color_camera_instance(camera), color_receiver(camera), record_instance(f"record{suffix}", f"camera{suffix}_receiver.callback_image")])
+        items.extend([color_camera_instance(camera), color_receiver(camera), record_instance(f"record{suffix}", f"camera{suffix}_receiver/callback_image")])
     items.append(
         subgraph(
             "sync",
             nodes=[
-                node("approximate_time_sync_images", "approximate_time_sync", interval=11.6, inputs={f"camera{camera['suffix']}": f"camera{camera['suffix']}_receiver.decode_jpeg" for camera in COLOR_CAMERAS}),
-                node("approximate_time_sync_markers", "approximate_time_sync", interval=11.6, inputs={f"camera{camera['suffix']}": f"camera{camera['suffix']}_receiver.p2p_tcp_listener_marker" for camera in COLOR_CAMERAS}),
+                node("approximate_time_sync_images", "approximate_time_sync", interval=11.6, inputs={f"camera{camera['suffix']}": f"camera{camera['suffix']}_receiver/decode_jpeg" for camera in COLOR_CAMERAS}),
+                node("approximate_time_sync_markers", "approximate_time_sync", interval=11.6, inputs={f"camera{camera['suffix']}": f"camera{camera['suffix']}_receiver/p2p_tcp_listener_marker" for camera in COLOR_CAMERAS}),
             ],
         )
     )

@@ -2,10 +2,6 @@
   "subgraphs": [
     {
       "name": "playback_color_subgraph",
-      "db_path": "../data/data_20250713_1/calibrate.db",
-      "height": 540,
-      "width": 960,
-      "fps": 30,
       "nodes": [
         {
           "name": "load_blob",
@@ -47,7 +43,11 @@
       ],
       "outputs": [
         "load_marker"
-      ]
+      ],
+      "db_path": "../data/data_20250713_1/calibrate.db",
+      "height": 540,
+      "width": 960,
+      "fps": 30
     },
     {
       "name": "intrinsic_calibration_subgraph",
@@ -78,6 +78,11 @@
         {
           "name": "intrinsic_calibration",
           "type": "intrinsic_calibration",
+          "inputs": {
+            "calibrate": "calibrate_action",
+            "default": "object_mux",
+            "camera": "load_camera101"
+          },
           "properties": [
             {
               "id": "collected",
@@ -156,12 +161,7 @@
               "format": "fixed3",
               "default_value": 0.0
             }
-          ],
-          "inputs": {
-            "calibrate": "calibrate_action",
-            "default": "object_mux",
-            "camera": "load_camera101"
-          }
+          ]
         },
         {
           "name": "store_camera",
@@ -174,11 +174,6 @@
     },
     {
       "name": "playback_color_camera101_subgraph",
-      "db_path": "../data/data_20250713_1/calibrate.db",
-      "height": 540,
-      "width": 960,
-      "fps": 30,
-      "id": "000000000026",
       "nodes": [
         {
           "name": "load_blob",
@@ -223,15 +218,15 @@
       ],
       "outputs": [
         "load_marker"
-      ]
-    },
-    {
-      "name": "playback_color_camera102_subgraph",
+      ],
       "db_path": "../data/data_20250713_1/calibrate.db",
       "height": 540,
       "width": 960,
       "fps": 30,
-      "id": "000000000027",
+      "id": "000000000026"
+    },
+    {
+      "name": "playback_color_camera102_subgraph",
       "nodes": [
         {
           "name": "load_blob",
@@ -276,15 +271,15 @@
       ],
       "outputs": [
         "load_marker"
-      ]
-    },
-    {
-      "name": "playback_color_camera103_subgraph",
+      ],
       "db_path": "../data/data_20250713_1/calibrate.db",
       "height": 540,
       "width": 960,
       "fps": 30,
-      "id": "000000000028",
+      "id": "000000000027"
+    },
+    {
+      "name": "playback_color_camera103_subgraph",
       "nodes": [
         {
           "name": "load_blob",
@@ -329,15 +324,15 @@
       ],
       "outputs": [
         "load_marker"
-      ]
-    },
-    {
-      "name": "playback_color_camera104_subgraph",
+      ],
       "db_path": "../data/data_20250713_1/calibrate.db",
       "height": 540,
       "width": 960,
       "fps": 30,
-      "id": "000000000029",
+      "id": "000000000028"
+    },
+    {
+      "name": "playback_color_camera104_subgraph",
       "nodes": [
         {
           "name": "load_blob",
@@ -382,15 +377,15 @@
       ],
       "outputs": [
         "load_marker"
-      ]
-    },
-    {
-      "name": "playback_color_camera105_subgraph",
+      ],
       "db_path": "../data/data_20250713_1/calibrate.db",
       "height": 540,
       "width": 960,
       "fps": 30,
-      "id": "000000000030",
+      "id": "000000000029"
+    },
+    {
+      "name": "playback_color_camera105_subgraph",
       "nodes": [
         {
           "name": "load_blob",
@@ -435,26 +430,15 @@
       ],
       "outputs": [
         "load_marker"
-      ]
+      ],
+      "db_path": "../data/data_20250713_1/calibrate.db",
+      "height": 540,
+      "width": 960,
+      "fps": 30,
+      "id": "000000000030"
     },
     {
       "name": "capture_color_camera101_subgraph",
-      "address": "192.168.0.26",
-      "id": "000000000026",
-      "height": 1296,
-      "width": 2304,
-      "fps": 30,
-      "stream": "color",
-      "format": "R8G8B8_UINT",
-      "exposure": 7000,
-      "gain": 10,
-      "emitter_enabled": false,
-      "resize_width": 960,
-      "resize_height": 540,
-      "deploy_port": 31400,
-      "endpoint_address": "192.168.0.254",
-      "image_port": 50101,
-      "marker_port": 50201,
       "nodes": [
         {
           "name": "libcamera_capture",
@@ -577,12 +561,9 @@
       ],
       "outputs": [
         "p2p_tcp_listener_marker"
-      ]
-    },
-    {
-      "name": "capture_color_camera102_subgraph",
-      "address": "192.168.0.27",
-      "id": "000000000027",
+      ],
+      "address": "192.168.0.26",
+      "id": "000000000026",
       "height": 1296,
       "width": 2304,
       "fps": 30,
@@ -596,7 +577,10 @@
       "deploy_port": 31400,
       "endpoint_address": "192.168.0.254",
       "image_port": 50101,
-      "marker_port": 50201,
+      "marker_port": 50201
+    },
+    {
+      "name": "capture_color_camera102_subgraph",
       "nodes": [
         {
           "name": "libcamera_capture",
@@ -719,12 +703,9 @@
       ],
       "outputs": [
         "p2p_tcp_listener_marker"
-      ]
-    },
-    {
-      "name": "capture_color_camera103_subgraph",
-      "address": "192.168.0.28",
-      "id": "000000000028",
+      ],
+      "address": "192.168.0.27",
+      "id": "000000000027",
       "height": 1296,
       "width": 2304,
       "fps": 30,
@@ -738,7 +719,10 @@
       "deploy_port": 31400,
       "endpoint_address": "192.168.0.254",
       "image_port": 50101,
-      "marker_port": 50201,
+      "marker_port": 50201
+    },
+    {
+      "name": "capture_color_camera103_subgraph",
       "nodes": [
         {
           "name": "libcamera_capture",
@@ -861,12 +845,9 @@
       ],
       "outputs": [
         "p2p_tcp_listener_marker"
-      ]
-    },
-    {
-      "name": "capture_color_camera104_subgraph",
-      "address": "192.168.0.29",
-      "id": "000000000029",
+      ],
+      "address": "192.168.0.28",
+      "id": "000000000028",
       "height": 1296,
       "width": 2304,
       "fps": 30,
@@ -880,7 +861,10 @@
       "deploy_port": 31400,
       "endpoint_address": "192.168.0.254",
       "image_port": 50101,
-      "marker_port": 50201,
+      "marker_port": 50201
+    },
+    {
+      "name": "capture_color_camera104_subgraph",
       "nodes": [
         {
           "name": "libcamera_capture",
@@ -1003,12 +987,9 @@
       ],
       "outputs": [
         "p2p_tcp_listener_marker"
-      ]
-    },
-    {
-      "name": "capture_color_camera105_subgraph",
-      "address": "192.168.0.30",
-      "id": "000000000030",
+      ],
+      "address": "192.168.0.29",
+      "id": "000000000029",
       "height": 1296,
       "width": 2304,
       "fps": 30,
@@ -1022,7 +1003,10 @@
       "deploy_port": 31400,
       "endpoint_address": "192.168.0.254",
       "image_port": 50101,
-      "marker_port": 50201,
+      "marker_port": 50201
+    },
+    {
+      "name": "capture_color_camera105_subgraph",
       "nodes": [
         {
           "name": "libcamera_capture",
@@ -1145,7 +1129,23 @@
       ],
       "outputs": [
         "p2p_tcp_listener_marker"
-      ]
+      ],
+      "address": "192.168.0.30",
+      "id": "000000000030",
+      "height": 1296,
+      "width": 2304,
+      "fps": 30,
+      "stream": "color",
+      "format": "R8G8B8_UINT",
+      "exposure": 7000,
+      "gain": 10,
+      "emitter_enabled": false,
+      "resize_width": 960,
+      "resize_height": 540,
+      "deploy_port": 31400,
+      "endpoint_address": "192.168.0.254",
+      "image_port": 50101,
+      "marker_port": 50201
     }
   ],
   "pipelines": {
@@ -1166,7 +1166,7 @@
             {
               "name": "frame_number_numbering",
               "inputs": {
-                "default": "target_camera.decode_jpeg"
+                "default": "target_camera/decode_jpeg"
               }
             }
           ]
@@ -1190,7 +1190,7 @@
             {
               "name": "frame_number_numbering",
               "inputs": {
-                "default": "target_camera.decode_jpeg"
+                "default": "target_camera/decode_jpeg"
               }
             }
           ]

@@ -51,6 +51,7 @@ add_dependencies(stargazer_viewer
     stargazer
     stargazer_shaders
     stargazer_sensor_grpc_proto
+    stargazer_pipeline_control_grpc_proto
     stargazer_voxelpose
     stargazer_preprocess
     stargazer_mvpose
@@ -78,6 +79,7 @@ target_link_libraries(stargazer_viewer
     PRIVATE
     stargazer
     stargazer_sensor_grpc_proto
+    stargazer_pipeline_control_grpc_proto
     stargazer_voxelpose
     stargazer_preprocess
     stargazer_mvpose

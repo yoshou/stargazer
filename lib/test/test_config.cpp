@@ -23,19 +23,19 @@ TEST(ConfigGetNodes, TC1_SimpleExtends) {
   ASSERT_EQ(nodes.size(), 2u);
 
   auto cam0_source = std::find_if(nodes.begin(), nodes.end(),
-                                  [](const auto& n) { return n.name == "cam0_source"; });
+                                  [](const auto& n) { return n.name == "cam0/source"; });
   auto cam0_decoder = std::find_if(nodes.begin(), nodes.end(),
-                                   [](const auto& n) { return n.name == "cam0_decoder"; });
+                                   [](const auto& n) { return n.name == "cam0/decoder"; });
 
-  ASSERT_NE(cam0_source, nodes.end()) << "Expected node 'cam0_source' not found";
-  ASSERT_NE(cam0_decoder, nodes.end()) << "Expected node 'cam0_decoder' not found";
+  ASSERT_NE(cam0_source, nodes.end()) << "Expected node 'cam0/source' not found";
+  ASSERT_NE(cam0_decoder, nodes.end()) << "Expected node 'cam0/decoder' not found";
 
   ASSERT_EQ(cam0_source->subgraph_instance, "cam0");
   ASSERT_EQ(cam0_decoder->subgraph_instance, "cam0");
 
-  // Local input reference "source" must be rewritten to "cam0_source"
+  // Local input reference "source" must be rewritten to "cam0/source"
   ASSERT_TRUE(cam0_decoder->inputs.count("default") > 0);
-  EXPECT_EQ(cam0_decoder->inputs.at("default"), "cam0_source");
+  EXPECT_EQ(cam0_decoder->inputs.at("default"), "cam0/source");
 }
 
 // ---------------------------------------------------------------------------
@@ -74,7 +74,7 @@ TEST(ConfigGetNodes, TC3_ParamHierarchy) {
   auto nodes = cfg.get_nodes();
 
   ASSERT_EQ(nodes.size(), 1u);
-  EXPECT_EQ(nodes[0].name, "cam0_loader");
+  EXPECT_EQ(nodes[0].name, "cam0/loader");
 
   // Node-level fps (60) overrides template fps (30)
   EXPECT_EQ(nodes[0].get_param<std::int64_t>("fps"), 60);
@@ -93,32 +93,31 @@ TEST(ConfigGetNodes, TC4_NodeOverride) {
   auto nodes = cfg.get_nodes();
 
   ASSERT_EQ(nodes.size(), 1u);
-  EXPECT_EQ(nodes[0].name, "cam0_loader");
+  EXPECT_EQ(nodes[0].name, "cam0/loader");
 
   // Override should take effect over template value
   EXPECT_EQ(nodes[0].get_param<std::string>("db_path"), "override_db");
 }
 
 // ---------------------------------------------------------------------------
-// TC5: Cross-subgraph input reference (dot-to-underscore conversion)
-// Instance override sets inputs like "ext_sg.source_node".
-// get_nodes() must convert '.' to '_'.
+// TC5: Cross-subgraph input reference
+// Instance override sets inputs like "ext_sg/source_node" (slash notation).
 // ---------------------------------------------------------------------------
-TEST(ConfigGetNodes, TC5_CrossRefDotToUnderscore) {
+TEST(ConfigGetNodes, TC5_CrossRefSlash) {
   stargazer::configuration cfg(fixture("test_cross_ref.json"));
   auto nodes = cfg.get_nodes();
 
-  // Find sg1_processor (prefixed because it extends consumer_template)
+  // Find sg1/processor (prefixed because it extends consumer_template)
   auto proc = std::find_if(nodes.begin(), nodes.end(),
-                           [](const auto& n) { return n.name == "sg1_processor"; });
-  ASSERT_NE(proc, nodes.end()) << "Expected node 'sg1_processor' not found";
+                           [](const auto& n) { return n.name == "sg1/processor"; });
+  ASSERT_NE(proc, nodes.end()) << "Expected node 'sg1/processor' not found";
 
   ASSERT_TRUE(proc->inputs.count("cam0") > 0);
   ASSERT_TRUE(proc->inputs.count("cam1") > 0);
 
-  // '.' in "ext_sg.source_node" must become '_'
-  EXPECT_EQ(proc->inputs.at("cam0"), "ext_sg_source_node");
-  EXPECT_EQ(proc->inputs.at("cam1"), "ext_sg_other_node");
+  // '.' in "ext_sg.source_node" must become '/'
+  EXPECT_EQ(proc->inputs.at("cam0"), "ext_sg/source_node");
+  EXPECT_EQ(proc->inputs.at("cam1"), "ext_sg/other_node");
 }
 
 // ---------------------------------------------------------------------------
@@ -134,21 +133,21 @@ TEST(ConfigGetNodes, TC6_MultipleSubgraphs) {
   ASSERT_EQ(nodes.size(), 3u);
 
   auto cam0_loader = std::find_if(nodes.begin(), nodes.end(),
-                                  [](const auto& n) { return n.name == "cam0_loader"; });
+                                  [](const auto& n) { return n.name == "cam0/loader"; });
   auto cam0_decoder = std::find_if(nodes.begin(), nodes.end(),
-                                   [](const auto& n) { return n.name == "cam0_decoder"; });
+                                   [](const auto& n) { return n.name == "cam0/decoder"; });
   auto reconstruct = std::find_if(nodes.begin(), nodes.end(),
                                   [](const auto& n) { return n.name == "reconstruct_node"; });
 
-  ASSERT_NE(cam0_loader, nodes.end()) << "Expected 'cam0_loader' not found";
-  ASSERT_NE(cam0_decoder, nodes.end()) << "Expected 'cam0_decoder' not found";
+  ASSERT_NE(cam0_loader, nodes.end()) << "Expected 'cam0/loader' not found";
+  ASSERT_NE(cam0_decoder, nodes.end()) << "Expected 'cam0/decoder' not found";
   ASSERT_NE(reconstruct, nodes.end()) << "Expected 'reconstruct_node' not found";
 
-  // cam0_decoder's local input must be prefixed
-  EXPECT_EQ(cam0_decoder->inputs.at("default"), "cam0_loader");
+  // cam0/decoder's local input must be prefixed
+  EXPECT_EQ(cam0_decoder->inputs.at("default"), "cam0/loader");
 
   // reconstructor's input must be preserved as-is (cross-subgraph, no dot)
-  EXPECT_EQ(reconstruct->inputs.at("cam0"), "cam0_decoder");
+  EXPECT_EQ(reconstruct->inputs.at("cam0"), "cam0/decoder");
 }
 
 // ---------------------------------------------------------------------------
@@ -192,12 +191,12 @@ TEST(ConfigGetNodes, TC8_NestedExpansion) {
   ASSERT_EQ(nodes.size(), 2u);
 
   auto src_loader = std::find_if(nodes.begin(), nodes.end(),
-                                 [](const auto& n) { return n.name == "src_loader"; });
+                                 [](const auto& n) { return n.name == "src/loader"; });
   auto sink_decoder = std::find_if(nodes.begin(), nodes.end(),
-                                   [](const auto& n) { return n.name == "sink_decoder"; });
+                                   [](const auto& n) { return n.name == "sink/decoder"; });
 
-  ASSERT_NE(src_loader, nodes.end()) << "Expected 'src_loader' not found";
-  ASSERT_NE(sink_decoder, nodes.end()) << "Expected 'sink_decoder' not found";
+  ASSERT_NE(src_loader, nodes.end()) << "Expected 'src/loader' not found";
+  ASSERT_NE(sink_decoder, nodes.end()) << "Expected 'sink/decoder' not found";
 }
 
 // ---------------------------------------------------------------------------
@@ -211,7 +210,7 @@ TEST(ConfigGetNodes, TC9_NestedParamPropagation) {
   auto nodes = cfg.get_nodes();
 
   ASSERT_EQ(nodes.size(), 1u);
-  EXPECT_EQ(nodes[0].name, "src_loader");
+  EXPECT_EQ(nodes[0].name, "src/loader");
   EXPECT_EQ(nodes[0].get_param<std::string>("db_path"), "cam0_db");
 }
 
@@ -227,12 +226,12 @@ TEST(ConfigGetNodes, TC10_InlineNestedSubgraphs) {
   ASSERT_EQ(nodes.size(), 2u);
 
   auto part1 = std::find_if(nodes.begin(), nodes.end(),
-                            [](const auto& n) { return n.name == "cam0_part1_loader"; });
+                            [](const auto& n) { return n.name == "cam0/part1/loader"; });
   auto part2 = std::find_if(nodes.begin(), nodes.end(),
-                            [](const auto& n) { return n.name == "cam0_part2_loader"; });
+                            [](const auto& n) { return n.name == "cam0/part2/loader"; });
 
-  ASSERT_NE(part1, nodes.end()) << "Expected 'cam0_part1_loader' not found";
-  ASSERT_NE(part2, nodes.end()) << "Expected 'cam0_part2_loader' not found";
+  ASSERT_NE(part1, nodes.end()) << "Expected 'cam0/part1/loader' not found";
+  ASSERT_NE(part2, nodes.end()) << "Expected 'cam0/part2/loader' not found";
 }
 
 // ---------------------------------------------------------------------------
@@ -264,10 +263,9 @@ TEST(ConfigGetNodes, TC11_NestedRoundtrip) {
 }
 
 // ---------------------------------------------------------------------------
-// TC12: Direct nodes with cross-subgraph dot references
-// Subgraph "sync" has direct nodes (no extends). Inputs use dot notation
-// like "camera1_sg.decoder" which must be converted to "camera1_sg_decoder".
-// This is a regression test for the Case 3 dot→underscore conversion.
+// TC12: Direct nodes with cross-subgraph slash references
+// Subgraph "sync" has direct nodes (no extends). Inputs use slash notation
+// like "camera1_sg/decoder".
 // ---------------------------------------------------------------------------
 TEST(ConfigGetNodes, TC12_DirectNodesDotConversion) {
   stargazer::configuration cfg(fixture("test_direct_dot_ref.json"));
@@ -283,11 +281,11 @@ TEST(ConfigGetNodes, TC12_DirectNodesDotConversion) {
   ASSERT_NE(sync_node, nodes.end()) << "Expected 'approximate_time_sync' not found";
   ASSERT_NE(cb_node, nodes.end()) << "Expected 'callback' not found";
 
-  // Dot in cross-subgraph reference must be converted to underscore
+  // Dot in cross-subgraph reference must be converted to slash
   ASSERT_TRUE(sync_node->inputs.count("camera1") > 0);
   ASSERT_TRUE(sync_node->inputs.count("camera2") > 0);
-  EXPECT_EQ(sync_node->inputs.at("camera1"), "camera1_sg_decoder");
-  EXPECT_EQ(sync_node->inputs.at("camera2"), "camera2_sg_decoder");
+  EXPECT_EQ(sync_node->inputs.at("camera1"), "camera1_sg/decoder");
+  EXPECT_EQ(sync_node->inputs.at("camera2"), "camera2_sg/decoder");
 
   // Local reference (no dot) must remain unchanged
   EXPECT_EQ(cb_node->inputs.at("default"), "approximate_time_sync");
@@ -308,19 +306,19 @@ TEST(ConfigGetNodes, TC14_TemplateNestedDirectNodes) {
   ASSERT_EQ(nodes.size(), 3u);
 
   auto part1_source = std::find_if(nodes.begin(), nodes.end(),
-                                   [](const auto& n) { return n.name == "part1_source"; });
+                                   [](const auto& n) { return n.name == "part1/source"; });
   auto sync_node = std::find_if(nodes.begin(), nodes.end(),
                                 [](const auto& n) { return n.name == "sync_node"; });
   auto callback_node = std::find_if(nodes.begin(), nodes.end(),
                                     [](const auto& n) { return n.name == "callback_node"; });
 
-  ASSERT_NE(part1_source, nodes.end()) << "Expected 'part1_source' not found";
+  ASSERT_NE(part1_source, nodes.end()) << "Expected 'part1/source' not found";
   ASSERT_NE(sync_node, nodes.end()) << "Expected 'sync_node' not found";
   ASSERT_NE(callback_node, nodes.end()) << "Expected 'callback_node' not found";
 
-  // aggregator is Case 3: inputs' dot→underscore applied
+  // aggregator is Case 3: inputs' dot→slash applied
   ASSERT_TRUE(sync_node->inputs.count("part1") > 0);
-  EXPECT_EQ(sync_node->inputs.at("part1"), "part1_source");
+  EXPECT_EQ(sync_node->inputs.at("part1"), "part1/source");
 
   ASSERT_TRUE(callback_node->inputs.count("default") > 0);
   EXPECT_EQ(callback_node->inputs.at("default"), "sync_node");
@@ -340,26 +338,26 @@ TEST(ConfigGetNodes, TC15_TemplateNestedNodeOverride) {
   ASSERT_EQ(nodes.size(), 4u);
 
   auto cam1_blob = std::find_if(nodes.begin(), nodes.end(),
-                                [](const auto& n) { return n.name == "cam1_blob"; });
+                                [](const auto& n) { return n.name == "cam1/blob"; });
   auto cam1_decode = std::find_if(nodes.begin(), nodes.end(),
-                                  [](const auto& n) { return n.name == "cam1_decode"; });
+                                  [](const auto& n) { return n.name == "cam1/decode"; });
   auto cam2_blob = std::find_if(nodes.begin(), nodes.end(),
-                                [](const auto& n) { return n.name == "cam2_blob"; });
+                                [](const auto& n) { return n.name == "cam2/blob"; });
   auto cam2_decode = std::find_if(nodes.begin(), nodes.end(),
-                                  [](const auto& n) { return n.name == "cam2_decode"; });
+                                  [](const auto& n) { return n.name == "cam2/decode"; });
 
-  ASSERT_NE(cam1_blob, nodes.end()) << "Expected 'cam1_blob' not found";
-  ASSERT_NE(cam1_decode, nodes.end()) << "Expected 'cam1_decode' not found";
-  ASSERT_NE(cam2_blob, nodes.end()) << "Expected 'cam2_blob' not found";
-  ASSERT_NE(cam2_decode, nodes.end()) << "Expected 'cam2_decode' not found";
+  ASSERT_NE(cam1_blob, nodes.end()) << "Expected 'cam1/blob' not found";
+  ASSERT_NE(cam1_decode, nodes.end()) << "Expected 'cam1/decode' not found";
+  ASSERT_NE(cam2_blob, nodes.end()) << "Expected 'cam2/blob' not found";
+  ASSERT_NE(cam2_decode, nodes.end()) << "Expected 'cam2/decode' not found";
 
   // Node override must apply per-camera topic_name
   EXPECT_EQ(cam1_blob->get_param<std::string>("topic_name"), "image_cam1");
   EXPECT_EQ(cam2_blob->get_param<std::string>("topic_name"), "image_cam2");
 
   // Local input reference inside template must be prefixed
-  EXPECT_EQ(cam1_decode->inputs.at("default"), "cam1_blob");
-  EXPECT_EQ(cam2_decode->inputs.at("default"), "cam2_blob");
+  EXPECT_EQ(cam1_decode->inputs.at("default"), "cam1/blob");
+  EXPECT_EQ(cam2_decode->inputs.at("default"), "cam2/blob");
 }
 
 // ---------------------------------------------------------------------------

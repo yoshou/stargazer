@@ -48,3 +48,34 @@ target_link_libraries(stargazer_sensor_grpc_proto
   ${_REFLECTION}
   ${_GRPC_GRPCPP}
   ${_PROTOBUF_LIBPROTOBUF})
+
+# pipeline_control proto file
+get_filename_component(pipeline_control_proto "${CMAKE_CURRENT_LIST_DIR}/pipeline_control.proto" ABSOLUTE)
+get_filename_component(pipeline_control_proto_path "${pipeline_control_proto}" PATH)
+
+# pipeline_control generated sources
+set(pipeline_control_proto_srcs "${CMAKE_BINARY_DIR}/protos/pipeline_control.pb.cc")
+set(pipeline_control_proto_hdrs "${CMAKE_BINARY_DIR}/protos/pipeline_control.pb.h")
+set(pipeline_control_grpc_srcs "${CMAKE_BINARY_DIR}/protos/pipeline_control.grpc.pb.cc")
+set(pipeline_control_grpc_hdrs "${CMAKE_BINARY_DIR}/protos/pipeline_control.grpc.pb.h")
+
+add_custom_command(
+      OUTPUT "${pipeline_control_proto_srcs}" "${pipeline_control_proto_hdrs}" "${pipeline_control_grpc_srcs}" "${pipeline_control_grpc_hdrs}"
+      COMMAND ${_PROTOBUF_PROTOC}
+      ARGS --grpc_out "${CMAKE_BINARY_DIR}/protos"
+        --cpp_out "${CMAKE_BINARY_DIR}/protos"
+        -I "${pipeline_control_proto_path}"
+        --plugin=protoc-gen-grpc="${_GRPC_CPP_PLUGIN_EXECUTABLE}"
+        "${pipeline_control_proto}"
+      DEPENDS "${pipeline_control_proto}")
+
+# pipeline_control_grpc_proto
+add_library(stargazer_pipeline_control_grpc_proto
+  ${pipeline_control_grpc_srcs}
+  ${pipeline_control_grpc_hdrs}
+  ${pipeline_control_proto_srcs}
+  ${pipeline_control_proto_hdrs})
+target_link_libraries(stargazer_pipeline_control_grpc_proto
+  ${_REFLECTION}
+  ${_GRPC_GRPCPP}
+  ${_PROTOBUF_LIBPROTOBUF})

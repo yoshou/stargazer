@@ -12,6 +12,7 @@
 #include <opencv2/core.hpp>
 #include <opencv2/imgproc.hpp>
 #include <set>
+#include <unordered_set>
 #include <sstream>
 #include <vulkan/vulkan.hpp>
 
@@ -22,6 +23,8 @@
 #include "imgui_impl_glfw.h"
 #include "parameters.hpp"
 #include "pipeline.hpp"
+#include "pipeline_control_command.hpp"
+#include "pipeline_control_server.hpp"
 #include "render3d.hpp"
 #include "viewer.hpp"
 #include "views.hpp"
@@ -107,6 +110,13 @@ class viewer_app : public window_base {
   std::unique_ptr<stargazer::pipeline> pipeline_;
   std::unique_ptr<configuration> config_;
   bool pipeline_running_ = false;
+
+  // gRPC pipeline control
+  std::string grpc_address_;
+  std::unique_ptr<pipeline_control_server> grpc_server_;
+  pipeline_command_queue cmd_queue_;
+  std::atomic<bool> api_running_{false};
+  std::atomic<bool> api_collecting_{false};
 
   std::optional<coalsack::property_value> query_runtime_node_property(
       const stargazer::config_tree_ref& ref, const std::string& key) const {
@@ -521,10 +531,11 @@ class viewer_app : public window_base {
   }
 
  public:
-  explicit viewer_app(std::string config_path)
+  explicit viewer_app(std::string config_path, std::string grpc_address)
       : window_base("Stargazer", SCREEN_WIDTH, SCREEN_HEIGHT),
         gfx_ctx(nullptr),
-        config_path_(std::move(config_path)) {}
+        config_path_(std::move(config_path)),
+        grpc_address_(std::move(grpc_address)) {}
 
   void set_graphics_context(graphics_context* ctx) {
     gfx_ctx = ctx;
@@ -583,10 +594,30 @@ class viewer_app : public window_base {
 
     bind_pose_property();
 
+    // Start gRPC pipeline control server
+    if (!grpc_address_.empty()) {
+      grpc_server_ = std::make_unique<pipeline_control_server>(grpc_address_);
+      grpc_server_->service()->setup(
+          &cmd_queue_,
+          &api_running_,
+          &api_collecting_,
+          [this](const std::string& node_name, const std::string& key)
+              -> std::optional<coalsack::property_value> {
+            return pipeline_ ? pipeline_->get_node_property(node_name, key) : std::nullopt;
+          },
+          config_->get_nodes());
+      grpc_server_->run();
+    }
+
     window_base::initialize();
   }
 
   virtual void finalize() override {
+    // Stop gRPC server before pipeline
+    if (grpc_server_) {
+      grpc_server_->stop();
+    }
+
     // Cleanup pose_view Vulkan resources
     if (pose_view_) {
       pose_view_->cleanup();
@@ -624,6 +655,65 @@ class viewer_app : public window_base {
     if (handle == nullptr) {
       return;
     }
+
+    // Drain gRPC command queue on the GUI thread
+    cmd_queue_.drain([this](pipeline_command& cmd) -> pipeline_command_result {
+      switch (cmd.type) {
+        case pipeline_command_type::start: {
+          if (!pipeline_running_) {
+            const auto nodes = config_->get_nodes();
+            pipeline_running_ = true;
+            api_running_.store(true);
+            pipeline_->start();
+            add_streams_from_properties(nodes);
+            if (panel_view_) panel_view_->is_streaming = true;
+          }
+          return std::nullopt;
+        }
+        case pipeline_command_type::stop: {
+          if (pipeline_running_) {
+            const auto nodes = config_->get_nodes();
+            pipeline_running_ = false;
+            api_running_.store(false);
+            pipeline_->pause();
+            remove_streams_from_properties(nodes);
+            if (panel_view_) {
+              panel_view_->is_streaming = false;
+              panel_view_->is_marker_collecting = false;
+            }
+            api_collecting_.store(false);
+          }
+          return std::nullopt;
+        }
+        case pipeline_command_type::enable_collecting: {
+          std::unordered_set<std::string> seen;
+          for (const auto& node : config_->get_nodes()) {
+            const auto cam = try_get_node_camera_name(node);
+            if (!cam.has_value() || !seen.insert(*cam).second) continue;
+            pipeline_->enable_marker_collecting(*cam);
+          }
+          api_collecting_.store(true);
+          if (panel_view_) panel_view_->is_marker_collecting = true;
+          return std::nullopt;
+        }
+        case pipeline_command_type::disable_collecting: {
+          std::unordered_set<std::string> seen;
+          for (const auto& node : config_->get_nodes()) {
+            const auto cam = try_get_node_camera_name(node);
+            if (!cam.has_value() || !seen.insert(*cam).second) continue;
+            pipeline_->disable_marker_collecting(*cam);
+          }
+          api_collecting_.store(false);
+          if (panel_view_) panel_view_->is_marker_collecting = false;
+          return std::nullopt;
+        }
+        case pipeline_command_type::dispatch_action: {
+          pipeline_->dispatch_action(cmd.param);
+          return std::nullopt;
+        }
+      }
+      return std::string{"Unknown command type"};
+    });
 
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
@@ -684,15 +774,33 @@ static void sigint_handler(int) { window_manager::get_instance()->exit(); }
 int main(int argc, char** argv) {
   signal(SIGINT, sigint_handler);
 
-  if (argc != 2) {
-    std::cerr << "Usage: stargazer_viewer <config.json>" << std::endl;
+  std::string config_path;
+  std::string grpc_address = "0.0.0.0:50052";
+
+  for (int i = 1; i < argc; ++i) {
+    const std::string arg = argv[i];
+    if ((arg == "-g" || arg == "--grpc-address") && i + 1 < argc) {
+      grpc_address = argv[++i];
+    } else if (arg == "--no-grpc") {
+      grpc_address.clear();
+    } else if (config_path.empty()) {
+      config_path = arg;
+    } else {
+      std::cerr << "Unknown argument: " << arg << std::endl;
+      std::cerr << "Usage: stargazer_viewer <config.json> [-g address] [--no-grpc]" << std::endl;
+      return 1;
+    }
+  }
+
+  if (config_path.empty()) {
+    std::cerr << "Usage: stargazer_viewer <config.json> [-g address] [--no-grpc]" << std::endl;
     return 1;
   }
 
   const auto win_mgr = window_manager::get_instance();
   win_mgr->initialize();
 
-  auto window = std::make_shared<viewer_app>(argv[1]);
+  auto window = std::make_shared<viewer_app>(config_path, grpc_address);
 
   window->create();
   auto graphics_ctx = window->create_graphics_context();

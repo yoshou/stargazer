@@ -171,7 +171,7 @@ def intrinsic_pipeline(name: str, target_subgraph: str) -> tuple[str, dict]:
             subgraph(
                 "intrinsic_calibration",
                 extends=["intrinsic_calibration_subgraph"],
-                nodes=[node("frame_number_numbering", inputs={"default": "target_camera.decode_jpeg"})],
+                nodes=[node("frame_number_numbering", inputs={"default": "target_camera/decode_jpeg"})],
             ),
         ],
     )

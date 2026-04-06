@@ -1,0 +1,109 @@
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+
+package stargazer;
+
+service PipelineControl {
+  rpc Start(google.protobuf.Empty) returns (google.protobuf.Empty) {}
+  rpc Stop(google.protobuf.Empty) returns (google.protobuf.Empty) {}
+  rpc GetStatus(google.protobuf.Empty) returns (PipelineStatus) {}
+  rpc EnableCollecting(google.protobuf.Empty) returns (google.protobuf.Empty) {}
+  rpc DisableCollecting(google.protobuf.Empty) returns (google.protobuf.Empty) {}
+  rpc DispatchAction(ActionRequest) returns (google.protobuf.Empty) {}
+  rpc ListActions(google.protobuf.Empty) returns (ActionList) {}
+  rpc GetNodeProperty(PropertyRequest) returns (PropertyResponse) {}
+  rpc ListProperties(NodeRequest) returns (PropertyList) {}
+  rpc ListNodes(google.protobuf.Empty) returns (NodeList) {}
+}
+
+message PipelineStatus {
+  bool running = 1;
+  bool collecting = 2;
+}
+
+message ActionRequest {
+  string action_id = 1;
+}
+
+message ActionInfo {
+  string id = 1;
+  string label = 2;
+  string icon = 3;
+}
+
+message ActionList {
+  repeated ActionInfo actions = 1;
+}
+
+message NodeRequest {
+  string node_name = 1;
+}
+
+message NodeInfo {
+  string name = 1;
+  string type = 2;
+}
+
+message NodeList {
+  repeated NodeInfo nodes = 1;
+}
+
+message PropertyInfo {
+  string node_name = 1;
+  string key = 2;
+  string label = 3;
+  string type_hint = 4;
+}
+
+message PropertyList {
+  repeated PropertyInfo properties = 1;
+}
+
+message PropertyRequest {
+  string node_name = 1;
+  string key = 2;
+}
+
+message CameraModel {
+  double fx = 1;
+  double fy = 2;
+  double cx = 3;
+  double cy = 4;
+  int32 width = 5;
+  int32 height = 6;
+  double k1 = 7;
+  double k2 = 8;
+  double p1 = 9;
+  double p2 = 10;
+  double k3 = 11;
+  repeated double pose = 12;
+}
+
+message Vec3 {
+  double x = 1;
+  double y = 2;
+  double z = 3;
+}
+
+message Vec3List {
+  repeated Vec3 points = 1;
+}
+
+message Mat4 {
+  repeated double values = 1;
+}
+
+message PropertyResponse {
+  bool found = 1;
+  oneof value {
+    string string_value = 2;
+    int64 int_value = 3;
+    double double_value = 4;
+    bool bool_value = 5;
+    bytes image_value = 6;
+    CameraModel camera_value = 7;
+    Vec3List vec3_list_value = 8;
+    Mat4 mat4_value = 9;
+  }
+}

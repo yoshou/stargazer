@@ -21,7 +21,7 @@
               "name": "sync_node",
               "type": "approximate_time_sync",
               "inputs": {
-                "part1": "part1.source"
+                "part1": "part1/source"
               }
             },
             {

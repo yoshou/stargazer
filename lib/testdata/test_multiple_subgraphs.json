@@ -23,7 +23,7 @@
             {
               "name": "reconstruct_node",
               "type": "epipolar_reconstruction",
-              "inputs": { "cam0": "cam0_decoder" }
+              "inputs": { "cam0": "cam0/decoder" }
             }
           ]
         }

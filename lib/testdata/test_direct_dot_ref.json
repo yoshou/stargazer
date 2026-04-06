@@ -10,8 +10,8 @@
               "name": "approximate_time_sync",
               "type": "approximate_time_sync",
               "inputs": {
-                "camera1": "camera1_sg.decoder",
-                "camera2": "camera2_sg.decoder"
+                "camera1": "camera1_sg/decoder",
+                "camera2": "camera2_sg/decoder"
               }
             },
             {

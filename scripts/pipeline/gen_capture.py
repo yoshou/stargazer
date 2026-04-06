@@ -404,7 +404,7 @@ def build_record_ir() -> tuple[str, dict]:
                 ),
                 make_record_instance(
                     f"record{index}",
-                    f"{camera_name}_receiver.callback_image",
+                    f"{camera_name}_receiver/callback_image",
                 ),
             ]
         )
@@ -412,9 +412,9 @@ def build_record_ir() -> tuple[str, dict]:
         make_sync(
             "sync",
             interval=11.611,
-            image_inputs={f"camera{index}": f"camera{index}_receiver.decode_jpeg" for index in IR_CAMERAS},
+            image_inputs={f"camera{index}": f"camera{index}_receiver/decode_jpeg" for index in IR_CAMERAS},
             marker_inputs={
-                f"camera{index}": f"camera{index}_receiver.p2p_tcp_listener_marker"
+                f"camera{index}": f"camera{index}_receiver/p2p_tcp_listener_marker"
                 for index in IR_CAMERAS
             },
         )
@@ -447,9 +447,9 @@ def build_capture_ir() -> tuple[str, dict]:
         make_sync(
             "sync",
             interval=11.611,
-            image_inputs={f"camera{index}": f"camera{index}_receiver.decode_jpeg" for index in IR_CAMERAS},
+            image_inputs={f"camera{index}": f"camera{index}_receiver/decode_jpeg" for index in IR_CAMERAS},
             marker_inputs={
-                f"camera{index}": f"camera{index}_receiver.p2p_tcp_listener_marker"
+                f"camera{index}": f"camera{index}_receiver/p2p_tcp_listener_marker"
                 for index in IR_CAMERAS
             },
         )
@@ -473,8 +473,8 @@ def build_playback_ir() -> tuple[str, dict]:
         make_sync(
             "sync",
             interval=11.611,
-            image_inputs={f"camera{index}": f"camera{index}.decode_jpeg" for index in range(1, 21)},
-            marker_inputs={f"camera{index}": f"camera{index}.load_marker" for index in range(1, 21)},
+            image_inputs={f"camera{index}": f"camera{index}/decode_jpeg" for index in range(1, 21)},
+            marker_inputs={f"camera{index}": f"camera{index}/load_marker" for index in range(1, 21)},
         )
     )
     return pipeline_def("playback_ir", subgraphs=subgraphs)
@@ -501,7 +501,7 @@ def build_record_color() -> tuple[str, dict]:
                 ),
                 make_record_instance(
                     f"record{camera['suffix']}",
-                    f"{camera_name}_receiver.callback_image",
+                    f"{camera_name}_receiver/callback_image",
                 ),
             ]
         )
@@ -510,11 +510,11 @@ def build_record_color() -> tuple[str, dict]:
             "sync",
             interval=11.6,
             image_inputs={
-                f"camera{camera['suffix']}": f"camera{camera['suffix']}_receiver.decode_jpeg"
+                f"camera{camera['suffix']}": f"camera{camera['suffix']}_receiver/decode_jpeg"
                 for camera in COLOR_CAMERAS
             },
             marker_inputs={
-                f"camera{camera['suffix']}": f"camera{camera['suffix']}_receiver.p2p_tcp_listener_marker"
+                f"camera{camera['suffix']}": f"camera{camera['suffix']}_receiver/p2p_tcp_listener_marker"
                 for camera in COLOR_CAMERAS
             },
         )
@@ -548,11 +548,11 @@ def build_capture_color() -> tuple[str, dict]:
             "sync",
             interval=11.6,
             image_inputs={
-                f"camera{camera['suffix']}": f"camera{camera['suffix']}_receiver.decode_jpeg"
+                f"camera{camera['suffix']}": f"camera{camera['suffix']}_receiver/decode_jpeg"
                 for camera in COLOR_CAMERAS
             },
             marker_inputs={
-                f"camera{camera['suffix']}": f"camera{camera['suffix']}_receiver.p2p_tcp_listener_marker"
+                f"camera{camera['suffix']}": f"camera{camera['suffix']}_receiver/p2p_tcp_listener_marker"
                 for camera in COLOR_CAMERAS
             },
         )
@@ -577,11 +577,11 @@ def build_playback_color() -> tuple[str, dict]:
             "sync",
             interval=33.833,
             image_inputs={
-                f"camera{camera['suffix']}": f"camera{camera['suffix']}.decode_jpeg"
+                f"camera{camera['suffix']}": f"camera{camera['suffix']}/decode_jpeg"
                 for camera in COLOR_CAMERAS
             },
             marker_inputs={
-                f"camera{camera['suffix']}": f"camera{camera['suffix']}.load_marker"
+                f"camera{camera['suffix']}": f"camera{camera['suffix']}/load_marker"
                 for camera in COLOR_CAMERAS
             },
         )

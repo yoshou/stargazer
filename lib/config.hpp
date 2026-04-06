@@ -286,7 +286,7 @@ class configuration {
 
           // Prefix node name
           if (node.name.find(prefix) == std::string::npos) {
-            node.name = prefix + "_" + node.name;
+            node.name = prefix + "/" + node.name;
           }
 
           // Prefix local input references
@@ -295,7 +295,7 @@ class configuration {
             std::string ref = colon != std::string::npos ? source.substr(0, colon) : source;
             std::string out = colon != std::string::npos ? source.substr(colon) : "";
             if (local_names.count(ref) > 0 && ref.find(prefix) == std::string::npos) {
-              source = prefix + "_" + ref + out;
+              source = prefix + "/" + ref + out;
             }
           }
         }
@@ -303,12 +303,11 @@ class configuration {
         // Apply instance-level node overrides
         for (const auto& ov : sg_instance.nodes) {
           std::string target = ov.name;
-          if (target.find(prefix) == std::string::npos) target = prefix + "_" + target;
+          if (target.find(prefix) == std::string::npos) target = prefix + "/" + target;
           for (auto& node : sg_nodes) {
             if (node.name == target) {
               for (const auto& [k, v] : ov.params) node.params[k] = v;
               for (auto [k, v] : ov.inputs) {
-                std::replace(v.begin(), v.end(), '.', '_');
                 node.inputs[k] = v;
               }
               break;
@@ -330,20 +329,15 @@ class configuration {
             nested_instance.params[k] = v;
           }
         }
-        auto sub = expand_sg(nested_instance, prefix + "_" + nested.name, {});
+        auto sub = expand_sg(nested_instance, prefix + "/" + nested.name, {});
         result.insert(result.end(), sub.begin(), sub.end());
       }
       return result;
     }
 
     // ── Case 3: direct nodes (no extends, no nested subgraphs) ────────────
-    // Apply '.' → '_' replacement on all input values (cross-subgraph references).
+    // Direct nodes (no extends, no nested subgraphs): pass through as-is.
     auto direct_nodes = sg_instance.nodes;
-    for (auto& node : direct_nodes) {
-      for (auto& [input_key, source] : node.inputs) {
-        std::replace(source.begin(), source.end(), '.', '_');
-      }
-    }
     return direct_nodes;
   }
 
