@@ -651,13 +651,13 @@ float pipeline_panel_view::draw_control_panel(view_context* context) {
   const auto collect_button_color = is_marker_collecting ? light_blue : light_grey;
   const auto streaming_button_color = is_streaming ? light_blue : light_grey;
 
-  if (has_gate) {
-    draw_icon_button("##collect", is_marker_collecting ? textual_icons::stop : textual_icons::play,
-                     collect_button_color, toggle_collect);
-    ImGui::SameLine();
-  }
   draw_icon_button("##streaming", is_streaming ? textual_icons::stop : textual_icons::play,
                    streaming_button_color, toggle_streaming);
+  if (has_gate) {
+    ImGui::SameLine();
+    draw_icon_button("##collect", is_marker_collecting ? textual_icons::stop : textual_icons::play,
+                     collect_button_color, toggle_collect);
+  }
   for (size_t i = 0; i < unique_actions.size(); ++i) {
     const auto& [action_node_id, action] = unique_actions[i];
     const auto& slot = action_slots[i];
@@ -674,11 +674,11 @@ float pipeline_panel_view::draw_control_panel(view_context* context) {
   }
 
   ImGui::SetCursorPos({panel_pos.x, panel_pos.y + 30.0f});
-  if (has_gate) {
-    draw_label_button(is_marker_collecting ? "Stop Collect" : "Collect", collect_button_color);
-    ImGui::SameLine();
-  }
   draw_label_button(is_streaming ? "Stop" : "Start", streaming_button_color);
+  if (has_gate) {
+    ImGui::SameLine();
+    draw_label_button(is_marker_collecting ? "Stop Collect" : "Collect", collect_button_color);
+  }
   for (size_t i = 0; i < unique_actions.size(); ++i) {
     const auto& slot = action_slots[i];
     if (slot.col == 0) {
