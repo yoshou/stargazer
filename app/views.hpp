@@ -29,7 +29,7 @@
 // Scale of 0.1 means: 1 unit in scene = 10cm in world
 constexpr float POSE_VIEW_SCALE = 0.1f;  // Scene scale (change this to adjust all sizes at once)
 
-static ImVec4 from_rgba(uint8_t r, uint8_t g, uint8_t b, uint8_t a, bool consistent_color = false) {
+inline ImVec4 from_rgba(uint8_t r, uint8_t g, uint8_t b, uint8_t a, bool consistent_color = false) {
   auto res = ImVec4(r / (float)255, g / (float)255, b / (float)255, a / (float)255);
 #ifdef FLIP_COLOR_SCHEME
   if (!consistent_color) return flip(res);
@@ -37,38 +37,38 @@ static ImVec4 from_rgba(uint8_t r, uint8_t g, uint8_t b, uint8_t a, bool consist
   return res;
 }
 
-static const ImVec4 light_blue = from_rgba(
+inline const ImVec4 light_blue = from_rgba(
     0, 174, 239, 255,
     true);  // Light blue color for selected elements such as play button glyph when paused
-static const ImVec4 regular_blue =
+inline const ImVec4 regular_blue =
     from_rgba(0, 115, 200, 255, true);  // Checkbox mark, slider grabber
-static const ImVec4 light_grey = from_rgba(0xc3, 0xd5, 0xe5, 0xff, true);  // Text
-static const ImVec4 dark_window_background = from_rgba(9, 11, 13, 255);
-static const ImVec4 almost_white_bg = from_rgba(230, 230, 230, 255, true);
-static const ImVec4 black = from_rgba(0, 0, 0, 255, true);
-static const ImVec4 transparent = from_rgba(0, 0, 0, 0, true);
-static const ImVec4 white = from_rgba(0xff, 0xff, 0xff, 0xff, true);
-static const ImVec4 scrollbar_bg = from_rgba(14, 17, 20, 255);
-static const ImVec4 scrollbar_grab = from_rgba(54, 66, 67, 255);
-static const ImVec4 grey{0.5f, 0.5f, 0.5f, 1.f};
-static const ImVec4 dark_grey = from_rgba(30, 30, 30, 255);
-static const ImVec4 sensor_header_light_blue = from_rgba(80, 99, 115, 0xff);
-static const ImVec4 sensor_bg = from_rgba(36, 44, 51, 0xff);
-static const ImVec4 redish = from_rgba(255, 46, 54, 255, true);
-static const ImVec4 light_red = from_rgba(255, 146, 154, 255, true);
-static const ImVec4 dark_red = from_rgba(200, 46, 54, 255, true);
-static const ImVec4 button_color = from_rgba(62, 77, 89, 0xff);
-static const ImVec4 header_window_bg = from_rgba(36, 44, 54, 0xff);
-static const ImVec4 header_color = from_rgba(62, 77, 89, 255);
-static const ImVec4 title_color = from_rgba(27, 33, 38, 255);
-static const ImVec4 node_info_color = from_rgba(33, 40, 46, 255);
-static const ImVec4 yellow = from_rgba(229, 195, 101, 255, true);
-static const ImVec4 yellowish = from_rgba(255, 253, 191, 255, true);
-static const ImVec4 green = from_rgba(0x20, 0xe0, 0x20, 0xff, true);
-static const ImVec4 dark_sensor_bg = from_rgba(0x1b, 0x21, 0x25, 170);
-static const ImVec4 red = from_rgba(233, 0, 0, 255, true);
-static const ImVec4 greenish = from_rgba(67, 163, 97, 255);
-static const ImVec4 orange = from_rgba(255, 157, 0, 255, true);
+inline const ImVec4 light_grey = from_rgba(0xc3, 0xd5, 0xe5, 0xff, true);  // Text
+inline const ImVec4 dark_window_background = from_rgba(9, 11, 13, 255);
+inline const ImVec4 almost_white_bg = from_rgba(230, 230, 230, 255, true);
+inline const ImVec4 black = from_rgba(0, 0, 0, 255, true);
+inline const ImVec4 transparent = from_rgba(0, 0, 0, 0, true);
+inline const ImVec4 white = from_rgba(0xff, 0xff, 0xff, 0xff, true);
+inline const ImVec4 scrollbar_bg = from_rgba(14, 17, 20, 255);
+inline const ImVec4 scrollbar_grab = from_rgba(54, 66, 67, 255);
+inline const ImVec4 grey{0.5f, 0.5f, 0.5f, 1.f};
+inline const ImVec4 dark_grey = from_rgba(30, 30, 30, 255);
+inline const ImVec4 sensor_header_light_blue = from_rgba(80, 99, 115, 0xff);
+inline const ImVec4 sensor_bg = from_rgba(36, 44, 51, 0xff);
+inline const ImVec4 redish = from_rgba(255, 46, 54, 255, true);
+inline const ImVec4 light_red = from_rgba(255, 146, 154, 255, true);
+inline const ImVec4 dark_red = from_rgba(200, 46, 54, 255, true);
+inline const ImVec4 button_color = from_rgba(62, 77, 89, 0xff);
+inline const ImVec4 header_window_bg = from_rgba(36, 44, 54, 0xff);
+inline const ImVec4 header_color = from_rgba(62, 77, 89, 255);
+inline const ImVec4 title_color = from_rgba(27, 33, 38, 255);
+inline const ImVec4 node_info_color = from_rgba(33, 40, 46, 255);
+inline const ImVec4 yellow = from_rgba(229, 195, 101, 255, true);
+inline const ImVec4 yellowish = from_rgba(255, 253, 191, 255, true);
+inline const ImVec4 green = from_rgba(0x20, 0xe0, 0x20, 0xff, true);
+inline const ImVec4 dark_sensor_bg = from_rgba(0x1b, 0x21, 0x25, 170);
+inline const ImVec4 red = from_rgba(233, 0, 0, 255, true);
+inline const ImVec4 greenish = from_rgba(67, 163, 97, 255);
+inline const ImVec4 orange = from_rgba(255, 157, 0, 255, true);
 
 inline ImVec4 operator+(const ImVec4& a, const ImVec4& b) {
   return ImVec4(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w);
