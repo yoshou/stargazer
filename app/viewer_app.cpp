@@ -421,9 +421,9 @@ class viewer_app : public window_base {
       config_glyphs.MergeMode = true;
       config_glyphs.OversampleV = OVERSAMPLE;
       config_glyphs.OversampleH = OVERSAMPLE;
-      default_font = io.Fonts->AddFontFromMemoryCompressedTTF(font_awesome_compressed_data,
-                                                              font_awesome_compressed_size, 14.f,
-                                                              &config_glyphs, icons_ranges);
+      config_glyphs.FontDataOwnedByAtlas = false;
+      default_font = io.Fonts->AddFontFromMemoryTTF(
+          (void*)font_awesome_data, font_awesome_data_size, 14.f, &config_glyphs, icons_ranges);
     }
     IM_ASSERT(default_font != NULL);
 
@@ -441,9 +441,9 @@ class viewer_app : public window_base {
       config_glyphs.MergeMode = true;
       config_glyphs.OversampleV = OVERSAMPLE;
       config_glyphs.OversampleH = OVERSAMPLE;
-      large_font = io.Fonts->AddFontFromMemoryCompressedTTF(font_awesome_compressed_data,
-                                                            font_awesome_compressed_size, 20.f,
-                                                            &config_glyphs, icons_ranges);
+      config_glyphs.FontDataOwnedByAtlas = false;
+      large_font = io.Fonts->AddFontFromMemoryTTF(
+          (void*)font_awesome_data, font_awesome_data_size, 20.f, &config_glyphs, icons_ranges);
     }
     IM_ASSERT(large_font != NULL);
 

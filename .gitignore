@@ -1,0 +1,5 @@
+data/
+/build/
+.vscode/
+.venv*/
+fonts/fontawesome/

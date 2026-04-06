@@ -38,6 +38,23 @@ add_custom_target(stargazer_shaders ALL
     DEPENDS ${VERT_SHADER_INC} ${FRAG_SHADER_INC}
 )
 
+# Font Awesome 6 Free Solid: convert TTF to C header at build time
+set(FA6_TTF "${CMAKE_SOURCE_DIR}/fonts/fontawesome/fa-solid-900.ttf")
+set(FA6_HEADER "${CMAKE_CURRENT_BINARY_DIR}/imgui-fonts-fontawesome.hpp")
+set(FA6_CONVERT_SCRIPT "${CMAKE_SOURCE_DIR}/fonts/convert_font.py")
+
+add_custom_command(
+    OUTPUT "${FA6_HEADER}"
+    COMMAND python3 "${FA6_CONVERT_SCRIPT}" "${FA6_TTF}" "${FA6_HEADER}"
+    DEPENDS "${FA6_TTF}" "${FA6_CONVERT_SCRIPT}"
+    COMMENT "Generating Font Awesome 6 C header"
+    VERBATIM
+)
+
+add_custom_target(stargazer_fonts ALL
+    DEPENDS "${FA6_HEADER}"
+)
+
 add_executable(stargazer_viewer
     ${CMAKE_CURRENT_LIST_DIR}/pipeline_view_model.cpp
     ${CMAKE_CURRENT_LIST_DIR}/viewer.cpp
@@ -50,6 +67,7 @@ add_executable(stargazer_viewer
 add_dependencies(stargazer_viewer
     stargazer
     stargazer_shaders
+    stargazer_fonts
     stargazer_sensor_grpc_proto
     stargazer_pipeline_control_grpc_proto
     stargazer_voxelpose
