@@ -69,6 +69,7 @@ enum class node_type {
   keypoint_to_float2_map,
   object_to_frame,
   unframe_image_fields,
+  dust3r_pose_estimation,
 };
 
 using node_param_t = std::variant<std::string, std::int64_t, double, float, bool>;
@@ -265,6 +266,15 @@ class configuration {
             }
             auto sub = expand_sg(nested_instance, nested.name, {});
             result.insert(result.end(), sub.begin(), sub.end());
+          }
+          // Include direct nodes defined in the same template.
+          for (auto node : sg_template.nodes) {
+            node.subgraph_instance = prefix;
+            std::unordered_map<std::string, node_param_t> merged;
+            for (const auto& [k, v] : scope_params) merged[k] = v;
+            for (const auto& [k, v] : node.params) merged[k] = v;
+            node.params = merged;
+            result.push_back(std::move(node));
           }
           return result;
         }

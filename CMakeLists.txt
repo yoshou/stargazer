@@ -32,6 +32,20 @@ if(${ENABLE_ONNXRUNTIME_EXT})
     endif()
 endif()
 
+# Restore DUSt3R ONNX data file from chunks if needed
+set(DUST3R_ONNX_DATA ${CMAKE_SOURCE_DIR}/models/dust3r_512x288.onnx.data)
+if(NOT EXISTS ${DUST3R_ONNX_DATA})
+    message(STATUS "Restoring DUSt3R ONNX data from chunks...")
+    execute_process(
+        COMMAND python3 ${CMAKE_SOURCE_DIR}/models/restore_onnx.py --all ${CMAKE_SOURCE_DIR}/models
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/models
+        RESULT_VARIABLE RESTORE_RESULT
+    )
+    if(NOT RESTORE_RESULT EQUAL 0)
+        message(FATAL_ERROR "Failed to restore DUSt3R ONNX data")
+    endif()
+endif()
+
 include(third-party/CMakeLists.txt)
 include(protos/CMakeLists.txt)
 include(app/fonts/CMakeLists.txt)

@@ -138,6 +138,8 @@ static node_type get_node_type(const std::string& type) {
     return node_type::object_to_frame;
   } else if (type == "unframe_image_fields") {
     return node_type::unframe_image_fields;
+  } else if (type == "dust3r_pose_estimation") {
+    return node_type::dust3r_pose_estimation;
   }
   throw std::runtime_error("Invalid node type");
 }
@@ -256,6 +258,8 @@ static std::string get_node_type_name(node_type type) {
       return "object_to_frame";
     case node_type::unframe_image_fields:
       return "unframe_image_fields";
+    case node_type::dust3r_pose_estimation:
+      return "dust3r_pose_estimation";
   }
   throw std::runtime_error("Invalid node type");
 }

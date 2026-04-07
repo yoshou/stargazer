@@ -3,4 +3,5 @@ data/
 .vscode/
 .venv*/
 app/fonts/fontawesome/
+models/*.onnx.data
 app/fonts/mplus/

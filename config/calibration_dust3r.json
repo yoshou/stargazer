@@ -1,0 +1,177 @@
+{
+    "subgraphs": [
+        {
+            "name": "playback_color_subgraph",
+            "nodes": [
+                {
+                    "name": "load_blob",
+                    "type": "load_blob"
+                },
+                {
+                    "name": "decode_jpeg",
+                    "type": "decode_jpeg",
+                    "inputs": {
+                        "default": "load_blob"
+                    }
+                }
+            ],
+            "outputs": [
+                "decode_jpeg"
+            ],
+            "db_path": "../data/data_20250713_1/calibrate.db",
+            "height": 540,
+            "width": 960,
+            "fps": 30
+        },
+        {
+            "name": "calibration_dust3r_subgraph",
+            "subgraphs": [
+                {
+                    "name": "camera101",
+                    "extends": [
+                        "playback_color_subgraph"
+                    ],
+                    "nodes": [
+                        {
+                            "name": "load_blob",
+                            "topic_name": "image_101"
+                        }
+                    ],
+                    "id": "000000000026"
+                },
+                {
+                    "name": "camera102",
+                    "extends": [
+                        "playback_color_subgraph"
+                    ],
+                    "nodes": [
+                        {
+                            "name": "load_blob",
+                            "topic_name": "image_102"
+                        }
+                    ],
+                    "id": "000000000027"
+                },
+                {
+                    "name": "camera103",
+                    "extends": [
+                        "playback_color_subgraph"
+                    ],
+                    "nodes": [
+                        {
+                            "name": "load_blob",
+                            "topic_name": "image_103"
+                        }
+                    ],
+                    "id": "000000000028"
+                },
+                {
+                    "name": "camera104",
+                    "extends": [
+                        "playback_color_subgraph"
+                    ],
+                    "nodes": [
+                        {
+                            "name": "load_blob",
+                            "topic_name": "image_104"
+                        }
+                    ],
+                    "id": "000000000029"
+                },
+                {
+                    "name": "camera105",
+                    "extends": [
+                        "playback_color_subgraph"
+                    ],
+                    "nodes": [
+                        {
+                            "name": "load_blob",
+                            "topic_name": "image_105"
+                        }
+                    ],
+                    "id": "000000000030"
+                }
+            ],
+            "nodes": [
+                {
+                    "name": "load_camera101",
+                    "type": "load_parameter",
+                    "id": "000000000026"
+                },
+                {
+                    "name": "load_camera102",
+                    "type": "load_parameter",
+                    "id": "000000000027"
+                },
+                {
+                    "name": "load_camera103",
+                    "type": "load_parameter",
+                    "id": "000000000028"
+                },
+                {
+                    "name": "load_camera104",
+                    "type": "load_parameter",
+                    "id": "000000000029"
+                },
+                {
+                    "name": "load_camera105",
+                    "type": "load_parameter",
+                    "id": "000000000030"
+                },
+                {
+                    "name": "approximate_time_sync",
+                    "type": "approximate_time_sync",
+                    "inputs": {
+                        "camera101": "camera101/decode_jpeg",
+                        "camera102": "camera102/decode_jpeg",
+                        "camera103": "camera103/decode_jpeg",
+                        "camera104": "camera104/decode_jpeg",
+                        "camera105": "camera105/decode_jpeg"
+                    },
+                    "interval": 33.333
+                },
+                {
+                    "name": "estimate_action",
+                    "type": "action",
+                    "action_id": "dust3r_estimate",
+                    "label": "Estimate poses",
+                    "icon": "camera"
+                },
+                {
+                    "name": "dust3r_pose",
+                    "type": "dust3r_pose_estimation",
+                    "inputs": {
+                        "default": "approximate_time_sync",
+                        "camera.camera101": "load_camera101",
+                        "camera.camera102": "load_camera102",
+                        "camera.camera103": "load_camera103",
+                        "camera.camera104": "load_camera104",
+                        "camera.camera105": "load_camera105",
+                        "estimate": "estimate_action"
+                    },
+                    "model_path": "../models/dust3r_512x288.onnx"
+                },
+                {
+                    "name": "store_cameras",
+                    "type": "store_parameter",
+                    "inputs": {
+                        "default": "dust3r_pose"
+                    }
+                }
+            ]
+        }
+    ],
+    "pipelines": {
+        "calibration_dust3r": {
+            "subgraphs": [
+                {
+                    "name": "calibration",
+                    "extends": [
+                        "calibration_dust3r_subgraph"
+                    ]
+                }
+            ]
+        }
+    },
+    "pipeline": "calibration_dust3r"
+}

@@ -21,14 +21,17 @@
 #include "dump_keypoint_node.hpp"
 #include "dump_reconstruction_node.hpp"
 #include "dump_se3_node.hpp"
+#include "dust3r_pose_node.hpp"
 #include "epipolar_reconstruct_node.hpp"
 #include "extrinsic_calibration_node.hpp"
 #include "feature_render_node.hpp"
+#include "gate_node.hpp"
 #include "glm_serialize.hpp"
 #include "grpc_server_node.hpp"
 #include "image_property_node.hpp"
 #include "image_reconstruct_node.hpp"
 #include "intrinsic_calibration_node.hpp"
+#include "keypoint_to_float2_map_node.hpp"
 #include "load_blob_node.hpp"
 #include "load_marker_node.hpp"
 #include "load_panoptic_node.hpp"
@@ -38,15 +41,13 @@
 #include "mvpose_reconstruct_node.hpp"
 #include "object_map_node.hpp"
 #include "object_mux_node.hpp"
+#include "object_to_frame_node.hpp"
 #include "pattern_board_calibration_target_detector_node.hpp"
 #include "reconstruction_result_markers_node.hpp"
 #include "scene_calibration_node.hpp"
-#include "gate_node.hpp"
-#include "keypoint_to_float2_map_node.hpp"
-#include "object_to_frame_node.hpp"
-#include "unframe_image_fields_node.hpp"
 #include "store_parameter_node.hpp"
 #include "three_point_bar_calibration_target_detector_node.hpp"
+#include "unframe_image_fields_node.hpp"
 #include "voxelpose_reconstruct_node.hpp"
 
 using namespace coalsack;
@@ -667,6 +668,14 @@ void build_graph_from_json(const std::vector<node_def>& nodes,
       }
       case node_type::unframe_image_fields: {
         auto n = std::make_shared<stargazer::unframe_image_fields_node>();
+        graph_node = n;
+        break;
+      }
+      case node_type::dust3r_pose_estimation: {
+        auto n = std::make_shared<stargazer::dust3r_pose_node>();
+        if (node.contains_param("model_path")) {
+          n->set_model_path(node.get_param<std::string>("model_path"));
+        }
         graph_node = n;
         break;
       }

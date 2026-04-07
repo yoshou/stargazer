@@ -213,6 +213,47 @@ endif()
 set_target_properties(stargazer_mvp PROPERTIES
     CXX_STANDARD 20)
 
+add_library(stargazer_dust3r
+    ${CMAKE_CURRENT_LIST_DIR}/dust3r.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/dust3r_alignment.cpp
+)
+
+target_include_directories(stargazer_dust3r
+    PRIVATE
+    $<$<BOOL:${ENABLE_ONNXRUNTIME_EXT}>:${ONNXRUNTIME_INCLUDE_DIRS}>
+)
+
+target_compile_definitions(stargazer_dust3r
+    PUBLIC
+    $<$<BOOL:${ENABLE_CUDA}>:USE_CUDA>
+)
+
+if (ENABLE_CUDA)
+    target_link_libraries(stargazer_dust3r
+        glm::glm
+        Eigen3::Eigen
+        opencv_imgproc
+        opencv_calib3d
+        $<$<BOOL:${ENABLE_ONNXRUNTIME_EXT}>:${ONNXRUNTIME_LIBS}>
+        CUDA::cudart
+        CUDA::cuda_driver
+        spdlog::spdlog_header_only
+        cereal::cereal
+    )
+else()
+    target_link_libraries(stargazer_dust3r
+        glm::glm
+        Eigen3::Eigen
+        opencv_imgproc
+        opencv_calib3d
+        spdlog::spdlog_header_only
+        cereal::cereal
+    )
+endif()
+
+set_target_properties(stargazer_dust3r PROPERTIES
+    CXX_STANDARD 20)
+
 add_library(stargazer
     ${CMAKE_CURRENT_LIST_DIR}/parameters.cpp
     ${CMAKE_CURRENT_LIST_DIR}/config.cpp
@@ -243,6 +284,7 @@ target_link_libraries(stargazer
     Eigen3::Eigen
     opencv_imgproc
     unofficial::sqlite3::sqlite3
+    stargazer_dust3r
     $<$<NOT:$<BOOL:${MSVC}>>:pthread>
     $<$<NOT:$<BOOL:${MSVC}>>:stdc++fs>
 )

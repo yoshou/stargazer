@@ -27,5 +27,58 @@ target_compile_features(test_config PRIVATE cxx_std_17)
 
 target_compile_definitions(test_config PRIVATE
     TEST_DATA_DIR="${CMAKE_SOURCE_DIR}/lib/testdata"
-    REAL_CONFIG_DIR="${CMAKE_SOURCE_DIR}/config"
 )
+
+# ---------------------------------------------------------------------------
+# test_dust3r_inference: Phase-1 inference verification
+# ---------------------------------------------------------------------------
+add_executable(test_dust3r_inference
+    ${CMAKE_CURRENT_LIST_DIR}/test_dust3r_inference.cpp
+)
+
+target_include_directories(test_dust3r_inference SYSTEM PRIVATE
+    ${GTEST_INCLUDE_DIR}
+)
+
+target_include_directories(test_dust3r_inference PRIVATE
+    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/lib
+)
+
+target_link_libraries(test_dust3r_inference PRIVATE
+    ${GTEST_LIB_DIR}/libgtest.a
+    ${GTEST_LIB_DIR}/libgtest_main.a
+    stargazer_dust3r
+    opencv_imgproc
+    opencv_calib3d
+    pthread
+)
+
+target_compile_features(test_dust3r_inference PRIVATE cxx_std_20)
+set_target_properties(test_dust3r_inference PROPERTIES CXX_STANDARD 20)
+
+# ---------------------------------------------------------------------------
+# test_dust3r_alignment: Phase-2 alignment verification
+# ---------------------------------------------------------------------------
+add_executable(test_dust3r_alignment
+    ${CMAKE_CURRENT_LIST_DIR}/test_dust3r_alignment.cpp
+)
+
+target_include_directories(test_dust3r_alignment SYSTEM PRIVATE
+    ${GTEST_INCLUDE_DIR}
+)
+
+target_include_directories(test_dust3r_alignment PRIVATE
+    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/lib
+)
+
+target_link_libraries(test_dust3r_alignment PRIVATE
+    ${GTEST_LIB_DIR}/libgtest.a
+    ${GTEST_LIB_DIR}/libgtest_main.a
+    stargazer_dust3r
+    pthread
+)
+
+target_compile_features(test_dust3r_alignment PRIVATE cxx_std_20)
+set_target_properties(test_dust3r_alignment PROPERTIES CXX_STANDARD 20)
