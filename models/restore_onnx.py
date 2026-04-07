@@ -75,15 +75,16 @@ def main():
         sys.exit(1)
     
     if sys.argv[1] == "--all":
-        # Restore all .chunks directories in the specified directory
+        # Restore all chunk directories in the specified directory.
+        # This covers both *.onnx.chunks and *.onnx.data.chunks.
         target_dir = sys.argv[2] if len(sys.argv) > 2 else "."
         chunks_dirs = []
         for entry in os.listdir(target_dir):
-            if entry.endswith(".onnx.chunks"):
+            if entry.endswith(".chunks"):
                 chunks_dirs.append(os.path.join(target_dir, entry))
         
         if not chunks_dirs:
-            print(f"No .onnx.chunks directories found in {target_dir}")
+            print(f"No .chunks directories found in {target_dir}")
             sys.exit(1)
         
         for chunks_dir in sorted(chunks_dirs):
