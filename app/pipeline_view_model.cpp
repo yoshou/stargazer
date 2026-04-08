@@ -259,6 +259,18 @@ pose_source_model build_pose_source_model(const configuration& config) {
       }
     }
 
+    if (node.get_type() == node_type::voxelpose_reconstruction) {
+      const node_ref ref{node.name};
+      model.axis_source = {ref, "axis"};
+      for (const auto& camera_node : nodes) {
+        const auto camera_name = try_get_node_camera_name(camera_node);
+        if (!camera_name.has_value()) {
+          continue;
+        }
+        model.camera_sources.push_back({*camera_name, ref, "camera." + *camera_name});
+      }
+    }
+
     if (node.get_type() == node_type::extrinsic_calibration) {
       const node_ref ref{node.name};
       for (const auto& [input_name, _input] : node.inputs) {
