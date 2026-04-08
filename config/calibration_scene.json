@@ -84,6 +84,28 @@
           }
         },
         {
+          "name": "display_image",
+          "type": "image_property",
+          "inputs": {
+            "default": "decode_jpeg"
+          },
+          "properties": [
+            {
+              "id": "received",
+              "label": "Received",
+              "source_key": "received",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "image",
+              "label": "Image",
+              "source_key": "image",
+              "target": "image"
+            }
+          ]
+        },
+        {
           "name": "load_marker",
           "type": "load_marker"
         }
@@ -1003,6 +1025,111 @@
               "id": "camera20_collected",
               "label": "Collected camera20",
               "source_key": "collected.camera20",
+              "format": "integer",
+              "default_value": 0
+            }
+          ]
+        },
+        {
+          "name": "store_scene",
+          "type": "store_parameter",
+          "inputs": {
+            "default": "scene_calibration"
+          }
+        }
+      ]
+    },
+    {
+      "name": "calibration_scene_color_subgraph",
+      "nodes": [
+        {
+          "name": "load_camera101",
+          "type": "load_parameter",
+          "id": "000000000026"
+        },
+        {
+          "name": "load_camera102",
+          "type": "load_parameter",
+          "id": "000000000027"
+        },
+        {
+          "name": "load_camera103",
+          "type": "load_parameter",
+          "id": "000000000028"
+        },
+        {
+          "name": "load_camera104",
+          "type": "load_parameter",
+          "id": "000000000029"
+        },
+        {
+          "name": "load_camera105",
+          "type": "load_parameter",
+          "id": "000000000030"
+        },
+        {
+          "name": "frame_number_numbering",
+          "type": "frame_number_numbering"
+        },
+        {
+          "name": "object_mux",
+          "type": "object_mux",
+          "inputs": {
+            "default": "frame_number_numbering"
+          }
+        },
+        {
+          "name": "calibrate_action",
+          "type": "action",
+          "action_id": "calibrate",
+          "label": "Calibrate",
+          "icon": "refresh"
+        },
+        {
+          "name": "scene_calibration",
+          "type": "scene_calibration",
+          "inputs": {
+            "calibrate": "calibrate_action",
+            "default": "object_mux",
+            "camera.camera101": "load_camera101",
+            "camera.camera102": "load_camera102",
+            "camera.camera103": "load_camera103",
+            "camera.camera104": "load_camera104",
+            "camera.camera105": "load_camera105"
+          },
+          "properties": [
+            {
+              "id": "camera101_collected",
+              "label": "Collected camera101",
+              "source_key": "collected.camera101",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "camera102_collected",
+              "label": "Collected camera102",
+              "source_key": "collected.camera102",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "camera103_collected",
+              "label": "Collected camera103",
+              "source_key": "collected.camera103",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "camera104_collected",
+              "label": "Collected camera104",
+              "source_key": "collected.camera104",
+              "format": "integer",
+              "default_value": 0
+            },
+            {
+              "id": "camera105_collected",
+              "label": "Collected camera105",
+              "source_key": "collected.camera105",
               "format": "integer",
               "default_value": 0
             }
@@ -4150,7 +4277,173 @@
           ]
         }
       ]
+    },
+    "calibration_scene_color": {
+      "subgraphs": [
+        {
+          "name": "camera101",
+          "extends": [
+            "playback_color_subgraph"
+          ],
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_101"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_101"
+            },
+            {
+              "name": "display_image",
+              "camera_name": "camera101"
+            }
+          ],
+          "id": "000000000026"
+        },
+        {
+          "name": "camera102",
+          "extends": [
+            "playback_color_subgraph"
+          ],
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_102"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_102"
+            },
+            {
+              "name": "display_image",
+              "camera_name": "camera102"
+            }
+          ],
+          "id": "000000000027"
+        },
+        {
+          "name": "camera103",
+          "extends": [
+            "playback_color_subgraph"
+          ],
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_103"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_103"
+            },
+            {
+              "name": "display_image",
+              "camera_name": "camera103"
+            }
+          ],
+          "id": "000000000028"
+        },
+        {
+          "name": "camera104",
+          "extends": [
+            "playback_color_subgraph"
+          ],
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_104"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_104"
+            },
+            {
+              "name": "display_image",
+              "camera_name": "camera104"
+            }
+          ],
+          "id": "000000000029"
+        },
+        {
+          "name": "camera105",
+          "extends": [
+            "playback_color_subgraph"
+          ],
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_105"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_105"
+            },
+            {
+              "name": "display_image",
+              "camera_name": "camera105"
+            }
+          ],
+          "id": "000000000030"
+        },
+        {
+          "name": "sync",
+          "nodes": [
+            {
+              "name": "approximate_time_sync_images",
+              "type": "approximate_time_sync",
+              "inputs": {
+                "camera101": "camera101/decode_jpeg",
+                "camera102": "camera102/decode_jpeg",
+                "camera103": "camera103/decode_jpeg",
+                "camera104": "camera104/decode_jpeg",
+                "camera105": "camera105/decode_jpeg"
+              },
+              "interval": 33.833
+            },
+            {
+              "name": "approximate_time_sync_markers",
+              "type": "approximate_time_sync",
+              "inputs": {
+                "camera101": "camera101/load_marker",
+                "camera102": "camera102/load_marker",
+                "camera103": "camera103/load_marker",
+                "camera104": "camera104/load_marker",
+                "camera105": "camera105/load_marker"
+              },
+              "interval": 33.833
+            },
+            {
+              "name": "marker_gate",
+              "type": "gate",
+              "inputs": {
+                "default": "approximate_time_sync_markers"
+              }
+            },
+            {
+              "name": "keypoint_to_float2",
+              "type": "keypoint_to_float2_map",
+              "inputs": {
+                "default": "marker_gate"
+              }
+            }
+          ]
+        },
+        {
+          "name": "color_calibration",
+          "extends": [
+            "calibration_scene_color_subgraph"
+          ],
+          "nodes": [
+            {
+              "name": "frame_number_numbering",
+              "inputs": {
+                "default": "keypoint_to_float2"
+              }
+            }
+          ]
+        }
+      ]
     }
   },
-  "pipeline": "calibration_scene"
+  "pipeline": "calibration_scene_color"
 }
