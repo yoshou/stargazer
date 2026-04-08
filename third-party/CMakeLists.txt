@@ -11,6 +11,12 @@ set(GFLAGS_USE_TARGET_NAMESPACE ON)
 find_package(OpenCV REQUIRED)
 find_package(Eigen3 CONFIG REQUIRED)
 find_package(Ceres CONFIG REQUIRED)
+find_package(gflags CONFIG REQUIRED)
+# CeresTargets.cmake (vcpkg) lists "gflags" as a raw non-namespaced name.
+# Create an alias so CMake resolves it to the imported target instead of -lgflags.
+if(TARGET gflags::gflags AND NOT TARGET gflags)
+    add_library(gflags ALIAS gflags::gflags)
+endif()
 find_package(Boost REQUIRED COMPONENTS asio)
 find_package(nlohmann_json CONFIG REQUIRED)
 find_package(glfw3 REQUIRED)

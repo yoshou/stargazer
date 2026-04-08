@@ -17,6 +17,7 @@
 #include "coalsack/image/image_message.h"
 #include "dust3r.hpp"
 #include "dust3r_alignment.hpp"
+#include "dust3r_optimizer.hpp"
 #include "messages.hpp"
 #include "parameters.hpp"
 
@@ -191,10 +192,16 @@ class dust3r_pose_node : public coalsack::graph_node {
 
     std::unordered_map<std::string, dust3r::aligned_pose> poses;
     try {
-      poses = dust3r::align_global(names, pair_results);
+      poses = dust3r::align_global(names, pair_results, cameras);
     } catch (const std::exception& ex) {
       spdlog::error("dust3r_pose_node: alignment failed: {}", ex.what());
       return;
+    }
+
+    try {
+      poses = dust3r::refine_global_alignment(names, pair_results, poses, cameras);
+    } catch (const std::exception& ex) {
+      spdlog::warn("dust3r_pose_node: refinement skipped: {}", ex.what());
     }
 
     auto out_obj = std::make_shared<object_message>();

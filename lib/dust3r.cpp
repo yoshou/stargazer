@@ -78,11 +78,13 @@ std::vector<float> preprocess_image(const cv::Mat& bgr, const camera_intrin_t& i
   cv::Mat dist_coeffs(1, 5, CV_64F);
   for (int i = 0; i < 5; ++i) dist_coeffs.at<double>(0, i) = static_cast<double>(intrin.coeffs[i]);
 
+  cv::Mat new_K = cv::getOptimalNewCameraMatrix(K, dist_coeffs, bgr.size(), 0.0);
+
   cv::Mat undistorted;
-  cv::undistort(bgr, undistorted, K, dist_coeffs);
+  cv::undistort(bgr, undistorted, K, dist_coeffs, new_K);
 
   cv::Mat resized;
-  cv::resize(undistorted, resized, cv::Size(ONNX_W, ONNX_H), 0, 0, cv::INTER_LINEAR);
+  cv::resize(undistorted, resized, cv::Size(ONNX_W, ONNX_H), 0, 0, cv::INTER_AREA);
 
   cv::Mat rgb;
   cv::cvtColor(resized, rgb, cv::COLOR_BGR2RGB);

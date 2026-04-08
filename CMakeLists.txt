@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.18)
 
 project(stargazer C CXX)
 
+enable_testing()
+
 if (WIN32)
 else ()
 set(CMAKE_C_FLAGS "-Wall -Wextra -pedantic -mavx -march=native")

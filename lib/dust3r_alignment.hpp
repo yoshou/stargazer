@@ -25,9 +25,14 @@ struct pair_result {
 struct aligned_pose {
   glm::mat3 rotation;     // cam-to-world rotation
   glm::vec3 translation;  // cam-to-world translation
+  float scale = 1.0f;     // similarity scale from local camera frame to world gauge
 };
 
 std::unordered_map<std::string, aligned_pose> align_global(
     const std::vector<std::string>& camera_names, const std::vector<pair_result>& pair_results);
+
+std::unordered_map<std::string, aligned_pose> align_global(
+    const std::vector<std::string>& camera_names, const std::vector<pair_result>& pair_results,
+    const std::unordered_map<std::string, camera_t>& cameras);
 
 }  // namespace stargazer::dust3r

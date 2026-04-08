@@ -216,6 +216,7 @@ set_target_properties(stargazer_mvp PROPERTIES
 add_library(stargazer_dust3r
     ${CMAKE_CURRENT_LIST_DIR}/dust3r.cpp
     ${CMAKE_CURRENT_LIST_DIR}/dust3r_alignment.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/dust3r_optimizer.cpp
 )
 
 target_include_directories(stargazer_dust3r
@@ -232,6 +233,8 @@ if (ENABLE_CUDA)
     target_link_libraries(stargazer_dust3r
         glm::glm
         Eigen3::Eigen
+        Ceres::ceres
+        gflags::gflags
         opencv_imgproc
         opencv_calib3d
         $<$<BOOL:${ENABLE_ONNXRUNTIME_EXT}>:${ONNXRUNTIME_LIBS}>
@@ -244,6 +247,8 @@ else()
     target_link_libraries(stargazer_dust3r
         glm::glm
         Eigen3::Eigen
+        Ceres::ceres
+        gflags::gflags
         opencv_imgproc
         opencv_calib3d
         spdlog::spdlog_header_only

@@ -49,6 +49,7 @@ target_link_libraries(test_dust3r_inference PRIVATE
     ${GTEST_LIB_DIR}/libgtest.a
     ${GTEST_LIB_DIR}/libgtest_main.a
     stargazer_dust3r
+    Ceres::ceres
     opencv_imgproc
     opencv_calib3d
     pthread
@@ -56,6 +57,7 @@ target_link_libraries(test_dust3r_inference PRIVATE
 
 target_compile_features(test_dust3r_inference PRIVATE cxx_std_20)
 set_target_properties(test_dust3r_inference PROPERTIES CXX_STANDARD 20)
+add_test(NAME test_dust3r_inference COMMAND test_dust3r_inference)
 
 # ---------------------------------------------------------------------------
 # test_dust3r_alignment: Phase-2 alignment verification
@@ -77,8 +79,10 @@ target_link_libraries(test_dust3r_alignment PRIVATE
     ${GTEST_LIB_DIR}/libgtest.a
     ${GTEST_LIB_DIR}/libgtest_main.a
     stargazer_dust3r
+    Ceres::ceres
     pthread
 )
 
 target_compile_features(test_dust3r_alignment PRIVATE cxx_std_20)
 set_target_properties(test_dust3r_alignment PROPERTIES CXX_STANDARD 20)
+add_test(NAME test_dust3r_alignment COMMAND test_dust3r_alignment)
