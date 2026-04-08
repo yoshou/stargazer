@@ -152,6 +152,22 @@ static float estimate_focal_from_calibration(const camera_t& camera) {
                             0.5);
 }
 
+static std::pair<float, float> estimate_pp_from_calibration(const camera_t& camera) {
+  cv::Mat K = (cv::Mat_<double>(3, 3) << camera.intrin.fx, 0.0, camera.intrin.cx, 0.0,
+               camera.intrin.fy, camera.intrin.cy, 0.0, 0.0, 1.0);
+  cv::Mat dist_coeffs(1, 5, CV_64F);
+  for (int i = 0; i < 5; ++i)
+    dist_coeffs.at<double>(0, i) = static_cast<double>(camera.intrin.coeffs[i]);
+
+  const cv::Mat new_K = cv::getOptimalNewCameraMatrix(
+      K, dist_coeffs, cv::Size(static_cast<int>(camera.width), static_cast<int>(camera.height)),
+      0.0);
+  const double scale_x = static_cast<double>(ONNX_W) / static_cast<double>(camera.width);
+  const double scale_y = static_cast<double>(ONNX_H) / static_cast<double>(camera.height);
+  return {static_cast<float>(new_K.at<double>(0, 2) * scale_x),
+          static_cast<float>(new_K.at<double>(1, 2) * scale_y)};
+}
+
 static float estimate_focal_from_view(const sampled_view& sampled) {
   std::vector<std::pair<float, float>> ratios;
   ratios.reserve(sampled.points.size() * 2);
@@ -195,7 +211,8 @@ static float estimate_focal_from_view(const sampled_view& sampled) {
 }
 
 static std::optional<Eigen::Matrix4f> recover_pose_with_pnp(
-    const std::vector<Eigen::Vector3f>& world_points, const sampled_view& sampled, float focal) {
+    const std::vector<Eigen::Vector3f>& world_points, const sampled_view& sampled, float focal,
+    float cx = static_cast<float>(W) * 0.5f, float cy = static_cast<float>(H) * 0.5f) {
   std::vector<cv::Point3f> object_points;
   std::vector<cv::Point2f> image_points;
   object_points.reserve(world_points.size());
@@ -217,8 +234,8 @@ static std::optional<Eigen::Matrix4f> recover_pose_with_pnp(
 
   if (object_points.size() < 4) return std::nullopt;
 
-  cv::Mat camera_matrix = (cv::Mat_<double>(3, 3) << focal, 0.0, static_cast<double>(W) * 0.5, 0.0,
-                           focal, static_cast<double>(H) * 0.5, 0.0, 0.0, 1.0);
+  cv::Mat camera_matrix = (cv::Mat_<double>(3, 3) << focal, 0.0, static_cast<double>(cx), 0.0,
+                           focal, static_cast<double>(cy), 0.0, 0.0, 1.0);
   cv::Mat rvec;
   cv::Mat tvec;
   cv::Mat inliers;
@@ -460,17 +477,22 @@ static std::unordered_map<std::string, aligned_pose> align_global_impl(
 
     const sampled_view sampled_local = sample_view(representative_pair->view1);
     float focal = 0.0f;
+    float cx = static_cast<float>(W) * 0.5f;
+    float cy = static_cast<float>(H) * 0.5f;
     if (cameras != nullptr) {
       auto camera_it = cameras->find(camera_names[i]);
       if (camera_it != cameras->end()) {
         focal = estimate_focal_from_calibration(camera_it->second);
+        const auto [pp_cx, pp_cy] = estimate_pp_from_calibration(camera_it->second);
+        cx = pp_cx;
+        cy = pp_cy;
       }
     }
     if (!(std::isfinite(focal) && focal > 1e-3f)) {
       focal = estimate_focal_from_view(sampled_local);
     }
 
-    image_poses[i] = recover_pose_with_pnp(*world_points[i], sampled_local, focal);
+    image_poses[i] = recover_pose_with_pnp(*world_points[i], sampled_local, focal, cx, cy);
     if (!image_poses[i].has_value() && cameras == nullptr) {
       image_poses[i] = recover_pose_with_similarity(sampled_local, *world_points[i]);
     }
