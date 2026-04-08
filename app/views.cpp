@@ -818,40 +818,50 @@ void pose_view::render(view_context* context, vk::CommandBuffer cmd, vk::Extent2
     // Camera pose in world space (apply axis transformation and scale)
     glm::mat4 camera_pose = scaled_axis * stargazer::to_glm(camera.pose);
 
-    // Draw frustum using deproject method
-    for (float d = 1; d < 6; d += 2) {
-      auto get_point = [&](float x, float y) -> glm::vec3 {
-        float point[3];
-        float pixel[2]{x, y};
-        deproject_pixel_to_point(point, &camera, pixel, d * 0.03f);
-
-        // Transform point from camera space to world space
-        glm::vec4 camera_space_point(point[0], point[1], point[2], 1.0f);
-        glm::vec4 world_point = camera_pose * camera_space_point;
-        return glm::vec3(world_point);
-      };
-
-      glm::vec3 camera_origin = glm::vec3(camera_pose[3]);
-      auto top_left = get_point(0, 0);
-      auto top_right = get_point(static_cast<float>(camera.width), 0);
-      auto bottom_right =
-          get_point(static_cast<float>(camera.width), static_cast<float>(camera.height));
-      auto bottom_left = get_point(0, static_cast<float>(camera.height));
-
-      glm::vec3 color = glm::vec3(0.5f, 0.5f, 0.5f);  // Gray color
-
-      // Lines from camera origin to corners
-      pipeline_->draw_line(camera_origin, top_left, color);
-      pipeline_->draw_line(camera_origin, top_right, color);
-      pipeline_->draw_line(camera_origin, bottom_right, color);
-      pipeline_->draw_line(camera_origin, bottom_left, color);
-
-      // Rectangle at depth d
-      pipeline_->draw_line(top_left, top_right, color);
-      pipeline_->draw_line(top_right, bottom_right, color);
-      pipeline_->draw_line(bottom_right, bottom_left, color);
-      pipeline_->draw_line(bottom_left, top_left, color);
+    // Normalize the rotation part of camera_pose so frustum size is independent of axis scale.
+    // Only the rotation columns (0-2) are normalized; the translation column (3) is kept as-is
+    // so the camera origin position remains correct.
+    const float pose_scale = glm::length(glm::vec3(camera_pose[0]));
+    glm::mat4 camera_pose_for_frustum = camera_pose;
+    if (pose_scale > 0.f) {
+      camera_pose_for_frustum[0] /= pose_scale;
+      camera_pose_for_frustum[1] /= pose_scale;
+      camera_pose_for_frustum[2] /= pose_scale;
     }
+
+    // Draw frustum at fixed depth (0.5 grid square)
+    const float frustum_depth = 0.5f * POSE_VIEW_SCALE;
+    auto get_point = [&](float x, float y) -> glm::vec3 {
+      float point[3];
+      float pixel[2]{x, y};
+      deproject_pixel_to_point(point, &camera, pixel, frustum_depth);
+
+      // Transform using scale-normalized pose so frustum size is axis-scale independent
+      glm::vec4 camera_space_point(point[0], point[1], point[2], 1.0f);
+      glm::vec4 world_point = camera_pose_for_frustum * camera_space_point;
+      return glm::vec3(world_point);
+    };
+
+    glm::vec3 camera_origin = glm::vec3(camera_pose[3]);
+    auto top_left = get_point(0, 0);
+    auto top_right = get_point(static_cast<float>(camera.width), 0);
+    auto bottom_right =
+        get_point(static_cast<float>(camera.width), static_cast<float>(camera.height));
+    auto bottom_left = get_point(0, static_cast<float>(camera.height));
+
+    glm::vec3 color = glm::vec3(0.5f, 0.5f, 0.5f);  // Gray color
+
+    // Lines from camera origin to corners
+    pipeline_->draw_line(camera_origin, top_left, color);
+    pipeline_->draw_line(camera_origin, top_right, color);
+    pipeline_->draw_line(camera_origin, bottom_right, color);
+    pipeline_->draw_line(camera_origin, bottom_left, color);
+
+    // Rectangle at fixed depth
+    pipeline_->draw_line(top_left, top_right, color);
+    pipeline_->draw_line(top_right, bottom_right, color);
+    pipeline_->draw_line(bottom_right, bottom_left, color);
+    pipeline_->draw_line(bottom_left, top_left, color);
   }
 
   // Draw 3D points as spheres
