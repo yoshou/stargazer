@@ -595,8 +595,7 @@ void update_depthmaps_closed_form(
     const std::vector<sampled_view>& sampled_views_j,
     const std::vector<image_pose_params>& image_params,
     const std::vector<camera_params>& pair_params, const std::vector<double>& focals,
-    const std::vector<std::pair<double, double>>& pps,
-    std::vector<sampled_depths>& image_depths) {
+    const std::vector<std::pair<double, double>>& pps, std::vector<sampled_depths>& image_depths) {
   for (size_t image_index = 0; image_index < sample_references.size(); ++image_index) {
     const aligned_pose image_pose = from_image_pose_params(image_params[image_index]);
     const std::array<double, 3> image_translation = {
@@ -609,9 +608,9 @@ void update_depthmaps_closed_form(
     for (int sample_index = 0; sample_index < n_depths; ++sample_index) {
       const int row = (sample_index / sample_cols) * SUBSAMPLE;
       const int col = (sample_index % sample_cols) * SUBSAMPLE;
-      const std::array<double, 3> local_unit_ray = unproject_sample(
-          static_cast<double>(col), static_cast<double>(row), focals[image_index], 1.0,
-          pps[image_index].first, pps[image_index].second);
+      const std::array<double, 3> local_unit_ray =
+          unproject_sample(static_cast<double>(col), static_cast<double>(row), focals[image_index],
+                           1.0, pps[image_index].first, pps[image_index].second);
       const std::array<double, 3> world_ray = rotate_point(image_pose.rotation, local_unit_ray);
 
       double numerator = 0.0;
@@ -714,12 +713,10 @@ void add_image_pair_residuals(ceres::Problem& problem, const std::vector<pair_re
 
       if (sampled_i.weights[sample_index] > 0.0) {
         auto* cost = new ceres::AutoDiffCostFunction<image_pair_point_cost, 3, 6, 1, 7>(
-            new image_pair_point_cost{static_cast<double>(col), static_cast<double>(row),
-                                      focals[pair_result.idx1],
-                                      pps[pair_result.idx1].first,
-                                      pps[pair_result.idx1].second,
-                                      get_point(sampled_i, sample_index),
-                                      std::sqrt(sampled_i.weights[sample_index])});
+            new image_pair_point_cost{
+                static_cast<double>(col), static_cast<double>(row), focals[pair_result.idx1],
+                pps[pair_result.idx1].first, pps[pair_result.idx1].second,
+                get_point(sampled_i, sample_index), std::sqrt(sampled_i.weights[sample_index])});
         problem.AddResidualBlock(cost, nullptr, image_params[pair_result.idx1].values.data(),
                                  image_depths[pair_result.idx1].values[sample_index].data(),
                                  pair_params[edge_index].values.data());
@@ -727,12 +724,10 @@ void add_image_pair_residuals(ceres::Problem& problem, const std::vector<pair_re
 
       if (sampled_j.weights[sample_index] > 0.0) {
         auto* cost = new ceres::AutoDiffCostFunction<image_pair_point_cost, 3, 6, 1, 7>(
-            new image_pair_point_cost{static_cast<double>(col), static_cast<double>(row),
-                                      focals[pair_result.idx2],
-                                      pps[pair_result.idx2].first,
-                                      pps[pair_result.idx2].second,
-                                      get_point(sampled_j, sample_index),
-                                      std::sqrt(sampled_j.weights[sample_index])});
+            new image_pair_point_cost{
+                static_cast<double>(col), static_cast<double>(row), focals[pair_result.idx2],
+                pps[pair_result.idx2].first, pps[pair_result.idx2].second,
+                get_point(sampled_j, sample_index), std::sqrt(sampled_j.weights[sample_index])});
         problem.AddResidualBlock(cost, nullptr, image_params[pair_result.idx2].values.data(),
                                  image_depths[pair_result.idx2].values[sample_index].data(),
                                  pair_params[edge_index].values.data());
@@ -934,6 +929,13 @@ std::unordered_map<std::string, aligned_pose> refine_global_alignment(
   std::unordered_map<std::string, aligned_pose> refined;
   for (size_t index = 0; index < camera_names.size(); ++index) {
     refined[camera_names[index]] = from_camera_params(camera_params[index]);
+    // Preserve focal/cx/cy from initial poses (not optimised in this path)
+    const auto it = initial_poses.find(camera_names[index]);
+    if (it != initial_poses.end()) {
+      refined[camera_names[index]].focal = it->second.focal;
+      refined[camera_names[index]].cx = it->second.cx;
+      refined[camera_names[index]].cy = it->second.cy;
+    }
   }
   return refined;
 }
@@ -1070,6 +1072,13 @@ std::unordered_map<std::string, aligned_pose> refine_global_alignment(
   std::unordered_map<std::string, aligned_pose> refined;
   for (size_t index = 0; index < camera_names.size(); ++index) {
     refined[camera_names[index]] = from_image_pose_params(image_params[index]);
+    // Preserve focal/cx/cy from initial poses
+    const auto it = initial_poses.find(camera_names[index]);
+    if (it != initial_poses.end()) {
+      refined[camera_names[index]].focal = it->second.focal;
+      refined[camera_names[index]].cx = it->second.cx;
+      refined[camera_names[index]].cy = it->second.cy;
+    }
   }
   return refined;
 }

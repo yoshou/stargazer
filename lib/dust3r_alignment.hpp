@@ -26,6 +26,9 @@ struct aligned_pose {
   glm::mat3 rotation;     // cam-to-world rotation
   glm::vec3 translation;  // cam-to-world translation
   float scale = 1.0f;     // similarity scale from local camera frame to world gauge
+  float focal = 0.f;      // estimated focal length in DUSt3R 512x288 space
+  float cx = 0.f;         // estimated principal point x in DUSt3R 512x288 space
+  float cy = 0.f;         // estimated principal point y in DUSt3R 512x288 space
 };
 
 std::unordered_map<std::string, aligned_pose> align_global(

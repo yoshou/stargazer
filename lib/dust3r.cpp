@@ -103,6 +103,27 @@ std::vector<float> preprocess_image(const cv::Mat& bgr, const camera_intrin_t& i
   return nchw;
 }
 
+std::vector<float> preprocess_image(const cv::Mat& bgr) {
+  cv::Mat resized;
+  cv::resize(bgr, resized, cv::Size(ONNX_W, ONNX_H), 0, 0, cv::INTER_AREA);
+
+  cv::Mat rgb;
+  cv::cvtColor(resized, rgb, cv::COLOR_BGR2RGB);
+
+  if (!rgb.isContinuous()) rgb = rgb.clone();
+
+  const int pixels = ONNX_H * ONNX_W;
+  std::vector<float> nchw(3 * pixels);
+  const uint8_t* src = rgb.data;
+  for (int c = 0; c < 3; ++c) {
+    float* dst = nchw.data() + c * pixels;
+    for (int i = 0; i < pixels; ++i) {
+      dst[i] = (static_cast<float>(src[i * 3 + c]) / 255.0f - 0.5f) / 0.5f;
+    }
+  }
+  return nchw;
+}
+
 struct dust3r_inference::impl {
   Ort::Env env{ORT_LOGGING_LEVEL_WARNING};
   Ort::Session session{nullptr};

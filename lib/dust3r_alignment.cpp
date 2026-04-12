@@ -513,6 +513,23 @@ static std::unordered_map<std::string, aligned_pose> align_global_impl(
   for (int i = 0; i < N; ++i) {
     const pair_result* representative_pair = best_outgoing_pair[i];
     float scale = s_factor;
+    float estimated_focal = static_cast<float>(std::max(W, H));
+    float estimated_cx = static_cast<float>(W) * 0.5f;
+    float estimated_cy = static_cast<float>(H) * 0.5f;
+
+    if (cameras != nullptr) {
+      auto camera_it = cameras->find(camera_names[i]);
+      if (camera_it != cameras->end()) {
+        const float cal_focal = estimate_focal_from_calibration(camera_it->second);
+        if (std::isfinite(cal_focal) && cal_focal > 1e-3f) {
+          estimated_focal = cal_focal;
+        }
+        const auto [pp_cx, pp_cy] = estimate_pp_from_calibration(camera_it->second);
+        estimated_cx = pp_cx;
+        estimated_cy = pp_cy;
+      }
+    }
+
     if (representative_pair != nullptr) {
       const sampled_view sampled_local = sample_view(representative_pair->view1);
       float estimated_scale = 1.0f;
@@ -522,6 +539,12 @@ static std::unordered_map<std::string, aligned_pose> align_global_impl(
                                 estimated_scale, R, t) &&
           std::isfinite(estimated_scale) && estimated_scale > 1e-6f) {
         scale = estimated_scale;
+      }
+      if (cameras == nullptr || !(std::isfinite(estimated_focal) && estimated_focal > 1e-3f)) {
+        const float view_focal = estimate_focal_from_view(sampled_local);
+        if (std::isfinite(view_focal) && view_focal > 1e-3f) {
+          estimated_focal = view_focal;
+        }
       }
     }
 
@@ -533,6 +556,9 @@ static std::unordered_map<std::string, aligned_pose> align_global_impl(
                   rotation(2, 1), rotation(0, 2), rotation(1, 2), rotation(2, 2));
     pose.translation = glm::vec3(translation(0), translation(1), translation(2));
     pose.scale = scale;
+    pose.focal = estimated_focal;
+    pose.cx = estimated_cx;
+    pose.cy = estimated_cy;
     result[camera_names[i]] = pose;
   }
   return result;

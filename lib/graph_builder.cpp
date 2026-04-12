@@ -21,6 +21,7 @@
 #include "dump_keypoint_node.hpp"
 #include "dump_reconstruction_node.hpp"
 #include "dump_se3_node.hpp"
+#include "dust3r_calibration_node.hpp"
 #include "dust3r_pose_node.hpp"
 #include "epipolar_reconstruct_node.hpp"
 #include "extrinsic_calibration_node.hpp"
@@ -673,6 +674,14 @@ void build_graph_from_json(const std::vector<node_def>& nodes,
       }
       case node_type::dust3r_pose_estimation: {
         auto n = std::make_shared<stargazer::dust3r_pose_node>();
+        if (node.contains_param("model_path")) {
+          n->set_model_path(node.get_param<std::string>("model_path"));
+        }
+        graph_node = n;
+        break;
+      }
+      case node_type::dust3r_calibration: {
+        auto n = std::make_shared<stargazer::dust3r_calibration_node>();
         if (node.contains_param("model_path")) {
           n->set_model_path(node.get_param<std::string>("model_path"));
         }

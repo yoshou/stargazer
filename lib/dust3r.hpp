@@ -21,6 +21,9 @@ struct inference_result {
 
 std::vector<float> preprocess_image(const cv::Mat& bgr, const camera_intrin_t& intrin);
 
+// Preprocess without undistortion (for use when intrinsics are unknown)
+std::vector<float> preprocess_image(const cv::Mat& bgr);
+
 class dust3r_inference {
   struct impl;
   std::unique_ptr<impl> pimpl_;

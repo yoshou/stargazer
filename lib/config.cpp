@@ -140,6 +140,8 @@ static node_type get_node_type(const std::string& type) {
     return node_type::unframe_image_fields;
   } else if (type == "dust3r_pose_estimation") {
     return node_type::dust3r_pose_estimation;
+  } else if (type == "dust3r_calibration") {
+    return node_type::dust3r_calibration;
   }
   throw std::runtime_error("Invalid node type");
 }
@@ -260,6 +262,8 @@ static std::string get_node_type_name(node_type type) {
       return "unframe_image_fields";
     case node_type::dust3r_pose_estimation:
       return "dust3r_pose_estimation";
+    case node_type::dust3r_calibration:
+      return "dust3r_calibration";
   }
   throw std::runtime_error("Invalid node type");
 }
@@ -445,9 +449,11 @@ configuration::configuration(const std::string& path) : path(path) {
           for (const auto& j_nested : j_subgraph["subgraphs"]) {
             subgraph_def nested;
             if (j_nested.contains("name")) nested.name = j_nested["name"].get<std::string>();
-            if (j_nested.contains("extends")) nested.extends = j_nested["extends"].get<std::vector<std::string>>();
+            if (j_nested.contains("extends"))
+              nested.extends = j_nested["extends"].get<std::vector<std::string>>();
             for (const auto& [key, value] : j_nested.items()) {
-              if (key != "name" && key != "extends" && key != "nodes" && key != "outputs" && key != "subgraphs") {
+              if (key != "name" && key != "extends" && key != "nodes" && key != "outputs" &&
+                  key != "subgraphs") {
                 nested.params[key] = json_to_param(value);
               }
             }
@@ -476,7 +482,8 @@ configuration::configuration(const std::string& path) : path(path) {
 
         // Subgraph-level parameters (e.g., db_path, fps, etc.)
         for (const auto& [key, value] : j_subgraph.items()) {
-          if (key != "name" && key != "nodes" && key != "outputs" && key != "extends" && key != "subgraphs") {
+          if (key != "name" && key != "nodes" && key != "outputs" && key != "extends" &&
+              key != "subgraphs") {
             subgraph.params[key] = json_to_param(value);
           }
         }
@@ -515,7 +522,8 @@ configuration::configuration(const std::string& path) : path(path) {
 
           // Instance-specific parameters (override template params)
           for (const auto& [key, value] : j_sg.items()) {
-            if (key != "name" && key != "extends" && key != "nodes" && key != "outputs" && key != "subgraphs") {
+            if (key != "name" && key != "extends" && key != "nodes" && key != "outputs" &&
+                key != "subgraphs") {
               sg_instance.params[key] = json_to_param(value);
             }
           }
@@ -525,9 +533,11 @@ configuration::configuration(const std::string& path) : path(path) {
             for (const auto& j_nested : j_sg["subgraphs"]) {
               subgraph_def nested;
               if (j_nested.contains("name")) nested.name = j_nested["name"].get<std::string>();
-              if (j_nested.contains("extends")) nested.extends = j_nested["extends"].get<std::vector<std::string>>();
+              if (j_nested.contains("extends"))
+                nested.extends = j_nested["extends"].get<std::vector<std::string>>();
               for (const auto& [key, value] : j_nested.items()) {
-                if (key != "name" && key != "extends" && key != "nodes" && key != "outputs" && key != "subgraphs") {
+                if (key != "name" && key != "extends" && key != "nodes" && key != "outputs" &&
+                    key != "subgraphs") {
                   nested.params[key] = json_to_param(value);
                 }
               }

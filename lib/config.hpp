@@ -70,6 +70,7 @@ enum class node_type {
   object_to_frame,
   unframe_image_fields,
   dust3r_pose_estimation,
+  dust3r_calibration,
 };
 
 using node_param_t = std::variant<std::string, std::int64_t, double, float, bool>;
@@ -199,8 +200,7 @@ class node_def {
 
   std::string get_camera_name() const {
     const auto type = get_type();
-    if ((type == node_type::image_property ||
-         type == node_type::contrail_render) &&
+    if ((type == node_type::image_property || type == node_type::contrail_render) &&
         contains_param("camera_name")) {
       return get_param<std::string>("camera_name");
     }
@@ -375,8 +375,6 @@ class configuration {
     return subgraph_templates.at(name);
   }
 
-  const pipeline_def& get_pipeline() const {
-    return pipelines.at(pipeline_names.at("pipeline"));
-  }
+  const pipeline_def& get_pipeline() const { return pipelines.at(pipeline_names.at("pipeline")); }
 };
 }  // namespace stargazer

@@ -86,3 +86,34 @@ target_link_libraries(test_dust3r_alignment PRIVATE
 target_compile_features(test_dust3r_alignment PRIVATE cxx_std_20)
 set_target_properties(test_dust3r_alignment PROPERTIES CXX_STANDARD 20)
 add_test(NAME test_dust3r_alignment COMMAND test_dust3r_alignment)
+
+# ---------------------------------------------------------------------------
+# test_dust3r_calibration: Phase 3-5 unit tests (coord transform, merge, synthetic BA)
+# ---------------------------------------------------------------------------
+add_executable(test_dust3r_calibration
+    ${CMAKE_CURRENT_LIST_DIR}/test_dust3r_calibration.cpp
+)
+
+target_include_directories(test_dust3r_calibration SYSTEM PRIVATE
+    ${GTEST_INCLUDE_DIR}
+)
+
+target_include_directories(test_dust3r_calibration PRIVATE
+    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/lib
+)
+
+target_link_libraries(test_dust3r_calibration PRIVATE
+    ${GTEST_LIB_DIR}/libgtest.a
+    ${GTEST_LIB_DIR}/libgtest_main.a
+    stargazer_dust3r
+    Ceres::ceres
+    opencv_imgproc
+    opencv_calib3d
+    opencv_flann
+    pthread
+)
+
+target_compile_features(test_dust3r_calibration PRIVATE cxx_std_20)
+set_target_properties(test_dust3r_calibration PROPERTIES CXX_STANDARD 20)
+add_test(NAME test_dust3r_calibration COMMAND test_dust3r_calibration)

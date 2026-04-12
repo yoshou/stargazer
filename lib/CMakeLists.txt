@@ -217,6 +217,7 @@ add_library(stargazer_dust3r
     ${CMAKE_CURRENT_LIST_DIR}/dust3r.cpp
     ${CMAKE_CURRENT_LIST_DIR}/dust3r_alignment.cpp
     ${CMAKE_CURRENT_LIST_DIR}/dust3r_optimizer.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/dust3r_calibration.cpp
 )
 
 target_include_directories(stargazer_dust3r
@@ -237,6 +238,7 @@ if (ENABLE_CUDA)
         gflags::gflags
         opencv_imgproc
         opencv_calib3d
+        opencv_flann
         $<$<BOOL:${ENABLE_ONNXRUNTIME_EXT}>:${ONNXRUNTIME_LIBS}>
         CUDA::cudart
         CUDA::cuda_driver
@@ -251,6 +253,7 @@ else()
         gflags::gflags
         opencv_imgproc
         opencv_calib3d
+        opencv_flann
         spdlog::spdlog_header_only
         cereal::cereal
     )
