@@ -920,11 +920,12 @@ std::unordered_map<std::string, aligned_pose> refine_global_alignment(
   ceres::Solver::Options options;
   options.max_num_iterations = 100;
   options.linear_solver_type = ceres::DENSE_QR;
-  options.minimizer_progress_to_stdout = false;
+  options.minimizer_progress_to_stdout = true;
   options.num_threads = 8;
 
   ceres::Solver::Summary summary;
   ceres::Solve(options, &problem, &summary);
+  spdlog::info("dust3r refine_global: initial_cost={:.6e} final_cost={:.6e}", summary.initial_cost, summary.final_cost);
 
   std::unordered_map<std::string, aligned_pose> refined;
   for (size_t index = 0; index < camera_names.size(); ++index) {

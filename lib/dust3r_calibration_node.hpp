@@ -150,8 +150,10 @@ class dust3r_calibration_node : public coalsack::graph_node {
     }
 
     const int N = static_cast<int>(ordered_images.size());
-    if (N < 2) {
-      spdlog::info("dust3r_calibration_node: need ≥2 cameras ({} ready), skipping frame", N);
+    const int expected = static_cast<int>(names.size());
+    if (N < 2 || N < expected) {
+      spdlog::info("dust3r_calibration_node: waiting for cameras ({}/{} ready), skipping frame",
+                   N, expected);
       return;
     }
 

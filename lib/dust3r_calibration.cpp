@@ -263,7 +263,7 @@ std::vector<ba_point> merge_shared_points(
       flann_data.at<float>(k, 1) = shared[k].y;
       flann_data.at<float>(k, 2) = shared[k].z;
     }
-    cv::flann::Index flann_idx(flann_data, cv::flann::KDTreeIndexParams(4));
+    cv::flann::Index flann_idx(flann_data, cv::flann::KDTreeIndexParams(1));
 
     cv::Mat query_mat(1, 3, CV_32F);
     cv::Mat nn_indices(1, 1, CV_32S);
