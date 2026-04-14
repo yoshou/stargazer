@@ -82,8 +82,9 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
 
 # Install dependencies
 RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
-    && apt-get -y install --no-install-recommends xxd gfortran bison python3 python3-setuptools libarchive-dev libblas-dev liblapack-dev \
-    libxinerama-dev libxcursor-dev xorg-dev libglu1-mesa-dev libwayland-dev libxkbcommon-dev wayland-protocols pkg-config
+    && apt-get -y install --no-install-recommends xxd gfortran bison python3 python3-setuptools python3-pip libarchive-dev libblas-dev liblapack-dev \
+    libxinerama-dev libxcursor-dev xorg-dev libglu1-mesa-dev libwayland-dev libxkbcommon-dev wayland-protocols pkg-config \
+    && pip3 install --break-system-packages grpcio grpcio-tools
 
 RUN wget -qO- https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo tee /etc/apt/trusted.gpg.d/lunarg.asc \
     && wget -qO /etc/apt/sources.list.d/lunarg-vulkan-noble.list http://packages.lunarg.com/vulkan/lunarg-vulkan-noble.list \

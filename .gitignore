@@ -4,4 +4,6 @@ data/
 .venv*/
 app/fonts/fontawesome/
 models/*.onnx.data
+scripts/_grpc_stubs/
+**/__pycache__/
 app/fonts/mplus/

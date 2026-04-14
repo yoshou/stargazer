@@ -414,7 +414,7 @@ class viewer_app : public window_base {
       config_words.OversampleV = OVERSAMPLE;
       config_words.OversampleH = OVERSAMPLE;
       default_font =
-          io.Fonts->AddFontFromFileTTF("../app/fonts/mplus/fonts/ttf/Mplus2-Regular.ttf", 16.0f,
+          io.Fonts->AddFontFromFileTTF("../app/fonts/mplus/fonts/MPLUS2/ttf/MPLUS2-Regular.ttf", 16.0f,
                                        &config_words, io.Fonts->GetGlyphRangesJapanese());
 
       ImFontConfig config_glyphs;
@@ -434,7 +434,7 @@ class viewer_app : public window_base {
       config_words.OversampleV = OVERSAMPLE;
       config_words.OversampleH = OVERSAMPLE;
       large_font =
-          io.Fonts->AddFontFromFileTTF("../app/fonts/mplus/fonts/ttf/Mplus2-Regular.ttf", 20.0f,
+          io.Fonts->AddFontFromFileTTF("../app/fonts/mplus/fonts/MPLUS2/ttf/MPLUS2-Regular.ttf", 20.0f,
                                        &config_words, io.Fonts->GetGlyphRangesJapanese());
 
       ImFontConfig config_glyphs;
