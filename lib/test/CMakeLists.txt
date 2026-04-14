@@ -1,14 +1,8 @@
-set(COALSACK_BUILD_DIR "${CMAKE_SOURCE_DIR}/coalsack/build")
-set(GTEST_INCLUDE_DIR "${COALSACK_BUILD_DIR}/third-party/googletest/googletest/include")
-set(GTEST_LIB_DIR "${COALSACK_BUILD_DIR}/third-party/googletest-build/lib")
+find_package(GTest CONFIG REQUIRED)
 
 add_executable(test_config
     ${CMAKE_CURRENT_LIST_DIR}/test_config.cpp
     ${CMAKE_SOURCE_DIR}/lib/config.cpp
-)
-
-target_include_directories(test_config SYSTEM PRIVATE
-    ${GTEST_INCLUDE_DIR}
 )
 
 target_include_directories(test_config PRIVATE
@@ -17,8 +11,8 @@ target_include_directories(test_config PRIVATE
 )
 
 target_link_libraries(test_config PRIVATE
-    ${GTEST_LIB_DIR}/libgtest.a
-    ${GTEST_LIB_DIR}/libgtest_main.a
+    GTest::gtest
+    GTest::gtest_main
     nlohmann_json::nlohmann_json
     pthread
 )
@@ -36,18 +30,14 @@ add_executable(test_dust3r_inference
     ${CMAKE_CURRENT_LIST_DIR}/test_dust3r_inference.cpp
 )
 
-target_include_directories(test_dust3r_inference SYSTEM PRIVATE
-    ${GTEST_INCLUDE_DIR}
-)
-
 target_include_directories(test_dust3r_inference PRIVATE
     ${CMAKE_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/lib
 )
 
 target_link_libraries(test_dust3r_inference PRIVATE
-    ${GTEST_LIB_DIR}/libgtest.a
-    ${GTEST_LIB_DIR}/libgtest_main.a
+    GTest::gtest
+    GTest::gtest_main
     stargazer_dust3r
     Ceres::ceres
     opencv_imgproc
@@ -66,18 +56,14 @@ add_executable(test_dust3r_alignment
     ${CMAKE_CURRENT_LIST_DIR}/test_dust3r_alignment.cpp
 )
 
-target_include_directories(test_dust3r_alignment SYSTEM PRIVATE
-    ${GTEST_INCLUDE_DIR}
-)
-
 target_include_directories(test_dust3r_alignment PRIVATE
     ${CMAKE_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/lib
 )
 
 target_link_libraries(test_dust3r_alignment PRIVATE
-    ${GTEST_LIB_DIR}/libgtest.a
-    ${GTEST_LIB_DIR}/libgtest_main.a
+    GTest::gtest
+    GTest::gtest_main
     stargazer_dust3r
     Ceres::ceres
     pthread
@@ -94,18 +80,14 @@ add_executable(test_dust3r_calibration
     ${CMAKE_CURRENT_LIST_DIR}/test_dust3r_calibration.cpp
 )
 
-target_include_directories(test_dust3r_calibration SYSTEM PRIVATE
-    ${GTEST_INCLUDE_DIR}
-)
-
 target_include_directories(test_dust3r_calibration PRIVATE
     ${CMAKE_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/lib
 )
 
 target_link_libraries(test_dust3r_calibration PRIVATE
-    ${GTEST_LIB_DIR}/libgtest.a
-    ${GTEST_LIB_DIR}/libgtest_main.a
+    GTest::gtest
+    GTest::gtest_main
     stargazer_dust3r
     Ceres::ceres
     opencv_imgproc

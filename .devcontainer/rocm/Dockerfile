@@ -42,7 +42,7 @@ RUN wget -qO- https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo tee 
 RUN update-alternatives --set c++ /usr/bin/clang++ \
     && update-alternatives --set cc /usr/bin/clang
 
-RUN su vscode -c "${VCPKG_ROOT}/vcpkg install boost-asio boost-graph ceres opencv4[core,highgui,calib3d,contrib,jpeg,dnn] glm grpc nanoflann nlohmann-json libjpeg-turbo sqlite3 cereal spdlog glfw3 glad imgui[vulkan-binding,opengl3-binding,glfw-binding]"
+RUN su vscode -c "${VCPKG_ROOT}/vcpkg install boost-asio boost-graph ceres opencv4[core,highgui,calib3d,contrib,jpeg,dnn] glm grpc nanoflann nlohmann-json libjpeg-turbo sqlite3 cereal spdlog glfw3 glad imgui[vulkan-binding,opengl3-binding,glfw-binding] gtest"
 
 ENV PATH=$PATH:${VCPKG_ROOT}/installed/x64-linux
 ENV PATH=$PATH:${VCPKG_ROOT}/installed/x64-linux/tools/protobuf
