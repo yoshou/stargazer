@@ -4,13 +4,13 @@
 #include <grpcpp/server.h>
 #include <grpcpp/server_builder.h>
 #include <grpcpp/server_context.h>
-#include <opencv2/core.hpp>
-#include <opencv2/imgcodecs.hpp>
 #include <spdlog/spdlog.h>
 
 #include <atomic>
 #include <functional>
 #include <memory>
+#include <opencv2/core.hpp>
+#include <opencv2/imgcodecs.hpp>
 #include <optional>
 #include <string>
 #include <thread>
@@ -64,9 +64,8 @@ class PipelineControlServiceImpl final : public PipelineControl::Service {
       default:
         return {};
     }
-    cv::Mat frame(static_cast<int>(img->get_height()), static_cast<int>(img->get_width()),
-                  cv_type, const_cast<uint8_t*>(img->get_data()),
-                  static_cast<size_t>(img->get_stride()));
+    cv::Mat frame(static_cast<int>(img->get_height()), static_cast<int>(img->get_width()), cv_type,
+                  const_cast<uint8_t*>(img->get_data()), static_cast<size_t>(img->get_stride()));
     cv::Mat rgb;
     if (img->get_format() == coalsack::image_format::B8G8R8_UINT) {
       cv::cvtColor(frame, rgb, cv::COLOR_BGR2RGB);
@@ -94,12 +93,11 @@ class PipelineControlServiceImpl final : public PipelineControl::Service {
   }
 
  public:
-  void setup(pipeline_command_queue* queue, std::atomic<bool>* running,
-             std::atomic<bool>* collecting,
-             std::function<std::optional<coalsack::property_value>(const std::string&,
-                                                                    const std::string&)>
-                 get_property,
-             std::vector<node_def> nodes) {
+  void setup(
+      pipeline_command_queue* queue, std::atomic<bool>* running, std::atomic<bool>* collecting,
+      std::function<std::optional<coalsack::property_value>(const std::string&, const std::string&)>
+          get_property,
+      std::vector<node_def> nodes) {
     cmd_queue_ = queue;
     running_ = running;
     collecting_ = collecting;
@@ -115,9 +113,8 @@ class PipelineControlServiceImpl final : public PipelineControl::Service {
         continue;
       }
       pipeline_action_info act;
-      act.id = node.contains_param("action_id")
-                   ? node.get_param<std::string>("action_id")
-                   : node.name;
+      act.id =
+          node.contains_param("action_id") ? node.get_param<std::string>("action_id") : node.name;
       act.label = node.contains_param("label") ? node.get_param<std::string>("label") : act.id;
       act.icon = node.contains_param("icon") ? node.get_param<std::string>("icon") : "";
       if (seen.find(act.id) == seen.end()) {
@@ -324,7 +321,9 @@ class pipeline_control_server {
 
  public:
   explicit pipeline_control_server(const std::string& address)
-      : address_(address), running_(false), service_(std::make_unique<PipelineControlServiceImpl>()) {}
+      : address_(address),
+        running_(false),
+        service_(std::make_unique<PipelineControlServiceImpl>()) {}
 
   ~pipeline_control_server() { stop(); }
 

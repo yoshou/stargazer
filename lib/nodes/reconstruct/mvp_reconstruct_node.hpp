@@ -211,7 +211,6 @@ class mvp_reconstruct_node : public image_reconstruct_node {
       output->send(marker_msg);
     }
   }
-
 };
 
 }  // namespace stargazer

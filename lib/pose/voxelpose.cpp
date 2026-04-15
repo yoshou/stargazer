@@ -230,14 +230,10 @@ class ort_dnn_inference : public dnn_inference {
     assert(output_node_names[0] == "output");
 
     std::vector<const char*> input_node_names;
-    {
-      input_node_names.push_back(this->input_node_names[0].c_str());
-    }
+    { input_node_names.push_back(this->input_node_names[0].c_str()); }
 
     std::vector<const char*> output_node_names;
-    {
-      output_node_names.push_back(this->output_node_names[0].c_str());
-    }
+    { output_node_names.push_back(this->output_node_names[0].c_str()); }
 
     io_binding.ClearBoundInputs();
     io_binding.ClearBoundOutputs();
@@ -458,14 +454,10 @@ class ort_dnn_inference_heatmap : public dnn_inference_heatmap {
     assert(output_node_names[0] == "output");
 
     std::vector<const char*> input_node_names;
-    {
-      input_node_names.push_back(this->input_node_names[0].c_str());
-    }
+    { input_node_names.push_back(this->input_node_names[0].c_str()); }
 
     std::vector<const char*> output_node_names;
-    {
-      output_node_names.push_back(this->output_node_names[0].c_str());
-    }
+    { output_node_names.push_back(this->output_node_names[0].c_str()); }
 
     io_binding.ClearBoundInputs();
     io_binding.ClearBoundOutputs();

@@ -54,7 +54,8 @@ class pattern_board_calibration_target_detector_node : public graph_node {
           if (auto cam_msg = std::dynamic_pointer_cast<camera_message>(field)) {
             camera = cam_msg->get_camera();
             if (detector) {
-              detector = std::make_unique<pattern_board_calibration_target>(get_object_points(), camera);
+              detector =
+                  std::make_unique<pattern_board_calibration_target>(get_object_points(), camera);
             }
           }
         }

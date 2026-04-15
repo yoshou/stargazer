@@ -3,10 +3,9 @@
 #include <atomic>
 #include <memory>
 #include <mutex>
+#include <opencv2/imgproc.hpp>
 #include <optional>
 #include <string>
-
-#include <opencv2/imgproc.hpp>
 
 #include "coalsack/core/graph_proc_registry.h"
 #include "coalsack/image/image.h"
@@ -24,9 +23,9 @@ class feature_render_node : public coalsack::graph_node {
   std::atomic<std::int64_t> received_count;
 
   static cv::Scalar color_from_index(size_t index) {
-    static const cv::Scalar colors[] = {
-        cv::Scalar(255, 128, 0), cv::Scalar(0, 200, 255), cv::Scalar(80, 255, 80),
-        cv::Scalar(255, 80, 180), cv::Scalar(180, 80, 255), cv::Scalar(255, 255, 80)};
+    static const cv::Scalar colors[] = {cv::Scalar(255, 128, 0),  cv::Scalar(0, 200, 255),
+                                        cv::Scalar(80, 255, 80),  cv::Scalar(255, 80, 180),
+                                        cv::Scalar(180, 80, 255), cv::Scalar(255, 255, 80)};
     return colors[index % (sizeof(colors) / sizeof(colors[0]))];
   }
 
@@ -54,7 +53,8 @@ class feature_render_node : public coalsack::graph_node {
     archive(camera_name, width, height);
   }
 
-  virtual std::optional<coalsack::property_value> get_property(const std::string& key) const override {
+  virtual std::optional<coalsack::property_value> get_property(
+      const std::string& key) const override {
     if (key == "received") {
       return received_count.load();
     }
@@ -133,11 +133,11 @@ class feature_render_node : public coalsack::graph_node {
     cv::Mat rendered(image_height, image_width, CV_8UC3, cv::Scalar::all(0));
 
     const auto& result = result_msg->get_result();
-    const auto view_it = std::find_if(result.views.begin(), result.views.end(), [&](const auto& view) {
-      return view.name == camera_name;
-    });
+    const auto view_it = std::find_if(result.views.begin(), result.views.end(),
+                                      [&](const auto& view) { return view.name == camera_name; });
     if (view_it != result.views.end()) {
-      for (size_t detection_index = 0; detection_index < view_it->detections.size(); ++detection_index) {
+      for (size_t detection_index = 0; detection_index < view_it->detections.size();
+           ++detection_index) {
         const auto& detection = view_it->detections[detection_index];
         const auto color = color_from_index(detection_index);
 
@@ -148,7 +148,8 @@ class feature_render_node : public coalsack::graph_node {
                                 static_cast<int>(std::round(detection.bbox.bottom))),
                       color, 2);
 
-        for (size_t keypoint_index = 0; keypoint_index < detection.keypoints.size(); ++keypoint_index) {
+        for (size_t keypoint_index = 0; keypoint_index < detection.keypoints.size();
+             ++keypoint_index) {
           const auto& keypoint = detection.keypoints[keypoint_index];
           cv::circle(rendered,
                      cv::Point(static_cast<int>(std::round(keypoint.x)),
@@ -161,8 +162,7 @@ class feature_render_node : public coalsack::graph_node {
     coalsack::image image(static_cast<std::uint32_t>(rendered.cols),
                           static_cast<std::uint32_t>(rendered.rows),
                           static_cast<std::uint32_t>(rendered.elemSize()),
-                          static_cast<std::uint32_t>(rendered.step),
-                          rendered.data);
+                          static_cast<std::uint32_t>(rendered.step), rendered.data);
     image.set_format(coalsack::image_format::B8G8R8_UINT);
 
     {

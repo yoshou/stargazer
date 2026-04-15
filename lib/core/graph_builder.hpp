@@ -6,8 +6,8 @@
 #include <unordered_map>
 #include <vector>
 
-#include "config.hpp"
 #include "coalsack/core/graph_proc.h"
+#include "config.hpp"
 
 namespace stargazer {
 

@@ -159,17 +159,17 @@ class SensorServiceImpl final : public Sensor::Service {
       for (const auto& value : values) {
         inertial sample;
         sample.acceleration = glm::vec3(static_cast<float>(value.acceleration().x()),
-                                       static_cast<float>(value.acceleration().y()),
-                                       static_cast<float>(value.acceleration().z()));
+                                        static_cast<float>(value.acceleration().y()),
+                                        static_cast<float>(value.acceleration().z()));
         sample.gyroscope = glm::vec3(static_cast<float>(value.gyroscope().x()),
-                                    static_cast<float>(value.gyroscope().y()),
-                                    static_cast<float>(value.gyroscope().z()));
+                                     static_cast<float>(value.gyroscope().y()),
+                                     static_cast<float>(value.gyroscope().z()));
         sample.magnetometer = glm::vec3(static_cast<float>(value.magnetometer().x()),
-                                       static_cast<float>(value.magnetometer().y()),
-                                       static_cast<float>(value.magnetometer().z()));
+                                        static_cast<float>(value.magnetometer().y()),
+                                        static_cast<float>(value.magnetometer().z()));
         sample.gravity = glm::vec3(static_cast<float>(value.gravity().x()),
-                                  static_cast<float>(value.gravity().y()),
-                                  static_cast<float>(value.gravity().z()));
+                                   static_cast<float>(value.gravity().y()),
+                                   static_cast<float>(value.gravity().z()));
         samples.push_back(sample);
       }
       for (const auto& f : inertial_received) {
@@ -296,16 +296,15 @@ class grpc_server_node : public graph_node {
           output->send(msg);
         });
 
-    server->receive_camera_image(
-        [this](const std::string& name, int64_t timestamp,
-               const std::vector<camera_image>& images) {
-          auto msg = std::make_shared<camera_image_list_message>();
-          msg->set_data(images);
-          msg->set_timestamp(static_cast<double>(timestamp));
-          output->send(msg);
-          spdlog::info("Received camera images: name={}, timestamp={}, count={}", name, timestamp,
-                       images.size());
-        });
+    server->receive_camera_image([this](const std::string& name, int64_t timestamp,
+                                        const std::vector<camera_image>& images) {
+      auto msg = std::make_shared<camera_image_list_message>();
+      msg->set_data(images);
+      msg->set_timestamp(static_cast<double>(timestamp));
+      output->send(msg);
+      spdlog::info("Received camera images: name={}, timestamp={}, count={}", name, timestamp,
+                   images.size());
+    });
 
     server->receive_inertial(
         [this](const std::string& name, int64_t timestamp, const std::vector<inertial>& samples) {
@@ -313,8 +312,8 @@ class grpc_server_node : public graph_node {
           msg->set_data(samples);
           msg->set_timestamp(static_cast<double>(timestamp));
           output->send(msg);
-          spdlog::info("Received inertial data: name={}, timestamp={}, samples={}", name,
-                       timestamp, samples.size());
+          spdlog::info("Received inertial data: name={}, timestamp={}, samples={}", name, timestamp,
+                       samples.size());
         });
   }
 

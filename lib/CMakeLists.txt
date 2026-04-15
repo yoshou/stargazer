@@ -16,15 +16,17 @@ else()
 endif()
 
 add_library(stargazer_voxelpose SHARED
-    $<$<BOOL:${ENABLE_CUDA}>:${CMAKE_CURRENT_LIST_DIR}/voxelpose.cu>
-    $<$<NOT:$<BOOL:${ENABLE_CUDA}>>:${CMAKE_CURRENT_LIST_DIR}/voxelpose.hip>
-    ${CMAKE_CURRENT_LIST_DIR}/voxelpose.cpp
+    $<$<BOOL:${ENABLE_CUDA}>:${CMAKE_CURRENT_LIST_DIR}/pose/voxelpose.cu>
+    $<$<NOT:$<BOOL:${ENABLE_CUDA}>>:${CMAKE_CURRENT_LIST_DIR}/pose/voxelpose.hip>
+    ${CMAKE_CURRENT_LIST_DIR}/pose/voxelpose.cpp
 )
 
 target_compile_features(stargazer_voxelpose PRIVATE cxx_std_17 cuda_std_11)
 
 target_include_directories(stargazer_voxelpose
     PRIVATE
+    ${CMAKE_CURRENT_LIST_DIR}/pose
+    ${CMAKE_CURRENT_LIST_DIR}/core
     $<$<BOOL:${ENABLE_ONNXRUNTIME_EXT}>:${ONNXRUNTIME_INCLUDE_DIRS}>
 )
 
@@ -81,13 +83,14 @@ else()
 endif()
 
 add_library(stargazer_preprocess SHARED
-    $<$<BOOL:${ENABLE_CUDA}>:${CMAKE_CURRENT_LIST_DIR}/preprocess.cu>
-    $<$<NOT:$<BOOL:${ENABLE_CUDA}>>:${CMAKE_CURRENT_LIST_DIR}/preprocess.hip>
-    
+    $<$<BOOL:${ENABLE_CUDA}>:${CMAKE_CURRENT_LIST_DIR}/pose/preprocess.cu>
+    $<$<NOT:$<BOOL:${ENABLE_CUDA}>>:${CMAKE_CURRENT_LIST_DIR}/pose/preprocess.hip>
 )
 
 target_include_directories(stargazer_preprocess
     PRIVATE
+    ${CMAKE_CURRENT_LIST_DIR}/pose
+    ${CMAKE_CURRENT_LIST_DIR}/core
     $<$<BOOL:${ENABLE_ONNXRUNTIME_EXT}>:${ONNXRUNTIME_INCLUDE_DIRS}>
 )
 
@@ -141,11 +144,13 @@ else()
 endif()
 
 add_library(stargazer_mvpose
-    ${CMAKE_CURRENT_LIST_DIR}/mvpose.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/pose/mvpose.cpp
 )
 
 target_include_directories(stargazer_mvpose
     PRIVATE
+    ${CMAKE_CURRENT_LIST_DIR}/pose
+    ${CMAKE_CURRENT_LIST_DIR}/core
     $<$<BOOL:${ENABLE_ONNXRUNTIME_EXT}>:${ONNXRUNTIME_INCLUDE_DIRS}>
 )
 
@@ -177,11 +182,13 @@ set_target_properties(stargazer_mvpose PROPERTIES
     CXX_STANDARD 20)
 
 add_library(stargazer_mvp
-    ${CMAKE_CURRENT_LIST_DIR}/mvp.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/pose/mvp.cpp
 )
 
 target_include_directories(stargazer_mvp
     PRIVATE
+    ${CMAKE_CURRENT_LIST_DIR}/pose
+    ${CMAKE_CURRENT_LIST_DIR}/core
     $<$<BOOL:${ENABLE_ONNXRUNTIME_EXT}>:${ONNXRUNTIME_INCLUDE_DIRS}>
 )
 
@@ -214,14 +221,16 @@ set_target_properties(stargazer_mvp PROPERTIES
     CXX_STANDARD 20)
 
 add_library(stargazer_dust3r
-    ${CMAKE_CURRENT_LIST_DIR}/dust3r.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/dust3r_alignment.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/dust3r_optimizer.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/dust3r_calibration.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/dust3r/dust3r.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/dust3r/dust3r_alignment.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/dust3r/dust3r_optimizer.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/dust3r/dust3r_calibration.cpp
 )
 
 target_include_directories(stargazer_dust3r
     PRIVATE
+    ${CMAKE_CURRENT_LIST_DIR}/dust3r
+    ${CMAKE_CURRENT_LIST_DIR}/core
     $<$<BOOL:${ENABLE_ONNXRUNTIME_EXT}>:${ONNXRUNTIME_INCLUDE_DIRS}>
 )
 
@@ -263,10 +272,10 @@ set_target_properties(stargazer_dust3r PROPERTIES
     CXX_STANDARD 20)
 
 add_library(stargazer
-    ${CMAKE_CURRENT_LIST_DIR}/parameters.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/config.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/graph_builder.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/pipeline.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/core/parameters.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/core/config.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/core/graph_builder.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/core/pipeline.cpp
     ${CMAKE_CURRENT_LIST_DIR}/reconstruction/triangulation.cpp
     ${CMAKE_CURRENT_LIST_DIR}/reconstruction/correspondance.cpp
     ${CMAKE_CURRENT_LIST_DIR}/reconstruction/reconstruction.cpp
@@ -283,8 +292,15 @@ target_compile_definitions(stargazer
 target_include_directories(stargazer
     PUBLIC
     ${CMAKE_CURRENT_LIST_DIR}
-    ${CMAKE_CURRENT_LIST_DIR}/reconstruction
+    ${CMAKE_CURRENT_LIST_DIR}/core
     ${CMAKE_CURRENT_LIST_DIR}/calibration
+    ${CMAKE_CURRENT_LIST_DIR}/reconstruction
+    ${CMAKE_CURRENT_LIST_DIR}/dust3r
+    ${CMAKE_CURRENT_LIST_DIR}/pose
+    ${CMAKE_CURRENT_LIST_DIR}/nodes/core
+    ${CMAKE_CURRENT_LIST_DIR}/nodes/io
+    ${CMAKE_CURRENT_LIST_DIR}/nodes/calibration
+    ${CMAKE_CURRENT_LIST_DIR}/nodes/reconstruct
 )
 
 target_link_libraries(stargazer

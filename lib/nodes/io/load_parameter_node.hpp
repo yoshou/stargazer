@@ -54,8 +54,7 @@ class load_parameter_node : public coalsack::graph_node {
     uint64_t last_version = param_res_->get_parameters().get_version();
     monitor_thread_ = std::make_shared<std::thread>([this, last_version]() mutable {
       while (running_.load()) {
-        last_version =
-            param_res_->get_parameters().wait_for_change(last_version, running_);
+        last_version = param_res_->get_parameters().wait_for_change(last_version, running_);
         if (!running_.load()) break;
         send_current();
       }
@@ -76,4 +75,3 @@ class load_parameter_node : public coalsack::graph_node {
 };
 
 }  // namespace stargazer
-

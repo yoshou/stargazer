@@ -218,9 +218,7 @@ class dnn_inference_pose {
     assert(output_node_names[1] == "simcc_y");
 
     std::vector<const char*> input_node_names;
-    {
-      input_node_names.push_back(this->input_node_names[0].c_str());
-    }
+    { input_node_names.push_back(this->input_node_names[0].c_str()); }
 
     std::vector<const char*> output_node_names;
     {
@@ -678,9 +676,7 @@ class dnn_inference_det {
     assert(output_node_names[1] == "labels");
 
     std::vector<const char*> input_node_names;
-    {
-      input_node_names.push_back(this->input_node_names[0].c_str());
-    }
+    { input_node_names.push_back(this->input_node_names[0].c_str()); }
 
     std::vector<const char*> output_node_names;
     {
@@ -705,13 +701,9 @@ class dnn_inference_det {
       input_tensors.emplace_back(std::move(input_tensor));
     }
 
-    {
-      io_binding.BindOutput(output_node_names[0], info_cuda);
-    }
+    { io_binding.BindOutput(output_node_names[0], info_cuda); }
 
-    {
-      io_binding.BindOutput(output_node_names[1], info_cuda);
-    }
+    { io_binding.BindOutput(output_node_names[1], info_cuda); }
 
     io_binding.SynchronizeInputs();
 
@@ -1538,8 +1530,7 @@ std::vector<glm::vec3> mvpose::inference(const std::vector<cv::Mat>& images_list
 }
 
 mvpose_inference_result mvpose::inference_with_matches(
-    const std::vector<cv::Mat>& images_list,
-    const std::vector<stargazer::camera_t>& cameras_list) {
+    const std::vector<cv::Mat>& images_list, const std::vector<stargazer::camera_t>& cameras_list) {
   mvpose_inference_result result;
   result.num_joints = dnn_inference_pose::num_joints;
 
@@ -1650,8 +1641,8 @@ mvpose_inference_result mvpose::inference_with_matches(
     for (size_t pose_index = 0; pose_index < rects[view_index].size(); ++pose_index) {
       mvpose_pose2d pose;
       pose.bbox = rects[view_index][pose_index];
-      pose.bbox_score = pose_index < rect_scores[view_index].size() ? rect_scores[view_index][pose_index]
-                                                                     : -1.0f;
+      pose.bbox_score =
+          pose_index < rect_scores[view_index].size() ? rect_scores[view_index][pose_index] : -1.0f;
       const auto& joints = pose_joints_list[view_index][pose_index];
       pose.joints.resize(joints.size());
       pose.scores.resize(joints.size());

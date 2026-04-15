@@ -31,12 +31,10 @@ class unframe_image_fields_node : public coalsack::graph_node {
     using coalsack::image_message;
     using coalsack::object_message;
 
-    if (const auto fm =
-            std::dynamic_pointer_cast<frame_message<object_message>>(message)) {
+    if (const auto fm = std::dynamic_pointer_cast<frame_message<object_message>>(message)) {
       auto new_obj = std::make_shared<object_message>();
       for (const auto& [name, field] : fm->get_data().get_fields()) {
-        if (const auto img_frame =
-                std::dynamic_pointer_cast<frame_message<image>>(field)) {
+        if (const auto img_frame = std::dynamic_pointer_cast<frame_message<image>>(field)) {
           auto img_msg = std::make_shared<image_message>();
           img_msg->set_image(img_frame->get_data());
           new_obj->add_field(name, img_msg);

@@ -2,12 +2,13 @@ find_package(GTest CONFIG REQUIRED)
 
 add_executable(test_config
     ${CMAKE_CURRENT_LIST_DIR}/test_config.cpp
-    ${CMAKE_SOURCE_DIR}/lib/config.cpp
+    ${CMAKE_SOURCE_DIR}/lib/core/config.cpp
 )
 
 target_include_directories(test_config PRIVATE
     ${CMAKE_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/lib
+    ${CMAKE_SOURCE_DIR}/lib/core
 )
 
 target_link_libraries(test_config PRIVATE
@@ -20,7 +21,7 @@ target_link_libraries(test_config PRIVATE
 target_compile_features(test_config PRIVATE cxx_std_17)
 
 target_compile_definitions(test_config PRIVATE
-    TEST_DATA_DIR="${CMAKE_SOURCE_DIR}/lib/testdata"
+    TEST_DATA_DIR="${CMAKE_SOURCE_DIR}/lib/test/data"
 )
 
 # ---------------------------------------------------------------------------
@@ -33,6 +34,8 @@ add_executable(test_dust3r_inference
 target_include_directories(test_dust3r_inference PRIVATE
     ${CMAKE_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/lib
+    ${CMAKE_SOURCE_DIR}/lib/core
+    ${CMAKE_SOURCE_DIR}/lib/dust3r
 )
 
 target_link_libraries(test_dust3r_inference PRIVATE
@@ -59,6 +62,8 @@ add_executable(test_dust3r_alignment
 target_include_directories(test_dust3r_alignment PRIVATE
     ${CMAKE_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/lib
+    ${CMAKE_SOURCE_DIR}/lib/core
+    ${CMAKE_SOURCE_DIR}/lib/dust3r
 )
 
 target_link_libraries(test_dust3r_alignment PRIVATE
@@ -83,6 +88,8 @@ add_executable(test_dust3r_calibration
 target_include_directories(test_dust3r_calibration PRIVATE
     ${CMAKE_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/lib
+    ${CMAKE_SOURCE_DIR}/lib/core
+    ${CMAKE_SOURCE_DIR}/lib/dust3r
 )
 
 target_link_libraries(test_dust3r_calibration PRIVATE

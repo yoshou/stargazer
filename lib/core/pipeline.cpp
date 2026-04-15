@@ -12,8 +12,8 @@
 #include "coalsack/core/graph_proc_client.h"
 #include "coalsack/core/graph_proc_server.h"
 #include "coalsack/ext/graph_proc_action.h"
-#include "gate_node.hpp"
 #include "graph_builder.hpp"
+#include "nodes/core/gate_node.hpp"
 #include "parameter_resource.hpp"
 #include "parameters.hpp"
 
@@ -303,8 +303,7 @@ class pipeline::impl {
 
 pipeline::pipeline() : pimpl(std::make_unique<impl>()) {}
 
-pipeline::pipeline(std::shared_ptr<parameters_t> parameters)
-    : pimpl(std::make_unique<impl>()) {
+pipeline::pipeline(std::shared_ptr<parameters_t> parameters) : pimpl(std::make_unique<impl>()) {
   pimpl->set_parameters(std::move(parameters));
 }
 
@@ -315,14 +314,12 @@ void pipeline::start() { pimpl->run(); }
 void pipeline::pause() { pimpl->stop(); }
 void pipeline::stop() { pimpl->finalize(); }
 
-std::optional<coalsack::property_value> pipeline::get_node_property(
-    const std::string& node_name, const std::string& key) const {
+std::optional<coalsack::property_value> pipeline::get_node_property(const std::string& node_name,
+                                                                    const std::string& key) const {
   return pimpl->get_node_property(node_name, key);
 }
 
-void pipeline::dispatch_action(const std::string& action_id) {
-  pimpl->dispatch_action(action_id);
-}
+void pipeline::dispatch_action(const std::string& action_id) { pimpl->dispatch_action(action_id); }
 
 void pipeline::enable_marker_collecting(const std::string& name) {
   pimpl->enable_marker_collecting(name);

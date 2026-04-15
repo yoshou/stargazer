@@ -13,9 +13,7 @@ class gate_node : public coalsack::graph_node {
   std::atomic<bool> enabled_{false};
 
  public:
-  gate_node() : graph_node() {
-    set_output(std::make_shared<coalsack::graph_edge>(this));
-  }
+  gate_node() : graph_node() { set_output(std::make_shared<coalsack::graph_edge>(this)); }
 
   virtual ~gate_node() = default;
 

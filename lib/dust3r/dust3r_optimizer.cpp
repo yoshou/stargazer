@@ -925,7 +925,8 @@ std::unordered_map<std::string, aligned_pose> refine_global_alignment(
 
   ceres::Solver::Summary summary;
   ceres::Solve(options, &problem, &summary);
-  spdlog::info("dust3r refine_global: initial_cost={:.6e} final_cost={:.6e}", summary.initial_cost, summary.final_cost);
+  spdlog::info("dust3r refine_global: initial_cost={:.6e} final_cost={:.6e}", summary.initial_cost,
+               summary.final_cost);
 
   std::unordered_map<std::string, aligned_pose> refined;
   for (size_t index = 0; index < camera_names.size(); ++index) {

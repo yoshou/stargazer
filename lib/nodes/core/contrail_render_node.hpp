@@ -3,11 +3,10 @@
 #include <atomic>
 #include <memory>
 #include <mutex>
+#include <opencv2/imgproc.hpp>
 #include <optional>
 #include <string>
 #include <vector>
-
-#include <opencv2/imgproc.hpp>
 
 #include "coalsack/core/graph_proc_registry.h"
 #include "coalsack/image/image.h"
@@ -54,7 +53,8 @@ class contrail_render_node : public coalsack::graph_node {
     archive(camera_name, width, height);
   }
 
-  virtual std::optional<coalsack::property_value> get_property(const std::string& key) const override {
+  virtual std::optional<coalsack::property_value> get_property(
+      const std::string& key) const override {
     if (key == "received") {
       return received_count.load();
     }
@@ -87,17 +87,16 @@ class contrail_render_node : public coalsack::graph_node {
           const int x = static_cast<int>(std::round(pt.x));
           const int y = static_cast<int>(std::round(pt.y));
           if (x >= 0 && x < img_width && y >= 0 && y < img_height) {
-            cv::circle(rendered, cv::Point(x, y), 3, cv::Scalar(0, 0, 255), cv::FILLED);  // BGR → RGB: red
+            cv::circle(rendered, cv::Point(x, y), 3, cv::Scalar(0, 0, 255),
+                       cv::FILLED);  // BGR → RGB: red
           }
         }
       }
 
-      coalsack::image img(
-          static_cast<std::uint32_t>(rendered.cols),
-          static_cast<std::uint32_t>(rendered.rows),
-          static_cast<std::uint32_t>(rendered.elemSize()),
-          static_cast<std::uint32_t>(rendered.step),
-          rendered.data);
+      coalsack::image img(static_cast<std::uint32_t>(rendered.cols),
+                          static_cast<std::uint32_t>(rendered.rows),
+                          static_cast<std::uint32_t>(rendered.elemSize()),
+                          static_cast<std::uint32_t>(rendered.step), rendered.data);
       img.set_format(coalsack::image_format::B8G8R8_UINT);
 
       {

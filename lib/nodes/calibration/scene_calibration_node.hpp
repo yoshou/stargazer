@@ -25,8 +25,8 @@ using namespace stargazer::calibration;
 using namespace stargazer::reconstruction;
 
 static inline void detect_aruco_marker_for_scene(cv::Mat image,
-                                                  std::vector<std::vector<cv::Point2f>>& points,
-                                                  std::vector<int>& ids) {
+                                                 std::vector<std::vector<cv::Point2f>>& points,
+                                                 std::vector<int>& ids) {
   cv::aruco::DetectorParameters detector_params = cv::aruco::DetectorParameters();
   cv::aruco::RefineParameters refine_params = cv::aruco::RefineParameters();
   const auto dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_4X4_250);
@@ -80,7 +80,7 @@ class scene_reconstruction {
   }
 
   static bool detect_axis(glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::mat4& axis,
-                           float x_axis_length = 0.14f, float y_axis_length = 0.17f) {
+                          float x_axis_length = 0.14f, float y_axis_length = 0.17f) {
     glm::vec3 origin;
     glm::vec3 e1, e2;
 

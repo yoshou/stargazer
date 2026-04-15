@@ -31,7 +31,8 @@ class image_property_node : public coalsack::graph_node {
     (void)archive;
   }
 
-  virtual std::optional<coalsack::property_value> get_property(const std::string& key) const override {
+  virtual std::optional<coalsack::property_value> get_property(
+      const std::string& key) const override {
     if (key == "received") {
       return received_count.load();
     }
@@ -46,7 +47,8 @@ class image_property_node : public coalsack::graph_node {
 
   virtual void process([[maybe_unused]] std::string input_name,
                        coalsack::graph_message_ptr message) override {
-    if (const auto image_frame = std::dynamic_pointer_cast<coalsack::frame_message<coalsack::image>>(message)) {
+    if (const auto image_frame =
+            std::dynamic_pointer_cast<coalsack::frame_message<coalsack::image>>(message)) {
       {
         std::lock_guard lock(image_mtx);
         current_image = std::make_shared<coalsack::image>(image_frame->get_data());

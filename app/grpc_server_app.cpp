@@ -10,9 +10,9 @@
 #include <opencv2/opencv.hpp>
 #include <string>
 
-#include "../lib/glm_serialize.hpp"
-#include "../lib/grpc_server_node.hpp"
-#include "../lib/messages.hpp"
+#include "../lib/core/glm_serialize.hpp"
+#include "../lib/core/messages.hpp"
+#include "../lib/nodes/core/grpc_server_node.hpp"
 #include "gui.hpp"
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
@@ -119,21 +119,21 @@ int main(int argc, char* argv[]) {
 
     // Register callback for received images.
     image_sink->set_callback([](coalsack::graph_message_ptr message) {
-          if (const auto msg =
-                  std::dynamic_pointer_cast<stargazer::camera_image_list_message>(message)) {
-            std::lock_guard<std::mutex> lock(display_mutex);
-            const auto& images = msg->get_data();
-            for (size_t i = 0; i < images.size(); i++) {
-              cv::Mat frame = decode_image(images[i]);
-              if (!frame.empty()) {
-                std::string window_name = "camera_" + std::to_string(i);
-                latest_frames[window_name] = frame.clone();
-              } else {
-                spdlog::warn("Failed to decode image {}", i);
-              }
-            }
+      if (const auto msg =
+              std::dynamic_pointer_cast<stargazer::camera_image_list_message>(message)) {
+        std::lock_guard<std::mutex> lock(display_mutex);
+        const auto& images = msg->get_data();
+        for (size_t i = 0; i < images.size(); i++) {
+          cv::Mat frame = decode_image(images[i]);
+          if (!frame.empty()) {
+            std::string window_name = "camera_" + std::to_string(i);
+            latest_frames[window_name] = frame.clone();
+          } else {
+            spdlog::warn("Failed to decode image {}", i);
           }
-        });
+        }
+      }
+    });
     image_sink->set_input(grpc_node->get_output());
 
     // Start the server.

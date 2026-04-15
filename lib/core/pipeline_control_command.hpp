@@ -29,8 +29,7 @@ struct pipeline_command {
   std::promise<pipeline_command_result> promise;
 
   // Non-copyable because promise is non-copyable
-  pipeline_command(pipeline_command_type t, std::string p)
-      : type(t), param(std::move(p)) {}
+  pipeline_command(pipeline_command_type t, std::string p) : type(t), param(std::move(p)) {}
 };
 
 // Thread-safe queue of commands.
@@ -43,8 +42,7 @@ class pipeline_command_queue {
  public:
   // Enqueue a command and return a future for the result.
   // Called from gRPC thread.
-  std::future<pipeline_command_result> enqueue(pipeline_command_type type,
-                                                std::string param = {}) {
+  std::future<pipeline_command_result> enqueue(pipeline_command_type type, std::string param = {}) {
     auto cmd = std::make_unique<pipeline_command>(type, std::move(param));
     auto future = cmd->promise.get_future();
     {

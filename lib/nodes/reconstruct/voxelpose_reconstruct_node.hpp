@@ -286,7 +286,6 @@ class voxelpose_reconstruct_node : public image_reconstruct_node {
       output->send(result_msg);
     }
   }
-
 };
 
 }  // namespace stargazer
