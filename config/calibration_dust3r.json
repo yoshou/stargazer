@@ -139,7 +139,7 @@
                 },
                 {
                     "name": "dust3r_pose",
-                    "type": "dust3r_pose_estimation",
+                    "type": "dust3r_calibration",
                     "inputs": {
                         "default": "approximate_time_sync",
                         "camera.camera101": "load_camera101",
