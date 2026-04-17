@@ -1,3 +1,6 @@
+/// @file gate_node.hpp
+/// @brief Message gate node that passes or blocks messages based on an enabled flag.
+/// @ingroup core_nodes
 #pragma once
 
 #include <atomic>
@@ -9,6 +12,21 @@
 
 namespace stargazer {
 
+/// @brief Conditionally passes or suppresses messages based on an enabled flag.
+/// @details When the `enabled` flag is `true` the node forwards every received
+///          `graph_message` on @b "default" unchanged.  When `false` all messages
+///          are silently discarded.
+///
+/// @par Inputs
+/// - @b "default" — `graph_message` — any message to gate
+///
+/// @par Outputs
+/// - @b "default" — `graph_message` — forwarded message (only when enabled)
+///
+/// @par Properties
+/// (none — flag is set programmatically via `set_enabled()`)
+///
+/// @see object_mux_node
 class gate_node : public coalsack::graph_node {
   std::atomic<bool> enabled_{false};
 

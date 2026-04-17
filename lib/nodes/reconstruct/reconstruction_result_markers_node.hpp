@@ -1,3 +1,6 @@
+/// @file reconstruction_result_markers_node.hpp
+/// @brief Extracts 3D point positions from a reconstruction result message.
+/// @ingroup reconstruction_nodes
 #pragma once
 
 #include <memory>
@@ -8,6 +11,22 @@
 
 namespace stargazer {
 
+/// @brief Extracts 3D marker positions from a reconstruction result message.
+/// @details Receives a `reconstruction_result_message` on @b "default", extracts the
+///          3D point list, and re-emits it as a `float3_list_message` on @b "default".
+///          This allows downstream marker-based nodes (e.g. `marker_property_node`) to
+///          consume reconstruction output without depending on the heavy result type.
+///
+/// @par Inputs
+/// - @b "default" — `reconstruction_result_message` — 3D reconstruction output
+///
+/// @par Outputs
+/// - @b "default" — `float3_list_message` — extracted 3D point positions
+///
+/// @par Properties
+/// (none)
+///
+/// @see marker_property_node, epipolar_reconstruct_node
 class reconstruction_result_markers_node : public coalsack::graph_node {
   coalsack::graph_edge_ptr output;
 

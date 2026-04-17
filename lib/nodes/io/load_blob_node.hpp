@@ -1,3 +1,6 @@
+/// @file load_blob_node.hpp
+/// @brief SQLite blob frame playback source node.
+/// @ingroup io_nodes
 #pragma once
 
 #include <spdlog/spdlog.h>
@@ -13,6 +16,23 @@
 namespace stargazer {
 using namespace coalsack;
 
+/// @brief Plays back `blob` frames from a SQLite database.
+/// @details Autonomous source node that reads blob rows from the `messages` table
+///          for the configured topic, decodes the timestamp and data, and emits
+///          them as `blob_frame_message` on @b "default" at the configured frame rate.
+///          Playback runs on a background thread started by `run()`.
+///
+/// @par Inputs
+/// (none — autonomous source node)
+///
+/// @par Outputs
+/// - @b "default" — `blob_frame_message` — decoded blob frame
+///
+/// @par Properties
+/// - `db_path`    (`std::string`, default `""`) — path to the SQLite database file
+/// - `topic_name` (`std::string`, default `""`) — topic to replay from the database
+///
+/// @see dump_blob_node, load_marker_node
 class load_blob_node : public graph_node {
   std::string db_path;
   std::string name;

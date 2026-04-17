@@ -1,8 +1,9 @@
+/// @file dump_keypoint_node.hpp
+/// @brief SQLite keypoint data recording node.
+/// @ingroup io_nodes
 #pragma once
 
 #include <sqlite3.h>
-
-#include <deque>
 #include <nlohmann/json.hpp>
 
 #include "coalsack/core/graph_proc.h"
@@ -13,6 +14,22 @@ namespace stargazer {
 
 using namespace coalsack;
 
+/// @brief Records keypoint detection results to a SQLite database.
+/// @details Writes serialised keypoint frame data to the `messages` table under
+///          `topic_name`.  Writes are batched on a background thread and the
+///          database is closed on `finalize()`.
+///
+/// @par Inputs
+/// - @b "default" — `keypoint_frame_message` — keypoint data to persist
+///
+/// @par Outputs
+/// (none — side-effect only)
+///
+/// @par Properties
+/// - `db_path`    (`std::string`, default `""`) — path to the SQLite database file
+/// - `topic_name` (`std::string`, default `""`) — topic name stored in the topics table
+///
+/// @see dump_blob_node, dump_reconstruction_node
 class dump_keypoint_node : public graph_node {
   std::string db_path;
   std::string name;

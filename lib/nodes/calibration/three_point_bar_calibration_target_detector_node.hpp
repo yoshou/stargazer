@@ -1,3 +1,6 @@
+/// @file three_point_bar_calibration_target_detector_node.hpp
+/// @brief Three-point bar calibration target detection node.
+/// @ingroup calibration_nodes
 #pragma once
 
 #include <memory>
@@ -12,6 +15,21 @@ namespace stargazer {
 
 using namespace coalsack;
 
+/// @brief Three-point bar calibration target detection node.
+/// @details Receives blob detection output (`float2_list_message`) and fits the
+///          three collinear points of a T-bar calibration target to the detected
+///          markers.  The three ordered reference points are emitted on @b "default".
+///
+/// @par Inputs
+/// - @b "default" — `float2_list_message` — raw detected blob positions
+///
+/// @par Outputs
+/// - @b "default" — `float2_list_message` — ordered three reference point positions
+///
+/// @par Properties
+/// (none)
+///
+/// @see pattern_board_calibration_target_detector_node
 class three_point_bar_calibration_target_detector_node : public graph_node {
   std::unique_ptr<three_point_bar_calibration_target> detector;
   graph_edge_ptr output;

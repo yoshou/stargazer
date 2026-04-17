@@ -1,3 +1,6 @@
+/// @file load_panoptic_node.hpp
+/// @brief Panoptic dataset JPEG image playback source node.
+/// @ingroup io_nodes
 #pragma once
 
 #include <spdlog/spdlog.h>
@@ -16,6 +19,24 @@
 namespace stargazer {
 using namespace coalsack;
 
+/// @brief Plays back Panoptic dataset JPEG images from a SQLite database.
+/// @details Autonomous source node that reads JPEG-encoded image blobs from the
+///          database for the configured topic and emits them as `blob_frame_message`
+///          on @b "default" at the configured frame rate.  Runs on a background
+///          thread started by `run()`.
+///
+/// @par Inputs
+/// (none — autonomous source node)
+///
+/// @par Outputs
+/// - @b "default" — `blob_frame_message` — JPEG-encoded image blob
+///
+/// @par Properties
+/// - `db_path`    (`std::string`, default `""`) — path to the SQLite database file
+/// - `topic_name` (`std::string`, default `""`) — topic to replay from the database
+/// - `fps`        (`int`, default `30`) — playback frame rate in frames per second
+///
+/// @see load_blob_node, load_marker_node
 class load_panoptic_node : public graph_node {
   std::string db_path;
   std::string name;

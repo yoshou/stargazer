@@ -1,3 +1,6 @@
+/// @file feature_render_node.hpp
+/// @brief Reconstruction feature heatmap rendering node.
+/// @ingroup core_nodes
 #pragma once
 
 #include <atomic>
@@ -13,6 +16,23 @@
 
 namespace stargazer {
 
+/// @brief Renders reconstruction feature heatmaps as colour-coded images.
+/// @details Receives `reconstruction_result_message` frames and maps the per-pixel
+///          confidence or depth values to an RGB heatmap.  Output size is configured
+///          via `set_camera_name`, `set_width`, and `set_height`.
+///
+/// @par Inputs
+/// - @b "default" — `reconstruction_result_message` — per-pixel feature data
+///
+/// @par Outputs
+/// - @b "default" — `image_message` — colour-mapped heatmap image
+///
+/// @par Properties
+/// - `camera_name` (`std::string`, default `""`) — identifier for the source camera
+/// - `width`  (`int`, default `0`) — output image width in pixels
+/// - `height` (`int`, default `0`) — output image height in pixels
+///
+/// @see contrail_render_node, reconstruction_result_markers_node
 class feature_render_node : public coalsack::graph_node {
   coalsack::graph_edge_ptr output;
   std::string camera_name;

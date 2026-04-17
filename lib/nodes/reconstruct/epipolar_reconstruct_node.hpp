@@ -1,3 +1,6 @@
+/// @file epipolar_reconstruct_node.hpp
+/// @brief Epipolar-geometry-based multi-camera 3D point reconstruction node.
+/// @ingroup reconstruction_nodes
 #pragma once
 
 #include <glm/gtc/matrix_inverse.hpp>
@@ -9,6 +12,25 @@
 
 namespace stargazer {
 
+/// @brief Triangulates 3D points from multi-camera 2D correspondences using epipolar geometry.
+/// @details Maintains per-camera `camera_t` intrinsics and extrinsics updated via @b "cameras"
+///          and @b "camera.*" inputs.  On receipt of a `frame_message<object_message>` with
+///          named `float2_list_message` fields (one per camera) the node triangulates each
+///          2D correspondence set into a `float3_list_message` and emits it on @b "default".
+///
+/// @par Inputs
+/// - @b "cameras"   — `object_message` — bulk camera parameter update (map of `camera_t`)
+/// - @b "axis"      — `object_message` — scene coordinate axis (`scene_t`)
+/// - @b "camera.*" — `object_message` or `camera_message` — per-camera parameter update
+/// - @b "default"  — `frame_message<object_message>` — named `float2_list_message` per camera
+///
+/// @par Outputs
+/// - @b "default" — `float3_list_message` — triangulated 3D point positions
+///
+/// @par Properties
+/// (none)
+///
+/// @see mvpose_reconstruct_node, voxelpose_reconstruct_node, image_reconstruct_node
 class epipolar_reconstruct_node : public coalsack::graph_node {
   mutable std::mutex cameras_mtx;
   std::map<std::string, camera_t> cameras;

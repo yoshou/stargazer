@@ -1,3 +1,6 @@
+/// @file scene_calibration_node.hpp
+/// @brief Scene coordinate system calibration node using ArUco markers.
+/// @ingroup calibration_nodes
 #pragma once
 
 #include <glm/glm.hpp>
@@ -256,6 +259,23 @@ class scene_reconstruction {
   }
 };
 
+/// @brief Scene coordinate axis calibration node using ArUco marker triangulation.
+/// @details Accumulates per-camera ArUco marker observations received on @b "camera.*"
+///          input ports.  On receipt of a @b "calibrate" trigger the node triangulates
+///          marker positions from all cameras and computes a 4×4 world-to-scene
+///          transformation matrix, output as `scene_t` on @b "default".
+///
+/// @par Inputs
+/// - @b "calibrate" — control signal (`graph_message`) — triggers the scene axis solve
+/// - @b "camera.*" — `float2_list_message` — ArUco marker observations per camera
+///
+/// @par Outputs
+/// - @b "default" — `object_message` — computed `scene_t` axis transform
+///
+/// @par Properties
+/// (none)
+///
+/// @see extrinsic_calibration_node
 class scene_calibration_node : public graph_node {
   observed_points_frames observed_frames;
 

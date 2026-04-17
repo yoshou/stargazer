@@ -1,3 +1,6 @@
+/// @file extrinsic_calibration_node.hpp
+/// @brief Extrinsic camera parameter calibration node.
+/// @ingroup calibration_nodes
 #pragma once
 
 #include <spdlog/spdlog.h>
@@ -18,6 +21,24 @@ namespace stargazer {
 
 using namespace stargazer::calibration;
 
+/// @brief Multi-camera extrinsic calibration node from observed 2D point correspondences.
+/// @details Collects `float2_list_message` frames on per-camera input ports.  On receipt
+///          of a @b "calibrate" trigger the node solves for extrinsic camera parameters
+///          (and optionally intrinsics) using bundle adjustment.  Optionally applies a
+///          robust outlier filter before optimisation.
+///
+/// @par Inputs
+/// - @b "calibrate" — control signal (`graph_message`) — starts the calibration solve
+/// - @b "camera.*" — `float2_list_message` — observed 2D keypoints for each named camera
+///
+/// @par Outputs
+/// - @b "default" — `object_message` — calibrated `camera_t` for each camera
+///
+/// @par Properties
+/// - `only_extrinsic` (`bool`, default `false`) — when `true`, intrinsics are held fixed
+/// - `robust`         (`bool`, default `false`) — when `true`, enables outlier-robust fitting
+///
+/// @see intrinsic_calibration_node, scene_calibration_node
 class extrinsic_calibration_node : public coalsack::graph_node {
   bool only_extrinsic;
   bool robust;

@@ -1,3 +1,6 @@
+/// @file dump_blob_node.hpp
+/// @brief SQLite blob frame recording node.
+/// @ingroup io_nodes
 #pragma once
 
 #include <spdlog/spdlog.h>
@@ -16,6 +19,24 @@ namespace stargazer {
 
 using namespace coalsack;
 
+/// @brief Records `frame_message<blob>` frames to a SQLite database.
+/// @details Opens or creates a SQLite database at `db_path` and writes each
+///          received `frame_message<blob>` as a row in the `messages` table
+///          under `topic_name`.  Writes are queued and processed on a
+///          background thread.  The database is flushed and closed on
+///          `finalize()`.
+///
+/// @par Inputs
+/// - @b "default" — `frame_message<blob>` — blob frame to persist
+///
+/// @par Outputs
+/// (none — side-effect only)
+///
+/// @par Properties
+/// - `db_path`    (`std::string`, default `""`) — path to the SQLite database file
+/// - `topic_name` (`std::string`, default `""`) — topic name stored in the topics table
+///
+/// @see dump_keypoint_node, load_blob_node
 class dump_blob_node : public graph_node {
   std::string db_path;
   std::string name;

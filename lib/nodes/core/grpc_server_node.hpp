@@ -1,3 +1,6 @@
+/// @file grpc_server_node.hpp
+/// @brief gRPC sensor data server node.
+/// @ingroup core_nodes
 #pragma once
 
 #include <grpc/grpc.h>
@@ -256,6 +259,22 @@ class grpc_server {
   }
 };
 
+/// @brief gRPC server node that exposes sensor data to external consumers.
+/// @details Starts a gRPC service implementing the `Sensor` protobuf service on the
+///          configured address.  Received SE3 pose, camera-image, and inertial messages
+///          are queued and served to connected clients.  The server runs in a background
+///          thread; `run()` must be called to start it.
+///
+/// @par Inputs
+/// - @b "default" — `se3_message`, `camera_image_message`, or `inertial_message` — sensor data
+///
+/// @par Outputs
+/// (none — data is served over the gRPC interface)
+///
+/// @par Properties
+/// - `address` (`std::string`, default `""`) — gRPC server listen address (e.g. `"0.0.0.0:50051"`)
+///
+/// @see grpc_server
 class grpc_server_node : public graph_node {
   std::unique_ptr<grpc_server> server;
   graph_edge_ptr output;

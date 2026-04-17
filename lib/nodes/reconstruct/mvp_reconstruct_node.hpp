@@ -1,3 +1,6 @@
+/// @file mvp_reconstruct_node.hpp
+/// @brief MVP multi-view human pose reconstruction node (Panoptic dataset variant).
+/// @ingroup reconstruction_nodes
 #pragma once
 
 #include <spdlog/spdlog.h>
@@ -17,6 +20,25 @@ namespace stargazer {
 
 using namespace coalsack;
 
+/// @brief Multi-view pose estimation using the MVP model optimised for the Panoptic dataset.
+/// @details Accepts five-camera synchronised image frames.  Camera calibration is kept
+///          current via @b "cameras", @b "axis", and @b "camera.*" inputs.  After
+///          inference the node emits a `reconstruction_result_message` with estimated
+///          3D joint positions on @b "default".
+///
+/// @par Inputs
+/// - @b "cameras"  — `object_message` — bulk camera parameter update
+/// - @b "axis"     — `object_message` — scene coordinate axis
+/// - @b "camera.*" — `object_message` — per-camera parameter update
+/// - @b "default" — `frame_message<object_message>` — named image frames per camera
+///
+/// @par Outputs
+/// - @b "default" — `reconstruction_result_message` — 3D joint positions
+///
+/// @par Properties
+/// (none)
+///
+/// @see mvpose_reconstruct_node, voxelpose_reconstruct_node
 class mvp_reconstruct_node : public image_reconstruct_node {
   mutable std::mutex cameras_mtx;
   std::map<std::string, camera_t> cameras;

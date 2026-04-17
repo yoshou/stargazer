@@ -1,3 +1,6 @@
+/// @file object_mux_node.hpp
+/// @brief Multiplexes object field messages and emits a sentinel after each batch.
+/// @ingroup core_nodes
 #pragma once
 
 #include <string>
@@ -19,6 +22,22 @@ class sentinel_message : public graph_message {
   void serialize(Archive& archive) {}
 };
 
+/// @brief Emits each field of an `object_message` as an individual message followed by a sentinel.
+/// @details Iterates over every field in the received `object_message` on @b "default"
+///          and sends each as a standalone `object_message` on @b "default".
+///          After all fields have been emitted a `sentinel_message` is sent to signal
+///          end-of-batch to downstream consumers.
+///
+/// @par Inputs
+/// - @b "default" — `object_message` — container whose fields are to be multiplexed out
+///
+/// @par Outputs
+/// - @b "default" — `object_message` per field, then `sentinel_message`
+///
+/// @par Properties
+/// (none)
+///
+/// @see object_map_node
 class object_mux_node : public graph_node {
   graph_edge_ptr output;
 

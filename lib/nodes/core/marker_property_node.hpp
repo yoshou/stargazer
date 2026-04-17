@@ -1,3 +1,6 @@
+/// @file marker_property_node.hpp
+/// @brief 3D marker list property caching and exposure node.
+/// @ingroup core_nodes
 #pragma once
 
 #include <mutex>
@@ -9,7 +12,21 @@
 
 namespace stargazer {
 
-// Receives float3_list_message and exposes a "markers" property as std::vector<coalsack::vec3>.
+/// @brief 3D marker list passthrough node that caches markers as a queryable property.
+/// @details Forwards every `float3_list_message` received on @b "default" unchanged
+///          and simultaneously stores the marker positions in a thread-safe internal
+///          buffer, accessible via the `markers` property for UI inspection.
+///
+/// @par Inputs
+/// - @b "default" — `float3_list_message` — 3D marker positions
+///
+/// @par Outputs
+/// - @b "default" — `float3_list_message` — passthrough of the input message
+///
+/// @par Properties
+/// (none)
+///
+/// @see image_property_node
 class marker_property_node : public coalsack::graph_node {
   mutable std::mutex mtx;
   std::vector<coalsack::vec3> markers;

@@ -1,3 +1,6 @@
+/// @file contrail_render_node.hpp
+/// @brief Trajectory (contrail) rendering node.
+/// @ingroup core_nodes
 #pragma once
 
 #include <atomic>
@@ -14,6 +17,24 @@
 
 namespace stargazer {
 
+/// @brief Renders accumulated 2D point trajectories (contrails) onto an image.
+/// @details Maintains a rolling history of `float2_list_message` positions received on
+///          @b "default" and paints them as coloured trails onto a blank canvas.
+///          Output image dimensions are configured via `set_camera_name`, `set_width`,
+///          and `set_height`.
+///
+/// @par Inputs
+/// - @b "default" — `float2_list_message` — 2D point positions to accumulate
+///
+/// @par Outputs
+/// - @b "default" — `image_message` — rendered trajectory image
+///
+/// @par Properties
+/// - `camera_name` (`std::string`, default `""`) — identifier for the source camera
+/// - `width`  (`int`, default `0`) — output image width in pixels
+/// - `height` (`int`, default `0`) — output image height in pixels
+///
+/// @see feature_render_node
 class contrail_render_node : public coalsack::graph_node {
   coalsack::graph_edge_ptr output;
   std::string camera_name;

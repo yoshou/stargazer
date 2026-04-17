@@ -1,3 +1,6 @@
+/// @file pattern_board_calibration_target_detector_node.hpp
+/// @brief Checkerboard calibration target detection node.
+/// @ingroup calibration_nodes
 #pragma once
 
 #include <memory>
@@ -14,6 +17,23 @@ namespace stargazer {
 
 using namespace coalsack;
 
+/// @brief Checkerboard calibration target point detection node.
+/// @details Receives blob detection output (`float2_list_message`) on @b "default" and
+///          matches the detected markers to a known calibration board geometry using an
+///          optional camera intrinsic seed from @b "camera".  Emits ordered 2D point
+///          correspondences suitable for intrinsic or extrinsic calibration.
+///
+/// @par Inputs
+/// - @b "camera"  — `object_message` with `camera_message` — camera intrinsics seed
+/// - @b "default" — `float2_list_message` — raw detected blob positions
+///
+/// @par Outputs
+/// - @b "default" — `float2_list_message` — ordered calibration board corner positions
+///
+/// @par Properties
+/// (none)
+///
+/// @see intrinsic_calibration_node, three_point_bar_calibration_target_detector_node
 class pattern_board_calibration_target_detector_node : public graph_node {
   camera_t camera;
   std::unique_ptr<pattern_board_calibration_target> detector;

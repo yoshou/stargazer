@@ -1,3 +1,6 @@
+/// @file intrinsic_calibration_node.hpp
+/// @brief Intrinsic camera parameter calibration node based on calibration board images.
+/// @ingroup calibration_nodes
 #pragma once
 
 #include <algorithm>
@@ -32,6 +35,24 @@ static inline std::vector<size_t> create_random_indices(size_t size) {
   return data;
 }
 
+/// @brief Camera intrinsic parameter calibration node from checkerboard observations.
+/// @details Accumulates `float2_list_message` frames received on @b "default".  When a
+///          @b "calibrate" trigger arrives the node solves for the camera intrinsic matrix
+///          and distortion coefficients using OpenCV calibration.  An initial `camera_t`
+///          seed may be supplied via the @b "camera" port.
+///
+/// @par Inputs
+/// - @b "camera"    — `object_message` with `camera_message` field — optional initial camera
+/// - @b "calibrate" — control signal (`graph_message`) — triggers the calibration solve
+/// - @b "default"   — `float2_list_message` — observed 2D keypoints per frame
+///
+/// @par Outputs
+/// - @b "default" — `object_message` — calibrated `camera_t`
+///
+/// @par Properties
+/// (none)
+///
+/// @see extrinsic_calibration_node, pattern_board_calibration_target_detector_node
 class intrinsic_calibration_node : public graph_node {
   std::shared_ptr<graph_edge> output;
 

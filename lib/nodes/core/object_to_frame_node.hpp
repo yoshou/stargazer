@@ -1,3 +1,6 @@
+/// @file object_to_frame_node.hpp
+/// @brief Wraps an object_message into a frame_message with frame number and timestamp.
+/// @ingroup core_nodes
 #pragma once
 
 #include <string>
@@ -8,6 +11,21 @@
 
 namespace stargazer {
 
+/// @brief Wraps an `object_message` in a `frame_message` with a frame number and timestamp.
+/// @details Maintains a monotonically increasing frame counter.  Each `object_message`
+///          received on @b "default" is wrapped in a `frame_message<object_message>` with
+///          the current counter value and wall-clock timestamp before being forwarded.
+///
+/// @par Inputs
+/// - @b "default" — `object_message` — message to wrap with frame metadata
+///
+/// @par Outputs
+/// - @b "default" — `frame_message<object_message>` — framed output message
+///
+/// @par Properties
+/// (none)
+///
+/// @see unframe_image_fields_node, object_mux_node
 class object_to_frame_node : public coalsack::graph_node {
  public:
   object_to_frame_node() : graph_node() {

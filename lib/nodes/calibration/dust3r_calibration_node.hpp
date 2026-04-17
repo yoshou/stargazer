@@ -1,3 +1,6 @@
+/// @file dust3r_calibration_node.hpp
+/// @brief DUSt3R-based multi-camera intrinsic and extrinsic calibration node.
+/// @ingroup calibration_nodes
 #pragma once
 
 #include <spdlog/spdlog.h>
@@ -26,9 +29,25 @@ namespace stargazer {
 
 using namespace coalsack;
 
-// Calibration node based on DUSt3R.
-// Receives images without prior intrinsics/extrinsics and performs
-// BA-based calibration to produce updated camera_t for each camera.
+/// @brief Multi-camera intrinsic and extrinsic calibration using the DUSt3R model.
+/// @details Collects image frames from all connected cameras and, on receipt of an
+///          @b "estimate" trigger, runs DUSt3R bundle-adjustment calibration in a
+///          background thread to jointly estimate intrinsics and extrinsics.
+///          The result is emitted once on @b "default" when the algorithm converges.
+///
+/// @par Inputs
+/// - @b "estimate" — control signal (`graph_message`) — arms the node; calibration runs on the
+///   next complete set of image frames
+/// - @b "camera.*" — `object_message` or `camera_message` — per-camera identity mapping
+/// - any other port — `object_message` — named image fields (one per camera)
+///
+/// @par Outputs
+/// - @b "default" — `object_message` — calibrated `camera_t` for each camera
+///
+/// @par Properties
+/// - `model_path` (`std::string`, default `""`) — path to the DUSt3R ONNX model file
+///
+/// @see dust3r_pose_node
 class dust3r_calibration_node : public coalsack::graph_node {
   mutable std::mutex cameras_mtx_;
   // Camera data stored only for ID mapping (camera_name → field_key).

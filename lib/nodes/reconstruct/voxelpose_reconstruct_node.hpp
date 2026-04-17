@@ -1,3 +1,6 @@
+/// @file voxelpose_reconstruct_node.hpp
+/// @brief VoxelPose voxel-space 3D human pose reconstruction node.
+/// @ingroup reconstruction_nodes
 #pragma once
 
 #include <glm/glm.hpp>
@@ -18,6 +21,26 @@ namespace stargazer {
 
 using namespace coalsack;
 
+/// @brief Voxel-space 3D human pose reconstruction using the VoxelPose neural network model.
+/// @details Builds a 3D voxel feature volume from multi-view image frames and runs
+///          VoxelPose inference to locate 3D joint positions.  Camera calibration is
+///          kept current via @b "cameras", @b "axis", and @b "camera.*" inputs.  Each
+///          complete image batch produces one `reconstruction_result_message` on
+///          @b "default".
+///
+/// @par Inputs
+/// - @b "cameras"  — `object_message` — bulk camera parameter update
+/// - @b "axis"     — `object_message` — scene coordinate axis
+/// - @b "camera.*" — `object_message` — per-camera parameter update
+/// - @b "default" — `frame_message<object_message>` — named image frames per camera
+///
+/// @par Outputs
+/// - @b "default" — `reconstruction_result_message` — 3D joint positions
+///
+/// @par Properties
+/// (none)
+///
+/// @see mvpose_reconstruct_node, mvp_reconstruct_node, image_reconstruct_node
 class voxelpose_reconstruct_node : public image_reconstruct_node {
   mutable std::mutex cameras_mtx;
   std::map<std::string, camera_t> cameras;

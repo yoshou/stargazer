@@ -1,3 +1,6 @@
+/// @file keypoint_to_float2_map_node.hpp
+/// @brief Converts keypoint frame fields inside an object_message to float2_list_message fields.
+/// @ingroup core_nodes
 #pragma once
 
 #include <memory>
@@ -9,6 +12,22 @@
 
 namespace stargazer {
 
+/// @brief Converts `keypoint_frame_message` fields within an `object_message` to
+///        `float2_list_message` fields.
+/// @details Receives an `object_message` on @b "default", iterates over every field
+///          that is a `keypoint_frame_message`, converts the keypoint coordinates to
+///          `float2`, and emits a new `object_message` containing the converted fields.
+///
+/// @par Inputs
+/// - @b "default" — `object_message` — message with `keypoint_frame_message` fields
+///
+/// @par Outputs
+/// - @b "default" — `object_message` — same structure with `float2_list_message` fields
+///
+/// @par Properties
+/// (none)
+///
+/// @see object_map_node
 class keypoint_to_float2_map_node : public coalsack::graph_node {
  public:
   keypoint_to_float2_map_node() : graph_node() {

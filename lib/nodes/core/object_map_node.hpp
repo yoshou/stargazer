@@ -1,3 +1,6 @@
+/// @file object_map_node.hpp
+/// @brief Routes individual fields of an object_message to dedicated output ports.
+/// @ingroup core_nodes
 #pragma once
 
 #include <spdlog/spdlog.h>
@@ -12,6 +15,22 @@ namespace stargazer {
 
 using namespace coalsack;
 
+/// @brief Demultiplexes an `object_message` by routing each named field to a dedicated output port.
+/// @details Registers one output edge per expected field name via `add_output()`.  On
+///          receipt of an `object_message` on @b "default", each field is forwarded to
+///          the correspondingly named output port.  Useful for splitting a merged
+///          multi-camera object into individual per-camera streams.
+///
+/// @par Inputs
+/// - @b "default" — `object_message` — container with named sub-messages as fields
+///
+/// @par Outputs
+/// - (one output per registered field name) — `graph_message` — individual field message
+///
+/// @par Properties
+/// (none — output ports are registered programmatically via `add_output()`)
+///
+/// @see object_mux_node, keypoint_to_float2_map_node
 class object_map_node : public graph_node {
  public:
   object_map_node() : graph_node() {}

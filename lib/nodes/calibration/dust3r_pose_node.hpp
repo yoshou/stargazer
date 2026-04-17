@@ -1,3 +1,6 @@
+/// @file dust3r_pose_node.hpp
+/// @brief DUSt3R-based relative camera pose estimation node.
+/// @ingroup calibration_nodes
 #pragma once
 
 #include <spdlog/spdlog.h>
@@ -25,6 +28,24 @@ namespace stargazer {
 
 using namespace coalsack;
 
+/// @brief Camera pose estimation using the DUSt3R model with known intrinsics.
+/// @details Given per-camera intrinsic parameters via @b "camera.*" ports, this node
+///          estimates relative extrinsic poses (rotation and translation) across all
+///          connected cameras when an @b "estimate" signal is received.
+///          Processing runs in a background thread; the result is emitted on @b "default".
+///
+/// @par Inputs
+/// - @b "estimate" — control signal (`graph_message`) — triggers pose estimation
+/// - @b "camera.*" — `object_message` or `camera_message` — camera intrinsics with ID mapping
+/// - any other port — `object_message` — named image fields (one per camera)
+///
+/// @par Outputs
+/// - @b "default" — `object_message` — estimated `camera_t` poses for each camera
+///
+/// @par Properties
+/// - `model_path` (`std::string`, default `""`) — path to the DUSt3R ONNX model file
+///
+/// @see dust3r_calibration_node
 class dust3r_pose_node : public coalsack::graph_node {
   mutable std::mutex cameras_mtx_;
   std::unordered_map<std::string, camera_t> cameras_;

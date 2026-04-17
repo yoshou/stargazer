@@ -1,3 +1,6 @@
+/// @file image_property_node.hpp
+/// @brief Image caching and property exposure node.
+/// @ingroup core_nodes
 #pragma once
 
 #include <atomic>
@@ -8,6 +11,21 @@
 #include "coalsack/core/graph_proc_registry.h"
 #include "coalsack/image/frame_message.h"
 
+/// @brief Image passthrough node that caches the latest received image as a property.
+/// @details Forwards every `frame_message<image>` received on @b "default" unchanged.
+///          The latest frame is also stored internally and exposed as the `image`
+///          property (for UI display) and as a `received` counter property.
+///
+/// @par Inputs
+/// - @b "default" — `frame_message<image>` — image frame to cache and forward
+///
+/// @par Outputs
+/// - @b "default" — `frame_message<image>` — passthrough of the input frame
+///
+/// @par Properties
+/// (none)
+///
+/// @see marker_property_node
 class image_property_node : public coalsack::graph_node {
   coalsack::graph_edge_ptr output;
   mutable std::mutex image_mtx;

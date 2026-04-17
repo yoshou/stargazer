@@ -1,3 +1,6 @@
+/// @file load_marker_node.hpp
+/// @brief SQLite 3D marker data playback source node.
+/// @ingroup io_nodes
 #pragma once
 
 #include <spdlog/spdlog.h>
@@ -15,6 +18,23 @@
 namespace stargazer {
 using namespace coalsack;
 
+/// @brief Plays back 3D marker positions from a SQLite database.
+/// @details Autonomous source node that reads serialised `float3` rows from the
+///          database for the configured topic and emits them as `float3_list_message`
+///          on @b "default" at the configured frame rate.  Runs on a background
+///          thread started by `run()`.
+///
+/// @par Inputs
+/// (none — autonomous source node)
+///
+/// @par Outputs
+/// - @b "default" — `float3_list_message` — 3D marker positions
+///
+/// @par Properties
+/// - `db_path`    (`std::string`, default `""`) — path to the SQLite database file
+/// - `topic_name` (`std::string`, default `""`) — topic to replay from the database
+///
+/// @see load_blob_node, load_panoptic_node
 class load_marker_node : public graph_node {
   std::string db_path;
   std::string name;

@@ -1,3 +1,6 @@
+/// @file load_parameter_node.hpp
+/// @brief Camera/scene parameter resource reader node.
+/// @ingroup io_nodes
 #pragma once
 
 #include <atomic>
@@ -9,6 +12,22 @@
 
 namespace stargazer {
 
+/// @brief Reads the latest camera or scene parameters from a parameter resource.
+/// @details Monitors the parameter resource identified by `id` and emits an
+///          `object_message` containing the current `camera_t` or `scene_t` whenever
+///          the resource is updated.  Also emits on `run()` so downstream nodes
+///          receive an initial value.  Monitoring runs on a background thread.
+///
+/// @par Inputs
+/// (none — resource-driven source node)
+///
+/// @par Outputs
+/// - @b "default" — `object_message` — current parameters as `camera_t` or `scene_t`
+///
+/// @par Properties
+/// - `id` (`std::string`, default `""`) — identifier of the parameter resource to watch
+///
+/// @see store_parameter_node
 class load_parameter_node : public coalsack::graph_node {
   std::string id_;
   coalsack::graph_edge_ptr output_;

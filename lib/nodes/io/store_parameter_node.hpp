@@ -1,3 +1,6 @@
+/// @file store_parameter_node.hpp
+/// @brief Camera/scene parameter resource writer node.
+/// @ingroup io_nodes
 #pragma once
 
 #include "coalsack/core/graph_proc.h"
@@ -6,6 +9,21 @@
 
 namespace stargazer {
 
+/// @brief Writes received camera or scene parameters to a parameter resource.
+/// @details Receives an `object_message` containing `camera_t` or `scene_t` on
+///          @b "default" and persists it to the parameter resource referenced by
+///          the pipeline context.  Acts as a sink node with no pipeline output.
+///
+/// @par Inputs
+/// - @b "default" — `object_message` — parameters to persist (`camera_t` or `scene_t`)
+///
+/// @par Outputs
+/// (none — side-effect only)
+///
+/// @par Properties
+/// (none)
+///
+/// @see load_parameter_node
 class store_parameter_node : public coalsack::graph_node {
   std::shared_ptr<parameter_resource> param_res_;
 
