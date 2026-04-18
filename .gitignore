@@ -3,7 +3,10 @@ data/
 .vscode/
 .venv*/
 app/fonts/fontawesome/
-models/*.onnx.data
+models/**/*.onnx.data
+models/**/*.onnx
+models/**/*.trt
+models/**/*.so
 scripts/_grpc_stubs/
 **/__pycache__/
 app/fonts/mplus/

@@ -149,7 +149,7 @@
                         "camera.camera105": "load_camera105",
                         "estimate": "estimate_action"
                     },
-                    "model_path": "../models/dust3r_512x288.onnx"
+                    "model_path": "../models/dust3r/dust3r_512x288.onnx"
                 },
                 {
                     "name": "store_cameras",

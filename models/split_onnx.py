@@ -7,7 +7,7 @@ import sys
 import hashlib
 
 # Chunk size: 10MB (Git-friendly size)
-CHUNK_SIZE = 10 * 1024 * 1024
+CHUNK_SIZE = 50 * 1024 * 1024
 
 
 def calculate_md5(filepath):

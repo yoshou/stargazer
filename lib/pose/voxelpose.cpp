@@ -557,7 +557,7 @@ class trt_dnn_inference : public dnn_inference {
 
   trt_dnn_inference(const std::vector<uint8_t>& model_data, size_t max_num_people)
       : max_num_people(max_num_people) {
-    plugin_handler = dlopen("../data/mvpose/libmmdeploy_tensorrt_ops.so", RTLD_NOW);
+    plugin_handler = dlopen("../models/mvpose/libmmdeploy_tensorrt_ops.so", RTLD_NOW);
     if (!plugin_handler) {
       throw std::runtime_error(dlerror());
     }
@@ -711,7 +711,7 @@ class trt_dnn_inference_heatmap : public dnn_inference_heatmap {
 
  public:
   trt_dnn_inference_heatmap(const std::vector<uint8_t>& model_data, size_t max_views) {
-    plugin_handler = dlopen("../data/mvpose/libmmdeploy_tensorrt_ops.so", RTLD_NOW);
+    plugin_handler = dlopen("../models/mvpose/libmmdeploy_tensorrt_ops.so", RTLD_NOW);
     if (!plugin_handler) {
       throw std::runtime_error(dlerror());
     }
@@ -1509,7 +1509,7 @@ voxelpose::voxelpose()
 #elif defined(USE_TENSORRT)
   std::vector<uint8_t> backbone_model_data;
   {
-    const auto model_path = "../data/voxelpose/backbone-fp16.trt";
+    const auto model_path = "../models/voxelpose/backbone-fp16.trt";
     std::vector<uint8_t> data;
     load_model(model_path, data);
 
@@ -1520,7 +1520,7 @@ voxelpose::voxelpose()
 #elif defined(ENABLE_ONNXRUNTIME)
   std::vector<uint8_t> backbone_model_data;
   {
-    const auto model_path = "../data/voxelpose/backbone.onnx";
+    const auto model_path = "../models/voxelpose/backbone.onnx";
     std::vector<uint8_t> data;
     load_model(model_path, data);
 
@@ -1531,7 +1531,7 @@ voxelpose::voxelpose()
 #else
   std::vector<uint8_t> backbone_model_data;
   {
-    const auto model_path = "../data/voxelpose/backbone.onnx";
+    const auto model_path = "../models/voxelpose/backbone.onnx";
     std::vector<uint8_t> data;
     load_model(model_path, data);
 
@@ -1546,7 +1546,7 @@ voxelpose::voxelpose()
 #elif defined(USE_TENSORRT)
   std::vector<uint8_t> proposal_v2v_net_model_data;
   {
-    const auto model_path = "../data/voxelpose/proposal_v2v_net-fp16.trt";
+    const auto model_path = "../models/voxelpose/proposal_v2v_net-fp16.trt";
     std::vector<uint8_t> data;
     load_model(model_path, data);
 
@@ -1557,7 +1557,7 @@ voxelpose::voxelpose()
 #elif defined(ENABLE_ONNXRUNTIME)
   std::vector<uint8_t> proposal_v2v_net_model_data;
   {
-    const auto model_path = "../data/voxelpose/proposal_v2v_net.onnx";
+    const auto model_path = "../models/voxelpose/proposal_v2v_net.onnx";
     std::vector<uint8_t> data;
     load_model(model_path, data);
 
@@ -1568,7 +1568,7 @@ voxelpose::voxelpose()
 #else
   std::vector<uint8_t> proposal_v2v_net_model_data;
   {
-    const auto model_path = "../data/voxelpose/proposal_v2v_net.onnx";
+    const auto model_path = "../models/voxelpose/proposal_v2v_net.onnx";
     std::vector<uint8_t> data;
     load_model(model_path, data);
 
@@ -1583,7 +1583,7 @@ voxelpose::voxelpose()
 #elif defined(USE_TENSORRT)
   std::vector<uint8_t> pose_v2v_net_model_data;
   {
-    const auto model_path = "../data/voxelpose/pose_v2v_net-fp16.trt";
+    const auto model_path = "../models/voxelpose/pose_v2v_net-fp16.trt";
     std::vector<uint8_t> data;
     load_model(model_path, data);
 
@@ -1594,7 +1594,7 @@ voxelpose::voxelpose()
 #elif defined(ENABLE_ONNXRUNTIME)
   std::vector<uint8_t> pose_v2v_net_model_data;
   {
-    const auto model_path = "../data/voxelpose/pose_v2v_net.onnx";
+    const auto model_path = "../models/voxelpose/pose_v2v_net.onnx";
     std::vector<uint8_t> data;
     load_model(model_path, data);
 
@@ -1605,7 +1605,7 @@ voxelpose::voxelpose()
 #else
   std::vector<uint8_t> pose_v2v_net_model_data;
   {
-    const auto model_path = "../data/voxelpose/pose_v2v_net.onnx";
+    const auto model_path = "../models/voxelpose/pose_v2v_net.onnx";
     std::vector<uint8_t> data;
     load_model(model_path, data);
 
