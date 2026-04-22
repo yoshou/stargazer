@@ -729,6 +729,80 @@ static void create_framebuffers(graphics_context* ctx) {
   }
 }
 
+void graphics_context::recreate_swapchain() {
+  if (!device || !window) {
+    return;
+  }
+
+  // Do nothing while the window is minimized
+  int width = 0, height = 0;
+  glfwGetFramebufferSize((GLFWwindow*)window->get_handle(), &width, &height);
+  if (width == 0 || height == 0) {
+    return;
+  }
+
+  device->waitIdle();
+
+  // Release swapchain-dependent resources in reverse order
+  framebuffers.clear();
+  swapchain_image_views.clear();
+  depth_image_view.reset();
+  depth_image_memory.reset();
+  depth_image.reset();
+
+  // Recreate swapchain, passing old swapchain so the driver can reuse the window surface
+  {
+    SwapChainSupportDetails swap_chain_support =
+        query_swap_chain_support(physical_device, surface.get());
+    vk::SurfaceFormatKHR surface_format = choose_swap_surface_format(swap_chain_support.formats);
+    vk::PresentModeKHR present_mode = choose_swap_present_mode(swap_chain_support.present_modes);
+    vk::Extent2D extent =
+        choose_swap_extent(swap_chain_support.capabilities, (GLFWwindow*)window->get_handle());
+
+    uint32_t image_count = swap_chain_support.capabilities.minImageCount + 1;
+    if (swap_chain_support.capabilities.maxImageCount > 0 &&
+        image_count > swap_chain_support.capabilities.maxImageCount) {
+      image_count = swap_chain_support.capabilities.maxImageCount;
+    }
+
+    vk::SwapchainCreateInfoKHR create_info;
+    create_info.surface = surface.get();
+    create_info.minImageCount = image_count;
+    create_info.imageFormat = surface_format.format;
+    create_info.imageColorSpace = surface_format.colorSpace;
+    create_info.imageExtent = extent;
+    create_info.imageArrayLayers = 1;
+    create_info.imageUsage = vk::ImageUsageFlagBits::eColorAttachment;
+
+    QueueFamilyIndices indices = find_queue_families(physical_device, surface.get());
+    uint32_t queue_family_indices[] = {indices.graphics_family.value(),
+                                       indices.present_family.value()};
+    if (indices.graphics_family != indices.present_family) {
+      create_info.imageSharingMode = vk::SharingMode::eConcurrent;
+      create_info.queueFamilyIndexCount = 2;
+      create_info.pQueueFamilyIndices = queue_family_indices;
+    } else {
+      create_info.imageSharingMode = vk::SharingMode::eExclusive;
+    }
+
+    create_info.preTransform = swap_chain_support.capabilities.currentTransform;
+    create_info.compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque;
+    create_info.presentMode = present_mode;
+    create_info.clipped = VK_TRUE;
+    create_info.oldSwapchain = swapchain.get();  // pass old handle so window is not "in use"
+
+    auto new_swapchain = device->createSwapchainKHRUnique(create_info);
+    swapchain = std::move(new_swapchain);  // old swapchain destroyed here
+    swapchain_images = device->getSwapchainImagesKHR(swapchain.get());
+    swapchain_image_format = surface_format.format;
+    swapchain_extent = extent;
+  }
+
+  create_image_views(this);
+  create_depth_resources(this);
+  create_framebuffers(this);
+}
+
 void graphics_context::attach() {
   create_vulkan_instance(this);
   create_surface(this);
@@ -751,23 +825,43 @@ void graphics_context::detach() {
 }
 
 void graphics_context::begin_frame() {
+  frame_in_progress = false;
+
   if (!device || !swapchain) {
+    return;
+  }
+
+  // Proactively recreate swapchain if the window was resized since last frame
+  int fb_width = 0, fb_height = 0;
+  glfwGetFramebufferSize((GLFWwindow*)window->get_handle(), &fb_width, &fb_height);
+  if (fb_width > 0 && fb_height > 0 &&
+      (static_cast<uint32_t>(fb_width) != swapchain_extent.width ||
+       static_cast<uint32_t>(fb_height) != swapchain_extent.height)) {
+    recreate_swapchain();
     return;
   }
 
   device->waitForFences(1, &in_flight_fences[current_frame].get(), VK_TRUE, UINT64_MAX);
 
-  auto result = device->acquireNextImageKHR(swapchain.get(), UINT64_MAX,
-                                            image_available_semaphores[current_frame].get(),
-                                            nullptr, &current_image_index);
+  vk::Result result;
+  try {
+    result = device->acquireNextImageKHR(swapchain.get(), UINT64_MAX,
+                                         image_available_semaphores[current_frame].get(), nullptr,
+                                         &current_image_index);
+  } catch (const vk::OutOfDateKHRError&) {
+    recreate_swapchain();
+    return;
+  }
 
   if (result == vk::Result::eErrorOutOfDateKHR) {
+    recreate_swapchain();
     return;
   } else if (result != vk::Result::eSuccess && result != vk::Result::eSuboptimalKHR) {
     throw std::runtime_error("Failed to acquire swap chain image");
   }
 
   device->resetFences(1, &in_flight_fences[current_frame].get());
+  frame_in_progress = true;
 
   command_buffers[current_frame]->reset();
 
@@ -792,9 +886,10 @@ void graphics_context::begin_frame() {
 }
 
 void graphics_context::end_frame() {
-  if (!device || !swapchain) {
+  if (!device || !swapchain || !frame_in_progress) {
     return;
   }
+  frame_in_progress = false;
 
   // End render pass
   command_buffers[current_frame]->endRenderPass();
@@ -825,7 +920,14 @@ void graphics_context::end_frame() {
   present_info.pSwapchains = swapchains;
   present_info.pImageIndices = &current_image_index;
 
-  (void)present_queue.presentKHR(present_info);
+  try {
+    auto result = present_queue.presentKHR(present_info);
+    if (result == vk::Result::eSuboptimalKHR || result == vk::Result::eErrorOutOfDateKHR) {
+      recreate_swapchain();
+    }
+  } catch (const vk::OutOfDateKHRError&) {
+    recreate_swapchain();
+  }
 
   current_frame = (current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
 }

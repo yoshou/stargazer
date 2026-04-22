@@ -101,7 +101,7 @@ void imgui_context::cleanup() {
 void imgui_context::begin_frame() { ImGui_ImplVulkan_NewFrame(); }
 
 void imgui_context::end_frame() {
-  if (!graphics_ctx || !graphics_ctx->device) {
+  if (!graphics_ctx || !graphics_ctx->device || !graphics_ctx->frame_in_progress) {
     return;
   }
 

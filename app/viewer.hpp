@@ -51,12 +51,14 @@ struct graphics_context {
 
   size_t current_frame = 0;
   uint32_t current_image_index = 0;
+  bool frame_in_progress = false;
   static constexpr int MAX_FRAMES_IN_FLIGHT = 2;
 
   graphics_context(window_base* window) : window(window) {}
 
   virtual void attach();
   virtual void detach();
+  virtual void recreate_swapchain();
   virtual void begin_frame();
   virtual void end_frame();
   virtual ~graphics_context();
