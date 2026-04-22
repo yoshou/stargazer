@@ -383,8 +383,8 @@ void draw_detail_row(const stargazer::pipeline_item& item,
                      const std::optional<std::string>& value_override = std::nullopt) {
   const float panel_width = ImGui::GetContentRegionAvail().x;
   const float row_height = 24.0f;
-  const float value_width = std::min(125.0f, panel_width * 0.42f);
-  const float label_width = std::max(60.0f, panel_width - value_width - 24.0f);
+  const float label_width = std::min(180.0f, std::max(60.0f, panel_width * 0.45f));
+  const float value_width = panel_width - label_width - 36.0f;
   const auto start = ImGui::GetCursorScreenPos();
   auto* font = ImGui::GetFont();
   const auto font_size = ImGui::GetFontSize();
@@ -699,6 +699,7 @@ float pipeline_panel_view::draw_control_panel(view_context* context) {
 }
 
 void pipeline_panel_view::draw_controls(view_context* context, float panel_height) {
+  float node_panel_height = 0.0f;
   {
     const auto pos = ImGui::GetCursorPos();
     const float vertical_space_before_node_control = 10.0f;
@@ -706,12 +707,17 @@ void pipeline_panel_view::draw_controls(view_context* context, float panel_heigh
     auto node_panel_pos = ImVec2{pos.x + horizontal_space_before_node_control,
                                  pos.y + vertical_space_before_node_control};
     ImGui::SetCursorPos(node_panel_pos);
-    const float node_panel_height = draw_control_panel(context);
+    node_panel_height = draw_control_panel(context);
     ImGui::SetCursorPos({node_panel_pos.x, node_panel_pos.y + node_panel_height});
   }
 
   const float content_left_inset = 10.0f;
   ImGui::Separator();
+
+  // Scrollable child region for the tree
+  const float available_height = ImGui::GetContentRegionAvail().y;
+  ImGui::BeginChild("##tree_scroll", ImVec2(0, available_height), false,
+                    ImGuiWindowFlags_NoScrollbar);
   ImGui::Indent(content_left_inset - 2.0f);
   ImGui::PushFont(context->large_font);
   for (const auto& root : tree.roots) {
@@ -719,6 +725,7 @@ void pipeline_panel_view::draw_controls(view_context* context, float panel_heigh
   }
   ImGui::PopFont();
   ImGui::Unindent(content_left_inset - 2.0f);
+  ImGui::EndChild();
 }
 
 void pipeline_panel_view::render(view_context* context) {
@@ -726,20 +733,21 @@ void pipeline_panel_view::render(view_context* context) {
   const auto top_bar_height = 50;
 
   ImGui::SetNextWindowPos({0, top_bar_height});
-  ImGui::SetNextWindowSize({350, window_size.y - top_bar_height});
+  ImGui::SetNextWindowSize({context->panel_width, window_size.y - top_bar_height});
 
   auto flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse |
                ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings |
                ImGuiWindowFlags_NoBringToFrontOnFocus;
 
   ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+  ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
   ImGui::PushStyleColor(ImGuiCol_WindowBg, sensor_bg);
-  ImGui::Begin("Control Panel", nullptr, flags | ImGuiWindowFlags_AlwaysVerticalScrollbar);
+  ImGui::Begin("Control Panel", nullptr, flags);
 
   draw_controls(context, 50);
 
   ImGui::End();
-  ImGui::PopStyleVar();
+  ImGui::PopStyleVar(2);
   ImGui::PopStyleColor();
 }
 
@@ -774,7 +782,7 @@ void pose_view::render(view_context* context, vk::CommandBuffer cmd, vk::Extent2
   auto window_size = context->get_window_size();
 
   // Layout constants (same as OpenGL version)
-  constexpr float panel_width = 350.0f;
+  const float panel_width = context->panel_width;
   constexpr float top_bar_height = 50.0f;
   constexpr float output_height = 30.0f;
 
@@ -969,7 +977,7 @@ void image_tile_view::render(view_context* context) {
   const auto window_height = window_size.y;
 
   auto output_height = 30;
-  auto panel_width = 350;
+  const float panel_width = context->panel_width;
   const auto top_bar_height = 50;
 
   const float x = panel_width;
@@ -1005,4 +1013,48 @@ void image_tile_view::render(view_context* context) {
 
   ImGui::End();
   ImGui::PopStyleVar(2);
+}
+
+void draw_panel_splitter(view_context* context) {
+  constexpr float bar_width = 4.0f;
+  constexpr float hit_half_width = 4.0f;
+  constexpr float min_panel_width = 150.0f;
+  constexpr float max_panel_width = 700.0f;
+  constexpr float top_bar_height = 50.0f;
+
+  const ImGuiIO& io = ImGui::GetIO();
+  const float mouse_x = io.MousePos.x;
+  const float mouse_y = io.MousePos.y;
+  const ImVec2 window_size = context->get_window_size();
+
+  // Bar center X = panel_width (boundary between panel and right-side content)
+  const float bar_cx = context->panel_width;
+
+  const bool over_splitter = mouse_x >= bar_cx - hit_half_width &&
+                             mouse_x <= bar_cx + hit_half_width &&
+                             mouse_y >= top_bar_height && mouse_y <= window_size.y;
+
+  static bool dragging = false;
+
+  if (over_splitter && io.MouseClicked[0]) {
+    dragging = true;
+  }
+  if (!io.MouseDown[0]) {
+    dragging = false;
+  }
+
+  if (dragging) {
+    context->panel_width = std::clamp(mouse_x, min_panel_width, max_panel_width);
+  }
+
+  // Draw bar on the foreground draw list (rendered above all windows)
+  const ImU32 bar_color = over_splitter || dragging
+                              ? ImGui::ColorConvertFloat4ToU32(ImVec4(0.6f, 0.6f, 0.7f, 1.0f))
+                              : ImGui::ColorConvertFloat4ToU32(ImVec4(0.3f, 0.3f, 0.35f, 1.0f));
+
+  ImDrawList* draw_list = ImGui::GetForegroundDrawList();
+  draw_list->AddRectFilled(
+      ImVec2(bar_cx - bar_width * 0.5f, top_bar_height),
+      ImVec2(bar_cx + bar_width * 0.5f, window_size.y),
+      bar_color);
 }

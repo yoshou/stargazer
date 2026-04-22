@@ -154,9 +154,12 @@ struct view_context {
   ImFont* large_font;
   window_base* window;
   glm::mat4 view;
+  float panel_width = 350.0f;
 
   ImVec2 get_window_size() const;
 };
+
+void draw_panel_splitter(view_context* context);
 
 class top_bar_view {
  public:

@@ -712,6 +712,8 @@ class viewer_app : public window_base {
       }
     }
 
+    draw_panel_splitter(context.get());
+
     // Note: ImGui::Render() and ImGui_ImplVulkan_RenderDrawData() are called in
     // graphics_context::swap_buffer()
   }
