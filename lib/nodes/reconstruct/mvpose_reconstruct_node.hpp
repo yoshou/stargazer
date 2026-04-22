@@ -55,6 +55,37 @@ class mvpose_reconstruct_node : public image_reconstruct_node {
 
   virtual std::string get_proc_name() const override { return "mvpose_reconstruct"; }
 
+  virtual std::optional<coalsack::property_value> get_property(
+      const std::string& key) const override {
+    if (key == "axis") {
+      std::lock_guard lock(axis_mtx);
+      coalsack::mat4 result;
+      for (int i = 0; i < 16; ++i) result.data[i] = (&axis[0][0])[i];
+      return result;
+    }
+    static constexpr std::string_view camera_prefix = "camera.";
+    if (key.rfind(camera_prefix.data(), 0) == 0) {
+      const auto camera_name = key.substr(camera_prefix.size());
+      std::lock_guard lock(cameras_mtx);
+      auto it = cameras.find(camera_name);
+      if (it != cameras.end()) {
+        const auto& cam = it->second;
+        coalsack::camera_t result;
+        result.width = static_cast<int>(cam.width);
+        result.height = static_cast<int>(cam.height);
+        result.ppx = cam.intrin.cx;
+        result.ppy = cam.intrin.cy;
+        result.fx = cam.intrin.fx;
+        result.fy = cam.intrin.fy;
+        for (int i = 0; i < 5; ++i) result.coeffs[i] = cam.intrin.coeffs[i];
+        const glm::mat4 inv = glm::inverse(cam.extrin.transform_matrix());
+        for (int i = 0; i < 16; ++i) result.pose.data[i] = (&inv[0][0])[i];
+        return result;
+      }
+    }
+    return std::nullopt;
+  }
+
   void set_cameras(const std::map<std::string, camera_t>& new_cameras) override {
     std::lock_guard lock(cameras_mtx);
     cameras = new_cameras;

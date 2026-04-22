@@ -363,10 +363,24 @@
           "type": "frame_number_numbering"
         },
         {
+          "name": "object_to_frame",
+          "type": "object_to_frame",
+          "inputs": {
+            "default": "numbering"
+          }
+        },
+        {
+          "name": "unframe_image_fields",
+          "type": "unframe_image_fields",
+          "inputs": {
+            "default": "object_to_frame"
+          }
+        },
+        {
           "name": "queue",
           "type": "parallel_queue",
           "inputs": {
-            "default": "numbering"
+            "default": "unframe_image_fields"
           },
           "num_threads": 1
         },
@@ -393,11 +407,33 @@
           "topic_name": "mvpose_reconstruction"
         },
         {
-          "name": "marker_property",
-          "type": "marker_property",
+          "name": "markers",
+          "type": "reconstruction_result_markers",
           "inputs": {
             "default": "reconstruct"
           }
+        },
+        {
+          "name": "ordering",
+          "type": "frame_number_ordering",
+          "inputs": {
+            "default": "markers"
+          }
+        },
+        {
+          "name": "marker_property",
+          "type": "marker_property",
+          "inputs": {
+            "default": "ordering"
+          }
+        },
+        {
+          "name": "grpc_server",
+          "type": "grpc_server",
+          "inputs": {
+            "sphere": "ordering"
+          },
+          "address": "0.0.0.0:50052"
         },
         {
           "name": "feature_camera101",
@@ -528,136 +564,6 @@
           "camera_name": "camera105",
           "width": 960,
           "height": 540
-        },
-        {
-          "name": "feature_00_03",
-          "type": "feature_render",
-          "inputs": {
-            "default": "reconstruct"
-          },
-          "properties": [
-            {
-              "id": "received",
-              "label": "Received",
-              "source_key": "received",
-              "format": "integer",
-              "default_value": 0
-            },
-            {
-              "id": "image",
-              "label": "Feature",
-              "source_key": "image",
-              "target": "point",
-              "resource_kind": "feature"
-            }
-          ],
-          "camera_name": "00_03",
-          "width": 1920,
-          "height": 1080
-        },
-        {
-          "name": "feature_00_06",
-          "type": "feature_render",
-          "inputs": {
-            "default": "reconstruct"
-          },
-          "properties": [
-            {
-              "id": "received",
-              "label": "Received",
-              "source_key": "received",
-              "format": "integer",
-              "default_value": 0
-            },
-            {
-              "id": "image",
-              "label": "Feature",
-              "source_key": "image",
-              "target": "point",
-              "resource_kind": "feature"
-            }
-          ],
-          "camera_name": "00_06",
-          "width": 1920,
-          "height": 1080
-        },
-        {
-          "name": "feature_00_12",
-          "type": "feature_render",
-          "inputs": {
-            "default": "reconstruct"
-          },
-          "properties": [
-            {
-              "id": "received",
-              "label": "Received",
-              "source_key": "received",
-              "format": "integer",
-              "default_value": 0
-            },
-            {
-              "id": "image",
-              "label": "Feature",
-              "source_key": "image",
-              "target": "point",
-              "resource_kind": "feature"
-            }
-          ],
-          "camera_name": "00_12",
-          "width": 1920,
-          "height": 1080
-        },
-        {
-          "name": "feature_00_13",
-          "type": "feature_render",
-          "inputs": {
-            "default": "reconstruct"
-          },
-          "properties": [
-            {
-              "id": "received",
-              "label": "Received",
-              "source_key": "received",
-              "format": "integer",
-              "default_value": 0
-            },
-            {
-              "id": "image",
-              "label": "Feature",
-              "source_key": "image",
-              "target": "point",
-              "resource_kind": "feature"
-            }
-          ],
-          "camera_name": "00_13",
-          "width": 1920,
-          "height": 1080
-        },
-        {
-          "name": "feature_00_23",
-          "type": "feature_render",
-          "inputs": {
-            "default": "reconstruct"
-          },
-          "properties": [
-            {
-              "id": "received",
-              "label": "Received",
-              "source_key": "received",
-              "format": "integer",
-              "default_value": 0
-            },
-            {
-              "id": "image",
-              "label": "Feature",
-              "source_key": "image",
-              "target": "point",
-              "resource_kind": "feature"
-            }
-          ],
-          "camera_name": "00_23",
-          "width": 1920,
-          "height": 1080
         }
       ]
     },
@@ -1863,9 +1769,139 @@
     "mvpose_reconstruction": {
       "subgraphs": [
         {
+          "name": "camera101",
+          "extends": [
+            "playback_color_subgraph"
+          ],
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_101"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_101"
+            },
+            {
+              "name": "display_image",
+              "camera_name": "camera101"
+            }
+          ],
+          "id": "000000000026"
+        },
+        {
+          "name": "camera102",
+          "extends": [
+            "playback_color_subgraph"
+          ],
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_102"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_102"
+            },
+            {
+              "name": "display_image",
+              "camera_name": "camera102"
+            }
+          ],
+          "id": "000000000027"
+        },
+        {
+          "name": "camera103",
+          "extends": [
+            "playback_color_subgraph"
+          ],
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_103"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_103"
+            },
+            {
+              "name": "display_image",
+              "camera_name": "camera103"
+            }
+          ],
+          "id": "000000000028"
+        },
+        {
+          "name": "camera104",
+          "extends": [
+            "playback_color_subgraph"
+          ],
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_104"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_104"
+            },
+            {
+              "name": "display_image",
+              "camera_name": "camera104"
+            }
+          ],
+          "id": "000000000029"
+        },
+        {
+          "name": "camera105",
+          "extends": [
+            "playback_color_subgraph"
+          ],
+          "nodes": [
+            {
+              "name": "load_blob",
+              "topic_name": "image_105"
+            },
+            {
+              "name": "load_marker",
+              "topic_name": "marker_105"
+            },
+            {
+              "name": "display_image",
+              "camera_name": "camera105"
+            }
+          ],
+          "id": "000000000030"
+        },
+        {
+          "name": "sync",
+          "nodes": [
+            {
+              "name": "approximate_time_sync_images",
+              "type": "approximate_time_sync",
+              "inputs": {
+                "camera101": "camera101/decode_jpeg",
+                "camera102": "camera102/decode_jpeg",
+                "camera103": "camera103/decode_jpeg",
+                "camera104": "camera104/decode_jpeg",
+                "camera105": "camera105/decode_jpeg"
+              },
+              "interval": 33.833
+            }
+          ]
+        },
+        {
           "name": "mvpose_reconstruction",
           "extends": [
             "mvpose_reconstruction_subgraph"
+          ],
+          "nodes": [
+            {
+              "name": "numbering",
+              "inputs": {
+                "default": "approximate_time_sync_images"
+              }
+            }
           ]
         }
       ]

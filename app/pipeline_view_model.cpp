@@ -259,7 +259,8 @@ pose_source_model build_pose_source_model(const configuration& config) {
       }
     }
 
-    if (node.get_type() == node_type::voxelpose_reconstruction) {
+    if (node.get_type() == node_type::voxelpose_reconstruction ||
+        node.get_type() == node_type::mvpose_reconstruction) {
       const node_ref ref{node.name};
       model.axis_source = {ref, "axis"};
       for (const auto& camera_node : nodes) {
