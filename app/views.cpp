@@ -515,7 +515,7 @@ void top_bar_view::render(view_context* context) {
   ImGui::SetNextWindowSize({window_size.x, top_bar_height});
 
   ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-  ImGui::PushStyleColor(ImGuiCol_WindowBg, button_color);
+  ImGui::PushStyleColor(ImGuiCol_WindowBg, dark_window_background);
   ImGui::Begin("Toolbar Panel", nullptr, flags);
 
   ImGui::PushFont(context->large_font);
@@ -524,12 +524,15 @@ void top_bar_view::render(view_context* context) {
   {
     const auto draw_view_button = [&](float x, const char* label, ViewType type) {
       ImGui::SetCursorPos({x, 0.0f});
-      ImGui::PushStyleColor(ImGuiCol_Text, (view_type != type) ? light_grey : light_blue);
-      ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, (view_type != type) ? light_grey : light_blue);
+      const bool selected = (view_type == type);
+      ImGui::PushStyleColor(ImGuiCol_Text, selected ? light_blue : light_grey);
+      ImGui::PushStyleColor(ImGuiCol_Button, selected ? header_color : transparent);
+      ImGui::PushStyleColor(ImGuiCol_ButtonHovered, header_color);
+      ImGui::PushStyleColor(ImGuiCol_ButtonActive, header_color);
       if (ImGui::Button(label, {viewport_button_width, top_bar_height})) {
         view_type = type;
       }
-      ImGui::PopStyleColor(2);
+      ImGui::PopStyleColor(4);
     };
 
     draw_view_button(right_button_start_x, "Image", ViewType::Image);
@@ -567,9 +570,9 @@ float pipeline_panel_view::draw_control_panel(view_context* context) {
   }
 
   ImGui::PushFont(context->large_font);
-  ImGui::PushStyleColor(ImGuiCol_Button, sensor_bg);
-  ImGui::PushStyleColor(ImGuiCol_ButtonHovered, sensor_bg);
-  ImGui::PushStyleColor(ImGuiCol_ButtonActive, sensor_bg);
+  ImGui::PushStyleColor(ImGuiCol_Button, panel_bg);
+  ImGui::PushStyleColor(ImGuiCol_ButtonHovered, panel_bg);
+  ImGui::PushStyleColor(ImGuiCol_ButtonActive, panel_bg);
   ImGui::PushStyleColor(ImGuiCol_Text, light_grey);
   ImGui::PushStyleColor(ImGuiCol_PopupBg, almost_white_bg);
   ImGui::PushStyleColor(ImGuiCol_HeaderHovered, light_blue);
@@ -741,7 +744,7 @@ void pipeline_panel_view::render(view_context* context) {
 
   ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
   ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-  ImGui::PushStyleColor(ImGuiCol_WindowBg, sensor_bg);
+  ImGui::PushStyleColor(ImGuiCol_WindowBg, panel_bg);
   ImGui::Begin("Control Panel", nullptr, flags);
 
   draw_controls(context, 50);
@@ -946,7 +949,7 @@ void image_tile_view::draw_stream_header(view_context* context, const rect& stre
 
   ImGui::GetWindowDrawList()->AddRectFilled({stream_rect.x, stream_rect.y - top_bar_height},
                                             {stream_rect.x + stream_rect.w, stream_rect.y},
-                                            ImColor(sensor_bg));
+                                            ImColor(panel_bg));
 
   if (!stream.name.empty()) {
     const ImVec2 text_min{stream_rect.x + 10.0f, stream_rect.y - top_bar_height};
@@ -1031,8 +1034,8 @@ void draw_panel_splitter(view_context* context) {
   const float bar_cx = context->panel_width;
 
   const bool over_splitter = mouse_x >= bar_cx - hit_half_width &&
-                             mouse_x <= bar_cx + hit_half_width &&
-                             mouse_y >= top_bar_height && mouse_y <= window_size.y;
+                             mouse_x <= bar_cx + hit_half_width && mouse_y >= top_bar_height &&
+                             mouse_y <= window_size.y;
 
   static bool dragging = false;
 
@@ -1053,8 +1056,6 @@ void draw_panel_splitter(view_context* context) {
                               : ImGui::ColorConvertFloat4ToU32(ImVec4(0.3f, 0.3f, 0.35f, 1.0f));
 
   ImDrawList* draw_list = ImGui::GetForegroundDrawList();
-  draw_list->AddRectFilled(
-      ImVec2(bar_cx - bar_width * 0.5f, top_bar_height),
-      ImVec2(bar_cx + bar_width * 0.5f, window_size.y),
-      bar_color);
+  draw_list->AddRectFilled(ImVec2(bar_cx - bar_width * 0.5f, top_bar_height),
+                           ImVec2(bar_cx + bar_width * 0.5f, window_size.y), bar_color);
 }

@@ -876,8 +876,8 @@ void graphics_context::begin_frame() {
   render_pass_info.renderArea.extent = swapchain_extent;
 
   std::array<vk::ClearValue, 2> clear_values{};
-  clear_values[0].color = std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f};  // Black background
-  clear_values[1].depthStencil = vk::ClearDepthStencilValue{1.0f, 0};    // Clear depth to 1.0 (far)
+  clear_values[0].color = std::array<float, 4>{0.157f, 0.173f, 0.204f, 1.0f};  // One Dark #282C34
+  clear_values[1].depthStencil = vk::ClearDepthStencilValue{1.0f, 0};  // Clear depth to 1.0 (far)
 
   render_pass_info.clearValueCount = static_cast<uint32_t>(clear_values.size());
   render_pass_info.pClearValues = clear_values.data();
