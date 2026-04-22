@@ -13,6 +13,29 @@
                     "inputs": {
                         "default": "load_blob"
                     }
+                },
+                {
+                    "name": "display_image",
+                    "type": "image_property",
+                    "inputs": {
+                        "default": "decode_jpeg"
+                    },
+                    "properties": [
+                        {
+                            "id": "received",
+                            "label": "Received",
+                            "source_key": "received",
+                            "format": "integer",
+                            "default_value": 0
+                        },
+                        {
+                            "id": "image",
+                            "label": "Image",
+                            "source_key": "image",
+                            "target": "image",
+                            "resource_kind": "raw"
+                        }
+                    ]
                 }
             ],
             "outputs": [
@@ -35,6 +58,10 @@
                         {
                             "name": "load_blob",
                             "topic_name": "image_101"
+                        },
+                        {
+                            "name": "display_image",
+                            "camera_name": "camera101"
                         }
                     ],
                     "id": "000000000026"
@@ -48,6 +75,10 @@
                         {
                             "name": "load_blob",
                             "topic_name": "image_102"
+                        },
+                        {
+                            "name": "display_image",
+                            "camera_name": "camera102"
                         }
                     ],
                     "id": "000000000027"
@@ -61,6 +92,10 @@
                         {
                             "name": "load_blob",
                             "topic_name": "image_103"
+                        },
+                        {
+                            "name": "display_image",
+                            "camera_name": "camera103"
                         }
                     ],
                     "id": "000000000028"
@@ -74,6 +109,10 @@
                         {
                             "name": "load_blob",
                             "topic_name": "image_104"
+                        },
+                        {
+                            "name": "display_image",
+                            "camera_name": "camera104"
                         }
                     ],
                     "id": "000000000029"
@@ -87,6 +126,10 @@
                         {
                             "name": "load_blob",
                             "topic_name": "image_105"
+                        },
+                        {
+                            "name": "display_image",
+                            "camera_name": "camera105"
                         }
                     ],
                     "id": "000000000030"
