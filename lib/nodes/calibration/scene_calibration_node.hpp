@@ -6,6 +6,7 @@
 #include <glm/glm.hpp>
 #include <iostream>
 #include <map>
+#include <spdlog/spdlog.h>
 #include <mutex>
 #include <opencv2/aruco.hpp>
 #include <opencv2/core.hpp>
@@ -168,7 +169,7 @@ class scene_reconstruction {
 
     if (markers.size() == 3) {
       if (!compute_axis(markers[1], markers[0], markers[2], axis)) {
-        std::cout << "Failed to compute axis" << std::endl;
+        spdlog::warn("scene_calibration: Failed to compute axis");
         return;
       }
     }
@@ -323,8 +324,11 @@ class scene_calibration_node : public graph_node {
       reconstructor.set_camera(name, camera);
     }
 
+    const size_t num_frames = observed_frames.get_num_frames();
+    spdlog::info("scene_calibration: Starting calibration with {} frames", num_frames);
+
     {
-      for (size_t f = 0; f < observed_frames.get_num_frames(); f++) {
+      for (size_t f = 0; f < num_frames; f++) {
         std::map<std::string, std::vector<point_data>> frame;
         for (const auto& camera_name : camera_names) {
           std::vector<point_data> points_data;
@@ -337,6 +341,12 @@ class scene_calibration_node : public graph_node {
 
         reconstructor.push_frame(frame);
       }
+    }
+
+    const auto axis = reconstructor.get_axis();
+    spdlog::info("scene_calibration: Calibration complete. Axis:");
+    for (int col = 0; col < 4; col++) {
+      spdlog::info("  [{}, {}, {}, {}]", axis[col][0], axis[col][1], axis[col][2], axis[col][3]);
     }
   }
 

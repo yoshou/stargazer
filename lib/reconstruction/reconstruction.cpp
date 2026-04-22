@@ -43,10 +43,6 @@ std::vector<glm::vec3> reconstruct(const std::vector<stargazer::camera_t>& camer
     }
   }
 
-  if (!all_hard_correspondance) {
-    std::cout << "Can't find correspondance points on frame" << std::endl;
-  }
-
   std::vector<glm::vec3> markers;
   for (auto& g : connected_components) {
     if (g.size() < 2) {
