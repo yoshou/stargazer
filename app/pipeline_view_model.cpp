@@ -236,7 +236,6 @@ stream_source_model build_stream_source_model(const configuration& config) {
       src.property_node_name = node.name;
       src.property_key = property.source_key;
       src.property_resource_kind = property.resource_kind;
-      src.property_selector = property.selector;
       model.sources.push_back(std::move(src));
     }
   }

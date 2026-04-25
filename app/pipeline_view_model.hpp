@@ -78,7 +78,6 @@ struct stream_source {
   std::string property_node_name;
   std::string property_key;
   std::string property_resource_kind;
-  std::string property_selector;
 };
 
 struct stream_source_model {

@@ -305,9 +305,6 @@ static node_display_property json_to_display_property(const nlohmann::json& valu
   if (value.contains("resource_kind")) {
     property.resource_kind = value["resource_kind"].get<std::string>();
   }
-  if (value.contains("selector")) {
-    property.selector = value["selector"].get<std::string>();
-  }
   if (value.contains("format")) {
     property.format = value["format"].get<std::string>();
   }
@@ -341,9 +338,6 @@ static nlohmann::json display_property_to_json(const node_display_property& prop
   }
   if (!property.resource_kind.empty()) {
     j_property["resource_kind"] = property.resource_kind;
-  }
-  if (!property.selector.empty()) {
-    j_property["selector"] = property.selector;
   }
   if (!property.format.empty()) {
     j_property["format"] = property.format;

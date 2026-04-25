@@ -192,7 +192,6 @@ class Property:
     source_key: str | None = None
     target: str | None = None
     resource_kind: str | None = None
-    selector: str | None = None
     format: str | None = None
     order: int | None = None
     default_value: Any = None
@@ -205,7 +204,6 @@ class Property:
             source_key=data.get("source_key"),
             target=data.get("target"),
             resource_kind=data.get("resource_kind"),
-            selector=data.get("selector"),
             format=data.get("format"),
             order=data.get("order"),
             default_value=data.get("default_value"),
@@ -218,7 +216,6 @@ class Property:
             source_key=self.source_key,
             target=self.target,
             resource_kind=self.resource_kind,
-            selector=self.selector,
             format=self.format,
             order=self.order,
             default_value=self.default_value,
