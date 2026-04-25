@@ -252,7 +252,7 @@ pose_source_model build_pose_source_model(const configuration& config) {
       if (property.target == "pose_axis") {
         model.axis_source = {ref, property.source_key};
       } else if (property.target == "pose_camera") {
-        model.camera_sources.push_back({property.id, ref, property.source_key});
+        model.camera_sources.push_back({ref, property.source_key});
       } else if (property.target == "pose_markers") {
         model.point_sources.push_back({ref, property.source_key});
       }

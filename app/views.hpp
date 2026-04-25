@@ -235,7 +235,7 @@ class pose_view {
  public:
   using camera_t = coalsack::camera_t;
 
-  std::map<std::string, camera_t> cameras;
+  std::vector<camera_t> cameras;
   std::vector<glm::vec3> points;
   glm::mat4 axis;
 

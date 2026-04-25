@@ -825,7 +825,7 @@ void pose_view::render(view_context* context, vk::CommandBuffer cmd, vk::Extent2
                        glm::vec3(1.0f, 1.0f, 1.0f));  // White base color with 0.4/0.7 intensity
 
   // Draw camera frustums
-  for (const auto& [name, camera] : cameras) {
+  for (const auto& camera : cameras) {
     // Camera pose in world space (apply axis transformation and scale)
     glm::mat4 camera_pose = scaled_axis * stargazer::to_glm(camera.pose);
 

@@ -86,21 +86,15 @@ struct stream_source_model {
 
 stream_source_model build_stream_source_model(const configuration& config);
 
-struct pose_camera_source {
-  std::string camera_name;
-  node_ref ref;
-  std::string property_key;
-};
-
-struct pose_generic_source {
+struct pose_source {
   node_ref ref;
   std::string property_key;
 };
 
 struct pose_source_model {
-  std::vector<pose_camera_source> camera_sources;
-  pose_generic_source axis_source;
-  std::vector<pose_generic_source> point_sources;
+  std::vector<pose_source> camera_sources;
+  pose_source axis_source;
+  std::vector<pose_source> point_sources;
 };
 
 pose_source_model build_pose_source_model(const configuration& config);

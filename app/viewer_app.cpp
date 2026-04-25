@@ -140,7 +140,7 @@ class viewer_app : public window_base {
     for (const auto& cam_src : sources.camera_sources) {
       const auto value = query_runtime_node_property(cam_src.ref, cam_src.property_key);
       if (value && std::holds_alternative<coalsack::camera_t>(value.value())) {
-        pose_view_->cameras[cam_src.camera_name] = std::get<coalsack::camera_t>(value.value());
+        pose_view_->cameras.push_back(std::get<coalsack::camera_t>(value.value()));
       }
     }
 
@@ -414,8 +414,8 @@ class viewer_app : public window_base {
       config_words.OversampleV = OVERSAMPLE;
       config_words.OversampleH = OVERSAMPLE;
       default_font =
-          io.Fonts->AddFontFromFileTTF("../app/fonts/mplus/fonts/MPLUS2/ttf/MPLUS2-Regular.ttf", 16.0f,
-                                       &config_words, io.Fonts->GetGlyphRangesJapanese());
+          io.Fonts->AddFontFromFileTTF("../app/fonts/mplus/fonts/MPLUS2/ttf/MPLUS2-Regular.ttf",
+                                       16.0f, &config_words, io.Fonts->GetGlyphRangesJapanese());
 
       ImFontConfig config_glyphs;
       config_glyphs.MergeMode = true;
@@ -434,16 +434,16 @@ class viewer_app : public window_base {
       config_words.OversampleV = OVERSAMPLE;
       config_words.OversampleH = OVERSAMPLE;
       large_font =
-          io.Fonts->AddFontFromFileTTF("../app/fonts/mplus/fonts/MPLUS2/ttf/MPLUS2-Regular.ttf", 20.0f,
-                                       &config_words, io.Fonts->GetGlyphRangesJapanese());
+          io.Fonts->AddFontFromFileTTF("../app/fonts/mplus/fonts/MPLUS2/ttf/MPLUS2-Regular.ttf",
+                                       20.0f, &config_words, io.Fonts->GetGlyphRangesJapanese());
 
       ImFontConfig config_glyphs;
       config_glyphs.MergeMode = true;
       config_glyphs.OversampleV = OVERSAMPLE;
       config_glyphs.OversampleH = OVERSAMPLE;
       config_glyphs.FontDataOwnedByAtlas = false;
-      large_font = io.Fonts->AddFontFromMemoryTTF(
-          (void*)font_awesome_data, font_awesome_data_size, 20.f, &config_glyphs, icons_ranges);
+      large_font = io.Fonts->AddFontFromMemoryTTF((void*)font_awesome_data, font_awesome_data_size,
+                                                  20.f, &config_glyphs, icons_ranges);
     }
     IM_ASSERT(large_font != NULL);
 
