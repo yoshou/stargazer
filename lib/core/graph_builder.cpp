@@ -599,6 +599,13 @@ void build_graph_from_json(const std::vector<node_def>& nodes,
       }
       case node_type::voxelpose_reconstruction: {
         auto n = std::make_shared<voxelpose_reconstruct_node>();
+        {
+          std::array<float, 3> gc = {0.0f, 0.0f, 0.0f};
+          if (node.contains_param("grid_center_x")) gc[0] = node.get_param<float>("grid_center_x");
+          if (node.contains_param("grid_center_y")) gc[1] = node.get_param<float>("grid_center_y");
+          if (node.contains_param("grid_center_z")) gc[2] = node.get_param<float>("grid_center_z");
+          n->set_grid_center(gc);
+        }
         graph_node = n;
         break;
       }

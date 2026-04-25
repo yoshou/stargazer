@@ -15,8 +15,6 @@
 #include "parameters.hpp"
 #include "voxelpose.hpp"
 
-#define PANOPTIC
-
 namespace stargazer {
 
 using namespace coalsack;
@@ -54,13 +52,21 @@ class voxelpose_reconstruct_node : public image_reconstruct_node {
 
   stargazer::voxelpose::voxelpose pose_estimator;
 
+  std::array<float, 3> grid_center;
+
  public:
   voxelpose_reconstruct_node()
-      : image_reconstruct_node(), cameras(), axis(), output(std::make_shared<graph_edge>(this)) {
+      : image_reconstruct_node(),
+        cameras(),
+        axis(),
+        output(std::make_shared<graph_edge>(this)),
+        grid_center({0.0f, 0.0f, 0.0f}) {
     set_output(output);
   }
 
   virtual std::string get_proc_name() const override { return "voxelpose_reconstruct"; }
+
+  void set_grid_center(const std::array<float, 3>& value) { grid_center = value; }
 
   void set_cameras(const std::map<std::string, camera_t>& new_cameras) override {
     std::lock_guard lock(cameras_mtx);
@@ -74,7 +80,7 @@ class voxelpose_reconstruct_node : public image_reconstruct_node {
 
   template <typename Archive>
   void serialize(Archive& archive) {
-    archive(cameras, axis);
+    archive(cameras, axis, grid_center);
   }
 
   virtual std::optional<coalsack::property_value> get_property(
@@ -152,7 +158,7 @@ class voxelpose_reconstruct_node : public image_reconstruct_node {
       m[2] = glm::vec4(0.f, -1.f, 0.f, 0.f);
 
       const auto camera_pose =
-          axis * glm::inverse(src_camera.extrin.transform_matrix() * gl_to_cv * m);
+          glm::inverse(src_camera.extrin.transform_matrix() * glm::inverse(axis) * gl_to_cv * m);
 
       for (size_t i = 0; i < 3; i++) {
         for (size_t j = 0; j < 3; j++) {
@@ -164,12 +170,6 @@ class voxelpose_reconstruct_node : public image_reconstruct_node {
       cameras_list.push_back(camera);
       images_list.push_back(frame.at(name));
     }
-
-#ifdef PANOPTIC
-    std::array<float, 3> grid_center = {0.0f, -500.0f, 800.0f};
-#else
-    std::array<float, 3> grid_center = {0.0f, 0.0f, 0.0f};
-#endif
 
     pose_estimator.set_grid_center(grid_center);
 

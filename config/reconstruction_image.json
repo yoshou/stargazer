@@ -1006,6 +1006,9 @@
         {
           "name": "reconstruct",
           "type": "voxelpose_reconstruction",
+          "grid_center_x": 0.0,
+          "grid_center_y": -500.0,
+          "grid_center_z": 800.0,
           "inputs": {
             "default": "queue",
             "camera.00_03": "load_camera_00_03",
@@ -2311,5 +2314,5 @@
       ]
     }
   },
-  "pipeline": "panoptic_voxelpose_reconstruction"
+  "pipeline": "voxelpose_reconstruction"
 }
