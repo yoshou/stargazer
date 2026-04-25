@@ -162,7 +162,15 @@
             "camera.camera104": "load_camera104",
             "camera.camera105": "load_camera105",
             "axis": "load_axis"
-          }
+          },
+          "properties": [
+            { "id": "axis", "source_key": "axis", "target": "pose_axis" },
+            { "id": "camera101", "source_key": "camera.camera101", "target": "pose_camera" },
+            { "id": "camera102", "source_key": "camera.camera102", "target": "pose_camera" },
+            { "id": "camera103", "source_key": "camera.camera103", "target": "pose_camera" },
+            { "id": "camera104", "source_key": "camera.camera104", "target": "pose_camera" },
+            { "id": "camera105", "source_key": "camera.camera105", "target": "pose_camera" }
+          ]
         },
         {
           "name": "feature_camera101",
@@ -313,7 +321,10 @@
           "type": "marker_property",
           "inputs": {
             "default": "ordering"
-          }
+          },
+          "properties": [
+            { "id": "markers", "source_key": "markers", "target": "pose_markers" }
+          ]
         },
         {
           "name": "grpc_server",
@@ -395,7 +406,15 @@
             "camera.camera104": "load_camera104",
             "camera.camera105": "load_camera105",
             "axis": "load_axis"
-          }
+          },
+          "properties": [
+            { "id": "axis", "source_key": "axis", "target": "pose_axis" },
+            { "id": "camera101", "source_key": "camera.camera101", "target": "pose_camera" },
+            { "id": "camera102", "source_key": "camera.camera102", "target": "pose_camera" },
+            { "id": "camera103", "source_key": "camera.camera103", "target": "pose_camera" },
+            { "id": "camera104", "source_key": "camera.camera104", "target": "pose_camera" },
+            { "id": "camera105", "source_key": "camera.camera105", "target": "pose_camera" }
+          ]
         },
         {
           "name": "dump_reconstruction",
@@ -425,7 +444,10 @@
           "type": "marker_property",
           "inputs": {
             "default": "ordering"
-          }
+          },
+          "properties": [
+            { "id": "markers", "source_key": "markers", "target": "pose_markers" }
+          ]
         },
         {
           "name": "grpc_server",
@@ -630,7 +652,10 @@
           "type": "marker_property",
           "inputs": {
             "default": "reconstruct"
-          }
+          },
+          "properties": [
+            { "id": "markers", "source_key": "markers", "target": "pose_markers" }
+          ]
         }
       ]
     },

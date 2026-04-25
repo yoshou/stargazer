@@ -982,7 +982,27 @@
               "source_key": "collected.camera20",
               "format": "integer",
               "default_value": 0
-            }
+            },
+            { "id": "camera1", "source_key": "calibrated.camera1", "target": "pose_camera" },
+            { "id": "camera2", "source_key": "calibrated.camera2", "target": "pose_camera" },
+            { "id": "camera3", "source_key": "calibrated.camera3", "target": "pose_camera" },
+            { "id": "camera4", "source_key": "calibrated.camera4", "target": "pose_camera" },
+            { "id": "camera5", "source_key": "calibrated.camera5", "target": "pose_camera" },
+            { "id": "camera6", "source_key": "calibrated.camera6", "target": "pose_camera" },
+            { "id": "camera7", "source_key": "calibrated.camera7", "target": "pose_camera" },
+            { "id": "camera8", "source_key": "calibrated.camera8", "target": "pose_camera" },
+            { "id": "camera9", "source_key": "calibrated.camera9", "target": "pose_camera" },
+            { "id": "camera10", "source_key": "calibrated.camera10", "target": "pose_camera" },
+            { "id": "camera11", "source_key": "calibrated.camera11", "target": "pose_camera" },
+            { "id": "camera12", "source_key": "calibrated.camera12", "target": "pose_camera" },
+            { "id": "camera13", "source_key": "calibrated.camera13", "target": "pose_camera" },
+            { "id": "camera14", "source_key": "calibrated.camera14", "target": "pose_camera" },
+            { "id": "camera15", "source_key": "calibrated.camera15", "target": "pose_camera" },
+            { "id": "camera16", "source_key": "calibrated.camera16", "target": "pose_camera" },
+            { "id": "camera17", "source_key": "calibrated.camera17", "target": "pose_camera" },
+            { "id": "camera18", "source_key": "calibrated.camera18", "target": "pose_camera" },
+            { "id": "camera19", "source_key": "calibrated.camera19", "target": "pose_camera" },
+            { "id": "camera20", "source_key": "calibrated.camera20", "target": "pose_camera" }
           ],
           "only_extrinsic": false,
           "robust": true
@@ -1985,7 +2005,31 @@
               "source_key": "collected.camera24",
               "format": "integer",
               "default_value": 0
-            }
+            },
+            { "id": "camera1", "source_key": "calibrated.camera1", "target": "pose_camera" },
+            { "id": "camera2", "source_key": "calibrated.camera2", "target": "pose_camera" },
+            { "id": "camera3", "source_key": "calibrated.camera3", "target": "pose_camera" },
+            { "id": "camera4", "source_key": "calibrated.camera4", "target": "pose_camera" },
+            { "id": "camera5", "source_key": "calibrated.camera5", "target": "pose_camera" },
+            { "id": "camera6", "source_key": "calibrated.camera6", "target": "pose_camera" },
+            { "id": "camera7", "source_key": "calibrated.camera7", "target": "pose_camera" },
+            { "id": "camera8", "source_key": "calibrated.camera8", "target": "pose_camera" },
+            { "id": "camera9", "source_key": "calibrated.camera9", "target": "pose_camera" },
+            { "id": "camera10", "source_key": "calibrated.camera10", "target": "pose_camera" },
+            { "id": "camera11", "source_key": "calibrated.camera11", "target": "pose_camera" },
+            { "id": "camera12", "source_key": "calibrated.camera12", "target": "pose_camera" },
+            { "id": "camera13", "source_key": "calibrated.camera13", "target": "pose_camera" },
+            { "id": "camera14", "source_key": "calibrated.camera14", "target": "pose_camera" },
+            { "id": "camera15", "source_key": "calibrated.camera15", "target": "pose_camera" },
+            { "id": "camera16", "source_key": "calibrated.camera16", "target": "pose_camera" },
+            { "id": "camera17", "source_key": "calibrated.camera17", "target": "pose_camera" },
+            { "id": "camera18", "source_key": "calibrated.camera18", "target": "pose_camera" },
+            { "id": "camera19", "source_key": "calibrated.camera19", "target": "pose_camera" },
+            { "id": "camera20", "source_key": "calibrated.camera20", "target": "pose_camera" },
+            { "id": "camera21", "source_key": "calibrated.camera21", "target": "pose_camera" },
+            { "id": "camera22", "source_key": "calibrated.camera22", "target": "pose_camera" },
+            { "id": "camera23", "source_key": "calibrated.camera23", "target": "pose_camera" },
+            { "id": "camera24", "source_key": "calibrated.camera24", "target": "pose_camera" }
           ],
           "only_extrinsic": false,
           "robust": true
@@ -2140,7 +2184,12 @@
               "source_key": "collected.camera105",
               "format": "integer",
               "default_value": 0
-            }
+            },
+            { "id": "camera101", "source_key": "calibrated.camera101", "target": "pose_camera" },
+            { "id": "camera102", "source_key": "calibrated.camera102", "target": "pose_camera" },
+            { "id": "camera103", "source_key": "calibrated.camera103", "target": "pose_camera" },
+            { "id": "camera104", "source_key": "calibrated.camera104", "target": "pose_camera" },
+            { "id": "camera105", "source_key": "calibrated.camera105", "target": "pose_camera" }
           ],
           "only_extrinsic": true,
           "robust": false

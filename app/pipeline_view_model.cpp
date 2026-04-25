@@ -247,46 +247,16 @@ pose_source_model build_pose_source_model(const configuration& config) {
   pose_source_model model;
   const auto nodes = config.get_nodes();
   for (const auto& node : nodes) {
-    if (node.get_type() == node_type::epipolar_reconstruction) {
-      const node_ref ref{node.name};
-      model.axis_source = {ref, "axis"};
-      for (const auto& camera_node : nodes) {
-        const auto camera_name = try_get_node_camera_name(camera_node);
-        if (!camera_name.has_value()) {
-          continue;
-        }
-        model.camera_sources.push_back({*camera_name, ref, "camera." + *camera_name});
-      }
-    }
+    const node_ref ref{node.name};
 
-    if (node.get_type() == node_type::voxelpose_reconstruction ||
-        node.get_type() == node_type::mvpose_reconstruction) {
-      const node_ref ref{node.name};
-      model.axis_source = {ref, "axis"};
-      for (const auto& camera_node : nodes) {
-        const auto camera_name = try_get_node_camera_name(camera_node);
-        if (!camera_name.has_value()) {
-          continue;
-        }
-        model.camera_sources.push_back({*camera_name, ref, "camera." + *camera_name});
+    for (const auto& property : node.properties) {
+      if (property.target == "pose_axis") {
+        model.axis_source = {ref, property.source_key};
+      } else if (property.target == "pose_camera") {
+        model.camera_sources.push_back({property.id, ref, property.source_key});
+      } else if (property.target == "pose_markers") {
+        model.point_sources.push_back({ref, property.source_key});
       }
-    }
-
-    if (node.get_type() == node_type::extrinsic_calibration) {
-      const node_ref ref{node.name};
-      for (const auto& [input_name, _input] : node.inputs) {
-        const std::string prefix{"camera."};
-        if (input_name.rfind(prefix, 0) != 0) {
-          continue;
-        }
-        const auto camera_name = input_name.substr(prefix.size());
-        model.camera_sources.push_back({camera_name, ref, "calibrated." + camera_name});
-      }
-    }
-
-    if (node.get_type() == node_type::marker_property) {
-      const node_ref ref{node.name};
-      model.point_sources.push_back({ref, "markers"});
     }
   }
   return model;

@@ -208,7 +208,30 @@
             "camera.camera19": "load_camera19",
             "camera.camera20": "load_camera20",
             "axis": "load_axis"
-          }
+          },
+          "properties": [
+            { "id": "axis", "source_key": "axis", "target": "pose_axis" },
+            { "id": "camera1", "source_key": "camera.camera1", "target": "pose_camera" },
+            { "id": "camera2", "source_key": "camera.camera2", "target": "pose_camera" },
+            { "id": "camera3", "source_key": "camera.camera3", "target": "pose_camera" },
+            { "id": "camera4", "source_key": "camera.camera4", "target": "pose_camera" },
+            { "id": "camera5", "source_key": "camera.camera5", "target": "pose_camera" },
+            { "id": "camera6", "source_key": "camera.camera6", "target": "pose_camera" },
+            { "id": "camera7", "source_key": "camera.camera7", "target": "pose_camera" },
+            { "id": "camera8", "source_key": "camera.camera8", "target": "pose_camera" },
+            { "id": "camera9", "source_key": "camera.camera9", "target": "pose_camera" },
+            { "id": "camera10", "source_key": "camera.camera10", "target": "pose_camera" },
+            { "id": "camera11", "source_key": "camera.camera11", "target": "pose_camera" },
+            { "id": "camera12", "source_key": "camera.camera12", "target": "pose_camera" },
+            { "id": "camera13", "source_key": "camera.camera13", "target": "pose_camera" },
+            { "id": "camera14", "source_key": "camera.camera14", "target": "pose_camera" },
+            { "id": "camera15", "source_key": "camera.camera15", "target": "pose_camera" },
+            { "id": "camera16", "source_key": "camera.camera16", "target": "pose_camera" },
+            { "id": "camera17", "source_key": "camera.camera17", "target": "pose_camera" },
+            { "id": "camera18", "source_key": "camera.camera18", "target": "pose_camera" },
+            { "id": "camera19", "source_key": "camera.camera19", "target": "pose_camera" },
+            { "id": "camera20", "source_key": "camera.camera20", "target": "pose_camera" }
+          ]
         },
         {
           "name": "frame_number_ordering",
@@ -222,7 +245,10 @@
           "type": "marker_property",
           "inputs": {
             "default": "frame_number_ordering"
-          }
+          },
+          "properties": [
+            { "id": "markers", "source_key": "markers", "target": "pose_markers" }
+          ]
         },
         {
           "name": "grpc_server",
