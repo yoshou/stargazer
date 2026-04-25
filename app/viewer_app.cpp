@@ -107,6 +107,7 @@ class viewer_app : public window_base {
 
   std::shared_ptr<parameters_t> parameters;
   std::string config_path_;
+  std::string parameters_path_;
   std::unique_ptr<stargazer::pipeline> pipeline_;
   std::unique_ptr<configuration> config_;
   bool pipeline_running_ = false;
@@ -483,10 +484,12 @@ class viewer_app : public window_base {
   }
 
  public:
-  explicit viewer_app(std::string config_path, std::string grpc_address)
+  explicit viewer_app(std::string config_path, std::string parameters_path,
+                      std::string grpc_address)
       : window_base("Stargazer", SCREEN_WIDTH, SCREEN_HEIGHT),
         gfx_ctx(nullptr),
         config_path_(std::move(config_path)),
+        parameters_path_(std::move(parameters_path)),
         grpc_address_(std::move(grpc_address)) {}
 
   void set_graphics_context(graphics_context* ctx) {
@@ -513,7 +516,7 @@ class viewer_app : public window_base {
   virtual void initialize() override {
     config_ = std::make_unique<configuration>(config_path_);
 
-    parameters = std::make_shared<parameters_t>("../config/parameters.json");
+    parameters = std::make_shared<parameters_t>(parameters_path_);
     parameters->load();
 
     init_gui();
@@ -727,32 +730,39 @@ int main(int argc, char** argv) {
   signal(SIGINT, sigint_handler);
 
   std::string config_path;
+  std::string parameters_path;
   std::string grpc_address = "0.0.0.0:50052";
 
   for (int i = 1; i < argc; ++i) {
     const std::string arg = argv[i];
     if ((arg == "-g" || arg == "--grpc-address") && i + 1 < argc) {
       grpc_address = argv[++i];
+    } else if ((arg == "-p" || arg == "--parameters") && i + 1 < argc) {
+      parameters_path = argv[++i];
     } else if (arg == "--no-grpc") {
       grpc_address.clear();
     } else if (config_path.empty()) {
       config_path = arg;
     } else {
       std::cerr << "Unknown argument: " << arg << std::endl;
-      std::cerr << "Usage: stargazer_viewer <config.json> [-g address] [--no-grpc]" << std::endl;
+      std::cerr
+          << "Usage: stargazer_viewer <config.json> -p <parameters.json> [-g address] [--no-grpc]"
+          << std::endl;
       return 1;
     }
   }
 
-  if (config_path.empty()) {
-    std::cerr << "Usage: stargazer_viewer <config.json> [-g address] [--no-grpc]" << std::endl;
+  if (config_path.empty() || parameters_path.empty()) {
+    std::cerr
+        << "Usage: stargazer_viewer <config.json> -p <parameters.json> [-g address] [--no-grpc]"
+        << std::endl;
     return 1;
   }
 
   const auto win_mgr = window_manager::get_instance();
   win_mgr->initialize();
 
-  auto window = std::make_shared<viewer_app>(config_path, grpc_address);
+  auto window = std::make_shared<viewer_app>(config_path, parameters_path, grpc_address);
 
   window->create();
   auto graphics_ctx = window->create_graphics_context();
