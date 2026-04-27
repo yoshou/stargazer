@@ -21,6 +21,7 @@
 #include "nodes/calibration/dust3r_pose_node.hpp"
 #include "nodes/calibration/extrinsic_calibration_node.hpp"
 #include "nodes/calibration/intrinsic_calibration_node.hpp"
+#include "nodes/calibration/mast3r_calibration_node.hpp"
 #include "nodes/calibration/pattern_board_calibration_target_detector_node.hpp"
 #include "nodes/calibration/scene_calibration_node.hpp"
 #include "nodes/calibration/three_point_bar_calibration_target_detector_node.hpp"
@@ -689,6 +690,14 @@ void build_graph_from_json(const std::vector<node_def>& nodes,
       }
       case node_type::dust3r_calibration: {
         auto n = std::make_shared<stargazer::dust3r_calibration_node>();
+        if (node.contains_param("model_path")) {
+          n->set_model_path(node.get_param<std::string>("model_path"));
+        }
+        graph_node = n;
+        break;
+      }
+      case node_type::mast3r_calibration: {
+        auto n = std::make_shared<stargazer::mast3r_calibration_node>();
         if (node.contains_param("model_path")) {
           n->set_model_path(node.get_param<std::string>("model_path"));
         }

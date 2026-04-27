@@ -71,6 +71,7 @@ enum class node_type {
   unframe_image_fields,
   dust3r_pose_estimation,
   dust3r_calibration,
+  mast3r_calibration,
 };
 
 using node_param_t = std::variant<std::string, std::int64_t, double, float, bool>;

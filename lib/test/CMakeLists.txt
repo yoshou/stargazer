@@ -106,3 +106,31 @@ target_link_libraries(test_dust3r_calibration PRIVATE
 target_compile_features(test_dust3r_calibration PRIVATE cxx_std_20)
 set_target_properties(test_dust3r_calibration PROPERTIES CXX_STANDARD 20)
 add_test(NAME test_dust3r_calibration COMMAND test_dust3r_calibration)
+
+# ---------------------------------------------------------------------------
+# test_mast3r_inference: MASt3R preprocessing and ONNX output adapter checks
+# ---------------------------------------------------------------------------
+add_executable(test_mast3r_inference
+    ${CMAKE_CURRENT_LIST_DIR}/test_mast3r_inference.cpp
+)
+
+target_include_directories(test_mast3r_inference PRIVATE
+    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/lib
+    ${CMAKE_SOURCE_DIR}/lib/core
+    ${CMAKE_SOURCE_DIR}/lib/mast3r
+    ${CMAKE_SOURCE_DIR}/lib/dust3r
+)
+
+target_link_libraries(test_mast3r_inference PRIVATE
+    GTest::gtest
+    GTest::gtest_main
+    stargazer_mast3r
+    stargazer_dust3r
+    opencv_imgproc
+    pthread
+)
+
+target_compile_features(test_mast3r_inference PRIVATE cxx_std_20)
+set_target_properties(test_mast3r_inference PROPERTIES CXX_STANDARD 20)
+add_test(NAME test_mast3r_inference COMMAND test_mast3r_inference)

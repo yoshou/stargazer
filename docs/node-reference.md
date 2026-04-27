@@ -29,6 +29,15 @@ See [`dust3r_pose_node`](../lib/nodes/calibration/dust3r_pose_node.hpp).
 |-----------|------|---------|-------------|
 | `model_path` | string | `""` | Path to the DUSt3R ONNX model file |
 
+### `mast3r_calibration`
+
+Jointly estimates camera intrinsics and extrinsics using the MASt3R model.
+See [`mast3r_calibration_node`](../lib/nodes/calibration/mast3r_calibration_node.hpp).
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `model_path` | string | `""` | Path to the MASt3R ONNX model file |
+
 ### `extrinsic_calibration`
 
 Bundle-adjustment extrinsic (and optionally intrinsic) calibration from 2D observations.

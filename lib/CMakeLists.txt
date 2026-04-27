@@ -271,6 +271,34 @@ endif()
 set_target_properties(stargazer_dust3r PROPERTIES
     CXX_STANDARD 20)
 
+add_library(stargazer_mast3r
+    ${CMAKE_CURRENT_LIST_DIR}/mast3r/mast3r.cpp
+)
+
+target_include_directories(stargazer_mast3r
+    PRIVATE
+    ${CMAKE_CURRENT_LIST_DIR}/mast3r
+    ${CMAKE_CURRENT_LIST_DIR}/dust3r
+    ${CMAKE_CURRENT_LIST_DIR}/core
+    $<$<BOOL:${ENABLE_ONNXRUNTIME_EXT}>:${ONNXRUNTIME_INCLUDE_DIRS}>
+)
+
+target_compile_definitions(stargazer_mast3r
+    PUBLIC
+    $<$<BOOL:${ENABLE_CUDA}>:USE_CUDA>
+)
+
+target_link_libraries(stargazer_mast3r
+    glm::glm
+    opencv_imgproc
+    stargazer_dust3r
+    $<$<BOOL:${ENABLE_ONNXRUNTIME_EXT}>:${ONNXRUNTIME_LIBS}>
+    spdlog::spdlog_header_only
+)
+
+set_target_properties(stargazer_mast3r PROPERTIES
+    CXX_STANDARD 20)
+
 add_library(stargazer
     ${CMAKE_CURRENT_LIST_DIR}/core/parameters.cpp
     ${CMAKE_CURRENT_LIST_DIR}/core/config.cpp
@@ -296,6 +324,7 @@ target_include_directories(stargazer
     ${CMAKE_CURRENT_LIST_DIR}/calibration
     ${CMAKE_CURRENT_LIST_DIR}/reconstruction
     ${CMAKE_CURRENT_LIST_DIR}/dust3r
+    ${CMAKE_CURRENT_LIST_DIR}/mast3r
     ${CMAKE_CURRENT_LIST_DIR}/pose
     ${CMAKE_CURRENT_LIST_DIR}/nodes/core
     ${CMAKE_CURRENT_LIST_DIR}/nodes/io
@@ -309,6 +338,7 @@ target_link_libraries(stargazer
     opencv_imgproc
     unofficial::sqlite3::sqlite3
     stargazer_dust3r
+    stargazer_mast3r
     $<$<NOT:$<BOOL:${MSVC}>>:pthread>
     $<$<NOT:$<BOOL:${MSVC}>>:stdc++fs>
 )

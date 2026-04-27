@@ -142,6 +142,8 @@ static node_type get_node_type(const std::string& type) {
     return node_type::dust3r_pose_estimation;
   } else if (type == "dust3r_calibration") {
     return node_type::dust3r_calibration;
+  } else if (type == "mast3r_calibration") {
+    return node_type::mast3r_calibration;
   }
   throw std::runtime_error("Invalid node type");
 }
@@ -264,6 +266,8 @@ static std::string get_node_type_name(node_type type) {
       return "dust3r_pose_estimation";
     case node_type::dust3r_calibration:
       return "dust3r_calibration";
+    case node_type::mast3r_calibration:
+      return "mast3r_calibration";
   }
   throw std::runtime_error("Invalid node type");
 }
