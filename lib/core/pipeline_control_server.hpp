@@ -278,35 +278,7 @@ class PipelineControlServiceImpl final : public PipelineControl::Service {
         info->set_type("unknown");
         continue;
       }
-      switch (type) {
-        case node_type::image_property:
-          info->set_type("image_property");
-          break;
-        case node_type::marker_property:
-          info->set_type("marker_property");
-          break;
-        case node_type::extrinsic_calibration:
-          info->set_type("extrinsic_calibration");
-          break;
-        case node_type::intrinsic_calibration:
-          info->set_type("intrinsic_calibration");
-          break;
-        case node_type::epipolar_reconstruction:
-          info->set_type("epipolar_reconstruction");
-          break;
-        case node_type::action:
-          info->set_type("action");
-          break;
-        case node_type::gate:
-          info->set_type("gate");
-          break;
-        case node_type::grpc_server:
-          info->set_type("grpc_server");
-          break;
-        default:
-          info->set_type("other");
-          break;
-      }
+      info->set_type(get_node_type_name(type));
     }
     return grpc::Status::OK;
   }

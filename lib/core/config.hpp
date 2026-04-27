@@ -74,6 +74,8 @@ enum class node_type {
   mast3r_calibration,
 };
 
+std::string get_node_type_name(node_type type);
+
 using node_param_t = std::variant<std::string, std::int64_t, double, float, bool>;
 
 struct node_display_property {

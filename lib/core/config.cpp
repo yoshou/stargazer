@@ -148,7 +148,7 @@ static node_type get_node_type(const std::string& type) {
   throw std::runtime_error("Invalid node type");
 }
 
-static std::string get_node_type_name(node_type type) {
+std::string get_node_type_name(node_type type) {
   switch (type) {
     case node_type::unknown:
       throw std::runtime_error("Invalid node type");
